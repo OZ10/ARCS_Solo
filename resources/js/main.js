@@ -7,6 +7,10 @@ class Card {
         this.pips = pips;
         this.played = played;
     }
+
+    getFullName() {
+        return this.name + this.number;
+    }
 }
 
 const actioncards = [
@@ -74,7 +78,7 @@ function testbtn() {
     while (player2hand.length < 5)
     //while (currentactioncards.length != 0)
 
-    alert(player1hand);
+    //alert(player1hand);
     //alert(player2hand);
 
     player1hand.forEach(card => {
@@ -83,6 +87,7 @@ function testbtn() {
         //btn.title = card;
         let btn = document.createElement("button");
         btn.innerHTML = card.name + card.number;
+        btn.className = "p1";
         btn.name = card.name;
         btn.value = card.number;
         btn.onclick = function () {
@@ -90,21 +95,11 @@ function testbtn() {
             btn.disabled = true;
 
             // Other player plays a card
-            playcard(btn, player2btn);
+            playcard(getCardByNameAndNumber(player1hand, btn.name, btn.value, false), player2hand);
 
-            /*player2btn.some(p2card => {
-                if (btn.name == p2card.name && btn.value < p2card.value) {
-                    p2card.disabled = true;
-                    return btn.name == p2card.name;
-                }
-                /* if (btn.name == p2card.name){ // && card.number < p2card.number){
-                    p2card.disabled = true;
-                    return btn.name == p2card.name; 
-                } 
-            }) */
         };
         document.getElementById("player1hand").append(btn);
-        player1btn.push(btn);
+        //player1btn.push(btn);
         btnlist.push(btn);
     })
 
@@ -114,59 +109,133 @@ function testbtn() {
         //btn.title = card;
         let btn = document.createElement("button");
         btn.innerHTML = card.name + card.number;
+        btn.className = "p2";
         btn.name = card.name;
         btn.value = card.number;
         btn.onclick = function () {
             btn.disabled = true;
         };
         document.getElementById("player2hand").append(btn);
-        player2btn.push(btn);
+        //player2btn.push(btn);
         btnlist.push(btn);
     })
 
-    function playcard(hand1card, hand2) {
-        alert(cansurpass(hand1card, hand2));
+    function getCardByNameAndNumber(hand, name, number, played)
+    {
+        let returnCard;
+        hand.forEach(card => {
+            if (card.name == name && card.number == number && card.played == played){
+                //alert(card.name)
+                returnCard = card;
+            }
+        })
 
-        // Can surpass = play card
-        // Can't surpass
-        //  - 1 - follow
-        //  - 2 - copy
-        //  - 3 - claim
+        return returnCard;
     }
 
-    function playcard_old(btnP1, btnP2) {
-        alert(cansurpass(btnP1, btnP2));
-
+    function playcard(hand1card, hand2) {
         // Can surpass = play card
         // Can't surpass
-        //  - 1 - follow
-        //  - 2 - copy
+        //  - 1 - copy
+        //  - 2 - pivot
         //  - 3 - claim
+
+        if (cansurpass(hand1card, hand2) == false){
+            
+            if (canCopy(hand1card, hand2) == false){
+
+            }
+        }
     }
 
     function cansurpass(hand1card, hand2) {
         let surpass = false;
-        hand2.some(hand2card => {
-            if (hand1card.name == hand2card.name && hand1card.value < hand2card.value) {
-                //p2card.disabled = true;
-                // TODO Find button associated with this card and disable it
-                surpass = true;
-                return hand1card.name == hand2card.name;
+
+        let surpassCards = [];
+        
+        hand2.forEach(hand2card => {
+            if (hand2card.played == false && hand1card.name == hand2card.name && hand1card.number < hand2card.number){
+                surpassCards.push(hand2card);
             }
         })
+
+        if (surpassCards.length == 0){
+            return surpass;
+        }
+
+        if (surpassCards.length > 1){
+            getLowestCardtoPlay(surpassCards);
+
+            aiPlayCard(lowestCard, "SURPASS");
+            surpass = true;
+        }else{
+            aiPlayCard(surpassCards[0], "SURPASS");
+            surpass = true;
+        }
 
         return surpass;
     }
-    function cansurpass_old(btnP1, btnP2) {
-        let surpass = false;
-        btnP2.some(p2card => {
-            if (btnP1.name == p2card.name && btnP1.value < p2card.value) {
-                p2card.disabled = true;
-                surpass = true;
-                return btnP1.name == p2card.name;
+
+    function canCopy(hand1card, hand2){
+        let copyCards = [];
+        let canCopy = false;
+
+            hand2.forEach(hand2card => {
+                if (hand2card.played == false && hand1card.name == hand2card.name){
+                    copyCards.push(hand2card);
+                }
+            })
+
+            if (copyCards.length == 0){
+                // no card to copy with
+            }
+    
+            if (copyCards.length > 1){
+                getLowestCardtoPlay(copyCards);
+    
+                aiPlayCard(lowestCard, "COPY");
+                canCopy = true;
+            }else{
+                aiPlayCard(copyCards[0], "COPY");
+                canCopy = true;
+            }
+    }
+
+    function pivot(){
+        // Logic;
+        //  - Needs to know what current goal is
+        //      - has ambition been set?
+        //          - yes: chase
+        //      - no: which card to play?
+        //          - need to know how many ships are in play
+        //          - how many buildings are in play
+    }
+
+    function getLowestCardtoPlay(cards){
+        // Find the lowest number card to play
+        let lowestCard;
+        cards.forEach(card => {
+            if (lowestCard == null){
+                lowestCard = card;
+            }else{
+                if (lowestCard.number > card.number){
+                    lowestCard = card;
+                }
             }
         })
+    }
 
-        return surpass;
+    function aiPlayCard(card, action){
+        card.played = true;
+        findButtonAndDisable("p2", card);
+        alert("AI played card " + card.getFullName() + " to " + action);
+    }
+
+    function findButtonAndDisable(playerNumber, card){
+        document.querySelectorAll("." + playerNumber).forEach((btn) => {
+            if (btn.innerHTML == card.name + card.number){
+                btn.disabled = true;
+            }
+        })
     }
 }
