@@ -1,5 +1,14 @@
 //import { Card } from "../class/card";
 
+class player {
+    constructor(number){
+        this.number = number;
+    }
+
+    cards = [];
+    hasInitiative = false;
+}
+
 class Card {
     constructor(name, number, pips, played) {
         this.name = name;
@@ -12,6 +21,8 @@ class Card {
         return this.name + this.number;
     }
 }
+
+const players = [];
 
 const actioncards = [
     new Card("Construction", 2, 2, false),
@@ -43,13 +54,25 @@ const player2hand = [];
 const player1btn = [];
 const player2btn = [];
 const btnlist = [];
+let initiativeClaimed = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     //currentactioncards = actioncards.slice();
 });
 
+function resetRound() {
+    initiativeClaimed = false;
+}
+
 
 function testbtn() {
+
+    let player1 = new player(1);
+    let player2 = new player(2);
+
+    players.push(player1);
+    players.push(player2);
+
     let playerNumber = 1;
     do {
         let num = Math.floor(Math.random() * currentactioncards.length);
@@ -59,12 +82,12 @@ function testbtn() {
         //const a = new Card("Construction", "2", "2");
 
         if (playerNumber == 1) {
-            player1hand.push(currentactioncards[num]);
+            player1.cards.push(currentactioncards[num]);
             currentactioncards.splice(num, 1);
             playerNumber = 2;
         }
         else {
-            player2hand.push(currentactioncards[num]);
+            player2.cards.push(currentactioncards[num]);
             currentactioncards.splice(num, 1);
             playerNumber = 1;
         }
@@ -75,13 +98,13 @@ function testbtn() {
         });
         */
     }
-    while (player2hand.length < 5)
+    while (player2.cards.length < 5)
     //while (currentactioncards.length != 0)
 
     //alert(player1hand);
     //alert(player2hand);
 
-    player1hand.forEach(card => {
+    player1.cards.forEach(card => {
         //let btn = document.createElement("input");
         //btn.type = "checkbox"
         //btn.title = card;
@@ -95,7 +118,7 @@ function testbtn() {
             btn.disabled = true;
 
             // Other player plays a card
-            playcard(getCardByNameAndNumber(player1hand, btn.name, btn.value, false), player2hand);
+            playcard(getCardByNameAndNumber(player1.cards, btn.name, btn.value, false), player2.cards);
 
         };
         document.getElementById("player1hand").append(btn);
@@ -103,7 +126,7 @@ function testbtn() {
         btnlist.push(btn);
     })
 
-    player2hand.forEach(card => {
+    player2.cards.forEach(card => {
         //let btn = document.createElement("input");
         //btn.type = "checkbox"
         //btn.title = card;
@@ -120,11 +143,10 @@ function testbtn() {
         btnlist.push(btn);
     })
 
-    function getCardByNameAndNumber(hand, name, number, played)
-    {
+    function getCardByNameAndNumber(hand, name, number, played) {
         let returnCard;
         hand.forEach(card => {
-            if (card.name == name && card.number == number && card.played == played){
+            if (card.name == name && card.number == number && card.played == played) {
                 //alert(card.name)
                 returnCard = card;
             }
@@ -133,18 +155,40 @@ function testbtn() {
         return returnCard;
     }
 
+    function getPlayer(playerNumber){
+        let returnplayer = null;
+        players.forEach(player => { 
+            if (player.number == playerNumber){
+                return returnplayer;
+            }
+        })
+
+        return returnplayer;
+    }
+
     function playcard(hand1card, hand2) {
         // Can surpass = play card
         // Can't surpass
         //  - 1 - copy
-        //  - 2 - pivot
-        //  - 3 - claim
+        //  - 2 - claim
+        //  - 3 - pivot
 
-        if (cansurpass(hand1card, hand2) == false){
-            
-            if (canCopy(hand1card, hand2) == false){
+        let unplayedCards = getUnplayedCards(hand2);
+        let initiativeClaimedThisTurn = false;
 
+        if (cansurpass(hand1card, unplayedCards) == false) {
+
+            if (initiativeClaimed == false) {
+                initiativeClaimedThisTurn = claim(hand1card, unplayedCards)
             }
+
+            if (initiativeClaimedThisTurn == false) {
+                if (canCopy(hand1card, unplayedCards) == false) {
+                    pivot(unplayedCards);
+                }
+            }
+
+
         }
     }
 
@@ -152,56 +196,84 @@ function testbtn() {
         let surpass = false;
 
         let surpassCards = [];
-        
+
         hand2.forEach(hand2card => {
-            if (hand2card.played == false && hand1card.name == hand2card.name && hand1card.number < hand2card.number){
+            if (hand1card.name == hand2card.name && hand1card.number < hand2card.number) {
                 surpassCards.push(hand2card);
             }
         })
 
-        if (surpassCards.length == 0){
+        if (surpassCards.length == 0) {
             return surpass;
         }
 
-        if (surpassCards.length > 1){
+        if (surpassCards.length > 1) {
             getLowestCardtoPlay(surpassCards);
 
-            aiPlayCard(lowestCard, "SURPASS");
+            aiPlayCard(lowestCard, "SURPASS", true);
             surpass = true;
-        }else{
-            aiPlayCard(surpassCards[0], "SURPASS");
+        } else {
+            aiPlayCard(surpassCards[0], "SURPASS", true);
             surpass = true;
         }
 
         return surpass;
     }
 
-    function canCopy(hand1card, hand2){
+    function canCopy(hand1card, hand2) {
         let copyCards = [];
         let canCopy = false;
 
-            hand2.forEach(hand2card => {
-                if (hand2card.played == false && hand1card.name == hand2card.name){
-                    copyCards.push(hand2card);
-                }
-            })
+        hand2.forEach(hand2card => {
+            if (hand1card.name == hand2card.name) {
+                copyCards.push(hand2card);
+            }
+        })
 
-            if (copyCards.length == 0){
-                // no card to copy with
-            }
-    
-            if (copyCards.length > 1){
-                getLowestCardtoPlay(copyCards);
-    
-                aiPlayCard(lowestCard, "COPY");
-                canCopy = true;
-            }else{
-                aiPlayCard(copyCards[0], "COPY");
-                canCopy = true;
-            }
+
+
+        if (copyCards.length == 0) {
+            // no card to copy with
+            return canCopy;
+        }
+
+        if (copyCards.length > 1) {
+            getLowestCardtoPlay(copyCards);
+
+            aiPlayCard(lowestCard, "COPY", true);
+            canCopy = true;
+        } else {
+            aiPlayCard(copyCards[0], "COPY", true);
+            canCopy = true;
+        }
+
+        return canCopy;
     }
 
-    function pivot(){
+    function claim(hand1card, hand2) {
+        // Logic;
+        //  claim needs to be based on a calc between: number of cards in hand, number of ambitions played, .... other things
+        //  at the start of the game the calc needs to rarely succeed
+
+        let initiativeClaimedThisTurn = false;
+
+        // For the moment, just do a random calc and selection
+        let num = Math.floor(Math.random() * 10);
+
+        //if (num > 8 && hand2.length > 2){
+        if (hand2.length > 2) {
+            // ai has to have more than 2 cards to claim otherwise won't have any cards to play in the next round
+            aiPlayCard(hand2[0], "CLAIM", true);
+            aiPlayCard(hand2[1], "CLAIM", false);
+
+            initiativeClaimed = true;
+            initiativeClaimedThisTurn = true;
+        }
+
+        return initiativeClaimedThisTurn;
+    }
+
+    function pivot(cards) {
         // Logic;
         //  - Needs to know what current goal is
         //      - has ambition been set?
@@ -209,33 +281,45 @@ function testbtn() {
         //      - no: which card to play?
         //          - need to know how many ships are in play
         //          - how many buildings are in play
+        if (cards.length > 0) { aiPlayCard(cards[0], "PIVOT", true) }
     }
 
-    function getLowestCardtoPlay(cards){
+    function getLowestCardtoPlay(cards) {
         // Find the lowest number card to play
         let lowestCard;
         cards.forEach(card => {
-            if (lowestCard == null){
+            if (lowestCard == null) {
                 lowestCard = card;
-            }else{
-                if (lowestCard.number > card.number){
+            } else {
+                if (lowestCard.number > card.number) {
                     lowestCard = card;
                 }
             }
         })
     }
 
-    function aiPlayCard(card, action){
+    function aiPlayCard(card, action, notify) {
         card.played = true;
         findButtonAndDisable("p2", card);
-        alert("AI played card " + card.getFullName() + " to " + action);
+        if (notify) { alert("AI played card " + card.getFullName() + " to " + action) }
     }
 
-    function findButtonAndDisable(playerNumber, card){
+    function findButtonAndDisable(playerNumber, card) {
         document.querySelectorAll("." + playerNumber).forEach((btn) => {
-            if (btn.innerHTML == card.name + card.number){
+            if (btn.innerHTML == card.name + card.number) {
                 btn.disabled = true;
             }
         })
     }
+}
+
+function getUnplayedCards(hand2) {
+    let unplayedCards = [];
+    hand2.forEach(card => {
+        if (card.played == false) {
+            unplayedCards.push(card);
+        }
+    });
+
+    return unplayedCards;
 }
