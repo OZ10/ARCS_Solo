@@ -283,7 +283,7 @@ function claim(player2) {
 
     let initiativeClaimedThisTurn = false;
 
-    let unplayedCards = getUnplayedCards(player2);
+    let unplayedCards = getUnplayedCards(player2.cards);
 
     // For the moment, just do a random calc and selection
     let num = Math.floor(Math.random() * 10);
