@@ -1,8 +1,9 @@
 //import { Card } from "../class/card";
 
 class player {
-    constructor(number) {
+    constructor(number, isHuman) {
         this.number = number;
+        this.isHuman = isHuman;
     }
 
     cards = [];
@@ -49,9 +50,6 @@ const actioncards = [
 
 let currentactioncards = actioncards.slice();
 
-//const player1hand = [];
-//const player2hand = [];
-//const btnlist = [];
 let playedCardList = [];
 let initiativeClaimed = false;
 let turnNumber = 1;
@@ -69,14 +67,25 @@ function nextTurn() {
 
     enableDisableButtons();
 
-    // TODO These are hardcoded player numbers!
-    if (players[0].hasInitiative == false) {
-        let unplayedCards = getUnplayedCards(players[1].cards);
-        aiPlayCard(unplayedCards[0], "LEAD", true);
-
-        enableDisableButtonsByPlayerNumber(2, false);
-        enableDisableButtonsByPlayerNumber(1, true);
-    }
+    players.forEach(player => {
+        if (player.hasInitiative) {
+            if (player.isHuman){
+                enableDisableButtonsByPlayerNumber(player.number, true);
+            }else{
+                // AI will play a card
+                let unplayedCards = getUnplayedCards(player.cards);
+                aiPlayCard(unplayedCards[0], "LEAD", true);
+                enableDisableButtonsByPlayerNumber(player.number, false);
+            }
+            
+        }else{
+            if (player.isHuman){
+                enableDisableButtonsByPlayerNumber(player.number, true);
+            }else{
+                enableDisableButtonsByPlayerNumber(player.number, false);
+            }
+        }
+    })
 }
 
 function nextRound() {
@@ -113,10 +122,10 @@ function nextRound() {
 
 function setupGame() {
 
-    let player1 = new player(1);
+    let player1 = new player(1, true);
     player1.hasInitiative = true;
 
-    let player2 = new player(2);
+    let player2 = new player(2, false);
 
     players.push(player1, player2);
     //players.push(player2);
@@ -297,10 +306,10 @@ function canCopy(hand1card, hand2) {
 
     let cardToPlay;
 
-    if (surpassCards.length > 1) {
-        cardToPlay = getLowestCardtoPlay(surpassCards);
+    if (copyCards.length > 1) {
+        cardToPlay = getLowestCardtoPlay(copyCards);
     } else {
-        cardToPlay = surpassCards[0];
+        cardToPlay = copyCards[0];
     }
 
     aiPlayCard(cardToPlay, "COPY", true);
