@@ -69,19 +69,19 @@ function nextTurn() {
 
     players.forEach(player => {
         if (player.hasInitiative) {
-            if (player.isHuman){
+            if (player.isHuman) {
                 enableDisableButtonsByPlayerNumber(player.number, true);
-            }else{
+            } else {
                 // AI will play a card
                 let unplayedCards = getUnplayedCards(player.cards);
                 aiPlayCard(unplayedCards[0], "LEAD", true);
                 enableDisableButtonsByPlayerNumber(player.number, false);
             }
-            
-        }else{
-            if (player.isHuman){
+
+        } else {
+            if (player.isHuman) {
                 enableDisableButtonsByPlayerNumber(player.number, true);
-            }else{
+            } else {
                 enableDisableButtonsByPlayerNumber(player.number, false);
             }
         }
@@ -97,6 +97,7 @@ function nextRound() {
     document.getElementById("roundNumber").innerHTML = roundNumber.toString();
 
     currentactioncards = actioncards.slice();
+    resetDeck(currentactioncards);
 
     document.getElementById("player1hand").replaceChildren();
     document.getElementById("player2hand").replaceChildren();
@@ -118,6 +119,12 @@ function nextRound() {
         enableDisableButtonsByPlayerNumber(2, false);
         enableDisableButtonsByPlayerNumber(1, true);
     }
+}
+
+function resetDeck(cards) {
+    cards.forEach(card => {
+        card.played = false;
+    })
 }
 
 function setupGame() {
@@ -245,15 +252,17 @@ function playcard(hand1card, player2) {
     let unplayedCards = getUnplayedCards(player2.cards);
     let initiativeClaimedThisTurn = false;
 
-    if (cansurpass(hand1card, unplayedCards) == false) {
+    if (unplayedCards.length > 0) {
+        if (cansurpass(hand1card, unplayedCards) == false) {
 
-        if (initiativeClaimed == false) {
-            initiativeClaimedThisTurn = claim(player2)
-        }
+            if (initiativeClaimed == false) {
+                initiativeClaimedThisTurn = claim(player2)
+            }
 
-        if (initiativeClaimedThisTurn == false) {
-            if (canCopy(hand1card, unplayedCards) == false) {
-                pivot(unplayedCards);
+            if (initiativeClaimedThisTurn == false) {
+                if (canCopy(hand1card, unplayedCards) == false) {
+                    pivot(unplayedCards);
+                }
             }
         }
     }
@@ -425,12 +434,14 @@ function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
 
 
 function addPlayedCardToList(card, action) {
-    card.played = true;
-    playedCardList.push(card);
-    let cardListDiv = document.getElementById("playedcards");
-    let cardDiv = document.createElement("div");
-    cardDiv.innerHTML = action.toUpperCase() + ": " + card.getFullName();
-    cardListDiv.append(cardDiv);
+    if (card != null) {
+        card.played = true;
+        playedCardList.push(card);
+        let cardListDiv = document.getElementById("playedcards");
+        let cardDiv = document.createElement("div");
+        cardDiv.innerHTML = action.toUpperCase() + ": " + card.getFullName();
+        cardListDiv.append(cardDiv);
+    }
 }
 
 function getUnplayedCards(hand2) {
