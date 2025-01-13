@@ -23,7 +23,7 @@ class Card {
     }
 }
 
-const players = [];
+let players = [];
 
 const actioncards = [
     new Card("Construction", 2, 2, false),
@@ -59,11 +59,45 @@ document.addEventListener("DOMContentLoaded", () => {
     //currentactioncards = actioncards.slice();
 });
 
+function setupGame() {
+
+    players = [];
+
+    let player1 = new player(1, true);
+    player1.hasInitiative = true;
+
+    let player2 = new player(2, false);
+
+    players.push(player1, player2);
+
+    turnNumber = 1;
+    roundNumber = 1;
+    
+    resetRound();
+
+    dealCards();
+}
+
+function resetRound() {
+    initiativeClaimed = false;
+    playedCardList = [];
+
+    document.getElementById("turnNumber").innerHTML = turnNumber.toString();
+    document.getElementById("roundNumber").innerHTML = roundNumber.toString();
+
+    currentactioncards = actioncards.slice();
+    resetDeck(currentactioncards);
+
+    document.getElementById("player1hand").replaceChildren();
+    document.getElementById("player2hand").replaceChildren();
+    document.getElementById("playedcards").replaceChildren();
+}
+
 function nextTurn() {
     initiativeClaimed = false;
     playedCardList = [];
     turnNumber += 1;
-    document.getElementById("roundNumber").innerHTML = turnNumber.toString();
+    document.getElementById("turnNumber").innerHTML = turnNumber.toString();
 
     enableDisableButtons();
 
@@ -74,8 +108,10 @@ function nextTurn() {
             } else {
                 // AI will play a card
                 let unplayedCards = getUnplayedCards(player.cards);
-                aiPlayCard(unplayedCards[0], "LEAD", true);
-                enableDisableButtonsByPlayerNumber(player.number, false);
+                if (unplayedCards.length > 0) {
+                    aiPlayCard(unplayedCards[0], "LEAD", true);
+                    enableDisableButtonsByPlayerNumber(player.number, false);
+                }
             }
 
         } else {
@@ -89,19 +125,10 @@ function nextTurn() {
 }
 
 function nextRound() {
-    initiativeClaimed = false;
-    playedCardList = [];
     turnNumber = 1;
     roundNumber += 1;
-    document.getElementById("turnNumber").innerHTML = turnNumber.toString();
-    document.getElementById("roundNumber").innerHTML = roundNumber.toString();
-
-    currentactioncards = actioncards.slice();
-    resetDeck(currentactioncards);
-
-    document.getElementById("player1hand").replaceChildren();
-    document.getElementById("player2hand").replaceChildren();
-    document.getElementById("playedcards").replaceChildren();
+    
+    resetRound();
 
     players.forEach(player => {
         player.cards = [];
@@ -125,19 +152,6 @@ function resetDeck(cards) {
     cards.forEach(card => {
         card.played = false;
     })
-}
-
-function setupGame() {
-
-    let player1 = new player(1, true);
-    player1.hasInitiative = true;
-
-    let player2 = new player(2, false);
-
-    players.push(player1, player2);
-    //players.push(player2);
-
-    dealCards();
 }
 
 function dealCards() {
