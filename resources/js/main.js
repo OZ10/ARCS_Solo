@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
     //currentactioncards = actioncards.slice();
 });
 
-function setupGame() {
+function setupGame(numberOfPlayers) {
 
     players = [];
 
@@ -72,7 +72,7 @@ function setupGame() {
 
     turnNumber = 1;
     roundNumber = 1;
-    
+
     resetRound();
 
     dealCards();
@@ -85,6 +85,8 @@ function resetRound() {
     document.getElementById("turnNumber").innerHTML = turnNumber.toString();
     document.getElementById("roundNumber").innerHTML = roundNumber.toString();
 
+    enableDisableButton("nextRound", true);
+
     currentactioncards = actioncards.slice();
     resetDeck(currentactioncards);
 
@@ -94,12 +96,16 @@ function resetRound() {
 }
 
 function nextTurn() {
+
+    if (haveAllCardsBeenPlayed()) {
+        enableDisableButton("nextRound", false);
+        return;
+    }
+
     initiativeClaimed = false;
     playedCardList = [];
     turnNumber += 1;
     document.getElementById("turnNumber").innerHTML = turnNumber.toString();
-
-    enableDisableButtons();
 
     players.forEach(player => {
         if (player.hasInitiative) {
@@ -124,10 +130,23 @@ function nextTurn() {
     })
 }
 
+function haveAllCardsBeenPlayed() {
+    let allPlayed;
+
+    players.forEach(player => {
+        player.cards.forEach(card => {
+            if (card.played == false) { allPlayed = false; return; }
+        });
+    });
+    //if (allPlayed == false) {return false;}
+    //return true;
+    return (allPlayed == false) ? false : true;
+}
+
 function nextRound() {
     turnNumber = 1;
     roundNumber += 1;
-    
+
     resetRound();
 
     players.forEach(player => {
@@ -136,7 +155,7 @@ function nextRound() {
 
     dealCards();
 
-    enableDisableButtons();
+    //enableDisableButton();
 
     // TODO These are hardcoded player numbers!
     if (players[0].hasInitiative == false) {
@@ -380,14 +399,8 @@ function changeInitiative(claimingPlayer) {
     })
 }
 
-function enableDisableButtons() {
-    players.forEach(player => {
-        if (player.hasInitiative == true) {
-            enableDisableButtonsByPlayerNumber(player.number, true);
-        } else {
-            enableDisableButtonsByPlayerNumber(player.number, false);
-        }
-    })
+function enableDisableButton(buttonName, isDisabled) {
+    document.getElementById(buttonName).disabled = isDisabled;
 }
 
 function pivot(cards) {
@@ -450,9 +463,23 @@ function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
 function addPlayedCardToList(card, action) {
     if (card != null) {
         card.played = true;
+
+        if (playedCardList.length == 0) {
+            let turnListDiv = document.getElementById("playedcards");
+            
+            let turnDiv = document.createElement("div");
+            turnDiv.classList.add("row", "justify-content-md-center", "mt-4", "fw-bold");
+            turnDiv.id = "Turn" + turnNumber.toString();
+            turnDiv.innerHTML = "Turn " + turnNumber.toString();
+
+            turnListDiv.append(turnDiv);
+        }
+
         playedCardList.push(card);
-        let cardListDiv = document.getElementById("playedcards");
+
+        let cardListDiv = document.getElementById("Turn" + turnNumber.toString());
         let cardDiv = document.createElement("div");
+        cardDiv.classList.add("row", "justify-content-md-center", "fw-normal");
         cardDiv.innerHTML = action.toUpperCase() + ": " + card.getFullName();
         cardListDiv.append(cardDiv);
     }

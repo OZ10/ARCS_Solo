@@ -38,7 +38,11 @@
         <div class="container-fluid">
           <div class="row justify-content-md-center">
             <button type="button" class="btn btn-primary col-1 m-2"
-              onclick="setupGame()">Setup
+              data-bs-toggle="modal"
+              data-bs-target="#numberOfPlayersModal">Setup
+              Game</button>
+            <button type="button" class="btn btn-primary col-1 m-2"
+              onclick="setupGame(2)">Setup
               Game</button>
 
             <div class="row justify-content-md-center">
@@ -57,7 +61,8 @@
             </div>
             <div class="row justify-content-md-center">
               <button type="button" class="btn btn-primary col-1 m-2"
-                onclick="nextRound()">Next
+                id="nextRound"
+                onclick="nextRound()" disabled>Next
                 Round</button>
             </div>
           </div>
@@ -68,6 +73,38 @@
         footer
       </footer>
     </main>
+
+    <!-- Models -->
+    <div class="modal fade" id="numberOfPlayersModal" tabindex="-1"
+      aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-body">
+          <div class="modal-content">
+            <div class="container">
+              <div class="row">
+                <div>How many players?</div>
+              </div>
+              <div class="row">
+                <div class="col">
+                  <button type="button" class="btn btn-secondary" onclick="setupGame(2)">2</button>
+                </div>
+                <div class="col">
+                  <button type="button" class="btn btn-secondary" onclick="setupGame(3)">3</button>
+                </div>
+                <div class="col">
+                  <button type="button" class="btn btn-secondary" onclick="setupGame(4)">4</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary"
+                data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
   </body>
 </html>
