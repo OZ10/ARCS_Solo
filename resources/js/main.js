@@ -63,12 +63,20 @@ function setupGame(numberOfPlayers) {
 
     players = [];
 
-    let player1 = new player(1, true);
+    for (let playerNumber = 1; playerNumber < numberOfPlayers + 1; playerNumber++) {
+        let p = new player(playerNumber, (playerNumber == 1) ? true : false);
+
+        if (playerNumber == 1) { p.hasInitiative = true };
+
+        players.push(p);
+    }
+
+    /*let player1 = new player(1, true);
     player1.hasInitiative = true;
 
     let player2 = new player(2, false);
 
-    players.push(player1, player2);
+    players.push(player1, player2); */
 
     turnNumber = 1;
     roundNumber = 1;
@@ -90,8 +98,10 @@ function resetRound() {
     currentactioncards = actioncards.slice();
     resetDeck(currentactioncards);
 
-    document.getElementById("player1hand").replaceChildren();
-    document.getElementById("player2hand").replaceChildren();
+    document.getElementById("playerhand1").replaceChildren();
+    document.getElementById("playerhand2").replaceChildren();
+    document.getElementById("playerhand3").replaceChildren();
+    document.getElementById("playerhand4").replaceChildren();
     document.getElementById("playedcards").replaceChildren();
 }
 
@@ -184,11 +194,23 @@ function dealCards() {
         player1.cards.push(currentactioncards[15], currentactioncards[8], currentactioncards[3], currentactioncards[0], currentactioncards[1]);
         player2.cards.push(currentactioncards[7], currentactioncards[16], currentactioncards[17], currentactioncards[18], currentactioncards[11]);
     } else {
-        let playerNumber = 1;
+        //let playerNumber = 1;
+        let playerNumber = 0;
         do {
             let num = Math.floor(Math.random() * currentactioncards.length);
 
-            if (playerNumber == 1) {
+            if (playerNumber > players.length - 1) {
+                playerNumber = 0;
+            }
+
+            players[playerNumber].cards.push(currentactioncards[num]);;
+            currentactioncards.splice(num, 1);
+
+            playerNumber += 1;
+
+
+
+            /*if (playerNumber == 1) {
                 player1.cards.push(currentactioncards[num]);
                 currentactioncards.splice(num, 1);
                 playerNumber = 2;
@@ -197,11 +219,56 @@ function dealCards() {
                 player2.cards.push(currentactioncards[num]);
                 currentactioncards.splice(num, 1);
                 playerNumber = 1;
-            }
+            }*/
         }
-        while (player2.cards.length < 5)
+        while (players[players.length - 1].cards.length < 5)
+        //while (player2.cards.length < 5)
     }
 
+    for (let playerNumber = 1; playerNumber < players.length + 1; playerNumber++) {
+        const player = players[playerNumber - 1];
+
+        player.cards.forEach(card => {
+            let btn = document.createElement("button");
+            btn.innerHTML = card.name + card.number;
+            btn.className = "p" + playerNumber.toString();
+            btn.name = card.name;
+            btn.value = card.number;
+            btn.onclick = function () {
+                // Card has been clicked, therefore played, and will be disabled
+                btn.disabled = true;
+
+                if (playerNumber == 1) {
+                    let playedCard = getCardByNameAndNumber(player.cards, btn.name, btn.value, false);
+
+                    if (player.hasInitiative) {
+                        playcard(playedCard);
+                        nextTurn();
+                    } else {
+                        let aiPlayedLeadCard = playedCardList[0];
+                        
+                        addPlayedCardToList(playedCard, "PLAYER");
+
+                        if (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) {
+                            changeInitiative(getPlayer(1));
+                        }
+                        
+                        nextTurn();
+                    }
+                } else {
+                    // AI player
+                    // Probably don't need this anymore
+                    aiPlayCard(getCardByNameAndNumber(player.cards, btn.name, btn.value, false), "LEAD", true);
+
+                    enableDisableButtonsByPlayerNumber(2, false);
+                    enableDisableButtonsByPlayerNumber(1, true);
+                }
+            };
+            document.getElementById("playerhand" + playerNumber.toString()).append(btn);
+        })
+    }
+
+    /*
     player1.cards.forEach(card => {
         let btn = document.createElement("button");
         btn.innerHTML = card.name + card.number;
@@ -227,7 +294,7 @@ function dealCards() {
             }
 
         };
-        document.getElementById("player1hand").append(btn);
+        document.getElementById("playerhand1").append(btn);
     })
 
     player2.cards.forEach(card => {
@@ -243,9 +310,10 @@ function dealCards() {
             enableDisableButtonsByPlayerNumber(2, false);
             enableDisableButtonsByPlayerNumber(1, true);
         };
-        document.getElementById("player2hand").append(btn);
+        document.getElementById("playerhand2").append(btn);
     })
-
+*/
+    // Probably don't need this anymore
     enableDisableButtonsByPlayerNumber(2, false);
 }
 
@@ -272,28 +340,60 @@ function getPlayer(playerNumber) {
     return returnplayer;
 }
 
-function playcard(hand1card, player2) {
+function playcard(playedCard) {
     // Can surpass = play card
     // Can't surpass
     //  - 1 - copy
     //  - 2 - claim
     //  - 3 - pivot
 
-    //hand1card.played = true;
-    addPlayedCardToList(hand1card, "LEAD");
+    addPlayedCardToList(playedCard, "LEAD");
+
+    for (let playerNumber = 1; playerNumber < players.length; playerNumber++) {
+        const player = players[playerNumber];
+
+        let unplayedCards = getUnplayedCards(player.cards);
+        let initiativeClaimedThisTurn = false;
+
+        if (unplayedCards.length > 0) {
+            if (cansurpass(playedCard, unplayedCards) == false) {
+
+                if (initiativeClaimed == false) {
+                    initiativeClaimedThisTurn = claim(player)
+                }
+
+                if (initiativeClaimedThisTurn == false) {
+                    if (canCopy(playedCard, unplayedCards) == false) {
+                        pivot(unplayedCards);
+                    }
+                }
+            }
+        }
+    }
+}
+
+function playcard_old(playedCard, player2) {
+    // Can surpass = play card
+    // Can't surpass
+    //  - 1 - copy
+    //  - 2 - claim
+    //  - 3 - pivot
+
+    //playedCard.played = true;
+    addPlayedCardToList(playedCard, "LEAD");
 
     let unplayedCards = getUnplayedCards(player2.cards);
     let initiativeClaimedThisTurn = false;
 
     if (unplayedCards.length > 0) {
-        if (cansurpass(hand1card, unplayedCards) == false) {
+        if (cansurpass(playedCard, unplayedCards) == false) {
 
             if (initiativeClaimed == false) {
                 initiativeClaimedThisTurn = claim(player2)
             }
 
             if (initiativeClaimedThisTurn == false) {
-                if (canCopy(hand1card, unplayedCards) == false) {
+                if (canCopy(playedCard, unplayedCards) == false) {
                     pivot(unplayedCards);
                 }
             }
@@ -301,13 +401,13 @@ function playcard(hand1card, player2) {
     }
 }
 
-function cansurpass(hand1card, hand2) {
+function cansurpass(playedCard, hand2) {
     let surpass = false;
 
     let surpassCards = [];
 
     hand2.forEach(hand2card => {
-        if (hand1card.name == hand2card.name && hand1card.number < hand2card.number) {
+        if (playedCard.name == hand2card.name && playedCard.number < hand2card.number) {
             surpassCards.push(hand2card);
         }
     })
@@ -331,12 +431,12 @@ function cansurpass(hand1card, hand2) {
     return surpass;
 }
 
-function canCopy(hand1card, hand2) {
+function canCopy(playedCard, hand2) {
     let copyCards = [];
     let canCopy = false;
 
     hand2.forEach(hand2card => {
-        if (hand1card.name == hand2card.name) {
+        if (playedCard.name == hand2card.name) {
             copyCards.push(hand2card);
         }
     })
@@ -437,6 +537,13 @@ function aiPlayCard(card, action, notify) {
     if (notify) { alert("AI played card " + card.getFullName() + " to " + action) }
 }
 
+function aiPlayCard_old(card, action, notify) {
+    //card.played = true;
+    findButtonAndDisable("p2", card);
+    addPlayedCardToList(card, action);
+    if (notify) { alert("AI played card " + card.getFullName() + " to " + action) }
+}
+
 function findButtonAndDisable(playerNumber, card) {
     document.querySelectorAll(".p" + playerNumber).forEach((btn) => {
         if (btn.innerHTML == card.name + card.number) {
@@ -466,7 +573,7 @@ function addPlayedCardToList(card, action) {
 
         if (playedCardList.length == 0) {
             let turnListDiv = document.getElementById("playedcards");
-            
+
             let turnDiv = document.createElement("div");
             turnDiv.classList.add("row", "justify-content-md-center", "mt-4", "fw-bold");
             turnDiv.id = "Turn" + turnNumber.toString();
