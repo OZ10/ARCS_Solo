@@ -8,6 +8,7 @@ class player {
 
     cards = [];
     hasInitiative = false;
+    hasPlayedACardThisTurn = false;
 }
 
 class Card {
@@ -98,6 +99,8 @@ function resetRound() {
     currentactioncards = actioncards.slice();
     resetDeck(currentactioncards);
 
+    resetPlayedThisTurn();
+
     document.getElementById("playerhand1").replaceChildren();
     document.getElementById("playerhand2").replaceChildren();
     document.getElementById("playerhand3").replaceChildren();
@@ -117,6 +120,8 @@ function nextTurn() {
     turnNumber += 1;
     document.getElementById("turnNumber").innerHTML = turnNumber.toString();
 
+    resetPlayedThisTurn();
+
     players.forEach(player => {
         if (player.hasInitiative) {
             if (player.isHuman) {
@@ -125,7 +130,7 @@ function nextTurn() {
                 // AI will play a card
                 let unplayedCards = getUnplayedCards(player.cards);
                 if (unplayedCards.length > 0) {
-                    aiPlayCard(unplayedCards[0], "LEAD", true);
+                    aiPlayCard(player, unplayedCards[0], "LEAD", true);
                     enableDisableButtonsByPlayerNumber(player.number, false);
                 }
             }
@@ -153,6 +158,12 @@ function haveAllCardsBeenPlayed() {
     return (allPlayed == false) ? false : true;
 }
 
+function resetPlayedThisTurn() {
+    players.forEach(player => {
+        player.hasPlayedACardThisTurn = false;
+    })
+}
+
 function nextRound() {
     turnNumber = 1;
     roundNumber += 1;
@@ -167,14 +178,40 @@ function nextRound() {
 
     //enableDisableButton();
 
-    // TODO These are hardcoded player numbers!
+    // If human player does not have initiative, find player who does and play a card
     if (players[0].hasInitiative == false) {
-        let unplayedCards = getUnplayedCards(players[1].cards);
-        aiPlayCard(unplayedCards[0], "LEAD", true);
+
+        let player = getPlayerWithInitiative();
+
+        let unplayedCards = getUnplayedCards(player.cards);
+        aiPlayCard(player, unplayedCards[0], "LEAD", true);
+
+        player.hasPlayedACardThisTurn = true;
 
         enableDisableButtonsByPlayerNumber(2, false);
         enableDisableButtonsByPlayerNumber(1, true);
+/*
+        let playerNumber = player.number + 1;
+
+        do {
+            if (playerNumber > players.length - 1){
+                playerNumber = 0;
+            }else{
+
+            }
+        } while (playerNumber != 0);
+         */
     }
+}
+
+function getPlayerWithInitiative() {
+    let player;
+    for (let playerNumber = 0; playerNumber < players.length + 1; playerNumber++) {
+        if (players[playerNumber].hasInitiative) {
+            player = players[playerNumber];
+        };
+    }
+    return player;
 }
 
 function resetDeck(cards) {
@@ -246,22 +283,22 @@ function dealCards() {
                         nextTurn();
                     } else {
                         let aiPlayedLeadCard = playedCardList[0];
-                        
+
                         addPlayedCardToList(playedCard, "PLAYER");
 
                         if (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) {
                             changeInitiative(getPlayer(1));
                         }
-                        
+
                         nextTurn();
                     }
                 } else {
                     // AI player
                     // Probably don't need this anymore
-                    aiPlayCard(getCardByNameAndNumber(player.cards, btn.name, btn.value, false), "LEAD", true);
+                    /* aiPlayCard(getCardByNameAndNumber(player.cards, btn.name, btn.value, false), "LEAD", true);
 
                     enableDisableButtonsByPlayerNumber(2, false);
-                    enableDisableButtonsByPlayerNumber(1, true);
+                    enableDisableButtonsByPlayerNumber(1, true); */
                 }
             };
             document.getElementById("playerhand" + playerNumber.toString()).append(btn);
@@ -341,6 +378,7 @@ function getPlayer(playerNumber) {
 }
 
 function playcard(playedCard) {
+    // This function is only triggered by the human player clicking a button to LEAD
     // Can surpass = play card
     // Can't surpass
     //  - 1 - copy
@@ -348,6 +386,7 @@ function playcard(playedCard) {
     //  - 3 - pivot
 
     addPlayedCardToList(playedCard, "LEAD");
+    players[0].hasPlayedACardThisTurn = true;
 
     for (let playerNumber = 1; playerNumber < players.length; playerNumber++) {
         const player = players[playerNumber];
@@ -356,15 +395,15 @@ function playcard(playedCard) {
         let initiativeClaimedThisTurn = false;
 
         if (unplayedCards.length > 0) {
-            if (cansurpass(playedCard, unplayedCards) == false) {
+            if (cansurpass(player, playedCard, unplayedCards) == false) {
 
                 if (initiativeClaimed == false) {
                     initiativeClaimedThisTurn = claim(player)
                 }
 
                 if (initiativeClaimedThisTurn == false) {
-                    if (canCopy(playedCard, unplayedCards) == false) {
-                        pivot(unplayedCards);
+                    if (canCopy(player, playedCard, unplayedCards) == false) {
+                        pivot(player, unplayedCards);
                     }
                 }
             }
@@ -401,7 +440,7 @@ function playcard_old(playedCard, player2) {
     }
 }
 
-function cansurpass(playedCard, hand2) {
+function cansurpass(player, playedCard, hand2) {
     let surpass = false;
 
     let surpassCards = [];
@@ -424,14 +463,14 @@ function cansurpass(playedCard, hand2) {
         cardToPlay = surpassCards[0];
     }
 
-    aiPlayCard(cardToPlay, "SURPASS", true);
+    aiPlayCard(player, cardToPlay, "SURPASS", true);
     surpass = true;
     changeInitiative(getPlayer(2));
 
     return surpass;
 }
 
-function canCopy(playedCard, hand2) {
+function canCopy(player, playedCard, hand2) {
     let copyCards = [];
     let canCopy = false;
 
@@ -454,20 +493,20 @@ function canCopy(playedCard, hand2) {
         cardToPlay = copyCards[0];
     }
 
-    aiPlayCard(cardToPlay, "COPY", true);
+    aiPlayCard(player, cardToPlay, "COPY", true);
     canCopy = true;
 
     return canCopy;
 }
 
-function claim(player2) {
+function claim(player) {
     // Logic;
     //  claim needs to be based on a calc between: number of cards in hand, number of ambitions played, .... other things
     //  at the start of the game the calc needs to rarely succeed
 
     let initiativeClaimedThisTurn = false;
 
-    let unplayedCards = getUnplayedCards(player2.cards);
+    let unplayedCards = getUnplayedCards(player.cards);
 
     // For the moment, just do a random calc and selection
     let num = Math.floor(Math.random() * 10);
@@ -475,12 +514,12 @@ function claim(player2) {
     if (num > 8 && unplayedCards.length > 2) {
         //if (unplayedCards.length > 2) {
         // ai has to have more than 2 cards to claim otherwise won't have any cards to play in the next round
-        aiPlayCard(unplayedCards[0], "CLAIM", true);
-        aiPlayCard(unplayedCards[1], "CLAIM*", false);
+        aiPlayCard(player, unplayedCards[0], "CLAIM", true);
+        aiPlayCard(player, unplayedCards[1], "CLAIM*", false);
 
         initiativeClaimed = true;
         initiativeClaimedThisTurn = true;
-        changeInitiative(player2);
+        changeInitiative(player);
     }
 
     return initiativeClaimedThisTurn;
@@ -503,7 +542,7 @@ function enableDisableButton(buttonName, isDisabled) {
     document.getElementById(buttonName).disabled = isDisabled;
 }
 
-function pivot(cards) {
+function pivot(player, cards) {
     // Logic;
     //  - Needs to know what current goal is
     //      - has ambition been set?
@@ -511,7 +550,7 @@ function pivot(cards) {
     //      - no: which card to play?
     //          - need to know how many ships are in play
     //          - how many buildings are in play
-    if (cards.length > 0) { aiPlayCard(cards[0], "PIVOT", true) }
+    if (cards.length > 0) { aiPlayCard(player, cards[0], "PIVOT", true) }
 }
 
 function getLowestCardtoPlay(cards) {
@@ -530,8 +569,8 @@ function getLowestCardtoPlay(cards) {
     return lowestCard;
 }
 
-function aiPlayCard(card, action, notify) {
-    //card.played = true;
+function aiPlayCard(player, card, action, notify) {
+    player.hasPlayedACardThisTurn = true;
     findButtonAndDisable("p2", card);
     addPlayedCardToList(card, action);
     if (notify) { alert("AI played card " + card.getFullName() + " to " + action) }
