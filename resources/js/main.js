@@ -279,12 +279,16 @@ function dealCards() {
                     } else {
                         let aiPlayedLeadCard = playedCardList[0];
 
-                        addPlayedCardToList(playedCard, "PLAYER");
-
-                        if (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) {
-                            changeInitiative(getPlayer(1));
+                        if (playedCardList.length == 0) {
+                            // AI hasn't played a card because, while it has inititive,
+                            // it has no cards left to play because it has claimed at some point
+                            changeInitiative(player);
+                        } else {
+                            if (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) {
+                                changeInitiative(player);
+                            }
                         }
-
+                        addPlayedCardToList(playedCard, "PLAYER");
                         otherPlayersPlayACard(player, playedCard, "PLAYER", true);
                         nextTurn();
                     }
@@ -469,8 +473,8 @@ function claim(player) {
     // For the moment, just do a random calc and selection
     let num = Math.floor(Math.random() * 10);
     //num = 9;
-    //if (num > 8 && unplayedCards.length > 2) {
-        if (unplayedCards.length > 2) {
+    if (num > 8 && unplayedCards.length > 2) {
+    //if (unplayedCards.length > 2) {
         // ai has to have more than 2 cards to claim otherwise won't have any cards to play in the next round
         //aiPlayCard(player, unplayedCards[0], "CLAIM", true);
         //aiPlayCard(player, unplayedCards[1], "CLAIM*", false);
