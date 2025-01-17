@@ -146,14 +146,16 @@ function otherPlayersPlayACard(player, playedCard, action, notify) {
                 let initiativeClaimedThisTurn = false;
 
                 if (unplayedCards.length > 0) {
-                    if (canSurpass(player, playedCard, unplayedCards) == false) {
+                    //if (canSurpass(player, playedCard, unplayedCards) == false) {
+                    if (canSurpass(player, playedCardList[0], unplayedCards) == false) {
 
                         if (initiativeClaimed == false) {
                             initiativeClaimedThisTurn = claim(player)
                         }
 
                         if (initiativeClaimedThisTurn == false) {
-                            if (canCopy(player, playedCard, unplayedCards) == false) {
+                            //if (canCopy(player, playedCard, unplayedCards) == false) {
+                            if (canCopy(player, playedCardList[0], unplayedCards) == false) {
                                 pivot(player, unplayedCards);
                             }
                         }
@@ -279,16 +281,20 @@ function dealCards() {
                     } else {
                         let aiPlayedLeadCard = playedCardList[0];
 
-                        if (playedCardList.length == 0) {
+                        addPlayedCardToList(playedCard, "PLAYER");
+
+                        if (playedCardList.length == 1) {
+                            // Human players card was added but list only have one entry
                             // AI hasn't played a card because, while it has inititive,
                             // it has no cards left to play because it has claimed at some point
                             changeInitiative(player, playedCard, false);
                         } else {
+
                             if (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) {
                                 changeInitiative(player, playedCard, false);
                             }
                         }
-                        addPlayedCardToList(playedCard, "PLAYER");
+
                         otherPlayersPlayACard(player, playedCard, "PLAYER", true);
                         nextTurn();
                     }
@@ -436,22 +442,61 @@ function changeInitiative(claimingPlayer, playedCard, hasClaimed) {
                     player.hasInitiative = true;
                     document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
                 } else {
-                    let cardsPlayedMatchingSuit = 0;
-                    // This loop starts at 1 to skip the Lead card at 0
-                    for (let cardNumber = 1; cardNumber < playedCardList.length; cardNumber++) {
+                    let playedHighestCard = false;
+
+                    /*
+                    if (playedCardList.length == 2) {
+                        // Only two cards have been played and so the second card must be higher than the first
+                        player.hasInitiative = true;
+                        document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
+                    } else {
+
+                    }
+                    */
+
+                    for (let cardNumber = 0; cardNumber < playedCardList.length; cardNumber++) {
                         const card = playedCardList[cardNumber];
 
+                        /*
+                        if (playedCard.name == card.name && playedCard.number == card.number) {
+                            // This is the card the player played
+                            player.hasInitiative = true;
+                            document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
+                            cardsPlayedMatchingSuit += 1;
+                        }
+                            */
+
+                        if (playedCard.name == card.name) {
+                            if (playedCard.number > card.number) {
+                                playedHighestCard = true;
+                            } else {
+                                if (playedCard.number < card.number) {
+                                    playedHighestCard = false;
+                                }
+                            }
+                        }
+
+                        /*
                         if (playedCard.name == card.name && playedCard.number == card.number && cardsPlayedMatchingSuit == 0) {
                             player.hasInitiative = true;
                             document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                        }else{
                             cardsPlayedMatchingSuit += 1;
+                        } else {
+                            //cardsPlayedMatchingSuit += 1;
                         }
 
                         if (playedCard.name == card.name && playedCard.number > card.number) {
                             player.hasInitiative = true;
                             document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
                         }
+                            */
+                    }
+
+                    if (playedHighestCard) {
+                        player.hasInitiative = true;
+                        document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
+                    } else {
+                        player.hasInitiative = false;
                     }
                     /*
                     playedCardList.forEach(card => {
@@ -462,8 +507,9 @@ function changeInitiative(claimingPlayer, playedCard, hasClaimed) {
                     })
                         */
                 }
-            } else {
-                player.hasInitiative = false;
+                //} else {
+                //    player.hasInitiative = false;
+                //}
             }
         })
     }
