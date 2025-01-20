@@ -37,16 +37,79 @@
       <div class="row">
         <div class="container-fluid">
           <div class="row justify-content-md-center">
+
+            <button type="button" class="btn btn-primary col-1 m-2"
+              onclick="setupGame(2)">Setup
+              Game 2</button>
             <button type="button" class="btn btn-primary col-1 m-2"
               data-bs-toggle="modal"
               data-bs-target="#numberOfPlayersModal">Setup
-              Game</button>
-            <button type="button" class="btn btn-primary col-1 m-2"
-              onclick="setupGame(2)">Setup
-              Game</button>
+              Game 2+</button>
+            <div class="row justify-content-md-center" id="playerslots">
+              <div class="col-1" id="playerTemplate">
+                <div class="row" id="playernumber">Player x</div>
+                <div class="row">
+                  <div class="col">Buildings on Map:</div>
+                  <div class="col" id="numbuilding">0</div>
+                </div>
+                <div class="row">
+                  <div class="col">Starports on Map:</div>
+                  <div class="col" id="numstarports">0</div>
+                </div>
+                
+                <div class="row">Resources
+                  <div class="row">
+                    <div class="col">Fuel:</div>
+                    <div class="col" id="numfuel">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Materials:</div>
+                    <div class="col" id="nummaterials">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Weapons:</div>
+                    <div class="col" id="numweapons">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Relics:</div>
+                    <div class="col" id="numrelics">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Psionic:</div>
+                    <div class="col" id="numpsionic">0</div>
+                  </div>
+                </div>
+                <div id="playerhand">
 
-            <div class="row justify-content-md-center">
+                </div>
+              </div>
+              <!--
               <div class="col-1 collapse.show">
+                <div class="row">Player 1</div>
+                <div>Buildings on Map:</div>
+                <div>Starports on Map:</div>
+                <div class="row">Resources
+                  <div class="row">
+                    <div class="col">Fuel:</div>
+                    <div class="col">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Materials:</div>
+                    <div class="col">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Weapons:</div>
+                    <div class="col">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Relics:</div>
+                    <div class="col">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Psionic:</div>
+                    <div class="col">0</div>
+                  </div>
+                </div>
                 <div id="playerhand1">
 
                 </div>
@@ -66,6 +129,7 @@
 
                 </div>
               </div>
+              -->
             </div>
             <div class="row justify-content-md-center" id="playedcards">
             </div>
@@ -96,13 +160,16 @@
               </div>
               <div class="row">
                 <div class="col">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="setupGame(2)">2</button>
+                  <button type="button" class="btn btn-secondary"
+                    data-bs-dismiss="modal" onclick="setupGame(2)">2</button>
                 </div>
                 <div class="col">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="setupGame(3)">3</button>
+                  <button type="button" class="btn btn-secondary"
+                    data-bs-dismiss="modal" onclick="setupGame(3)">3</button>
                 </div>
                 <div class="col">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="setupGame(4)">4</button>
+                  <button type="button" class="btn btn-secondary"
+                    data-bs-dismiss="modal" onclick="setupGame(4)">4</button>
                 </div>
               </div>
             </div>

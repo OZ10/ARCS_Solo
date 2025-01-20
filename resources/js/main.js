@@ -70,6 +70,8 @@ function setupGame(numberOfPlayers) {
         if (playerNumber == 1) { p.hasInitiative = true };
 
         players.push(p);
+
+        clonePlayerNodeAndSetup(playerNumber);
     }
 
     turnNumber = 1;
@@ -78,6 +80,18 @@ function setupGame(numberOfPlayers) {
     resetRound();
 
     dealCards();
+}
+
+function clonePlayerNodeAndSetup(playerNumber){
+    let clonenode = document.getElementById("playerTemplate").cloneNode(true);
+    clonenode.id = "player" + playerNumber.toString();
+    clonenode.querySelector('#' + "playernumber").innerHTML = "Player " + playerNumber.toString();
+
+    let hand = clonenode.querySelector('#' + "playerhand");
+    hand.id = "playerhand" + playerNumber.toString();
+    if (playerNumber != 1) { hand.classList.add("d-none")}
+
+    document.getElementById("playerslots").appendChild(clonenode);
 }
 
 function resetRound() {
@@ -94,11 +108,19 @@ function resetRound() {
 
     resetPlayedThisTurn();
 
+    players.forEach(p => {
+        document.getElementById("playerhand" + p.number).replaceChildren();
+    })
+
+    document.getElementById("playedcards").replaceChildren();
+
+    /*
     document.getElementById("playerhand1").replaceChildren();
     document.getElementById("playerhand2").replaceChildren();
     document.getElementById("playerhand3").replaceChildren();
     document.getElementById("playerhand4").replaceChildren();
     document.getElementById("playedcards").replaceChildren();
+    */
 }
 
 function nextTurn() {
@@ -146,15 +168,15 @@ function otherPlayersPlayACard(player, playedCard, action, notify) {
                 let initiativeClaimedThisTurn = false;
 
                 if (unplayedCards.length > 0) {
-                    //if (canSurpass(player, playedCard, unplayedCards) == false) {
                     if (canSurpass(player, playedCardList[0], unplayedCards) == false) {
+
+                        // Cannot surpass and therefore must find focus
 
                         if (initiativeClaimed == false) {
                             initiativeClaimedThisTurn = claim(player)
                         }
 
                         if (initiativeClaimedThisTurn == false) {
-                            //if (canCopy(player, playedCard, unplayedCards) == false) {
                             if (canCopy(player, playedCardList[0], unplayedCards) == false) {
                                 pivot(player, unplayedCards);
                             }
@@ -360,14 +382,6 @@ function canSurpass(player, playedCard, unplayedCards) {
 
     let cardToPlay = getLowestCardtoPlay(surpassCards);
 
-    /*
-    if (surpassCards.length > 1) {
-        cardToPlay = getLowestCardtoPlay(surpassCards);
-    } else {
-        cardToPlay = surpassCards[0];
-    }
-        */
-
     playCard(player, cardToPlay, "SURPASS", true);
     surpass = true;
     checkInitiative(player, cardToPlay, false);
@@ -392,18 +406,26 @@ function canCopy(player, playedCard, unplayedCards) {
 
     let cardToPlay = getLowestCardtoPlay(copyCards);
 
-    /*
-    if (copyCards.length > 1) {
-        cardToPlay = getLowestCardtoPlay(copyCards);
-    } else {
-        cardToPlay = copyCards[0];
-    }
-        */
-
     playCard(player, cardToPlay, "COPY", true);
     canCopy = true;
 
     return canCopy;
+}
+
+function getLowestCardtoPlay(cards) {
+    // Find the lowest number card to play
+    let lowestCard;
+    cards.forEach(card => {
+        if (lowestCard == null) {
+            lowestCard = card;
+        } else {
+            if (lowestCard.number > card.number) {
+                lowestCard = card;
+            }
+        }
+    })
+
+    return lowestCard;
 }
 
 function claim(player) {
@@ -488,22 +510,6 @@ function pivot(player, cards) {
     //          - how many buildings are in play
     //if (cards.length > 0) { aiPlayCard(player, cards[0], "PIVOT", true) }
     if (cards.length > 0) { playCard(player, cards[0], "PIVOT", true) }
-}
-
-function getLowestCardtoPlay(cards) {
-    // Find the lowest number card to play
-    let lowestCard;
-    cards.forEach(card => {
-        if (lowestCard == null) {
-            lowestCard = card;
-        } else {
-            if (lowestCard.number > card.number) {
-                lowestCard = card;
-            }
-        }
-    })
-
-    return lowestCard;
 }
 
 function aiPlayCard(player, card, action, notify) {
