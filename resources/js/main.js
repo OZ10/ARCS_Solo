@@ -287,11 +287,11 @@ function dealCards() {
                             // Human players card was added but list only have one entry
                             // AI hasn't played a card because, while it has inititive,
                             // it has no cards left to play because it has claimed at some point
-                            changeInitiative(player, playedCard, false);
+                            checkInitiative(player, playedCard, false);
                         } else {
 
                             if (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) {
-                                changeInitiative(player, playedCard, false);
+                                checkInitiative(player, playedCard, false);
                             }
                         }
 
@@ -370,7 +370,7 @@ function canSurpass(player, playedCard, unplayedCards) {
 
     playCard(player, cardToPlay, "SURPASS", true);
     surpass = true;
-    changeInitiative(player, cardToPlay, false);
+    checkInitiative(player, cardToPlay, false);
 
     return surpass;
 }
@@ -428,13 +428,13 @@ function claim(player) {
 
         initiativeClaimed = true;
         initiativeClaimedThisTurn = true;
-        changeInitiative(player, unplayedCards[0], true);
+        checkInitiative(player, unplayedCards[0], true);
     }
 
     return initiativeClaimedThisTurn;
 }
 
-function changeInitiative(claimingPlayer, playedCard, hasClaimed) {
+function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
     if (initiativeClaimed == false) {
         players.forEach(player => {
             if (player.number == claimingPlayer.number) {
@@ -444,27 +444,8 @@ function changeInitiative(claimingPlayer, playedCard, hasClaimed) {
                 } else {
                     let playedHighestCard = false;
 
-                    /*
-                    if (playedCardList.length == 2) {
-                        // Only two cards have been played and so the second card must be higher than the first
-                        player.hasInitiative = true;
-                        document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                    } else {
-
-                    }
-                    */
-
                     for (let cardNumber = 0; cardNumber < playedCardList.length; cardNumber++) {
                         const card = playedCardList[cardNumber];
-
-                        /*
-                        if (playedCard.name == card.name && playedCard.number == card.number) {
-                            // This is the card the player played
-                            player.hasInitiative = true;
-                            document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                            cardsPlayedMatchingSuit += 1;
-                        }
-                            */
 
                         if (playedCard.name == card.name) {
                             if (playedCard.number > card.number) {
@@ -475,44 +456,22 @@ function changeInitiative(claimingPlayer, playedCard, hasClaimed) {
                                 }
                             }
                         }
-
-                        /*
-                        if (playedCard.name == card.name && playedCard.number == card.number && cardsPlayedMatchingSuit == 0) {
-                            player.hasInitiative = true;
-                            document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                            cardsPlayedMatchingSuit += 1;
-                        } else {
-                            //cardsPlayedMatchingSuit += 1;
-                        }
-
-                        if (playedCard.name == card.name && playedCard.number > card.number) {
-                            player.hasInitiative = true;
-                            document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                        }
-                            */
                     }
 
                     if (playedHighestCard) {
-                        player.hasInitiative = true;
+                        changeInitiative(player);
                         document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                    } else {
-                        player.hasInitiative = false;
                     }
-                    /*
-                    playedCardList.forEach(card => {
-                        if (playedCard.name == card.name && playedCard.number > card.number) {
-                            player.hasInitiative = true;
-                            document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                        }
-                    })
-                        */
                 }
-                //} else {
-                //    player.hasInitiative = false;
-                //}
             }
         })
     }
+}
+
+function changeInitiative(player){
+    players.forEach(p => {
+        p.hasInitiative = (p.number == player.number) ? true : false;
+    })
 }
 
 function enableDisableButton(buttonName, isDisabled) {
