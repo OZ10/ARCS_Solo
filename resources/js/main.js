@@ -21,7 +21,7 @@ class Card {
     }
 }
 
-function getCardFullName(card){
+function getCardFullName(card) {
     return card.name + card.number;
 }
 
@@ -65,6 +65,7 @@ let initiativeClaimed = false;
 let turnNumber = 1;
 let roundNumber = 1;
 let declaredAmbitions = 0;
+let currentPlayer;
 
 document.addEventListener("DOMContentLoaded", () => {
     //currentactioncards = actioncards.slice();
@@ -77,7 +78,10 @@ function setupGame(numberOfPlayers) {
     for (let playerNumber = 1; playerNumber < numberOfPlayers + 1; playerNumber++) {
         let p = new player(playerNumber, (playerNumber == 1) ? true : false);
 
-        if (playerNumber == 1) { p.hasInitiative = true };
+        if (playerNumber == 1) {
+            p.hasInitiative = true;
+            currentPlayer = p;
+        };
 
         players.push(p);
 
@@ -93,6 +97,10 @@ function setupGame(numberOfPlayers) {
     dealCards();
 }
 
+function playcardclick() {
+    determineCardToPlay(currentPlayer);
+}
+
 function clonePlayerNodeAndSetup(playerNumber) {
     let clonenode = document.getElementById("playerTemplate").cloneNode(true);
     clonenode.id = "player" + playerNumber.toString();
@@ -100,6 +108,10 @@ function clonePlayerNodeAndSetup(playerNumber) {
 
     let hand = clonenode.querySelector('#' + "playerhand");
     hand.id = "playerhand" + playerNumber.toString();
+
+    let playcardbutton = clonenode.querySelector('#playcard');
+    playcardbutton.id = "playcard" + playerNumber.toString();
+
     if (playerNumber != 1) { hand.classList.add("d-none") }
 
     document.getElementById("playerslots").appendChild(clonenode);
@@ -143,6 +155,7 @@ function nextTurn() {
     resetPlayedThisTurn();
 
     let player = getPlayerWithInitiative();
+    currentPlayer = player;
 
     if (player.isHuman == false) {
 
@@ -155,7 +168,7 @@ function nextTurn() {
         //enableDisableButtonsByPlayerNumber(2, false);
         enableDisableButtonsByPlayerNumber(1, true);
 
-        otherPlayersPlayACard(player, unplayedCards[0], "LEAD", true);
+        //otherPlayersPlayACard(player, unplayedCards[0], "LEAD", true);
     }
 }
 
@@ -194,6 +207,7 @@ function nextRound() {
     if (players[0].hasInitiative == false) {
 
         let player = getPlayerWithInitiative();
+        currentPlayer = player;
 
         let unplayedCards = getUnplayedCards(player.cards);;
         playCard(player, unplayedCards[0], "LEAD", true);
@@ -266,7 +280,7 @@ function dealCards() {
 
                     if (player.hasInitiative) {
                         playCard(player, playedCard, "LEAD", false);
-                        nextTurn();
+                        //nextTurn();
                     } else {
                         let aiPlayedLeadCard = playedCardList[0];
 
@@ -284,8 +298,10 @@ function dealCards() {
                             }
                         }
 
-                        otherPlayersPlayACard(player, playedCard, "PLAYER", true);
-                        nextTurn();
+                        changeCurrentPlayer(player);
+                        
+                        //otherPlayersPlayACard(player, playedCard, "PLAYER", true);
+                        //nextTurn();
                     }
                 }
             };
@@ -328,10 +344,57 @@ function playCard(player, playedCard, action, notify) {
     player.hasPlayedACardThisTurn = true;
 
     if (player.hasInitiative) {
-        if (player.isHuman == false){
+        if (player.isHuman == false) {
             declareAmbition(player, playedCard);
         }
-        otherPlayersPlayACard(player, playedCard, action, notify);
+        //otherPlayersPlayACard(player, playedCard, action, notify);
+        changeCurrentPlayer(player);
+    }
+
+    if(allPlayersHavePlayedACard()){
+        nextTurn();
+    }
+}
+
+function allPlayersHavePlayedACard(){
+    for (let playerNumber = 0; playerNumber < players.length; playerNumber++) {
+        if(players[playerNumber].hasPlayedACardThisTurn == false){ return false; }
+    }
+    return true;
+}
+
+function changeCurrentPlayer(player) {
+    let playerNumber = player.number + 1;
+
+    if (playerNumber > players.length) {
+        currentPlayer = players[0];
+    } else {
+        currentPlayer = players[playerNumber - 1];
+    }
+}
+
+function determineCardToPlay(player) {
+
+    if (player.hasPlayedACardThisTurn == false) {
+        let unplayedCards = getUnplayedCards(player.cards);
+        let initiativeClaimedThisTurn = false;
+
+        if (unplayedCards.length > 0) {
+            if (canSurpass(player, playedCardList[0], unplayedCards) == false) {
+
+                // Cannot surpass and therefore must find focus
+
+                if (initiativeClaimed == false) {
+                    initiativeClaimedThisTurn = claim(player)
+                }
+
+                if (initiativeClaimedThisTurn == false) {
+                    if (canCopy(player, playedCardList[0], unplayedCards) == false) {
+                        pivot(player, unplayedCards);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -366,7 +429,8 @@ function otherPlayersPlayACard(player, playedCard, action, notify) {
                 }
 
 
-                if (notify) { alert("AI played card " + getCardFullName(playedCard) + " to " + action) }
+                //if (notify) { alert("AI played card " + getCardFullName(playedCard) + " to " + action) }
+                //if (player.isHuman == false) { alert("AI played card " + getCardFullName(playedCard) + " to " + action) }
             }
             playerNumber = player.number + 1;
         }
@@ -574,7 +638,7 @@ function addPlayedCardToList(card, action, reset) {
 
         let cardListDiv = document.getElementById("Turn" + turnNumber.toString());
 
-        if (reset){
+        if (reset) {
             playedCardList = [];
             cardListDiv.replaceChildren();
             cardListDiv.innerHTML = "Turn " + turnNumber.toString();
@@ -590,7 +654,7 @@ function addPlayedCardToList(card, action, reset) {
     }
 }
 
-function getNumberOfPips(card){
+function getNumberOfPips(card) {
     let pips = "  &#9733;";
     for (let index = 0; index < card.pips; index++) {
         pips += "&#9733;";
