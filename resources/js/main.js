@@ -104,6 +104,7 @@ function playcardclick() {
 function clonePlayerNodeAndSetup(playerNumber) {
     let clonenode = document.getElementById("playerTemplate").cloneNode(true);
     clonenode.id = "player" + playerNumber.toString();
+    clonenode.classList.remove("d-none");
     clonenode.querySelector('#' + "playernumber").innerHTML = "Player " + playerNumber.toString();
 
     let hand = clonenode.querySelector('#' + "playerhand");
@@ -111,6 +112,9 @@ function clonePlayerNodeAndSetup(playerNumber) {
 
     let playcardbutton = clonenode.querySelector('#playcard');
     playcardbutton.id = "playcard" + playerNumber.toString();
+    playcardbutton.disabled = true;
+
+    if (playerNumber == 1) { playcardbutton.classList.add("d-none") }
 
     if (playerNumber != 1) { hand.classList.add("d-none") }
 
@@ -157,19 +161,18 @@ function nextTurn() {
     let player = getPlayerWithInitiative();
     currentPlayer = player;
 
+    /*
     if (player.isHuman == false) {
 
         let unplayedCards = getUnplayedCards(player.cards);
 
         playCard(player, unplayedCards[0], "LEAD", true);
 
-        player.hasPlayedACardThisTurn = true;
-
-        //enableDisableButtonsByPlayerNumber(2, false);
         enableDisableButtonsByPlayerNumber(1, true);
 
         //otherPlayersPlayACard(player, unplayedCards[0], "LEAD", true);
     }
+        */
 }
 
 function haveAllCardsBeenPlayed() {
@@ -285,6 +288,7 @@ function dealCards() {
                         let aiPlayedLeadCard = playedCardList[0];
 
                         addPlayedCardToList(playedCard, "PLAYER", false);
+                        player.hasPlayedACardThisTurn = true;
 
                         if (playedCardList.length == 1) {
                             // Human players card was added but list only have one entry
@@ -299,7 +303,11 @@ function dealCards() {
                         }
 
                         changeCurrentPlayer(player);
-                        
+
+                        if (allPlayersHavePlayedACard()) {
+                            nextTurn();
+                        }
+
                         //otherPlayersPlayACard(player, playedCard, "PLAYER", true);
                         //nextTurn();
                     }
@@ -351,14 +359,16 @@ function playCard(player, playedCard, action, notify) {
         changeCurrentPlayer(player);
     }
 
-    if(allPlayersHavePlayedACard()){
+    if (player.isHuman && allPlayersHavePlayedACard()) {
         nextTurn();
     }
+
+    //player.hasPlayedACardThisTurn = true;
 }
 
-function allPlayersHavePlayedACard(){
+function allPlayersHavePlayedACard() {
     for (let playerNumber = 0; playerNumber < players.length; playerNumber++) {
-        if(players[playerNumber].hasPlayedACardThisTurn == false){ return false; }
+        if (players[playerNumber].hasPlayedACardThisTurn == false) { return false; }
     }
     return true;
 }
@@ -370,6 +380,7 @@ function changeCurrentPlayer(player) {
         currentPlayer = players[0];
     } else {
         currentPlayer = players[playerNumber - 1];
+        enableDisablePlayCardButtonsByPlayerNumber(playerNumber);
     }
 }
 
@@ -380,20 +391,30 @@ function determineCardToPlay(player) {
         let initiativeClaimedThisTurn = false;
 
         if (unplayedCards.length > 0) {
-            if (canSurpass(player, playedCardList[0], unplayedCards) == false) {
+            if (player.hasInitiative) {
+                playCard(player, unplayedCards[0], "LEAD", true);
+            } else {
+                if (canSurpass(player, playedCardList[0], unplayedCards) == false) {
 
-                // Cannot surpass and therefore must find focus
+                    // Cannot surpass and therefore must find focus
 
-                if (initiativeClaimed == false) {
-                    initiativeClaimedThisTurn = claim(player)
-                }
+                    if (initiativeClaimed == false) {
+                        initiativeClaimedThisTurn = claim(player)
+                    }
 
-                if (initiativeClaimedThisTurn == false) {
-                    if (canCopy(player, playedCardList[0], unplayedCards) == false) {
-                        pivot(player, unplayedCards);
+                    if (initiativeClaimedThisTurn == false) {
+                        if (canCopy(player, playedCardList[0], unplayedCards) == false) {
+                            pivot(player, unplayedCards);
+                        }
                     }
                 }
             }
+        }
+
+        if (allPlayersHavePlayedACard()) {
+            nextTurn();
+        }else{
+            changeCurrentPlayer(player);
         }
     }
 }
@@ -603,6 +624,13 @@ function findButtonAndDisable(playerNumber, card) {
         if (btn.innerHTML == card.name + card.number) {
             btn.disabled = true;
         }
+    })
+}
+
+function enableDisablePlayCardButtonsByPlayerNumber(playerNumber) {
+    players.forEach(player => {
+        let btn = document.querySelector("#playcard" + player.number);
+        btn.disabled = (player.number == playerNumber) ? false : true;
     })
 }
 
