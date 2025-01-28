@@ -50,7 +50,7 @@
               data-bs-target="#numberOfPlayersModal">Setup
               Game 2+</button>
             <div class="row justify-content-md-center" id="playerslots">
-              <div class="col-1" id="playerTemplate">
+              <div class="col-1 d-none" id="playerTemplate">
                 <div class="row" id="playernumber">Player x</div>
                 <div class="row">
                   <div class="col">Buildings on Map:</div>
@@ -95,6 +95,7 @@
                 <div id="playerhand">
 
                 </div>
+                <button class="btn btn-secondary" id="playcard" onclick="playcardclick()">play card</button>
               </div>
               <!--
               <div class="col-1 collapse.show">
