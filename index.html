@@ -19,9 +19,6 @@
           <div class="flex-fill">
             Testing
           </div>
-          <button type="button" data-bs-toggle="collapse"
-            data-bs-target="#player2" aria-expanded="false"
-            aria-controls="collapseExample">Show Hand</button>
           <div class="row">Turn Number:
             <div id="turnNumber">1</div>
           </div>
@@ -42,108 +39,69 @@
         <div class="container-fluid">
           <div class="row justify-content-md-center">
 
-            <button type="button" class="btn btn-primary col-1 m-2"
+            <button type="button" class="btn btn-primary col-2 m-2"
               onclick="setupGame(2)">Setup
               Game 2</button>
-            <button type="button" class="btn btn-primary col-1 m-2"
+            <button type="button" class="btn btn-primary col-2 m-2"
               data-bs-toggle="modal"
               data-bs-target="#numberOfPlayersModal">Setup
               Game 2+</button>
             <div class="row justify-content-md-center" id="playerslots">
-              <div class="col-1 d-none" id="playerTemplate">
-                <div class="row" id="playernumber">Player x</div>
-                <div class="row">
-                  <div class="col">Buildings on Map:</div>
-                  <div class="col" id="numbuilding">0</div>
-                </div>
-                <div class="row">
-                  <div class="col">Starports on Map:</div>
-                  <div class="col" id="numstarports">0</div>
-                </div>
-                
-                <div class="row">
-                  <div class="col">Ships Deployed:</div>
-                  <div class="col" id="numshipsdeployed">0</div>
-                </div>
-                <div class="row">
-                  <div class="col">Agents Deployed:</div>
-                  <div class="col" id="numagentsdeployed">0</div>
-                </div>
+              <div class="col d-none" id="playerTemplate">
+                <a class="text-decoration-none" id="playerancor" href="#0"
+                  role="button"
+                  data-bs-toggle="collapse" data-bs-target="#playerpanel">
+                  <div class="row" id="playernumber">Player x</div>
+                </a>
+                <div class="row collapse" id="playerpanel">
+                  <div class="row">
+                    <div class="col">Buildings on Map:</div>
+                    <div class="col" id="numbuilding">0</div>
+                  </div>
+                  <div class="row">
+                    <div class="col">Starports on Map:</div>
+                    <div class="col" id="numstarports">0</div>
+                  </div>
 
-                <div class="row">Resources
                   <div class="row">
-                    <div class="col">Fuel:</div>
-                    <div class="col" id="numfuel">0</div>
+                    <div class="col">Ships Deployed:</div>
+                    <div class="col" id="numshipsdeployed">0</div>
                   </div>
                   <div class="row">
-                    <div class="col">Materials:</div>
-                    <div class="col" id="nummaterials">0</div>
+                    <div class="col">Agents Deployed:</div>
+                    <div class="col" id="numagentsdeployed">0</div>
                   </div>
-                  <div class="row">
-                    <div class="col">Weapons:</div>
-                    <div class="col" id="numweapons">0</div>
-                  </div>
-                  <div class="row">
-                    <div class="col">Relics:</div>
-                    <div class="col" id="numrelics">0</div>
-                  </div>
-                  <div class="row">
-                    <div class="col">Psionic:</div>
-                    <div class="col" id="numpsionic">0</div>
-                  </div>
-                </div>
-                <div id="playerhand">
 
-                </div>
-                <button class="btn btn-secondary" id="playcard" onclick="playcardclick()">play card</button>
-              </div>
-              <!--
-              <div class="col-1 collapse.show">
-                <div class="row">Player 1</div>
-                <div>Buildings on Map:</div>
-                <div>Starports on Map:</div>
-                <div class="row">Resources
-                  <div class="row">
-                    <div class="col">Fuel:</div>
-                    <div class="col">0</div>
+                  <div class="row">Resources
+                    <div class="row">
+                      <div class="col">Fuel:</div>
+                      <div class="col" id="numfuel">0</div>
+                    </div>
+                    <div class="row">
+                      <div class="col">Materials:</div>
+                      <div class="col" id="nummaterials">0</div>
+                    </div>
+                    <div class="row">
+                      <div class="col">Weapons:</div>
+                      <div class="col" id="numweapons">0</div>
+                    </div>
+                    <div class="row">
+                      <div class="col">Relics:</div>
+                      <div class="col" id="numrelics">0</div>
+                    </div>
+                    <div class="row">
+                      <div class="col">Psionic:</div>
+                      <div class="col" id="numpsionic">0</div>
+                    </div>
                   </div>
-                  <div class="row">
-                    <div class="col">Materials:</div>
-                    <div class="col">0</div>
-                  </div>
-                  <div class="row">
-                    <div class="col">Weapons:</div>
-                    <div class="col">0</div>
-                  </div>
-                  <div class="row">
-                    <div class="col">Relics:</div>
-                    <div class="col">0</div>
-                  </div>
-                  <div class="row">
-                    <div class="col">Psionic:</div>
-                    <div class="col">0</div>
-                  </div>
-                </div>
-                <div id="playerhand1">
+                  <div id="playerhand">
 
+                  </div>
+                  <button class="btn btn-secondary" id="playcard"
+                    onclick="playcardclick()">play card</button>
                 </div>
               </div>
-              <div class="col-1 collapse" id="player2">
-                <div id="playerhand2">
 
-                </div>
-              </div>
-              <div class="col-1 collapse" id="player3">
-                <div id="playerhand3">
-
-                </div>
-              </div>
-              <div class="col-1 collapse" id="player4">
-                <div id="playerhand4">
-
-                </div>
-              </div>
-              -->
             </div>
             <div class="row justify-content-md-center" id="playedcards">
             </div>

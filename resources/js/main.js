@@ -110,14 +110,24 @@ function clonePlayerNodeAndSetup(playerNumber) {
     clonenode.classList.remove("d-none");
     clonenode.querySelector('#' + "playernumber").innerHTML = "Player " + playerNumber.toString();
 
-    let hand = clonenode.querySelector('#' + "playerhand");
+    let hand = clonenode.querySelector("#playerhand");
     hand.id = "playerhand" + playerNumber.toString();
+
+    let a = clonenode.querySelector("#playerancor");
+    a.id = "playerancor" + playerNumber.toString();
+    a.dataset.bsTarget = "#playerpanel" + playerNumber.toString();
+
+    let playerPanel = clonenode.querySelector('#playerpanel');
+    playerPanel.id = "playerpanel" + playerNumber.toString();
 
     let playcardbutton = clonenode.querySelector('#playcard');
     playcardbutton.id = "playcard" + playerNumber.toString();
     playcardbutton.disabled = true;
 
-    if (playerNumber == 1) { playcardbutton.classList.add("d-none") }
+    if (playerNumber == 1) { 
+        playcardbutton.classList.add("d-none");
+        playerPanel.classList.remove("collapse");
+     }
 
     if (playerNumber != 1) { hand.classList.add("d-none") }
 
@@ -608,6 +618,13 @@ function enableDisablePlayCardButtons(playerNumber) {
     players.forEach(player => {
         let btn = document.querySelector("#playcard" + player.number);
         btn.disabled = (player.number == playerNumber) ? false : true;
+
+        let playerPanel = document.querySelector('#playerpanel' + player.number);
+        if(player.number == playerNumber){
+            playerPanel.classList.remove("collapse");
+        }else{
+            playerPanel.classList.add("collapse");
+        }
 
         if (player.isHuman) { enableDisableButtonsByPlayerNumber(player.number, (player.number == playerNumber) ? true : false) }
     })
