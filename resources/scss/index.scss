@@ -1,0 +1,57 @@
+$playercolour1: goldenrod;
+$playercolour2: crimson;
+$playercolour3: antiquewhite;
+$playercolour4: royalblue;
+
+.playerheader{
+    padding: 10px 5px 10px 10px;
+    margin: 0px 5px 10px 10px;
+    border-left-width: 4px;
+    color: black;
+    font-size: large;
+
+    a{
+        font-size: larger;
+        font-weight: bold;
+    }
+}
+
+.playerheader1{
+    @extend .playerheader;
+    background-color: $playercolour1;
+}
+
+.playerheader2{
+    @extend .playerheader;
+    background-color: $playercolour2;
+}
+
+.playerheader3{
+    @extend .playerheader;
+    background-color: $playercolour3;
+}
+
+.playerheader4{
+    @extend .playerheader;
+    background-color: $playercolour4;
+}
+
+.playercard1{
+    color: $playercolour1;
+    background-color: black;
+}
+
+.playercard2{
+    color: $playercolour2;
+    background-color: black;
+}
+
+.playercard3{
+    color: $playercolour3;
+    background-color: black;
+}
+
+.playercard4{
+    color: $playercolour4;
+    background-color: black;
+}
