@@ -107,6 +107,7 @@ function playcardclick() {
 function clonePlayerNodeAndSetup(playerNumber) {
     let clonenode = document.getElementById("playerTemplate").cloneNode(true);
     clonenode.id = "player" + playerNumber.toString();
+    clonenode.classList.add("playerheader" + playerNumber.toString());
     clonenode.classList.remove("d-none");
     clonenode.querySelector('#' + "playernumber").innerHTML = "Player " + playerNumber.toString();
 
@@ -124,10 +125,10 @@ function clonePlayerNodeAndSetup(playerNumber) {
     playcardbutton.id = "playcard" + playerNumber.toString();
     playcardbutton.disabled = true;
 
-    if (playerNumber == 1) { 
+    if (playerNumber == 1) {
         playcardbutton.classList.add("d-none");
         playerPanel.classList.remove("collapse");
-     }
+    }
 
     if (playerNumber != 1) { hand.classList.add("d-none") }
 
@@ -620,9 +621,9 @@ function enableDisablePlayCardButtons(playerNumber) {
         btn.disabled = (player.number == playerNumber) ? false : true;
 
         let playerPanel = document.querySelector('#playerpanel' + player.number);
-        if(player.number == playerNumber){
+        if (player.number == playerNumber) {
             playerPanel.classList.remove("collapse");
-        }else{
+        } else {
             playerPanel.classList.add("collapse");
         }
 
@@ -672,16 +673,21 @@ function addPlayedCardToList(card, action, reset) {
 
 
         let cardDiv = document.createElement("div");
-        cardDiv.classList.add("row", "justify-content-md-center", "fw-normal");
-        cardDiv.innerHTML = action.toUpperCase() + ": " + getCardFullName(card) + getNumberOfPips(card); // " &#9733;";
+        cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + currentPlayer.number);
+        // If player COPIED, replace the suit played with XXXX 
+        cardDiv.innerHTML = action.toUpperCase() + ": " + ((action == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card,action); // " &#9733;";
         cardListDiv.append(cardDiv);
     }
 }
 
-function getNumberOfPips(card) {
+function getNumberOfPips(card, action) {
     let pips = "  &#9733;";
-    for (let index = 0; index < card.pips; index++) {
-        pips += "&#9733;";
+
+    // Only add extra pips if the action is...
+    if (action == "SURPASS" | action == "LEAD" | action == "PLAYER") {
+        for (let index = 0; index < card.pips; index++) {
+            pips += "&#9733;";
+        }
     }
     return pips;
 }
