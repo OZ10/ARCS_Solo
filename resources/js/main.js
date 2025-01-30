@@ -128,11 +128,46 @@ function clonePlayerNodeAndSetup(playerNumber) {
     if (playerNumber == 1) {
         playcardbutton.classList.add("d-none");
         playerPanel.classList.remove("collapse");
+
+        let togglebuttons = document.createElement("div");
+        togglebuttons.classList.add("btn-group");
+        togglebuttons.role = "group";
+
+        createActionButtons("none", togglebuttons, false, true);
+        createActionButtons("declare", togglebuttons, false, false);
+        createActionButtons("copy", togglebuttons, true, false);
+
+        playerPanel.appendChild(togglebuttons);
     }
 
     if (playerNumber != 1) { hand.classList.add("d-none") }
 
     document.getElementById("playerslots").appendChild(clonenode);
+}
+
+function createActionButtons(action, group, isenabled, isselected) {
+    let input = document.createElement("input");
+    input.type = "radio";
+    input.classList.add("btn-check");
+    input.name = "actiontype";
+    input.id = "btn" + action;
+    input.autocomplete = "off";
+    input.checked = isselected;
+    input.disabled = isenabled;
+
+    let l = document.createElement("label");
+    l.classList.add("btn", "btn-outline-secondary");
+    l.htmlFor = "btn" + action;
+    l.textContent = action.toUpperCase();
+
+    group.appendChild(input);
+    group.appendChild(l);
+}
+
+function enabledDisableActionButtons(action, isdisabled, isselected) {
+    let input = document.querySelector("#btn" + action);
+    input.checked = isselected;
+    input.disabled = isdisabled;
 }
 
 function resetRound() {
@@ -178,11 +213,17 @@ function nextTurn() {
 
     resetPlayedThisTurn();
 
-    //let player = getPlayerWithInitiative();
     currentPlayer = getPlayerWithInitiative();
-    //enableDisablePlayCardButtons(currentPlayer.number);
     enableDisablePlayCardButtons(currentPlayer.number);
-    //currentPlayer = player;
+
+    if (currentPlayer.isHuman) {
+        enabledDisableActionButtons("declare", false, false);
+        enabledDisableActionButtons("copy", true, false);
+    } else {
+        enabledDisableActionButtons("declare", true, false);
+        enabledDisableActionButtons("copy", false, false);
+    }
+
 }
 
 function haveAllCardsBeenPlayed() {
@@ -269,6 +310,7 @@ function dealCards() {
             let btn = document.createElement("button");
             btn.innerHTML = card.name + card.number;
             btn.className = "p" + playerNumber.toString();
+            btn.classList.add("btn", "btn-secondary")
             btn.name = card.name;
             btn.value = card.number;
             btn.onclick = function () {
@@ -368,6 +410,7 @@ function changeCurrentPlayer(player) {
     let playerNumber = player.number + 1;
 
     if (playerNumber > players.length) {
+        // This is the human player
         currentPlayer = players[0];
         enableDisablePlayCardButtons(1);
     } else {
@@ -675,7 +718,7 @@ function addPlayedCardToList(card, action, reset) {
         let cardDiv = document.createElement("div");
         cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + currentPlayer.number);
         // If player COPIED, replace the suit played with XXXX 
-        cardDiv.innerHTML = action.toUpperCase() + ": " + ((action == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card,action); // " &#9733;";
+        cardDiv.innerHTML = action.toUpperCase() + ": " + ((action == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, action); // " &#9733;";
         cardListDiv.append(cardDiv);
     }
 }
