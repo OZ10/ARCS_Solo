@@ -64,7 +64,7 @@ let playedCardList = [];
 let initiativeClaimed = false;
 let turnNumber = 1;
 let roundNumber = 1;
-let declaredAmbitions = 0;
+let declaredAmbitions = [];
 let currentPlayer;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -76,7 +76,7 @@ function setupGame(numberOfPlayers) {
     players = [];
     turnNumber = 1;
     roundNumber = 1;
-    declaredAmbitions = 0;
+    declaredAmbitions = [];
 
     createPlayers(numberOfPlayers);
 
@@ -129,18 +129,23 @@ function clonePlayerNodeAndSetup(playerNumber) {
         playcardbutton.classList.add("d-none");
         playerPanel.classList.remove("collapse");
 
-        let togglebuttons = document.createElement("div");
-        togglebuttons.classList.add("btn-group", "d-none");
-        togglebuttons.id = "actionbuttons";
-        togglebuttons.role = "group";
+        const actiondiv = document.createElement("div");
+        //actiondiv.id = "actionbuttons";
+        actiondiv.innerHTML = "Actions:"
 
-        createRadioButtons("lead", togglebuttons, "actiontype");
-        createRadioButtons("declare", togglebuttons, "actiontype");
-        createRadioButtons("surpass", togglebuttons, "actiontype");
-        createRadioButtons("copy", togglebuttons, "actiontype");
-        createRadioButtons("pivot", togglebuttons, "actiontype");
+        const actionbuttons = document.createElement("div");
+        actionbuttons.classList.add("btn-group", "d-none");
+        actionbuttons.id = "actionbuttons";
+        actionbuttons.role = "group";
 
-        playerPanel.appendChild(togglebuttons);
+        createRadioButtons("lead", actionbuttons, "actiontype", "btn-outline-secondary");
+        createRadioButtons("declare", actionbuttons, "actiontype", "btn-outline-secondary");
+        createRadioButtons("surpass", actionbuttons, "actiontype", "btn-outline-secondary");
+        createRadioButtons("copy", actionbuttons, "actiontype", "btn-outline-secondary");
+        createRadioButtons("pivot", actionbuttons, "actiontype", "btn-outline-secondary");
+
+        actiondiv.appendChild(actionbuttons);
+        playerPanel.appendChild(actiondiv);
     }
 
     if (playerNumber != 1) { hand.classList.add("d-none") }
@@ -148,18 +153,16 @@ function clonePlayerNodeAndSetup(playerNumber) {
     document.getElementById("playerslots").appendChild(clonenode);
 }
 
-function createRadioButtons(btntext, group, groupname, isdisabled, isselected) {
+function createRadioButtons(btntext, group, groupname, btnstyle) {
     let input = document.createElement("input");
     input.type = "radio";
     input.classList.add("btn-check");
     input.name = groupname;
     input.id = btntext;
     input.autocomplete = "off";
-    //input.checked = isselected;
-    //input.disabled = isdisabled;
 
     let l = document.createElement("label");
-    l.classList.add("btn", "btn-outline-secondary");
+    l.classList.add("btn", btnstyle); //"btn-outline-secondary");
     l.id = btntext;
     l.htmlFor = btntext;
     l.textContent = btntext.toUpperCase();
@@ -167,6 +170,9 @@ function createRadioButtons(btntext, group, groupname, isdisabled, isselected) {
     if (groupname == "actiontype") {
         input.onclick = function () {
             humanSelectedAction(btntext);
+
+            // Reset checked on all action type buttons
+            document.querySelectorAll('input[name=actiontype]').forEach(input => { input.checked = false });
         };
     }
 
@@ -198,7 +204,7 @@ function createActionButtons(action, group, isenabled, isselected) {
 function showHideActionButtons(isleading, card) {
     if (isleading) {
         showHideElement(document.querySelectorAll('#lead'), true);
-        showHideElement(document.querySelectorAll('#declare'), true);
+        showHideElement(document.querySelectorAll('#declare'), (declaredAmbitions.length < 3) ? true : false);
         showHideElement(document.querySelectorAll('#surpass'), false);
         showHideElement(document.querySelectorAll('#copy'), false);
         showHideElement(document.querySelectorAll('#pivot'), false);
@@ -209,17 +215,23 @@ function showHideActionButtons(isleading, card) {
     showHideElement(document.querySelectorAll('#lead'), false);
     showHideElement(document.querySelectorAll('#declare'), false);
 
-    if (card.name == aiPlayedLeadCard.name && card.number > aiPlayedLeadCard.number) {
-        showHideElement(document.querySelectorAll('#surpass'), true);
-        showHideElement(document.querySelectorAll('#copy'), false);
-        showHideElement(document.querySelectorAll('#pivot'), false);
+    if (card.name == aiPlayedLeadCard.name) {
+        if (card.number > aiPlayedLeadCard.number) {
+            showHideElement(document.querySelectorAll('#surpass'), true);
+            showHideElement(document.querySelectorAll('#copy'), false);
+            showHideElement(document.querySelectorAll('#pivot'), false);
+        } else {
+            // card is the same suit but not higher so can only copy
+            showHideElement(document.querySelectorAll('#surpass'), false);
+            showHideElement(document.querySelectorAll('#copy'), true);
+            showHideElement(document.querySelectorAll('#pivot'), false);
+        }
+
     } else {
         showHideElement(document.querySelectorAll('#surpass'), false);
         showHideElement(document.querySelectorAll('#copy'), true);
         showHideElement(document.querySelectorAll('#pivot'), true);
     }
-
-
 }
 
 function showHideElement(elements, show) {
@@ -237,7 +249,7 @@ function enabledDisableActionButtons_old(action, isdisabled, isselected) {
 function resetRound() {
     initiativeClaimed = false;
     playedCardList = [];
-    declaredAmbitions = 0;
+    declaredAmbitions = [];
 
     document.getElementById("turnNumber").innerHTML = turnNumber.toString();
     document.getElementById("roundNumber").innerHTML = roundNumber.toString();
@@ -351,8 +363,6 @@ function resetDeck(cards) {
 }
 
 function humanSelectedAction(action) {
-    // Action has been clicked, therefore played, and will be disabled
-    //btn.disabled = true;
 
     const player = players[0];
 
@@ -416,7 +426,7 @@ function dealCards() {
 
     player.cards.forEach(card => {
 
-        let btn = createRadioButtons(getCardFullName(card), playerhandDiv, "cards");
+        let btn = createRadioButtons(getCardFullName(card), playerhandDiv, "cards", "btn-secondary");
 
         btn.classList.add("p1");
         btn.value = card.number;
@@ -590,11 +600,12 @@ function playCard(player, playedCard, action, notify) {
         if (player.isHuman && action == "declare") {
             alert("Player declared ambition: " + playedCard.ambition);
             playedCard.number = 0;
-    
+
             addPlayedCardToList(playedCard, "LEAD", true);
-    
-            declaredAmbitions += 1;
-            document.getElementById("declaredAmbitions").innerHTML = declaredAmbitions;
+
+            //declaredAmbitions += 1;
+            declaredAmbitions.push(playedCard.ambition);
+            document.getElementById("declaredAmbitions").innerHTML = declaredAmbitions.length;
         } else {
             declareAmbition(player, playedCard);
         }
@@ -697,6 +708,10 @@ function otherPlayersPlayACard(player, playedCard, action, notify) {
 }
 
 function declareAmbition(player, playedCard) {
+    if (declaredAmbitions == 3) {
+        return;
+    }
+
     let unplayedCards = getUnplayedCards(player.cards);
     let numberOfUnplayedCards = unplayedCards.length + 5;
 
@@ -708,8 +723,9 @@ function declareAmbition(player, playedCard) {
 
         addPlayedCardToList(playedCard, "LEAD", true);
 
-        declaredAmbitions += 1;
-        document.getElementById("declaredAmbitions").innerHTML = declaredAmbitions;
+        //declaredAmbitions += 1;
+        declaredAmbitions.push(playedCard.ambition);
+        document.getElementById("declaredAmbitions").innerHTML = declaredAmbitions.length;
     }
 }
 
