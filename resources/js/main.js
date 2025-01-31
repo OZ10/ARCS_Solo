@@ -130,12 +130,15 @@ function clonePlayerNodeAndSetup(playerNumber) {
         playerPanel.classList.remove("collapse");
 
         let togglebuttons = document.createElement("div");
-        togglebuttons.classList.add("btn-group");
+        togglebuttons.classList.add("btn-group", "d-none");
+        togglebuttons.id = "actionbuttons";
         togglebuttons.role = "group";
 
-        createActionButtons("none", togglebuttons, false, true);
-        createActionButtons("declare", togglebuttons, false, false);
-        createActionButtons("copy", togglebuttons, true, false);
+        createRadioButtons("lead", togglebuttons, "actiontype");
+        createRadioButtons("declare", togglebuttons, "actiontype");
+        createRadioButtons("surpass", togglebuttons, "actiontype");
+        createRadioButtons("copy", togglebuttons, "actiontype");
+        createRadioButtons("pivot", togglebuttons, "actiontype");
 
         playerPanel.appendChild(togglebuttons);
     }
@@ -143,6 +146,34 @@ function clonePlayerNodeAndSetup(playerNumber) {
     if (playerNumber != 1) { hand.classList.add("d-none") }
 
     document.getElementById("playerslots").appendChild(clonenode);
+}
+
+function createRadioButtons(btntext, group, groupname, isdisabled, isselected) {
+    let input = document.createElement("input");
+    input.type = "radio";
+    input.classList.add("btn-check");
+    input.name = groupname;
+    input.id = btntext;
+    input.autocomplete = "off";
+    //input.checked = isselected;
+    //input.disabled = isdisabled;
+
+    let l = document.createElement("label");
+    l.classList.add("btn", "btn-outline-secondary");
+    l.id = btntext;
+    l.htmlFor = btntext;
+    l.textContent = btntext.toUpperCase();
+
+    if (groupname == "actiontype") {
+        input.onclick = function () {
+            humanSelectedAction(btntext);
+        };
+    }
+
+    group.appendChild(input);
+    group.appendChild(l);
+
+    return input;
 }
 
 function createActionButtons(action, group, isenabled, isselected) {
@@ -164,7 +195,40 @@ function createActionButtons(action, group, isenabled, isselected) {
     group.appendChild(l);
 }
 
-function enabledDisableActionButtons(action, isdisabled, isselected) {
+function showHideActionButtons(isleading, card) {
+    if (isleading) {
+        showHideElement(document.querySelectorAll('#lead'), true);
+        showHideElement(document.querySelectorAll('#declare'), true);
+        showHideElement(document.querySelectorAll('#surpass'), false);
+        showHideElement(document.querySelectorAll('#copy'), false);
+        showHideElement(document.querySelectorAll('#pivot'), false);
+        return;
+    }
+
+    const aiPlayedLeadCard = playedCardList[0];
+    showHideElement(document.querySelectorAll('#lead'), false);
+    showHideElement(document.querySelectorAll('#declare'), false);
+
+    if (card.name == aiPlayedLeadCard.name && card.number > aiPlayedLeadCard.number) {
+        showHideElement(document.querySelectorAll('#surpass'), true);
+        showHideElement(document.querySelectorAll('#copy'), false);
+        showHideElement(document.querySelectorAll('#pivot'), false);
+    } else {
+        showHideElement(document.querySelectorAll('#surpass'), false);
+        showHideElement(document.querySelectorAll('#copy'), true);
+        showHideElement(document.querySelectorAll('#pivot'), true);
+    }
+
+
+}
+
+function showHideElement(elements, show) {
+    elements.forEach(element => {
+        (show) ? element.classList.remove("d-none") : element.classList.add("d-none");
+    })
+}
+
+function enabledDisableActionButtons_old(action, isdisabled, isselected) {
     let input = document.querySelector("#btn" + action);
     input.checked = isselected;
     input.disabled = isdisabled;
@@ -177,6 +241,7 @@ function resetRound() {
 
     document.getElementById("turnNumber").innerHTML = turnNumber.toString();
     document.getElementById("roundNumber").innerHTML = roundNumber.toString();
+    document.getElementById("declaredAmbitions").innerHTML = 0;
 
     enableDisableButton("nextRound", true);
 
@@ -217,11 +282,11 @@ function nextTurn() {
     enableDisablePlayCardButtons(currentPlayer.number);
 
     if (currentPlayer.isHuman) {
-        enabledDisableActionButtons("declare", false, false);
-        enabledDisableActionButtons("copy", true, false);
+        //showHideActionButtons(true);
+        //showHideActionButtons("copy", true, false);
     } else {
-        enabledDisableActionButtons("declare", true, false);
-        enabledDisableActionButtons("copy", false, false);
+        //showHideActionButtons(false);
+        //showHideActionButtons("copy", false, false);
     }
 
 }
@@ -285,7 +350,129 @@ function resetDeck(cards) {
     })
 }
 
+function humanSelectedAction(action) {
+    // Action has been clicked, therefore played, and will be disabled
+    //btn.disabled = true;
+
+    const player = players[0];
+
+    const btn = document.querySelector('input.p1:checked');
+
+    let playedCard = getCardByNameAndNumber(player.cards, btn.id, false);
+
+    if (player.hasInitiative) {
+        playCard(player, playedCard, action, false);
+        showHideElement(document.querySelectorAll("#actionbuttons"), false);
+    } else {
+        let aiPlayedLeadCard = playedCardList[0];
+
+        addPlayedCardToList(playedCard, action, false);
+        player.hasPlayedACardThisTurn = true;
+
+        if (playedCardList.length == 1) {
+            // Human players card was added but list only have one entry
+            // AI hasn't played a card because, while it has inititive,
+            // it has no cards left to play because it has claimed at some point
+            checkInitiative(player, playedCard, false);
+        } else {
+
+            if (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) {
+                checkInitiative(player, playedCard, false);
+            }
+        }
+
+        changeCurrentPlayer(player);
+
+        showHideElement(document.querySelectorAll("#actionbuttons"), false);
+
+        if (allPlayersHavePlayedACard()) {
+            nextTurn();
+        }
+    }
+}
+
 function dealCards() {
+
+    let playerNumber = 0;
+    do {
+        let num = Math.floor(Math.random() * currentactioncards.length);
+
+        if (playerNumber > players.length - 1) {
+            playerNumber = 0;
+        }
+
+        players[playerNumber].cards.push(currentactioncards[num]);;
+        currentactioncards.splice(num, 1);
+
+        playerNumber += 1;
+
+    }
+    while (players[players.length - 1].cards.length < 5)
+
+    //for (let playerNumber = 1; playerNumber < players.length + 1; playerNumber++) {
+    const player = players[0];
+
+    const playerhandDiv = document.getElementById("playerhand1");
+
+    player.cards.forEach(card => {
+
+        let btn = createRadioButtons(getCardFullName(card), playerhandDiv, "cards");
+
+        btn.classList.add("p1");
+        btn.value = card.number;
+
+        btn.onclick = function () {
+            showHideElement(document.querySelectorAll("#actionbuttons"), true);
+            //document.getElementById("actionbuttons").classList.remove("d-none");
+            if (player.hasInitiative) {
+                showHideActionButtons(true);
+            } else {
+                const playedCard = getCardByNameAndNumber(player.cards, btn.id, false);
+                showHideActionButtons(false, playedCard);
+            }
+        };
+        /*
+        btn.onclick = function () {
+            // Card has been clicked, therefore played, and will be disabled
+            btn.disabled = true;
+
+            let playedCard = getCardByNameAndNumber(player.cards, btn.name, btn.value, false);
+
+            if (player.hasInitiative) {
+                playCard(player, playedCard, "LEAD", false);
+                //nextTurn();
+            } else {
+                let aiPlayedLeadCard = playedCardList[0];
+
+                addPlayedCardToList(playedCard, "PLAYER", false);
+                player.hasPlayedACardThisTurn = true;
+
+                if (playedCardList.length == 1) {
+                    // Human players card was added but list only have one entry
+                    // AI hasn't played a card because, while it has inititive,
+                    // it has no cards left to play because it has claimed at some point
+                    checkInitiative(player, playedCard, false);
+                } else {
+
+                    if (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) {
+                        checkInitiative(player, playedCard, false);
+                    }
+                }
+
+                changeCurrentPlayer(player);
+
+                if (allPlayersHavePlayedACard()) {
+                    nextTurn();
+                }
+            }
+        };
+        */
+        //document.getElementById("playerhand" + playerNumber.toString()).append(btn);
+    })
+    //}
+}
+
+function dealCards_old() {
 
     let playerNumber = 0;
     do {
@@ -354,7 +541,19 @@ function dealCards() {
     }
 }
 
-function getCardByNameAndNumber(hand, name, number, played) {
+function getCardByNameAndNumber(hand, cardfullname, played) {
+    let returnCard;
+    hand.forEach(card => {
+        if (getCardFullName(card) == cardfullname && card.played == played) {
+            //alert(card.name)
+            returnCard = card;
+        }
+    })
+
+    return returnCard;
+}
+
+function getCardByNameAndNumber_old(hand, name, number, played) {
     let returnCard;
     hand.forEach(card => {
         if (card.name == name && card.number == number && card.played == played) {
@@ -388,7 +587,15 @@ function playCard(player, playedCard, action, notify) {
     player.hasPlayedACardThisTurn = true;
 
     if (player.hasInitiative) {
-        if (player.isHuman == false) {
+        if (player.isHuman && action == "declare") {
+            alert("Player declared ambition: " + playedCard.ambition);
+            playedCard.number = 0;
+    
+            addPlayedCardToList(playedCard, "LEAD", true);
+    
+            declaredAmbitions += 1;
+            document.getElementById("declaredAmbitions").innerHTML = declaredAmbitions;
+        } else {
             declareAmbition(player, playedCard);
         }
         changeCurrentPlayer(player);
@@ -677,13 +884,14 @@ function enableDisablePlayCardButtons(playerNumber) {
 function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
     document.querySelectorAll(".p" + playerNumber.toString()).forEach((btn) => {
         if (enable) {
-            let card = getCardByNameAndNumber(getPlayer(playerNumber).cards, btn.name, btn.value, false);
+            let card = getCardByNameAndNumber(getPlayer(playerNumber).cards, btn.id, false);
             if (card != null) {
                 // Card is unplayed and button should be enabled
                 btn.disabled = false;
             }
         } else {
             btn.disabled = true;
+            btn.checked = false;
         }
     })
 }
