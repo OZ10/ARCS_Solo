@@ -28,26 +28,34 @@ function getCardFullName(card) {
 let players = [];
 
 const actioncards = [
+    //new Card("Construction", 1, 4, false, "null"),
     new Card("Construction", 2, 4, false, "tycoon"),
     new Card("Construction", 3, 3, false, "tyrant"),
     new Card("Construction", 4, 3, false, "warlord"),
     new Card("Construction", 5, 2, false, "keeper"),
     new Card("Construction", 6, 2, false, "empath"),
+    //new Card("Construction", 7, 1, false, "anything"),
+    //new Card("Aggression", 1, 3, false, "null"),
     new Card("Aggression", 2, 3, false, "tycoon"),
     new Card("Aggression", 3, 2, false, "tyrant"),
     new Card("Aggression", 4, 2, false, "warlord"),
     new Card("Aggression", 5, 2, false, "keeper"),
     new Card("Aggression", 6, 2, false, "empath"),
+    //new Card("Aggression", 7, 1, false, "anything"),
+    //new Card("Administration", 1, 4, false, "null"),
     new Card("Administration", 2, 4, false, "tycoon"),
     new Card("Administration", 3, 3, false, "tyrant"),
     new Card("Administration", 4, 3, false, "warlord"),
     new Card("Administration", 5, 3, false, "keeper"),
     new Card("Administration", 6, 2, false, "empath"),
+    //new Card("Administration", 7, 1, false, "anything"),
+    //new Card("Mobilisation", 1, 4, false, "null"),
     new Card("Mobilisation", 2, 4, false, "tycoon"),
     new Card("Mobilisation", 3, 3, false, "tyrant"),
     new Card("Mobilisation", 4, 3, false, "warlord"),
     new Card("Mobilisation", 5, 2, false, "keeper"),
     new Card("Mobilisation", 6, 2, false, "empath"),
+    //new Card("Mobilisation", 7, 1, false, "anything"),
 ];
 
 const ambitions = [
@@ -825,7 +833,7 @@ function getNumberOfPips(card, action) {
 
     // Only add extra pips if the action is...
     if (action == "SURPASS" | action == "LEAD" | action == "PLAYER") {
-        for (let index = 0; index < card.pips; index++) {
+        for (let index = 0; index < card.pips - 1; index++) {
             pips += "&#9733;";
         }
     }
