@@ -19,6 +19,9 @@ class Card {
         this.played = played;
         this.ambition = ambition;
     }
+
+    playedAction = '';
+    playedByPlayerNumber = 0;
 }
 
 function getCardFullName(card) {
@@ -86,6 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         loadPlayers();
         loadPlayedCardList();
+        loadAmbitions();
     }
 });
 
@@ -135,11 +139,22 @@ function loadPlayedCardList() {
 
     if (cardlist != null) {
         cardlist.forEach(card => {
-            addPlayedCardToList(card, "LOADED", false);
+            addPlayedCardToList(card, card.playedAction, false);
         })
     }
 }
 
+function loadAmbitions(){
+    const ambitions = getSettingObject('ambitions');
+
+    if(ambitions != null){
+        ambitions.forEach(ambition => {
+            declaredAmbitions.push(ambition);
+        })
+    }
+
+    setElementValue("declaredAmbitions", declaredAmbitions.length);
+}
 
 function setupGame(numberOfPlayers) {
 
@@ -153,15 +168,13 @@ function setupGame(numberOfPlayers) {
     document.getElementById("playerslots").replaceChildren();
     document.getElementById("playedcards").replaceChildren();
 
-    SaveSettings(({ "turn": 1, "round": 1 }));
-
     createPlayers(numberOfPlayers);
 
     resetRound();
 
     dealCards();
 
-    savePlayers();
+    SaveAllSettings();
 
 }
 
@@ -335,7 +348,6 @@ function nextTurn() {
 
     turnNumber += 1;
     setElementValue("turnNumber", turnNumber.toString());
-    SaveSetting("turn", turnNumber);
 
     resetPlayedThisTurn();
 
@@ -344,7 +356,7 @@ function nextTurn() {
     currentPlayer = getPlayerWithInitiative();
     enableDisablePlayCardButtons(currentPlayer.number);
 
-    savePlayers();
+    SaveAllSettings();
 }
 
 
@@ -370,7 +382,6 @@ function nextRound() {
 
     turnNumber = 1;
     roundNumber += 1;
-    SaveSettings(({ "turn": 1, "round": roundNumber }));
 
     resetRound();
 
@@ -378,17 +389,7 @@ function nextRound() {
 
     dealCards();
 
-    /*
-    // If human player does not have initiative, find player who does and play a card
-    if (players[0].hasInitiative == false) {
-
-        currentPlayer = getPlayerWithInitiative();
-
-        enableDisablePlayCardButtons(currentPlayer.number);
-    }
-        */
-
-    savePlayers();
+    SaveAllSettings();
 }
 
 function resetRound() {
@@ -458,7 +459,7 @@ function humanSelectedAction(action) {
 
     } else {
 
-        addPlayedCardToList(playedCard, action, false);
+        addPlayedCardToList(playedCard, action, false, player);
         player.hasPlayedACardThisTurn = true;
 
         if (playedCardList.length == 1) {
@@ -483,7 +484,7 @@ function humanSelectedAction(action) {
         }
     }
 
-    savePlayers();
+    SaveAllSettings();
 }
 
 function isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard) {
@@ -568,7 +569,7 @@ function playCard(player, playedCard, action, notify) {
     //  - 2 - claim
     //  - 3 - PIVOT
 
-    addPlayedCardToList(playedCard, action, false);
+    addPlayedCardToList(playedCard, action, false, player);
     player.hasPlayedACardThisTurn = true;
 
     if (player.hasInitiative) {
@@ -578,7 +579,7 @@ function playCard(player, playedCard, action, notify) {
 
             // Reset the played card list and re-add the declared card
             // with a value of 0
-            addPlayedCardToList(playedCard, "LEAD", true);
+            addPlayedCardToList(playedCard, "LEAD", true, player);
 
             declaredAmbitions.push(playedCard.ambition);
             setElementValue("declaredAmbitions", declaredAmbitions.length);
@@ -594,7 +595,7 @@ function playCard(player, playedCard, action, notify) {
         //nextTurn();
     }
 
-    savePlayers();
+    SaveAllSettings();
 }
 
 function haveAllPlayersPlayedACard() {
@@ -652,7 +653,7 @@ function determineCardToPlay(player) {
         }
     }
 
-    savePlayers();
+    SaveAllSettings();
 }
 
 function enableNextTurnButton() {
@@ -678,7 +679,7 @@ function declareAmbition(player, playedCard) {
         alert("Player declared ambition: " + playedCard.ambition);
         playedCard.number = 0;
 
-        addPlayedCardToList(playedCard, "LEAD", true);
+        addPlayedCardToList(playedCard, "LEAD", true, player);
 
         declaredAmbitions.push(playedCard.ambition);
         setElementValue("declaredAmbitions", declaredAmbitions.length);
@@ -906,9 +907,13 @@ function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
 }
 
 
-function addPlayedCardToList(card, action, reset) {
+function addPlayedCardToList(card, action, reset, player) {
     if (card != null) {
         card.played = true;
+
+        // TODO The below two IF statements are horrid. Need a better way to do this
+        if (card.playedAction == '') { card.playedAction = action };
+        if (card.playedByPlayerNumber == 0) { card.playedByPlayerNumber = player.number };
 
         if (playedCardList.length == 0) {
             let turnListDiv = document.getElementById("playedcards");
@@ -932,7 +937,7 @@ function addPlayedCardToList(card, action, reset) {
         playedCardList.push(card);
 
         let cardDiv = document.createElement("div");
-        cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + currentPlayer.number);
+        cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + card.playedByPlayerNumber);
         // If player COPIED, replace the suit played with XXXX 
         cardDiv.innerHTML = action.toUpperCase() + ": " + ((action == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, action);
         cardListDiv.append(cardDiv);
@@ -1010,6 +1015,14 @@ const SaveSettings = (settings) => {
 
 };
 
+const SaveAllSettings = () => {
+    savePlayers();
+    //saveAmbitions();
+    saveSettingObject('ambitions', declaredAmbitions);
+    SaveSetting("turn", turnNumber);
+    SaveSetting("round", roundNumber);
+}
+
 const saveSettingObject = (settingName, settingObject) => {
     localStorage.setItem(settingName, JSON.stringify(settingObject));
 };
@@ -1038,4 +1051,10 @@ function savePlayers() {
     players.forEach(player => {
         saveSettingObject(player.number, player);
     });
+}
+
+function saveAmbitions(){
+    declaredAmbitions.forEach(ambition => {
+        saveSettingObject(ambition, ambition);
+    })
 }
