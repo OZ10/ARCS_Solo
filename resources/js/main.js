@@ -19,6 +19,9 @@ class Card {
         this.played = played;
         this.ambition = ambition;
     }
+
+    playedAction = '';
+    playedByPlayerNumber = 0;
 }
 
 function getCardFullName(card) {
@@ -76,21 +79,111 @@ let declaredAmbitions = [];
 let currentPlayer;
 
 document.addEventListener("DOMContentLoaded", () => {
+    if (localStorage.length > 0) {
+        for (let [key, value] of Object.entries(localStorage)) {
+            switch (key) {
+                case "turn":
+                    turnNumber = parseInt(value);
+                    setElementValue("turnNumber", value);
+                    break;
+                case "round":
+                    roundNumber = parseInt(value);
+                    setElementValue("roundNumber", value);
+                    break;
+                default:
+                    break;
+            }
+        }
 
+        loadPlayers();
+        loadPlayedCardList();
+        loadAmbitions();
+    }
 });
 
+function loadPlayers() {
+    for (let playerNumber = 1; playerNumber < 5; playerNumber++) {
+
+        const player = getSettingObject(playerNumber);
+        if (player != null) {
+            players.push(player);
+            clonePlayerNodeAndSetup(player.number);
+        }
+    }
+    if (haveAllPlayersPlayedACard() == true) {
+        enableNextTurnButton();
+    } else {
+        findCurrentPlayer();
+    }
+
+    createCardButtonsForHumanPlayer();
+}
+
+function findCurrentPlayer() {
+
+    let player = getPlayerWithInitiative();
+
+    if (player.hasPlayedACardThisTurn == false) {
+        currentPlayer = player;
+        enableDisablePlayCardButtons(player.number);
+    } else {
+        for (let playerNumber = player.number; playerNumber < players.length + 1; playerNumber++) {
+            player = players[playerNumber];
+            if (playerNumber > players.length - 1) {
+                playerNumber = -1
+            } else {
+                if (player.hasPlayedACardThisTurn == false) {
+                    currentPlayer = player;
+                    enableDisablePlayCardButtons(player.number);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+function loadPlayedCardList() {
+    const cardlist = getSettingObject('playedCardList');
+
+    if (cardlist != null) {
+        cardlist.forEach(card => {
+            addPlayedCardToList(card, card.playedAction, false);
+        })
+    }
+}
+
+function loadAmbitions(){
+    const ambitions = getSettingObject('ambitions');
+
+    if(ambitions != null){
+        ambitions.forEach(ambition => {
+            declaredAmbitions.push(ambition);
+        })
+    }
+
+    setElementValue("declaredAmbitions", declaredAmbitions.length);
+}
+
 function setupGame(numberOfPlayers) {
+
+    localStorage.clear();
 
     players = [];
     turnNumber = 1;
     roundNumber = 1;
     declaredAmbitions = [];
 
+    document.getElementById("playerslots").replaceChildren();
+    document.getElementById("playedcards").replaceChildren();
+
     createPlayers(numberOfPlayers);
 
     resetRound();
 
     dealCards();
+
+    SaveAllSettings();
+
 }
 
 function createPlayers(numberOfPlayers) {
@@ -238,29 +331,6 @@ function playcardclick() {
     determineCardToPlay(currentPlayer);
 }
 
-function resetRound() {
-    initiativeClaimed = false;
-    playedCardList = [];
-    declaredAmbitions = [];
-
-    setElementValue("turnNumber", turnNumber.toString());
-    setElementValue("roundNumber", roundNumber.toString());
-    setElementValue("declaredAmbitions", 0);
-
-    enableDisableButton("nextRound", true);
-
-    currentactioncards = structuredClone(actioncards);
-
-    resetDeck(currentactioncards);
-
-    resetPlayedThisTurn();
-
-    resetHandsAndPlayedCardsDisplay();
-
-    currentPlayer = getPlayerWithInitiative();
-    enableDisablePlayCardButtons(currentPlayer.number);
-}
-
 function setElementValue(elementid, value) {
     document.getElementById(elementid).innerHTML = value;
 }
@@ -275,22 +345,28 @@ function resetHandsAndPlayedCardsDisplay() {
 
 function nextTurn() {
 
+    enableDisableButton("nextTurn", true);
+
     if (haveAllCardsBeenPlayed()) {
         enableDisableButton("nextRound", false);
-        hidePlayerPanels();
         return;
     }
 
     initiativeClaimed = false;
-    playedCardList = [];
+
     turnNumber += 1;
     setElementValue("turnNumber", turnNumber.toString());
 
     resetPlayedThisTurn();
 
+    resetPlayedCardList();
+
     currentPlayer = getPlayerWithInitiative();
     enableDisablePlayCardButtons(currentPlayer.number);
+
+    SaveAllSettings();
 }
+
 
 function haveAllCardsBeenPlayed() {
     let allPlayed;
@@ -311,6 +387,7 @@ function resetPlayedThisTurn() {
 }
 
 function nextRound() {
+
     turnNumber = 1;
     roundNumber += 1;
 
@@ -320,13 +397,38 @@ function nextRound() {
 
     dealCards();
 
-    // If human player does not have initiative, find player who does and play a card
-    if (players[0].hasInitiative == false) {
+    SaveAllSettings();
+}
 
-        currentPlayer = getPlayerWithInitiative();
+function resetRound() {
+    initiativeClaimed = false;
 
-        enableDisablePlayCardButtons(currentPlayer.number);
-    }
+    resetPlayedCardList();
+
+    declaredAmbitions = [];
+
+    setElementValue("turnNumber", turnNumber.toString());
+    setElementValue("roundNumber", roundNumber.toString());
+    setElementValue("declaredAmbitions", 0);
+
+    enableDisableButton("nextRound", true);
+
+    currentactioncards = structuredClone(actioncards);
+
+    resetDeck(currentactioncards);
+
+    resetPlayedThisTurn();
+
+    resetHandsAndPlayedCardsDisplay();
+
+    currentPlayer = getPlayerWithInitiative();
+    enableDisablePlayCardButtons(currentPlayer.number);
+}
+
+function resetPlayedCardList() {
+    playedCardList = [];
+    document.getElementById("playedcards").replaceChildren();
+    RemoveSettingByKey("playedCardList");
 }
 
 function resetPlayersHands() {
@@ -362,10 +464,10 @@ function humanSelectedAction(action) {
     if (player.hasInitiative) {
         playCard(player, playedCard, action, false);
         showHideElement(document.querySelectorAll("#actionbuttons"), false);
+
     } else {
 
-
-        addPlayedCardToList(playedCard, action, false);
+        addPlayedCardToList(playedCard, action, false, player);
         player.hasPlayedACardThisTurn = true;
 
         if (playedCardList.length == 1) {
@@ -385,10 +487,12 @@ function humanSelectedAction(action) {
 
         showHideElement(document.querySelectorAll("#actionbuttons"), false);
 
-        if (allPlayersHavePlayedACard()) {
-            nextTurn();
+        if (haveAllPlayersPlayedACard()) {
+            enableNextTurnButton();
         }
     }
+
+    SaveAllSettings();
 }
 
 function isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard) {
@@ -427,6 +531,8 @@ function createCardButtonsForHumanPlayer() {
 
         btn.classList.add("p1");
         btn.value = card.number;
+
+        if (card.played) { btn.disabled = true; }
 
         btn.onclick = function () {
             showHideElement(document.querySelectorAll("#actionbuttons"), true);
@@ -471,7 +577,7 @@ function playCard(player, playedCard, action, notify) {
     //  - 2 - claim
     //  - 3 - PIVOT
 
-    addPlayedCardToList(playedCard, action, false);
+    addPlayedCardToList(playedCard, action, false, player);
     player.hasPlayedACardThisTurn = true;
 
     if (player.hasInitiative) {
@@ -481,7 +587,7 @@ function playCard(player, playedCard, action, notify) {
 
             // Reset the played card list and re-add the declared card
             // with a value of 0
-            addPlayedCardToList(playedCard, "LEAD", true);
+            addPlayedCardToList(playedCard, "LEAD", true, player);
 
             declaredAmbitions.push(playedCard.ambition);
             setElementValue("declaredAmbitions", declaredAmbitions.length);
@@ -492,12 +598,15 @@ function playCard(player, playedCard, action, notify) {
         changeCurrentPlayer(player);
     }
 
-    if (player.isHuman && allPlayersHavePlayedACard()) {
-        nextTurn();
+    if (player.isHuman && haveAllPlayersPlayedACard()) {
+        enableNextTurnButton();
+        //nextTurn();
     }
+
+    SaveAllSettings();
 }
 
-function allPlayersHavePlayedACard() {
+function haveAllPlayersPlayedACard() {
     for (let playerNumber = 0; playerNumber < players.length; playerNumber++) {
         if (players[playerNumber].hasPlayedACardThisTurn == false) { return false; }
     }
@@ -545,12 +654,23 @@ function determineCardToPlay(player) {
             }
         }
 
-        if (allPlayersHavePlayedACard()) {
-            nextTurn();
+        if (haveAllPlayersPlayedACard()) {
+            enableNextTurnButton();
         } else {
             changeCurrentPlayer(player);
         }
     }
+
+    SaveAllSettings();
+}
+
+function enableNextTurnButton() {
+    if (turnNumber < 5) {
+        enableDisableButton("nextTurn", false);
+    }else{
+        enableDisableButton("nextRound", false);
+    }
+    hidePlayerPanels();
 }
 
 function declareAmbition(player, playedCard) {
@@ -567,7 +687,7 @@ function declareAmbition(player, playedCard) {
         alert("Player declared ambition: " + playedCard.ambition);
         playedCard.number = 0;
 
-        addPlayedCardToList(playedCard, "LEAD", true);
+        addPlayedCardToList(playedCard, "LEAD", true, player);
 
         declaredAmbitions.push(playedCard.ambition);
         setElementValue("declaredAmbitions", declaredAmbitions.length);
@@ -669,31 +789,31 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
     players.forEach(player => {
         if (player.number != claimingPlayer.number) { return; }
 
-            if (hasClaimed) {
-                player.hasInitiative = true;
-                setElementValue("initiative", "Player " + player.number.toString());
-            } else {
-                let playedHighestCard = false;
+        if (hasClaimed) {
+            player.hasInitiative = true;
+            setElementValue("initiative", "Player " + player.number.toString());
+        } else {
+            let playedHighestCard = false;
 
-                for (let cardNumber = 0; cardNumber < playedCardList.length; cardNumber++) {
-                    const card = playedCardList[cardNumber];
+            for (let cardNumber = 0; cardNumber < playedCardList.length; cardNumber++) {
+                const card = playedCardList[cardNumber];
 
-                    if (playedCard.name == card.name) {
-                        if (playedCard.number > card.number) {
-                            playedHighestCard = true;
-                        } else {
-                            if (playedCard.number < card.number) {
-                                playedHighestCard = false;
-                            }
+                if (playedCard.name == card.name) {
+                    if (playedCard.number > card.number) {
+                        playedHighestCard = true;
+                    } else {
+                        if (playedCard.number < card.number) {
+                            playedHighestCard = false;
                         }
                     }
                 }
-
-                if (playedHighestCard) {
-                    changeInitiative(player);
-                    setElementValue("initiative", "Player " + player.number.toString());
-                }
             }
+
+            if (playedHighestCard) {
+                changeInitiative(player);
+                setElementValue("initiative", "Player " + player.number.toString());
+            }
+        }
 
     })
 }
@@ -795,9 +915,13 @@ function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
 }
 
 
-function addPlayedCardToList(card, action, reset) {
+function addPlayedCardToList(card, action, reset, player) {
     if (card != null) {
         card.played = true;
+
+        // TODO The below two IF statements are horrid. Need a better way to do this
+        if (card.playedAction == '') { card.playedAction = action };
+        if (card.playedByPlayerNumber == 0) { card.playedByPlayerNumber = player.number };
 
         if (playedCardList.length == 0) {
             let turnListDiv = document.getElementById("playedcards");
@@ -821,10 +945,12 @@ function addPlayedCardToList(card, action, reset) {
         playedCardList.push(card);
 
         let cardDiv = document.createElement("div");
-        cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + currentPlayer.number);
+        cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + card.playedByPlayerNumber);
         // If player COPIED, replace the suit played with XXXX 
-        cardDiv.innerHTML = action.toUpperCase() + ": " + ((action == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, action); // " &#9733;";
+        cardDiv.innerHTML = action.toUpperCase() + ": " + ((action == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, action);
         cardListDiv.append(cardDiv);
+
+        saveSettingObject('playedCardList', playedCardList);
     }
 }
 
@@ -849,4 +975,94 @@ function getUnplayedCards(cards) {
     });
 
     return unplayedCards;
+}
+
+// SAVE FUNCTIONS
+const GetSettingsByValue = (val, includes = false) => {
+    let settings = new Array();
+    for (let [key, value] of Object.entries(localStorage)) {
+        if (includes && value.includes(val)) {
+            settings.push(key + "," + value);
+        } else if (value == val) {
+            settings.push(key + "," + value);
+        }
+    }
+    return settings;
+};
+
+const GetSettingsByKey = (val, includes = false) => {
+    let settings = new Array();
+    for (let [key, value] of Object.entries(localStorage)) {
+        if (includes && key.includes(val)) {
+            settings.push(key + "," + value);
+        } else if (key == val) {
+            settings.push(key + "," + value);
+        }
+    }
+    return settings;
+};
+
+const GetSettingValueByKey = (keytofind) => {
+    for (let [key, value] of Object.entries(localStorage)) {
+        if (key == keytofind) {
+            return value;
+        }
+    }
+
+    return "";
+};
+
+const SaveSetting = (key, value) => {
+    localStorage.setItem(key, value);
+};
+
+const SaveSettings = (settings) => {
+    for (let [key, value] of Object.entries(settings)) {
+        localStorage.setItem(key, value);
+    }
+
+};
+
+const SaveAllSettings = () => {
+    savePlayers();
+    //saveAmbitions();
+    saveSettingObject('ambitions', declaredAmbitions);
+    SaveSetting("turn", turnNumber);
+    SaveSetting("round", roundNumber);
+}
+
+const saveSettingObject = (settingName, settingObject) => {
+    localStorage.setItem(settingName, JSON.stringify(settingObject));
+};
+
+const getSettingObject = (settingName) => {
+    return JSON.parse(localStorage.getItem(settingName));
+};
+
+const RemoveSettingByKey = (k) => {
+    for (let [key, value] of Object.entries(localStorage)) {
+        if (key === k) {
+            localStorage.removeItem(key);
+        }
+    }
+};
+
+const RemoveSettingByValue = (val) => {
+    for (let [key, value] of Object.entries(localStorage)) {
+        if (value === val) {
+            localStorage.removeItem(key);
+        }
+    }
+};
+
+function savePlayers() {
+    players.forEach(player => {
+        saveSettingObject(player.number, player);
+    });
+}
+
+function saveAmbitions(){
+    declaredAmbitions.forEach(ambition => {
+        saveSettingObject(ambition, ambition);
+    })
 }
