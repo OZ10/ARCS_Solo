@@ -4,6 +4,7 @@
   border-left-width: 4px;
   color: black;
   font-size: large;
+  border-radius: 15px;
 }
 .playerheader a, .playerheader4 a, .playerheader3 a, .playerheader2 a, .playerheader1 a {
   font-size: larger;
@@ -15,7 +16,7 @@
 }
 
 .playerheader2 {
-  background-color: crimson;
+  background-color: firebrick;
 }
 
 .playerheader3 {
@@ -32,7 +33,7 @@
 }
 
 .playercard2 {
-  color: crimson;
+  color: firebrick;
   background-color: black;
 }
 

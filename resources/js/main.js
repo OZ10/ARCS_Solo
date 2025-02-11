@@ -101,6 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+// #region LOAD
+
 function loadPlayers() {
     for (let playerNumber = 1; playerNumber < 5; playerNumber++) {
 
@@ -127,6 +129,7 @@ function findCurrentPlayer() {
         currentPlayer = player;
         enableDisablePlayCardButtons(player.number);
     } else {
+        // Loop through all the players looking for the next player who hasn't played a card
         for (let playerNumber = player.number; playerNumber < players.length + 1; playerNumber++) {
             player = players[playerNumber];
             if (playerNumber > players.length - 1) {
@@ -152,10 +155,10 @@ function loadPlayedCardList() {
     }
 }
 
-function loadAmbitions(){
+function loadAmbitions() {
     const ambitions = getSettingObject('ambitions');
 
-    if(ambitions != null){
+    if (ambitions != null) {
         ambitions.forEach(ambition => {
             declaredAmbitions.push(ambition);
         })
@@ -163,6 +166,9 @@ function loadAmbitions(){
 
     setElementValue("declaredAmbitions", declaredAmbitions.length);
 }
+
+// #endregion
+
 
 function setupGame(numberOfPlayers) {
 
@@ -173,8 +179,8 @@ function setupGame(numberOfPlayers) {
     roundNumber = 1;
     declaredAmbitions = [];
 
-    document.getElementById("playerslots").replaceChildren();
-    document.getElementById("playedcards").replaceChildren();
+    removeChildElements("playerslots");
+    removeChildElements("playedcards");
 
     createPlayers(numberOfPlayers);
 
@@ -320,27 +326,17 @@ function showHideActionButtons(isleading, card) {
     }
 }
 
-function showHideElement(elements, show) {
-    elements.forEach(element => {
-        (show) ? element.classList.remove("d-none") : element.classList.add("d-none");
-    })
-}
-
 function playcardclick() {
     // This is the AI playing a card
     determineCardToPlay(currentPlayer);
 }
 
-function setElementValue(elementid, value) {
-    document.getElementById(elementid).innerHTML = value;
-}
-
 function resetHandsAndPlayedCardsDisplay() {
     players.forEach(p => {
-        document.getElementById("playerhand" + p.number).replaceChildren();
+        removeChildElements("playerhand" + p.number);
     });
 
-    document.getElementById("playedcards").replaceChildren();
+    removeChildElements("playedcards");
 }
 
 function nextTurn() {
@@ -427,7 +423,7 @@ function resetRound() {
 
 function resetPlayedCardList() {
     playedCardList = [];
-    document.getElementById("playedcards").replaceChildren();
+    removeChildElements("playedcards");
     RemoveSettingByKey("playedCardList");
 }
 
@@ -667,7 +663,7 @@ function determineCardToPlay(player) {
 function enableNextTurnButton() {
     if (turnNumber < 5) {
         enableDisableButton("nextTurn", false);
-    }else{
+    } else {
         enableDisableButton("nextRound", false);
     }
     hidePlayerPanels();
@@ -818,48 +814,10 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
     })
 }
 
-function checkInitiative_old(claimingPlayer, playedCard, hasClaimed) {
-    if (initiativeClaimed == true) { return; }
-
-    players.forEach(player => {
-        if (player.number == claimingPlayer.number) {
-            if (hasClaimed) {
-                player.hasInitiative = true;
-                document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-            } else {
-                let playedHighestCard = false;
-
-                for (let cardNumber = 0; cardNumber < playedCardList.length; cardNumber++) {
-                    const card = playedCardList[cardNumber];
-
-                    if (playedCard.name == card.name) {
-                        if (playedCard.number > card.number) {
-                            playedHighestCard = true;
-                        } else {
-                            if (playedCard.number < card.number) {
-                                playedHighestCard = false;
-                            }
-                        }
-                    }
-                }
-
-                if (playedHighestCard) {
-                    changeInitiative(player);
-                    document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                }
-            }
-        }
-    })
-}
-
 function changeInitiative(player) {
     players.forEach(p => {
         p.hasInitiative = (p.number == player.number) ? true : false;
     })
-}
-
-function enableDisableButton(buttonName, isDisabled) {
-    document.getElementById(buttonName).disabled = isDisabled;
 }
 
 function pivot(player, cards) {
@@ -977,7 +935,33 @@ function getUnplayedCards(cards) {
     return unplayedCards;
 }
 
-// SAVE FUNCTIONS
+// #region UTILS
+
+function removeChildElements(id){
+    document.getElementById(id).replaceChildren();
+}
+
+function showHideElement(elements, show) {
+    elements.forEach(element => {
+        (show) ? element.classList.remove("d-none") : element.classList.add("d-none");
+    })
+}
+
+function setElementValue(elementid, value) {
+    document.getElementById(elementid).innerHTML = value;
+}
+
+function enableDisableButton(buttonName, isDisabled) {
+    document.getElementById(buttonName).disabled = isDisabled;
+}
+
+
+
+// #endregion
+
+
+// #region SAVE
+
 const GetSettingsByValue = (val, includes = false) => {
     let settings = new Array();
     for (let [key, value] of Object.entries(localStorage)) {
@@ -1061,8 +1045,11 @@ function savePlayers() {
     });
 }
 
-function saveAmbitions(){
+function saveAmbitions() {
     declaredAmbitions.forEach(ambition => {
         saveSettingObject(ambition, ambition);
     })
 }
+
+// #endregion
+
