@@ -12,12 +12,13 @@ class player {
 }
 
 class Card {
-    constructor(name, number, pips, played, ambition) {
+    constructor(name, number, pips, played, ambition, actions) {
         this.name = name;
         this.number = number;
         this.pips = pips;
         this.played = played;
         this.ambition = ambition;
+        this.actions = actions;
     }
 
     playedAction = '';
@@ -31,34 +32,34 @@ function getCardFullName(card) {
 let players = [];
 
 const actioncards = [
-    //new Card("Construction", 1, 4, false, "null"),
-    new Card("Construction", 2, 4, false, "tycoon"),
-    new Card("Construction", 3, 3, false, "tyrant"),
-    new Card("Construction", 4, 3, false, "warlord"),
-    new Card("Construction", 5, 2, false, "keeper"),
-    new Card("Construction", 6, 2, false, "empath"),
-    //new Card("Construction", 7, 1, false, "anything"),
-    //new Card("Aggression", 1, 3, false, "null"),
-    new Card("Aggression", 2, 3, false, "tycoon"),
-    new Card("Aggression", 3, 2, false, "tyrant"),
-    new Card("Aggression", 4, 2, false, "warlord"),
-    new Card("Aggression", 5, 2, false, "keeper"),
-    new Card("Aggression", 6, 2, false, "empath"),
-    //new Card("Aggression", 7, 1, false, "anything"),
-    //new Card("Administration", 1, 4, false, "null"),
-    new Card("Administration", 2, 4, false, "tycoon"),
-    new Card("Administration", 3, 3, false, "tyrant"),
-    new Card("Administration", 4, 3, false, "warlord"),
-    new Card("Administration", 5, 3, false, "keeper"),
-    new Card("Administration", 6, 2, false, "empath"),
-    //new Card("Administration", 7, 1, false, "anything"),
-    //new Card("Mobilisation", 1, 4, false, "null"),
-    new Card("Mobilisation", 2, 4, false, "tycoon"),
-    new Card("Mobilisation", 3, 3, false, "tyrant"),
-    new Card("Mobilisation", 4, 3, false, "warlord"),
-    new Card("Mobilisation", 5, 2, false, "keeper"),
-    new Card("Mobilisation", 6, 2, false, "empath"),
-    //new Card("Mobilisation", 7, 1, false, "anything"),
+    //new Card("Construction", 1, 4, false, "null", "build,repair,"),
+    new Card("Construction", 2, 4, false, "tycoon", "build,repair,"),
+    new Card("Construction", 3, 3, false, "tyrant", "build,repair,"),
+    new Card("Construction", 4, 3, false, "warlord", "build,repair,"),
+    new Card("Construction", 5, 2, false, "keeper", "build,repair,"),
+    new Card("Construction", 6, 2, false, "empath", "build,repair,"),
+    //new Card("Construction", 7, 1, false, "anything", "build,repair,"),
+    //new Card("Aggression", 1, 3, false, "null", "move,secure,battle,"),
+    new Card("Aggression", 2, 3, false, "tycoon", "move,secure,battle,"),
+    new Card("Aggression", 3, 2, false, "tyrant", "move,secure,battle,"),
+    new Card("Aggression", 4, 2, false, "warlord", "move,secure,battle,"),
+    new Card("Aggression", 5, 2, false, "keeper", "move,secure,battle,"),
+    new Card("Aggression", 6, 2, false, "empath", "move,secure,battle,"),
+    //new Card("Aggression", 7, 1, false, "anything", "move,secure,battle,"),
+    //new Card("Administration", 1, 4, false, "null", "influence,tax,repair,"),
+    new Card("Administration", 2, 4, false, "tycoon", "influence,tax,repair,"),
+    new Card("Administration", 3, 3, false, "tyrant", "influence,tax,repair,"),
+    new Card("Administration", 4, 3, false, "warlord", "influence,tax,repair,"),
+    new Card("Administration", 5, 3, false, "keeper", "influence,tax,repair,"),
+    new Card("Administration", 6, 2, false, "empath", "influence,tax,repair,"),
+    //new Card("Administration", 7, 1, false, "anything", "influence,tax,repair,"),
+    //new Card("Mobilisation", 1, 4, false, "null", "move,influence,"),
+    new Card("Mobilisation", 2, 4, false, "tycoon", "move,influence,"),
+    new Card("Mobilisation", 3, 3, false, "tyrant", "move,influence,"),
+    new Card("Mobilisation", 4, 3, false, "warlord", "move,influence,"),
+    new Card("Mobilisation", 5, 2, false, "keeper", "move,influence,"),
+    new Card("Mobilisation", 6, 2, false, "empath", "move,influence,"),
+    //new Card("Mobilisation", 7, 1, false, "anything", "move,influence,"),
 ];
 
 const ambitions = [
@@ -660,6 +661,165 @@ function determineCardToPlay(player) {
     SaveAllSettings();
 }
 
+function findFocus(player, unplayedCards) {
+    // LOGIC:
+    // - Chase ambition
+    // - Build for future turn
+    // - random
+
+    let possibleActions = "";
+
+    unplayedCards.forEach(card => {
+        possibleActions += card.actions;
+    })
+
+    if (declaredAmbitions.length > 0) {
+        // TODO Need to determine which ambition is best to chase
+        // - Have cards to chase?
+        // - Have pieces to chase?
+        // - Worth most points?
+
+        for (let index = 0; index < declaredAmbitions.length; index++) {
+            const ambition = declaredAmbitions[index];
+            switch (ambition) {
+                case "tycoon":
+                    // materials and fuel
+                    // tax or steal or secure
+                    // Q: Can I tax a city for weapons or fuel?
+                    // Q: Is there a materials or fuel card in the market?
+                    // Q: Can I raid a city for materials or fuel?
+                    if (possibleActions.includes("tax") || possibleActions.includes("secure") || possibleActions.includes("battle")) {
+                        focus_tycoon(1);
+                    }
+                    break;
+
+                case "tyrant":
+                    // capture
+                    // tax rival city or ransack or secure
+                    // Q: Can I tax a rival city to capture?
+                    // Q: Is there a card in the market with rival agents that I can secure?
+                    // Q: Can I destroy a city to ransack the court?                    
+                    break;
+
+                case "warlord":
+                    // fight
+                    // battle or secure
+                    // Q: Can I fight?
+                    // Q: Is there a weapons card in the market?
+                    break;
+
+                case "keeper":
+                    // relics
+                    // tax or steal or secure
+                    // Q: Can I tax a city for a relic?
+                    // Q: Is there a relic card in the market?
+                    // Q: Can I raid a city for a relic?
+                    break;
+
+                case "empath":
+                    // psionic
+                    // tax or steal or secure
+                    // Q: Can I tax a city for a psionic?
+                    // Q: Is there a psionic card in the market?
+                    // Q: Can I raid a city for a psionic?
+                    break;
+
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+function focus_tycoon(questionNumber) {
+    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+
+    switch (questionNumber) {
+        case 1:
+            document.getElementById("yesNoMessage").innerHTML = "Can I tax a city for weapons or fuel?";
+            break;
+
+        case 2:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a materials or fuel card in the market?";
+            break;
+
+        case 3:
+            document.getElementById("yesNoMessage").innerHTML = "Can I raid a city for materials or fuel?";
+            break;
+
+        default:
+            break;
+    }
+
+    modal.show();
+}
+
+function answerYes() {
+    const unplayedCards = getUnplayedCards(currentPlayer.cards);
+    let cardsWithAction;
+    let cardToPlay;
+    let actionToPlay;
+
+    const question = document.getElementById("yesNoMessage").innerHTML;
+    switch (question) {
+        case "Can I tax a city for weapons or fuel?":
+            actionToPlay = "tax";
+            break;
+
+        case "Is there a materials or fuel card in the market?":
+            actionToPlay = "secure";
+            break;
+
+        case "Can I raid a city for materials or fuel?":
+            actionToPlay = "battle";
+            break;
+        default:
+            break;
+    }
+
+    cardsWithAction = getCardsWithAction(unplayedCards, actionToPlay);
+    cardToPlay = getHighestCard(cardsWithAction);
+
+    if (cardToPlay != null) {
+        playCard(currentPlayer, cardToPlay, actionToPlay, false);
+    }
+}
+
+function answerNo() {
+    const question = document.getElementById("yesNoMessage").innerHTML;
+    switch (question) {
+        case "Can I tax a city for weapons or fuel?":
+            focus_tycoon(2);
+            break;
+
+        case "Is there a materials or fuel card in the market?":
+            focus_tycoon(3);
+            break;
+
+        case "Can I raid a city for materials or fuel?":
+            // TODO Player does not have the cards to focus on tycoon
+            break;
+
+        default:
+            break;
+    }
+}
+
+function getHighestCard(cards) {
+    let highestCard;
+    cards.forEach(card => {
+        if (highestCard == null) {
+            highestCard = card;
+        } else {
+            if (highestCard.number < card.number) {
+                highestCard = card;
+            }
+        }
+    })
+
+    return highestCard;
+}
+
 function enableNextTurnButton() {
     if (turnNumber < 5) {
         enableDisableButton("nextTurn", false);
@@ -935,9 +1095,20 @@ function getUnplayedCards(cards) {
     return unplayedCards;
 }
 
+function getCardsWithAction(cards, action) {
+    let cardsWithAction = [];
+    cards.forEach(card => {
+        if (card.action.includes(action)) {
+            cardsWithAction.push(card);
+        }
+    });
+
+    return cardsWithAction;
+}
+
 // #region UTILS
 
-function removeChildElements(id){
+function removeChildElements(id) {
     document.getElementById(id).replaceChildren();
 }
 
@@ -1052,4 +1223,11 @@ function saveAmbitions() {
 }
 
 // #endregion
+
+function test() {
+    //document.getElementById("yesNo").modal('show');
+    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    document.getElementById("yesNoMessage").innerHTML = "Yo!";
+    modal.show();
+}
 
