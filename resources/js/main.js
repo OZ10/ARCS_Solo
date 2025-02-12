@@ -630,6 +630,8 @@ function determineCardToPlay(player) {
         let unplayedCards = getUnplayedCards(player.cards);
         let initiativeClaimedThisTurn = false;
 
+        findFocus(player, unplayedCards);
+        /*
         if (unplayedCards.length > 0) {
             if (player.hasInitiative) {
                 playCard(player, unplayedCards[0], "LEAD", true);
@@ -650,15 +652,18 @@ function determineCardToPlay(player) {
                 }
             }
         }
+            */
 
+        /*
         if (haveAllPlayersPlayedACard()) {
             enableNextTurnButton();
         } else {
             changeCurrentPlayer(player);
         }
+            */
     }
 
-    SaveAllSettings();
+    //SaveAllSettings();
 }
 
 function findFocus(player, unplayedCards) {
@@ -688,8 +693,19 @@ function findFocus(player, unplayedCards) {
                     // Q: Can I tax a city for weapons or fuel?
                     // Q: Is there a materials or fuel card in the market?
                     // Q: Can I raid a city for materials or fuel?
-                    if (possibleActions.includes("tax") || possibleActions.includes("secure") || possibleActions.includes("battle")) {
+                    if (possibleActions.includes("tax")) {
                         focus_tycoon(1);
+                        break;
+                    }
+
+                    if (possibleActions.includes("secure")) {
+                        focus_tycoon(2);
+                        break;
+                    }
+
+                    if (possibleActions.includes("battle")) {
+                        focus_tycoon(3);
+                        break;
                     }
                     break;
 
@@ -728,6 +744,12 @@ function findFocus(player, unplayedCards) {
                     break;
             }
         }
+
+        return;
+    }
+
+    if (player.hasInitiative) {
+        playCard(player, unplayedCards[0], "LEAD", true);
     }
 }
 
@@ -780,19 +802,64 @@ function answerYes() {
     cardsWithAction = getCardsWithAction(unplayedCards, actionToPlay);
     cardToPlay = getHighestCard(cardsWithAction);
 
+    let initiativeClaimedThisTurn;
+
     if (cardToPlay != null) {
         playCard(currentPlayer, cardToPlay, actionToPlay, false);
+    } else {
+        if (canSurpass(currentPlayer, playedCardList[0], unplayedCards) == false) {
+
+            // Cannot SURPASS and therefore must find focus
+
+            if (initiativeClaimed == false) {
+                initiativeClaimedThisTurn = claim(currentPlayer)
+            }
+
+            if (initiativeClaimedThisTurn == false) {
+                if (canCopy(currentPlayer, playedCardList[0], unplayedCards) == false) {
+                    pivot(currentPlayer, unplayedCards);
+                }
+            }
+        }
     }
+
+
+    if (haveAllPlayersPlayedACard()) {
+        enableNextTurnButton();
+    } else {
+        changeCurrentPlayer(currentPlayer);
+    }
+
+
+    SaveAllSettings();
 }
 
 function answerNo() {
+    // TODO Need to check at this point if player has the right cards
+    // to play the action, otherwise don't ask the question
     const question = document.getElementById("yesNoMessage").innerHTML;
+
+    // Think here I need to split this into what ambition the player
+    // is trying to focus on - maybe by having the ambition name on the
+    // yes/no prompt
+    // The have IF statements below that can trigger one after another
+    // depending on whether the player has the right cards to ask the
+    // correct question
+    //
+    // Case AMBITION
+    // If question and has card with action
+    // else next question and has card with action
+    // else check for next ambition??
+    // else just play a random card
+
     switch (question) {
         case "Can I tax a city for weapons or fuel?":
+            // Need to check for secure cards here
             focus_tycoon(2);
             break;
 
         case "Is there a materials or fuel card in the market?":
+            // Need to check for battle cards here
             focus_tycoon(3);
             break;
 
@@ -807,15 +874,17 @@ function answerNo() {
 
 function getHighestCard(cards) {
     let highestCard;
-    cards.forEach(card => {
-        if (highestCard == null) {
-            highestCard = card;
-        } else {
-            if (highestCard.number < card.number) {
+    if (cards.length > 0) {
+        cards.forEach(card => {
+            if (highestCard == null) {
                 highestCard = card;
+            } else {
+                if (highestCard.number < card.number) {
+                    highestCard = card;
+                }
             }
-        }
-    })
+        })
+    }
 
     return highestCard;
 }
@@ -1098,7 +1167,7 @@ function getUnplayedCards(cards) {
 function getCardsWithAction(cards, action) {
     let cardsWithAction = [];
     cards.forEach(card => {
-        if (card.action.includes(action)) {
+        if (card.actions.includes(action)) {
             cardsWithAction.push(card);
         }
     });
