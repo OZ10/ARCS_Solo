@@ -691,7 +691,8 @@ function findFocus(player, unplayedCards) {
                     // materials and fuel
                     // tax or steal or secure
                     // Q: Can I tax a city for weapons or fuel?
-                    // Q: Is there a materials or fuel card in the market?
+                    // Q: Is there a materials or fuel card in the market to secure?
+                    // Q: Is there a materials or fuel card in the market to influence?
                     // Q: Can I raid a city for materials or fuel?
                     if (possibleActions.includes("tax")) {
                         focus_tycoon(1);
@@ -703,8 +704,13 @@ function findFocus(player, unplayedCards) {
                         break;
                     }
 
-                    if (possibleActions.includes("battle")) {
+                    if (possibleActions.includes("influence")) {
                         focus_tycoon(3);
+                        break;
+                    }
+
+                    if (possibleActions.includes("battle")) {
+                        focus_tycoon(4);
                         break;
                     }
                     break;
@@ -714,47 +720,156 @@ function findFocus(player, unplayedCards) {
                     // tax rival city or ransack or secure
                     // Q: Can I tax a rival city to capture?
                     // Q: Is there a card in the market with rival agents that I can secure?
-                    // Q: Can I destroy a city to ransack the court?                    
+                    // Q: Can I destroy a city to ransack the court?  
+                    if (possibleActions.includes("tax")) {
+                        focus_tyrant(1);
+                        break;
+                    }
+
+                    if (possibleActions.includes("secure")) {
+                        focus_tyrant(2);
+                        break;
+                    }
+
+                    if (possibleActions.includes("battle")) {
+                        focus_tyrant(3);
+                        break;
+                    }
                     break;
 
                 case "warlord":
                     // fight
                     // battle or secure
                     // Q: Can I fight?
-                    // Q: Is there a weapons card in the market?
+                    // Q: Is there a weapons card in the market to secure?
+                    // Q: Is there a weapons card in the market to influence?
+                    if (possibleActions.includes("battle")) {
+                        focus_warlord(1);
+                        break;
+                    }
+
+                    if (possibleActions.includes("secure")) {
+                        focus_warlord(2);
+                        break;
+                    }
+
+                    if (possibleActions.includes("influence")) {
+                        focus_warlord(3);
+                        break;
+                    }
                     break;
 
                 case "keeper":
                     // relics
                     // tax or steal or secure
                     // Q: Can I tax a city for a relic?
-                    // Q: Is there a relic card in the market?
+                    // Q: Is there a relic card in the market to secure?
+                    // Q: Is there a relic card in the market to influence?
                     // Q: Can I raid a city for a relic?
+                    if (possibleActions.includes("tax")) {
+                        focus_keeper(1);
+                        break;
+                    }
+
+                    if (possibleActions.includes("secure")) {
+                        focus_keeper(2);
+                        break;
+                    }
+
+                    if (possibleActions.includes("influence")) {
+                        focus_keeper(3);
+                        break;
+                    }
+
+                    if (possibleActions.includes("battle")) {
+                        focus_keeper(4);
+                        break;
+                    }
                     break;
 
                 case "empath":
                     // psionic
                     // tax or steal or secure
                     // Q: Can I tax a city for a psionic?
-                    // Q: Is there a psionic card in the market?
+                    // Q: Is there a psionic card in the market to secure?
+                    // Q: Is there a psionic card in the market to influence?
                     // Q: Can I raid a city for a psionic?
+                    if (possibleActions.includes("tax")) {
+                        focus_empath(1);
+                        break;
+                    }
+
+                    if (possibleActions.includes("secure")) {
+                        focus_empath(2);
+                        break;
+                    }
+
+                    if (possibleActions.includes("influence")) {
+                        focus_empath(3);
+                        break;
+                    }
+
+                    if (possibleActions.includes("battle")) {
+                        focus_empath(4);
+                        break;
+                    }
                     break;
 
                 default:
+                    findCardToPlay(unplayedCards, "");
                     break;
             }
         }
 
-        return;
+        //return;
+    } else {
+        findCardToPlay(unplayedCards, "");
     }
 
-    if (player.hasInitiative) {
-        playCard(player, unplayedCards[0], "LEAD", true);
-    }
+    // CARDS CANNOT BE PLAYED BELOW THE SWITCH STATEMENT
+    // ANY CODE BELOW WILL RUN WHILE THE MODAL PROMPT IS DISPLAYED
+    // AND WILL RESULT IN THE PLAYER PLAYING MULITPLE CARDS
+
+    /*
+        if (player.hasPlayedACardThisTurn == false) {
+            let initiativeClaimedThisTurn;
+    
+            if (player.hasInitiative) {
+                playCard(player, unplayedCards[0], "LEAD", true);
+            } else {
+                if (canSurpass(currentPlayer, playedCardList[0], unplayedCards) == false) {
+    
+                    // Cannot SURPASS and therefore must find focus
+    
+                    if (initiativeClaimed == false) {
+                        initiativeClaimedThisTurn = claim(currentPlayer)
+                    }
+    
+                    if (initiativeClaimedThisTurn == false) {
+                        if (canCopy(currentPlayer, playedCardList[0], unplayedCards) == false) {
+                            pivot(currentPlayer, unplayedCards);
+                        }
+                    }
+                }
+            }
+        }
+    
+    
+        if (haveAllPlayersPlayedACard()) {
+            enableNextTurnButton();
+        } else {
+            //changeCurrentPlayer(currentPlayer);
+        }
+    
+    
+        SaveAllSettings();
+    
+        */
 }
 
 function focus_tycoon(questionNumber) {
     let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    document.getElementById("focusMessage").innerHTML = "TYCOON";
 
     switch (questionNumber) {
         case 1:
@@ -762,14 +877,132 @@ function focus_tycoon(questionNumber) {
             break;
 
         case 2:
-            document.getElementById("yesNoMessage").innerHTML = "Is there a materials or fuel card in the market?";
+            document.getElementById("yesNoMessage").innerHTML = "Is there a materials or fuel card in the market I can secure?";
             break;
 
         case 3:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a materials or fuel card in the market I can influence?";
+            break;
+
+        case 4:
             document.getElementById("yesNoMessage").innerHTML = "Can I raid a city for materials or fuel?";
             break;
 
         default:
+            // Could not do any of the above
+            // Move to next amibition?
+            break;
+    }
+
+    modal.show();
+}
+
+function focus_tyrant(questionNumber) {
+    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    document.getElementById("focusMessage").innerHTML = "TYRANT";
+
+    switch (questionNumber) {
+        case 1:
+            document.getElementById("yesNoMessage").innerHTML = "Can I tax a rival's city to capture?";
+            break;
+
+        case 2:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a card in the market with rival agents on it that I can secure?";
+            break;
+
+        case 3:
+            document.getElementById("yesNoMessage").innerHTML = "Can I destory a city to ransack the court?";
+            break;
+
+        default:
+            // Could not do any of the above
+            // Move to next amibition?
+            break;
+    }
+
+    modal.show();
+}
+
+function focus_warlord(questionNumber) {
+    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    document.getElementById("focusMessage").innerHTML = "WARLORD";
+
+    switch (questionNumber) {
+        case 1:
+            document.getElementById("yesNoMessage").innerHTML = "Can I battle a rival?";
+            break;
+
+        case 2:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a weapons card in the market I can secure?";
+            break;
+
+        case 3:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a weapons card in the market I can influence?";
+            break;
+
+        default:
+            // Could not do any of the above
+            // Move to next amibition?
+            break;
+    }
+
+    modal.show();
+}
+
+function focus_keeper(questionNumber) {
+    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    document.getElementById("focusMessage").innerHTML = "KEEPER";
+
+    switch (questionNumber) {
+        case 1:
+            document.getElementById("yesNoMessage").innerHTML = "Can I tax a city for a relic?";
+            break;
+
+        case 2:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a relic card in the market I can secure?";
+            break;
+
+        case 3:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a relic card in the market I can influence?";
+            break;
+
+        case 4:
+            document.getElementById("yesNoMessage").innerHTML = "Can I raid a city for a relic?";
+            break;
+
+        default:
+            // Could not do any of the above
+            // Move to next amibition?
+            break;
+    }
+
+    modal.show();
+}
+
+function focus_empath(questionNumber) {
+    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    document.getElementById("focusMessage").innerHTML = "EMPATH";
+
+    switch (questionNumber) {
+        case 1:
+            document.getElementById("yesNoMessage").innerHTML = "Can I tax a city for a psionic?";
+            break;
+
+        case 2:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a psionic card in the market I can secure?";
+            break;
+
+        case 3:
+            document.getElementById("yesNoMessage").innerHTML = "Is there a psionic card in the market I can influence?";
+            break;
+
+        case 4:
+            document.getElementById("yesNoMessage").innerHTML = "Can I raid a city for a psionic?";
+            break;
+
+        default:
+            // Could not do any of the above
+            // Move to next amibition?
             break;
     }
 
@@ -779,20 +1012,37 @@ function focus_tycoon(questionNumber) {
 function answerYes() {
     const unplayedCards = getUnplayedCards(currentPlayer.cards);
     let cardsWithAction;
-    let cardToPlay;
     let actionToPlay;
 
     const question = document.getElementById("yesNoMessage").innerHTML;
     switch (question) {
         case "Can I tax a city for weapons or fuel?":
+        case "Can I tax a rival's city to capture?":
+        case "Can I tax a city for a relic?":
+        case "Can I tax a city for a psionic?":
             actionToPlay = "tax";
             break;
 
-        case "Is there a materials or fuel card in the market?":
+        case "Is there a materials or fuel card in the market I can secure?":
+        case "Is there a card in the market with rival agents on it that I can secure?":
+        case "Is there a weapons card in the market I can secure?":
+        case "Is there a relic card in the market I can secure?":
+        case "Is there a psionic card in the market I can secure?":
             actionToPlay = "secure";
             break;
 
+        case "Is there a materials or fuel card in the market I can influence?":
+        case "Is there a weapons card in the market I can influence?":
+        case "Is there a relic card in the market I can influence?":
+        case "Is there a psionic card in the market I can influence?":
+            actionToPlay = "influence";
+            break;
+
         case "Can I raid a city for materials or fuel?":
+        case "Can I destory a city to ransack the court?":
+        case "Can I battle a rival?":
+        case "Can I raid a city for a relic?":
+        case "Can I raid a city for a psionic?":
             actionToPlay = "battle";
             break;
         default:
@@ -800,14 +1050,20 @@ function answerYes() {
     }
 
     cardsWithAction = getCardsWithAction(unplayedCards, actionToPlay);
-    cardToPlay = getHighestCard(cardsWithAction);
+    findCardToPlay(cardsWithAction, actionToPlay);
+}
+
+function findCardToPlay(cards, actionToPlay) {
+    const cardToPlay = getHighestCard(cards);
 
     let initiativeClaimedThisTurn;
 
-    if (cardToPlay != null) {
+    if (currentPlayer.hasInitiative) { actionToPlay = "LEAD" }
+
+    if (cardToPlay != null && actionToPlay != "") {
         playCard(currentPlayer, cardToPlay, actionToPlay, false);
     } else {
-        if (canSurpass(currentPlayer, playedCardList[0], unplayedCards) == false) {
+        if (canSurpass(currentPlayer, playedCardList[0], cards) == false) {
 
             // Cannot SURPASS and therefore must find focus
 
@@ -816,18 +1072,17 @@ function answerYes() {
             }
 
             if (initiativeClaimedThisTurn == false) {
-                if (canCopy(currentPlayer, playedCardList[0], unplayedCards) == false) {
-                    pivot(currentPlayer, unplayedCards);
+                if (canCopy(currentPlayer, playedCardList[0], cards) == false) {
+                    pivot(currentPlayer, cards);
                 }
             }
         }
     }
 
-
     if (haveAllPlayersPlayedACard()) {
         enableNextTurnButton();
     } else {
-        changeCurrentPlayer(currentPlayer);
+        //changeCurrentPlayer(currentPlayer);
     }
 
 
@@ -838,11 +1093,12 @@ function answerNo() {
     // TODO Need to check at this point if player has the right cards
     // to play the action, otherwise don't ask the question
     const question = document.getElementById("yesNoMessage").innerHTML;
+    const focus = document.getElementById("focusMessage").innerHTML;
 
     // Think here I need to split this into what ambition the player
     // is trying to focus on - maybe by having the ambition name on the
     // yes/no prompt
-    // The have IF statements below that can trigger one after another
+    // Then have IF statements below that can trigger one after another
     // depending on whether the player has the right cards to ask the
     // correct question
     //
@@ -852,24 +1108,118 @@ function answerNo() {
     // else check for next ambition??
     // else just play a random card
 
-    switch (question) {
-        case "Can I tax a city for weapons or fuel?":
-            // Need to check for secure cards here
-            focus_tycoon(2);
+    const unplayedCards = getUnplayedCards(currentPlayer.cards);
+
+    let possibleActions = "";
+
+    unplayedCards.forEach(card => {
+        possibleActions += card.actions;
+    })
+
+    // Below logic:
+    // Check the question that was JUST asked (i.e. the answer was NO)
+    // and also check that player has cards with the possible action for NEXT question
+
+    switch (focus) {
+        case "TYCOON":
+
+            if (question == "Can I tax a city for weapons or fuel?" && possibleActions.includes("secure")) {
+                focus_tycoon(2);
+                break;
+            }
+
+            if (question == "Is there a materials or fuel card in the market I can secure?" && possibleActions.includes("influence")) {
+                focus_tycoon(3);
+                break;
+            }
+
+            if (question == "Is there a materials or fuel card in the market I can influence?" && possibleActions.includes("battle")) {
+                focus_tycoon(4);
+                break;
+            }
+
+            // Play random card here
+            findCardToPlay(unplayedCards, "");
             break;
 
-        case "Is there a materials or fuel card in the market?":
-            // Need to check for battle cards here
-            focus_tycoon(3);
+        case "TYRANT":
+
+            if (question == "Can I tax a rival's city to capture?" && possibleActions.includes("secure")) {
+                focus_tycoon(2);
+                break;
+            }
+
+            if (question == "Is there a card in the market with rival agents on it that I can secure?" && possibleActions.includes("battle")) {
+                focus_tycoon(3);
+                break;
+            }
+
+            // Play random card here
+            findCardToPlay(unplayedCards, "");
             break;
 
-        case "Can I raid a city for materials or fuel?":
-            // TODO Player does not have the cards to focus on tycoon
+        case "WARLORD":
+
+            if (question == "Can I battle a rival?" && possibleActions.includes("secure")) {
+                focus_tycoon(2);
+                break;
+            }
+
+            if (question == "Is there a weapons card in the market I can secure?" && possibleActions.includes("influence")) {
+                focus_tycoon(3);
+                break;
+            }
+
+            // Play random card here
+            findCardToPlay(unplayedCards, "");
+            break;
+
+        case "KEEPER":
+
+            if (question == "Can I tax a city for a relic?" && possibleActions.includes("secure")) {
+                focus_tycoon(2);
+                break;
+            }
+
+            if (question == "Is there a relic card in the market I can secure?" && possibleActions.includes("influence")) {
+                focus_tycoon(3);
+                break;
+            }
+
+            if (question == "Is there a relic card in the market I can influence?" && possibleActions.includes("battle")) {
+                focus_tycoon(4);
+                break;
+            }
+
+            // Play random card here
+            findCardToPlay(unplayedCards, "");
+            break;
+
+        case "EMPATH":
+
+            if (question == "Can I tax a city for a psionic?" && possibleActions.includes("secure")) {
+                focus_tycoon(2);
+                break;
+            }
+
+            if (question == "Is there a psionic card in the market I can secure?" && possibleActions.includes("influence")) {
+                focus_tycoon(3);
+                break;
+            }
+
+            if (question == "Is there a psionic card in the market I can influence?" && possibleActions.includes("battle")) {
+                focus_tycoon(4);
+                break;
+            }
+
+            // Play random card here
+            findCardToPlay(unplayedCards, "");
             break;
 
         default:
             break;
     }
+
 }
 
 function getHighestCard(cards) {
