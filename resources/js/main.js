@@ -9,6 +9,7 @@ class player {
     cards = [];
     hasInitiative = false;
     hasPlayedACardThisTurn = false;
+    ambitionsEvaluated = [];
 }
 
 class Card {
@@ -358,6 +359,8 @@ function nextTurn() {
 
     resetPlayedCardList();
 
+    resetPlayersAmibtions();
+
     currentPlayer = getPlayerWithInitiative();
     enableDisablePlayCardButtons(currentPlayer.number);
 
@@ -390,7 +393,7 @@ function nextRound() {
 
     resetRound();
 
-    resetPlayersHands();
+    resetPlayersCards();
 
     dealCards();
 
@@ -428,9 +431,15 @@ function resetPlayedCardList() {
     RemoveSettingByKey("playedCardList");
 }
 
-function resetPlayersHands() {
+function resetPlayersCards() {
     players.forEach(player => {
         player.cards = [];
+    });
+}
+
+function resetPlayersAmibtions() {
+    players.forEach(player => {
+        player.ambitionsEvaluated = [];
     });
 }
 
@@ -678,7 +687,129 @@ function findFocus(player, unplayedCards) {
         possibleActions += card.actions;
     })
 
-    if (declaredAmbitions.length > 0) {
+    if (declaredAmbitions.length > 0 && player.ambitionsEvaluated.length < declaredAmbitions.length) {
+        // TODO Need to determine which ambition is best to chase
+        // - Have cards to chase?
+        // - Have pieces to chase?
+        // - Worth most points?
+
+        for (let index = 0; index < declaredAmbitions.length; index++) {
+            const ambition = declaredAmbitions[index];
+            //switch (ambition) {
+            if (ambition == "tycoon" && player.ambitionsEvaluated.includes("TYCOON") == false) {
+                // materials and fuel
+                // tax or steal or secure
+                // Q: Can I tax a city for weapons or fuel?
+                // Q: Is there a materials or fuel card in the market to secure?
+                // Q: Is there a materials or fuel card in the market to influence?
+                // Q: Can I raid a city for materials or fuel?
+
+
+                if (possibleActions.includes("tax")) {
+                    focus_tycoon(1);
+                    //break;
+                } else if (possibleActions.includes("secure")) {
+                    focus_tycoon(2);
+                    //break;
+                } else if (possibleActions.includes("influence")) {
+                    focus_tycoon(3);
+
+                } else if (possibleActions.includes("battle")) {
+                    focus_tycoon(4);
+                }
+            }
+
+            if (ambition == "tyrant" && player.ambitionsEvaluated.includes("TYRANT") == false) {
+                // capture
+                // tax rival city or ransack or secure
+                // Q: Can I tax a rival city to capture?
+                // Q: Is there a card in the market with rival agents that I can secure?
+                // Q: Can I destroy a city to ransack the court?  
+                if (possibleActions.includes("tax")) {
+                    focus_tyrant(1);
+                } else if (possibleActions.includes("secure")) {
+                    focus_tyrant(2);
+                } else if (possibleActions.includes("battle")) {
+                    focus_tyrant(3);
+                }
+            }
+
+            if (ambition == "warload" && player.ambitionsEvaluated.includes("WARLORD") == false) {
+                // fight
+                // battle or secure
+                // Q: Can I fight?
+                // Q: Is there a weapons card in the market to secure?
+                // Q: Is there a weapons card in the market to influence?
+                if (possibleActions.includes("battle")) {
+                    focus_warlord(1);
+                } else if (possibleActions.includes("secure")) {
+                    focus_warlord(2);
+                } else if (possibleActions.includes("influence")) {
+                    focus_warlord(3);
+                }
+            }
+
+            if (ambition == "keeper" && player.ambitionsEvaluated.includes("KEEPER") == false) {
+                // relics
+                // tax or steal or secure
+                // Q: Can I tax a city for a relic?
+                // Q: Is there a relic card in the market to secure?
+                // Q: Is there a relic card in the market to influence?
+                // Q: Can I raid a city for a relic?
+                if (possibleActions.includes("tax")) {
+                    focus_keeper(1);
+                } else if (possibleActions.includes("secure")) {
+                    focus_keeper(2);
+                } else if (possibleActions.includes("influence")) {
+                    focus_keeper(3);
+                } else if (possibleActions.includes("battle")) {
+                    focus_keeper(4);
+                }
+            }
+
+            if (ambition == "empath" && player.ambitionsEvaluated.includes("EMPATH") == false) {
+                // psionic
+                // tax or steal or secure
+                // Q: Can I tax a city for a psionic?
+                // Q: Is there a psionic card in the market to secure?
+                // Q: Is there a psionic card in the market to influence?
+                // Q: Can I raid a city for a psionic?
+                if (possibleActions.includes("tax")) {
+                    focus_empath(1);
+                } else if (possibleActions.includes("secure")) {
+                    focus_empath(2);
+                } else if (possibleActions.includes("influence")) {
+                    focus_empath(3);
+                } else if (possibleActions.includes("battle")) {
+                    focus_empath(4);
+                }
+            }
+        }
+
+        //return;
+    } else {
+        findCardToPlay(unplayedCards, "");
+    }
+
+
+    // CARDS CANNOT BE PLAYED BELOW THE ABOVE IF STATEMENTS
+    // ANY CODE BELOW WILL RUN WHILE THE MODAL PROMPT IS DISPLAYED
+    // AND WILL RESULT IN THE PLAYER PLAYING MULITPLE CARDS
+}
+
+function findFocus_old(player, unplayedCards) {
+    // LOGIC:
+    // - Chase ambition
+    // - Build for future turn
+    // - random
+
+    let possibleActions = "";
+
+    unplayedCards.forEach(card => {
+        possibleActions += card.actions;
+    })
+
+    if (declaredAmbitions.length > 0 && player.ambitionsEvaluated.length < declaredAmbitions.length) {
         // TODO Need to determine which ambition is best to chase
         // - Have cards to chase?
         // - Have pieces to chase?
@@ -829,42 +960,6 @@ function findFocus(player, unplayedCards) {
     // CARDS CANNOT BE PLAYED BELOW THE SWITCH STATEMENT
     // ANY CODE BELOW WILL RUN WHILE THE MODAL PROMPT IS DISPLAYED
     // AND WILL RESULT IN THE PLAYER PLAYING MULITPLE CARDS
-
-    /*
-        if (player.hasPlayedACardThisTurn == false) {
-            let initiativeClaimedThisTurn;
-    
-            if (player.hasInitiative) {
-                playCard(player, unplayedCards[0], "LEAD", true);
-            } else {
-                if (canSurpass(currentPlayer, playedCardList[0], unplayedCards) == false) {
-    
-                    // Cannot SURPASS and therefore must find focus
-    
-                    if (initiativeClaimed == false) {
-                        initiativeClaimedThisTurn = claim(currentPlayer)
-                    }
-    
-                    if (initiativeClaimedThisTurn == false) {
-                        if (canCopy(currentPlayer, playedCardList[0], unplayedCards) == false) {
-                            pivot(currentPlayer, unplayedCards);
-                        }
-                    }
-                }
-            }
-        }
-    
-    
-        if (haveAllPlayersPlayedACard()) {
-            enableNextTurnButton();
-        } else {
-            //changeCurrentPlayer(currentPlayer);
-        }
-    
-    
-        SaveAllSettings();
-    
-        */
 }
 
 function focus_tycoon(questionNumber) {
@@ -1138,8 +1233,11 @@ function answerNo() {
                 break;
             }
 
+            currentPlayer.ambitionsEvaluated.push("TYCOON");
+            findFocus(currentPlayer, unplayedCards);
+
             // Play random card here
-            findCardToPlay(unplayedCards, "");
+            //findCardToPlay(unplayedCards, "");
             break;
 
         case "TYRANT":
@@ -1154,8 +1252,11 @@ function answerNo() {
                 break;
             }
 
+            currentPlayer.ambitionsEvaluated.push("TYRANT");
+            findFocus(currentPlayer, unplayedCards);
+
             // Play random card here
-            findCardToPlay(unplayedCards, "");
+            //findCardToPlay(unplayedCards, "");
             break;
 
         case "WARLORD":
@@ -1170,8 +1271,11 @@ function answerNo() {
                 break;
             }
 
+            currentPlayer.ambitionsEvaluated.push("WARLORD");
+            findFocus(currentPlayer, unplayedCards);
+
             // Play random card here
-            findCardToPlay(unplayedCards, "");
+            //findCardToPlay(unplayedCards, "");
             break;
 
         case "KEEPER":
@@ -1191,8 +1295,11 @@ function answerNo() {
                 break;
             }
 
+            currentPlayer.ambitionsEvaluated.push("KEEPER");
+            findFocus(currentPlayer, unplayedCards);
+
             // Play random card here
-            findCardToPlay(unplayedCards, "");
+            //findCardToPlay(unplayedCards, "");
             break;
 
         case "EMPATH":
@@ -1212,14 +1319,16 @@ function answerNo() {
                 break;
             }
 
+            currentPlayer.ambitionsEvaluated.push("EMPATH");
+            findFocus(currentPlayer, unplayedCards);
+
             // Play random card here
-            findCardToPlay(unplayedCards, "");
+            //findCardToPlay(unplayedCards, "");
             break;
 
         default:
             break;
     }
-
 }
 
 function getHighestCard(cards) {
