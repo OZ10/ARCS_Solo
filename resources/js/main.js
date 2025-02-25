@@ -22,6 +22,7 @@ class Card {
         this.actions = actions;
     }
 
+    cardAction = '';
     playedAction = '';
     playedByPlayerNumber = 0;
 }
@@ -152,7 +153,7 @@ function loadPlayedCardList() {
 
     if (cardlist != null) {
         cardlist.forEach(card => {
-            addPlayedCardToList(card, card.playedAction, false);
+            addPlayedCardToList(card, card.playedAction, card.cardAction, false);
         })
     }
 }
@@ -459,7 +460,7 @@ function resetDeck(cards) {
     })
 }
 
-function humanSelectedAction(action) {
+function humanSelectedAction(cardAction) {
 
     const player = players[0];
 
@@ -468,12 +469,12 @@ function humanSelectedAction(action) {
     const playedCard = getCardByNameAndNumber(player.cards, btnSelected.id, false);
 
     if (player.hasInitiative) {
-        playCard(player, playedCard, action, false);
+        playCard(player, playedCard, "ANY", cardAction, false);
         showHideElement(document.querySelectorAll("#actionbuttons"), false);
 
     } else {
 
-        addPlayedCardToList(playedCard, action, false, player);
+        addPlayedCardToList(playedCard, "ANY", cardAction, false, player);
         player.hasPlayedACardThisTurn = true;
 
         if (playedCardList.length == 1) {
@@ -576,24 +577,24 @@ function getPlayer(playerNumber) {
     return returnplayer;
 }
 
-function playCard(player, playedCard, action, notify) {
+function playCard(player, playedCard, actionToPlay, cardAction) {
     // Can SURPASS = play card
     // Can't SURPASS
     //  - 1 - COPY
     //  - 2 - claim
     //  - 3 - PIVOT
 
-    addPlayedCardToList(playedCard, action, false, player);
+    addPlayedCardToList(playedCard, actionToPlay, cardAction, false, player);
     player.hasPlayedACardThisTurn = true;
 
     if (player.hasInitiative) {
-        if (player.isHuman && action == "DECLARE") {
+        if (player.isHuman && cardAction == "DECLARE") {
             alert("Player declared ambition: " + playedCard.ambition);
             playedCard.number = 0;
 
             // Reset the played card list and re-add the declared card
             // with a value of 0
-            addPlayedCardToList(playedCard, "LEAD", true, player);
+            addPlayedCardToList(playedCard, "ANY", "DECLARE", true, player);
 
             declaredAmbitions.push(playedCard.ambition);
             setElementValue("declaredAmbitions", declaredAmbitions.length);
@@ -693,7 +694,7 @@ function findFocus(player, unplayedCards) {
         // - Have pieces to chase?
         // - Worth most points?
 
-        for (let index = 0; index < declaredAmbitions.length; index++) {
+        for (let index = 0; index < declaredAmbitions.length + 1; index++) {
             const ambition = declaredAmbitions[index];
             //switch (ambition) {
             if (ambition == "tycoon" && player.ambitionsEvaluated.includes("TYCOON") == false) {
@@ -707,19 +708,18 @@ function findFocus(player, unplayedCards) {
 
                 if (possibleActions.includes("tax")) {
                     focus_tycoon(1);
-                    //break;
+                    break;
                 } else if (possibleActions.includes("secure")) {
                     focus_tycoon(2);
-                    //break;
+                    break;
                 } else if (possibleActions.includes("influence")) {
                     focus_tycoon(3);
-
+                    break;
                 } else if (possibleActions.includes("battle")) {
                     focus_tycoon(4);
+                    break;
                 }
-            }
-
-            if (ambition == "tyrant" && player.ambitionsEvaluated.includes("TYRANT") == false) {
+            } else if (ambition == "tyrant" && player.ambitionsEvaluated.includes("TYRANT") == false) {
                 // capture
                 // tax rival city or ransack or secure
                 // Q: Can I tax a rival city to capture?
@@ -727,14 +727,15 @@ function findFocus(player, unplayedCards) {
                 // Q: Can I destroy a city to ransack the court?  
                 if (possibleActions.includes("tax")) {
                     focus_tyrant(1);
+                    break;
                 } else if (possibleActions.includes("secure")) {
                     focus_tyrant(2);
+                    break;
                 } else if (possibleActions.includes("battle")) {
                     focus_tyrant(3);
+                    break;
                 }
-            }
-
-            if (ambition == "warload" && player.ambitionsEvaluated.includes("WARLORD") == false) {
+            } else if (ambition == "warload" && player.ambitionsEvaluated.includes("WARLORD") == false) {
                 // fight
                 // battle or secure
                 // Q: Can I fight?
@@ -742,14 +743,15 @@ function findFocus(player, unplayedCards) {
                 // Q: Is there a weapons card in the market to influence?
                 if (possibleActions.includes("battle")) {
                     focus_warlord(1);
+                    break;
                 } else if (possibleActions.includes("secure")) {
                     focus_warlord(2);
+                    break;
                 } else if (possibleActions.includes("influence")) {
                     focus_warlord(3);
+                    break;
                 }
-            }
-
-            if (ambition == "keeper" && player.ambitionsEvaluated.includes("KEEPER") == false) {
+            } else if (ambition == "keeper" && player.ambitionsEvaluated.includes("KEEPER") == false) {
                 // relics
                 // tax or steal or secure
                 // Q: Can I tax a city for a relic?
@@ -758,16 +760,18 @@ function findFocus(player, unplayedCards) {
                 // Q: Can I raid a city for a relic?
                 if (possibleActions.includes("tax")) {
                     focus_keeper(1);
+                    break;
                 } else if (possibleActions.includes("secure")) {
                     focus_keeper(2);
+                    break;
                 } else if (possibleActions.includes("influence")) {
                     focus_keeper(3);
+                    break;
                 } else if (possibleActions.includes("battle")) {
                     focus_keeper(4);
+                    break;
                 }
-            }
-
-            if (ambition == "empath" && player.ambitionsEvaluated.includes("EMPATH") == false) {
+            } else if (ambition == "empath" && player.ambitionsEvaluated.includes("EMPATH") == false) {
                 // psionic
                 // tax or steal or secure
                 // Q: Can I tax a city for a psionic?
@@ -776,13 +780,19 @@ function findFocus(player, unplayedCards) {
                 // Q: Can I raid a city for a psionic?
                 if (possibleActions.includes("tax")) {
                     focus_empath(1);
+                    break;
                 } else if (possibleActions.includes("secure")) {
                     focus_empath(2);
+                    break;
                 } else if (possibleActions.includes("influence")) {
                     focus_empath(3);
+                    break;
                 } else if (possibleActions.includes("battle")) {
                     focus_empath(4);
+                    break;
                 }
+            } else if (ambition == null) {
+                findCardToPlay(unplayedCards, "");
             }
         }
 
@@ -1153,6 +1163,46 @@ function findCardToPlay(cards, actionToPlay) {
 
     let initiativeClaimedThisTurn;
 
+    let cardAction = "";
+
+    if (actionToPlay == "") { actionToPlay = "ANY" }
+
+    if (currentPlayer.hasInitiative) { cardAction = "LEAD" }
+
+    if (cardToPlay != null && currentPlayer.hasInitiative) {
+        playCard(currentPlayer, cardToPlay, actionToPlay, cardAction);
+    } else {
+        if (canSurpass(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
+
+            // Cannot SURPASS and therefore must find focus
+
+            if (initiativeClaimed == false) {
+                initiativeClaimedThisTurn = claim(currentPlayer, actionToPlay)
+            }
+
+            if (initiativeClaimedThisTurn == false) {
+                if (canCopy(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
+                    pivot(currentPlayer, cards, actionToPlay);
+                }
+            }
+        }
+    }
+
+    if (haveAllPlayersPlayedACard()) {
+        enableNextTurnButton();
+    } else {
+        //changeCurrentPlayer(currentPlayer);
+    }
+
+
+    SaveAllSettings();
+}
+
+function findCardToPlay_old(cards, actionToPlay) {
+    const cardToPlay = getHighestCard(cards);
+
+    let initiativeClaimedThisTurn;
+
     if (currentPlayer.hasInitiative) { actionToPlay = "LEAD" }
 
     if (cardToPlay != null && actionToPlay != "") {
@@ -1235,9 +1285,6 @@ function answerNo() {
 
             currentPlayer.ambitionsEvaluated.push("TYCOON");
             findFocus(currentPlayer, unplayedCards);
-
-            // Play random card here
-            //findCardToPlay(unplayedCards, "");
             break;
 
         case "TYRANT":
@@ -1254,9 +1301,6 @@ function answerNo() {
 
             currentPlayer.ambitionsEvaluated.push("TYRANT");
             findFocus(currentPlayer, unplayedCards);
-
-            // Play random card here
-            //findCardToPlay(unplayedCards, "");
             break;
 
         case "WARLORD":
@@ -1273,9 +1317,6 @@ function answerNo() {
 
             currentPlayer.ambitionsEvaluated.push("WARLORD");
             findFocus(currentPlayer, unplayedCards);
-
-            // Play random card here
-            //findCardToPlay(unplayedCards, "");
             break;
 
         case "KEEPER":
@@ -1297,9 +1338,6 @@ function answerNo() {
 
             currentPlayer.ambitionsEvaluated.push("KEEPER");
             findFocus(currentPlayer, unplayedCards);
-
-            // Play random card here
-            //findCardToPlay(unplayedCards, "");
             break;
 
         case "EMPATH":
@@ -1321,14 +1359,13 @@ function answerNo() {
 
             currentPlayer.ambitionsEvaluated.push("EMPATH");
             findFocus(currentPlayer, unplayedCards);
-
-            // Play random card here
-            //findCardToPlay(unplayedCards, "");
             break;
 
         default:
             break;
     }
+
+    //if(currentPlayer.ambitionsEvaluated.length == declaredAmbitions.length){ findCardToPlay(unplayedCards, "") }
 }
 
 function getHighestCard(cards) {
@@ -1371,14 +1408,14 @@ function declareAmbition(player, playedCard) {
         alert("Player declared ambition: " + playedCard.ambition);
         playedCard.number = 0;
 
-        addPlayedCardToList(playedCard, "LEAD", true, player);
+        addPlayedCardToList(playedCard, "ANY", "LEAD", true, player);
 
         declaredAmbitions.push(playedCard.ambition);
         setElementValue("declaredAmbitions", declaredAmbitions.length);
     }
 }
 
-function canSurpass(player, playedCard, unplayedCards) {
+function canSurpass(player, playedCard, unplayedCards, actionToPlay) {
     let surpass = false;
 
     let surpassCards = [];
@@ -1395,14 +1432,14 @@ function canSurpass(player, playedCard, unplayedCards) {
 
     let cardToPlay = getLowestCardtoPlay(surpassCards);
 
-    playCard(player, cardToPlay, "SURPASS", true);
+    playCard(player, cardToPlay, actionToPlay, "SURPASS", true);
     surpass = true;
     checkInitiative(player, cardToPlay, false);
 
     return surpass;
 }
 
-function canCopy(player, playedCard, unplayedCards) {
+function canCopy(player, playedCard, unplayedCards, actionToPlay) {
     let copyCards = [];
     let canCopy = false;
 
@@ -1419,7 +1456,7 @@ function canCopy(player, playedCard, unplayedCards) {
 
     let cardToPlay = getLowestCardtoPlay(copyCards);
 
-    playCard(player, cardToPlay, "COPY", true);
+    playCard(player, cardToPlay, actionToPlay, "COPY", true);
     canCopy = true;
 
     return canCopy;
@@ -1441,7 +1478,7 @@ function getLowestCardtoPlay(cards) {
     return lowestCard;
 }
 
-function claim(player) {
+function claim(player, actionToPlay) {
     // Logic;
     //  claim needs to be based on a calc between: number of cards in hand, number of ambitions played, .... other things
     //  at the start of the game the calc needs to rarely succeed
@@ -1456,8 +1493,8 @@ function claim(player) {
     if (num > 9 && unplayedCards.length > 2) {
         //if (unplayedCards.length > 2) {
         // ai has to have more than 2 cards to claim otherwise won't have any cards to play in the next round
-        playCard(player, unplayedCards[0], "CLAIM", true);
-        playCard(player, unplayedCards[1], "CLAIM*", false);
+        playCard(player, unplayedCards[0], actionToPlay, "CLAIM", true);
+        playCard(player, unplayedCards[1], actionToPlay, "CLAIM*", false);
 
         initiativeClaimed = true;
         initiativeClaimedThisTurn = true;
@@ -1508,7 +1545,7 @@ function changeInitiative(player) {
     })
 }
 
-function pivot(player, cards) {
+function pivot(player, cards, actionToPlay) {
     // Logic;
     //  - Needs to know what current goal is
     //      - has ambition been set?
@@ -1516,7 +1553,7 @@ function pivot(player, cards) {
     //      - no: which card to play?
     //          - need to know how many ships are in play
     //          - how many buildings are in play
-    if (cards.length > 0) { playCard(player, cards[0], "PIVOT", true) }
+    if (cards.length > 0) { playCard(player, cards[0], actionToPlay, "PIVOT", true) }
 }
 
 function enableDisablePlayCardButtons(playerNumber) {
@@ -1561,12 +1598,13 @@ function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
 }
 
 
-function addPlayedCardToList(card, action, reset, player) {
+function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
     if (card != null) {
         card.played = true;
 
         // TODO The below two IF statements are horrid. Need a better way to do this
-        if (card.playedAction == '') { card.playedAction = action };
+        if (card.cardAction == '') { card.cardAction = cardAction };
+        if (card.playedAction == '') { card.playedAction = actionToPlay };
         if (card.playedByPlayerNumber == 0) { card.playedByPlayerNumber = player.number };
 
         if (playedCardList.length == 0) {
@@ -1593,7 +1631,7 @@ function addPlayedCardToList(card, action, reset, player) {
         let cardDiv = document.createElement("div");
         cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + card.playedByPlayerNumber);
         // If player COPIED, replace the suit played with XXXX 
-        cardDiv.innerHTML = action.toUpperCase() + ": " + ((action == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, action);
+        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": "  + ((cardAction == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, cardAction);
         cardListDiv.append(cardDiv);
 
         saveSettingObject('playedCardList', playedCardList);
