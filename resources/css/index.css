@@ -1,3 +1,7 @@
+body {
+  padding-bottom: 180px;
+}
+
 .playerheader, .playerheader4, .playerheader3, .playerheader2, .playerheader1 {
   padding: 10px 5px 10px 10px;
   margin: 0px 5px 10px 10px;
@@ -45,4 +49,19 @@
 .playercard4 {
   color: royalblue;
   background-color: black;
+}
+
+.footerstyle {
+  background-color: whitesmoke;
+}
+
+.header1 {
+  font-size: larger;
+  font-weight: bold;
+}
+
+.nextbutton {
+  margin-left: 50px;
+  margin-right: 50px;
+  width: 100px;
 }/*# sourceMappingURL=index.css.map */

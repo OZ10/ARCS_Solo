@@ -239,15 +239,13 @@ function clonePlayerNodeAndSetup(playerNumber) {
         playerPanel.classList.remove("collapse");
 
         const actiondiv = document.createElement("div");
-        actiondiv.classList.add("row", "mt-3");
+        actiondiv.classList.add("mt-3", "header1", "text-center");
         //actiondiv.id = "actionbuttons";
-        actiondiv.innerHTML = "Actions:"
+        actiondiv.innerHTML = "Actions"
 
         const actionbuttons = document.createElement("div");
-        //actionbuttons.classList.add("d-none");
         actionbuttons.classList.add("btn-group", "d-none");
         actionbuttons.id = "actionbuttons";
-        //actionbuttons.role = "group";
 
         createRadioButtons("LEAD", actionbuttons, "actiontype", "btn-light");
         createRadioButtons("DECLARE", actionbuttons, "actiontype", "btn-light");
@@ -255,8 +253,9 @@ function clonePlayerNodeAndSetup(playerNumber) {
         createRadioButtons("COPY", actionbuttons, "actiontype", "btn-light");
         createRadioButtons("PIVOT", actionbuttons, "actiontype", "btn-light");
 
-        actiondiv.appendChild(actionbuttons);
+        //actiondiv.appendChild(actionbuttons);
         playerPanel.appendChild(actiondiv);
+        playerPanel.appendChild(actionbuttons);
     }
 
     if (playerNumber != 1) { hand.classList.add("d-none") }
@@ -598,7 +597,7 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
 
             declaredAmbitions.push(playedCard.ambition);
             setElementValue("declaredAmbitions", declaredAmbitions.length);
-        } else {
+        } else if (player.isHuman == false) {
             // AI player will determine whether to declare or not
             declareAmbition(player, playedCard);
         }
