@@ -602,8 +602,10 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
             // AI player will determine whether to declare or not
             declareAmbition(player, playedCard);
         }
-        changeCurrentPlayer(player);
+        //changeCurrentPlayer(player);
     }
+
+    changeCurrentPlayer(player);
 
     if (player.isHuman && haveAllPlayersPlayedACard()) {
         enableNextTurnButton();
@@ -638,42 +640,10 @@ function determineCardToPlay(player) {
 
     if (player.hasPlayedACardThisTurn == false) {
         let unplayedCards = getUnplayedCards(player.cards);
-        let initiativeClaimedThisTurn = false;
 
         findFocus(player, unplayedCards);
-        /*
-        if (unplayedCards.length > 0) {
-            if (player.hasInitiative) {
-                playCard(player, unplayedCards[0], "LEAD", true);
-            } else {
-                if (canSurpass(player, playedCardList[0], unplayedCards) == false) {
 
-                    // Cannot SURPASS and therefore must find focus
-
-                    if (initiativeClaimed == false) {
-                        initiativeClaimedThisTurn = claim(player)
-                    }
-
-                    if (initiativeClaimedThisTurn == false) {
-                        if (canCopy(player, playedCardList[0], unplayedCards) == false) {
-                            pivot(player, unplayedCards);
-                        }
-                    }
-                }
-            }
-        }
-            */
-
-        /*
-        if (haveAllPlayersPlayedACard()) {
-            enableNextTurnButton();
-        } else {
-            changeCurrentPlayer(player);
-        }
-            */
     }
-
-    //SaveAllSettings();
 }
 
 function findFocus(player, unplayedCards) {
@@ -807,174 +777,8 @@ function findFocus(player, unplayedCards) {
     // AND WILL RESULT IN THE PLAYER PLAYING MULITPLE CARDS
 }
 
-function findFocus_old(player, unplayedCards) {
-    // LOGIC:
-    // - Chase ambition
-    // - Build for future turn
-    // - random
-
-    let possibleActions = "";
-
-    unplayedCards.forEach(card => {
-        possibleActions += card.actions;
-    })
-
-    if (declaredAmbitions.length > 0 && player.ambitionsEvaluated.length < declaredAmbitions.length) {
-        // TODO Need to determine which ambition is best to chase
-        // - Have cards to chase?
-        // - Have pieces to chase?
-        // - Worth most points?
-
-        for (let index = 0; index < declaredAmbitions.length; index++) {
-            const ambition = declaredAmbitions[index];
-            switch (ambition) {
-                case "tycoon":
-                    // materials and fuel
-                    // tax or steal or secure
-                    // Q: Can I tax a city for weapons or fuel?
-                    // Q: Is there a materials or fuel card in the market to secure?
-                    // Q: Is there a materials or fuel card in the market to influence?
-                    // Q: Can I raid a city for materials or fuel?
-                    if (possibleActions.includes("tax")) {
-                        focus_tycoon(1);
-                        break;
-                    }
-
-                    if (possibleActions.includes("secure")) {
-                        focus_tycoon(2);
-                        break;
-                    }
-
-                    if (possibleActions.includes("influence")) {
-                        focus_tycoon(3);
-                        break;
-                    }
-
-                    if (possibleActions.includes("battle")) {
-                        focus_tycoon(4);
-                        break;
-                    }
-                    break;
-
-                case "tyrant":
-                    // capture
-                    // tax rival city or ransack or secure
-                    // Q: Can I tax a rival city to capture?
-                    // Q: Is there a card in the market with rival agents that I can secure?
-                    // Q: Can I destroy a city to ransack the court?  
-                    if (possibleActions.includes("tax")) {
-                        focus_tyrant(1);
-                        break;
-                    }
-
-                    if (possibleActions.includes("secure")) {
-                        focus_tyrant(2);
-                        break;
-                    }
-
-                    if (possibleActions.includes("battle")) {
-                        focus_tyrant(3);
-                        break;
-                    }
-                    break;
-
-                case "warlord":
-                    // fight
-                    // battle or secure
-                    // Q: Can I fight?
-                    // Q: Is there a weapons card in the market to secure?
-                    // Q: Is there a weapons card in the market to influence?
-                    if (possibleActions.includes("battle")) {
-                        focus_warlord(1);
-                        break;
-                    }
-
-                    if (possibleActions.includes("secure")) {
-                        focus_warlord(2);
-                        break;
-                    }
-
-                    if (possibleActions.includes("influence")) {
-                        focus_warlord(3);
-                        break;
-                    }
-                    break;
-
-                case "keeper":
-                    // relics
-                    // tax or steal or secure
-                    // Q: Can I tax a city for a relic?
-                    // Q: Is there a relic card in the market to secure?
-                    // Q: Is there a relic card in the market to influence?
-                    // Q: Can I raid a city for a relic?
-                    if (possibleActions.includes("tax")) {
-                        focus_keeper(1);
-                        break;
-                    }
-
-                    if (possibleActions.includes("secure")) {
-                        focus_keeper(2);
-                        break;
-                    }
-
-                    if (possibleActions.includes("influence")) {
-                        focus_keeper(3);
-                        break;
-                    }
-
-                    if (possibleActions.includes("battle")) {
-                        focus_keeper(4);
-                        break;
-                    }
-                    break;
-
-                case "empath":
-                    // psionic
-                    // tax or steal or secure
-                    // Q: Can I tax a city for a psionic?
-                    // Q: Is there a psionic card in the market to secure?
-                    // Q: Is there a psionic card in the market to influence?
-                    // Q: Can I raid a city for a psionic?
-                    if (possibleActions.includes("tax")) {
-                        focus_empath(1);
-                        break;
-                    }
-
-                    if (possibleActions.includes("secure")) {
-                        focus_empath(2);
-                        break;
-                    }
-
-                    if (possibleActions.includes("influence")) {
-                        focus_empath(3);
-                        break;
-                    }
-
-                    if (possibleActions.includes("battle")) {
-                        focus_empath(4);
-                        break;
-                    }
-                    break;
-
-                default:
-                    findCardToPlay(unplayedCards, "");
-                    break;
-            }
-        }
-
-        //return;
-    } else {
-        findCardToPlay(unplayedCards, "");
-    }
-
-    // CARDS CANNOT BE PLAYED BELOW THE SWITCH STATEMENT
-    // ANY CODE BELOW WILL RUN WHILE THE MODAL PROMPT IS DISPLAYED
-    // AND WILL RESULT IN THE PLAYER PLAYING MULITPLE CARDS
-}
-
 function focus_tycoon(questionNumber) {
-    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
-    document.getElementById("focusMessage").innerHTML = "TYCOON";
+    let modal = openYesNoModal("TYCOON");
 
     switch (questionNumber) {
         case 1:
@@ -1003,8 +807,7 @@ function focus_tycoon(questionNumber) {
 }
 
 function focus_tyrant(questionNumber) {
-    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
-    document.getElementById("focusMessage").innerHTML = "TYRANT";
+    let modal = openYesNoModal("TYRANT");
 
     switch (questionNumber) {
         case 1:
@@ -1029,8 +832,7 @@ function focus_tyrant(questionNumber) {
 }
 
 function focus_warlord(questionNumber) {
-    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
-    document.getElementById("focusMessage").innerHTML = "WARLORD";
+    let modal = openYesNoModal("WARLORD");
 
     switch (questionNumber) {
         case 1:
@@ -1055,8 +857,7 @@ function focus_warlord(questionNumber) {
 }
 
 function focus_keeper(questionNumber) {
-    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
-    document.getElementById("focusMessage").innerHTML = "KEEPER";
+    let modal = openYesNoModal("KEEPER");
 
     switch (questionNumber) {
         case 1:
@@ -1085,8 +886,7 @@ function focus_keeper(questionNumber) {
 }
 
 function focus_empath(questionNumber) {
-    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
-    document.getElementById("focusMessage").innerHTML = "EMPATH";
+    let modal = openYesNoModal("EMPATH");
 
     switch (questionNumber) {
         case 1:
@@ -1112,6 +912,13 @@ function focus_empath(questionNumber) {
     }
 
     modal.show();
+}
+
+function openYesNoModal(focusTitle) {
+    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    document.getElementById("yesNoTitle").innerHTML = "Player " + currentPlayer.number;
+    document.getElementById("focusMessage").innerHTML = focusTitle;
+    return modal;
 }
 
 function answerYes() {
