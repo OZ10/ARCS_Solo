@@ -3,6 +3,10 @@ $playercolour2: firebrick;
 $playercolour3: antiquewhite;
 $playercolour4: royalblue;
 
+body{
+    padding-bottom: 180px;
+}
+
 .playerheader{
     padding: 10px 5px 10px 10px;
     margin: 0px 5px 10px 10px;
@@ -55,4 +59,22 @@ $playercolour4: royalblue;
 .playercard4{
     color: $playercolour4;
     background-color: black;
+}
+
+.footerstyle{
+    background-color: whitesmoke;
+    //margin: 10px;
+    //border-radius: 15px;
+}
+
+.header1{
+    font-size: larger;
+    font-weight: bold;
+}
+
+.nextbutton{
+    margin-left: 50px;
+    margin-right: 50px;
+    
+    width: 100px;
 }
