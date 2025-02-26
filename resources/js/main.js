@@ -123,6 +123,8 @@ function findCurrentPlayer() {
 
     let player = getPlayerWithInitiative();
 
+    changeInitiative(player);
+
     if (player.hasPlayedACardThisTurn == false) {
         currentPlayer = player;
         enableDisablePlayCardButtons(player.number);
@@ -221,6 +223,9 @@ function clonePlayerNodeAndSetup(playerNumber) {
     const playerPanel = playertemplate.querySelector('#playerpanel');
     playerPanel.id = "playerpanel" + playerNumber.toString();
 
+    const playerinitiative = playertemplate.querySelector('#playerinitiative');
+    playerinitiative.id = "playerinitiative" + playerNumber.toString();
+
     const playcardbutton = playertemplate.querySelector('#playcard');
     playcardbutton.id = "playcard" + playerNumber.toString();
     playcardbutton.disabled = true;
@@ -228,6 +233,8 @@ function clonePlayerNodeAndSetup(playerNumber) {
     if (playerNumber == 1) {
         playcardbutton.classList.add("d-none");
         playerPanel.classList.remove("collapse");
+
+        playerinitiative.classList.remove("d-none");
 
         const actiondiv = document.createElement("div");
         actiondiv.classList.add("row", "mt-3");
@@ -791,7 +798,6 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
 
         if (hasClaimed) {
             player.hasInitiative = true;
-            setElementValue("initiative", "Player " + player.number.toString());
         } else {
             let playedHighestCard = false;
 
@@ -811,50 +817,18 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
 
             if (playedHighestCard) {
                 changeInitiative(player);
-                setElementValue("initiative", "Player " + player.number.toString());
             }
         }
 
-    })
-}
-
-function checkInitiative_old(claimingPlayer, playedCard, hasClaimed) {
-    if (initiativeClaimed == true) { return; }
-
-    players.forEach(player => {
-        if (player.number == claimingPlayer.number) {
-            if (hasClaimed) {
-                player.hasInitiative = true;
-                document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-            } else {
-                let playedHighestCard = false;
-
-                for (let cardNumber = 0; cardNumber < playedCardList.length; cardNumber++) {
-                    const card = playedCardList[cardNumber];
-
-                    if (playedCard.name == card.name) {
-                        if (playedCard.number > card.number) {
-                            playedHighestCard = true;
-                        } else {
-                            if (playedCard.number < card.number) {
-                                playedHighestCard = false;
-                            }
-                        }
-                    }
-                }
-
-                if (playedHighestCard) {
-                    changeInitiative(player);
-                    document.getElementById("initiative").innerHTML = "Player " + player.number.toString();
-                }
-            }
-        }
     })
 }
 
 function changeInitiative(player) {
     players.forEach(p => {
         p.hasInitiative = (p.number == player.number) ? true : false;
+
+        const element = document.querySelectorAll("#playerinitiative" + p.number);
+        showHideElement(element, (p.number == player.number) ? true : false);
     })
 }
 
