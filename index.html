@@ -18,19 +18,25 @@
   <body>
     <main class="container-fluid">
       <header class="row">
-        <div class="d-flex justify-content-between">
-          <div class="flex-fill">
-
+        <div class="row">
+          <div class="col">
+            Turn Number:
           </div>
-          <div class="row">Turn Number:
+          <div class="col">
+            Round Number:
+          </div>
+          <div class="col">
+            Declared Ambitions:
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
             <div id="turnNumber">1</div>
           </div>
-
-          <div class="row">Round Number:
+          <div class="col">
             <div id="roundNumber">1</div>
           </div>
-
-          <div class="row">Declared Ambitions:
+          <div class="col">
             <div id="declaredAmbitions">0</div>
           </div>
         </div>
@@ -106,6 +112,11 @@
                 </div>
                 <button class="btn btn-secondary" id="playcard"
                   onclick="playcardclick()">play card</button>
+                 <!-- 
+                  <label for="playcard" data-bs-toggle="tooltip" data-bs-placement="right"
+                        title="By default all rules will be displayed. When toggled ON rules will display based on certain criteria, i.e: when the RB is discovered, movement & deployment rules will ONLY be displayed in relation to the RB">Dynamic
+                        Rules</label>
+              -->
               </div>
 
             </div>
