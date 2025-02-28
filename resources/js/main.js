@@ -35,34 +35,34 @@ function getCardFullName(card) {
 let players = [];
 
 const actioncards = [
-    //new Card("Construction", 1, 4, false, "null", "build,repair,"),
-    new Card("Construction", 2, 4, false, "tycoon", "build,repair,"),
-    new Card("Construction", 3, 3, false, "tyrant", "build,repair,"),
-    new Card("Construction", 4, 3, false, "warlord", "build,repair,"),
-    new Card("Construction", 5, 2, false, "keeper", "build,repair,"),
-    new Card("Construction", 6, 2, false, "empath", "build,repair,"),
-    //new Card("Construction", 7, 1, false, "anything", "build,repair,"),
-    //new Card("Aggression", 1, 3, false, "null", "move,secure,battle,"),
-    new Card("Aggression", 2, 3, false, "tycoon", "move,secure,battle,"),
-    new Card("Aggression", 3, 2, false, "tyrant", "move,secure,battle,"),
-    new Card("Aggression", 4, 2, false, "warlord", "move,secure,battle,"),
-    new Card("Aggression", 5, 2, false, "keeper", "move,secure,battle,"),
-    new Card("Aggression", 6, 2, false, "empath", "move,secure,battle,"),
-    //new Card("Aggression", 7, 1, false, "anything", "move,secure,battle,"),
-    //new Card("Administration", 1, 4, false, "null", "influence,tax,repair,"),
-    new Card("Administration", 2, 4, false, "tycoon", "influence,tax,repair,"),
-    new Card("Administration", 3, 3, false, "tyrant", "influence,tax,repair,"),
-    new Card("Administration", 4, 3, false, "warlord", "influence,tax,repair,"),
-    new Card("Administration", 5, 3, false, "keeper", "influence,tax,repair,"),
-    new Card("Administration", 6, 2, false, "empath", "influence,tax,repair,"),
-    //new Card("Administration", 7, 1, false, "anything", "influence,tax,repair,"),
-    //new Card("Mobilisation", 1, 4, false, "null", "move,influence,"),
-    new Card("Mobilisation", 2, 4, false, "tycoon", "move,influence,"),
-    new Card("Mobilisation", 3, 3, false, "tyrant", "move,influence,"),
-    new Card("Mobilisation", 4, 3, false, "warlord", "move,influence,"),
-    new Card("Mobilisation", 5, 2, false, "keeper", "move,influence,"),
-    new Card("Mobilisation", 6, 2, false, "empath", "move,influence,"),
-    //new Card("Mobilisation", 7, 1, false, "anything", "move,influence,"),
+    //new Card("Construction", 1, 4, false, "null", "build,repair"),
+    new Card("Construction", 2, 4, false, "tycoon", "build,repair"),
+    new Card("Construction", 3, 3, false, "tyrant", "build,repair"),
+    new Card("Construction", 4, 3, false, "warlord", "build,repair"),
+    new Card("Construction", 5, 2, false, "keeper", "build,repair"),
+    new Card("Construction", 6, 2, false, "empath", "build,repair"),
+    //new Card("Construction", 7, 1, false, "anything", "build,repair"),
+    //new Card("Aggression", 1, 3, false, "null", "move,secure,battle"),
+    new Card("Aggression", 2, 3, false, "tycoon", "move,secure,battle"),
+    new Card("Aggression", 3, 2, false, "tyrant", "move,secure,battle"),
+    new Card("Aggression", 4, 2, false, "warlord", "move,secure,battle"),
+    new Card("Aggression", 5, 2, false, "keeper", "move,secure,battle"),
+    new Card("Aggression", 6, 2, false, "empath", "move,secure,battle"),
+    //new Card("Aggression", 7, 1, false, "anything", "move,secure,battle"),
+    //new Card("Administration", 1, 4, false, "null", "influence,tax,repair"),
+    new Card("Administration", 2, 4, false, "tycoon", "influence,tax,repair"),
+    new Card("Administration", 3, 3, false, "tyrant", "influence,tax,repair"),
+    new Card("Administration", 4, 3, false, "warlord", "influence,tax,repair"),
+    new Card("Administration", 5, 3, false, "keeper", "influence,tax,repair"),
+    new Card("Administration", 6, 2, false, "empath", "influence,tax,repair"),
+    //new Card("Administration", 7, 1, false, "anything", "influence,tax,repair"),
+    //new Card("Mobilisation", 1, 4, false, "null", "move,influence"),
+    new Card("Mobilisation", 2, 4, false, "tycoon", "move,influence"),
+    new Card("Mobilisation", 3, 3, false, "tyrant", "move,influence"),
+    new Card("Mobilisation", 4, 3, false, "warlord", "move,influence"),
+    new Card("Mobilisation", 5, 2, false, "keeper", "move,influence"),
+    new Card("Mobilisation", 6, 2, false, "empath", "move,influence"),
+    //new Card("Mobilisation", 7, 1, false, "anything", "move,influence"),
 ];
 
 const ambitions = [
@@ -284,8 +284,6 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
     l.id = btntext;
     l.htmlFor = btntext;
     l.textContent = btntext.toUpperCase();
-    //l.setAttribute('data-bs-toggle', 'tooltip');
-    //        l.setAttribute('title', 'some text');
 
     if (groupname == "actiontype") {
         input.onclick = function () {
@@ -294,10 +292,6 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
             // Reset checked on all action type buttons
             document.querySelectorAll('input[name=actiontype]').forEach(input => { input.checked = false });
         };
-    }else{
-        //getCardByNameAndNumber()
-        //l.setAttribute('data-bs-toggle', 'tooltip');
-        //l.setAttribute('title', 'some text');
     }
 
     group.appendChild(input);
@@ -557,7 +551,7 @@ function createCardButtonsForHumanPlayer() {
         l.setAttribute('data-bs-toggle', 'tooltip');
         l.setAttribute('data-bs-html', 'true');
         l.setAttribute('data-bs-custom-class', 'custom-tooltip');
-        l.setAttribute('title', getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase());
+        l.setAttribute('title', getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase() + "<br>" + getActionsOnCard(card));
 
         if (card.played) { btn.disabled = true; }
 
@@ -573,6 +567,20 @@ function createCardButtonsForHumanPlayer() {
         };
 
     });
+}
+
+function getActionsOnCard(card){
+    let actions;
+    const cardActions = card.actions.split(",");
+    cardActions.forEach(action => {
+        if (actions == null){
+            actions = "<b>" + action + "</b>";
+        }else{
+            actions += " OR " + "<b>" + action + "</b>";
+        }
+    })
+
+    return actions;
 }
 
 function getCardByNameAndNumber(hand, cardfullname, played) {
