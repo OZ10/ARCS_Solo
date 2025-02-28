@@ -64,4 +64,9 @@ body {
   margin-left: 50px;
   margin-right: 50px;
   width: 100px;
+}
+
+.custom-tooltip {
+  --bs-tooltip-bg: var(--bs-white);
+  --bs-tooltip-color: var(--bs-black);
 }/*# sourceMappingURL=index.css.map */

@@ -1,5 +1,6 @@
 //import { Card } from "../class/card";
 
+
 class player {
     constructor(number, isHuman) {
         this.number = number;
@@ -283,6 +284,8 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
     l.id = btntext;
     l.htmlFor = btntext;
     l.textContent = btntext.toUpperCase();
+    //l.setAttribute('data-bs-toggle', 'tooltip');
+    //        l.setAttribute('title', 'some text');
 
     if (groupname == "actiontype") {
         input.onclick = function () {
@@ -291,6 +294,10 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
             // Reset checked on all action type buttons
             document.querySelectorAll('input[name=actiontype]').forEach(input => { input.checked = false });
         };
+    }else{
+        //getCardByNameAndNumber()
+        //l.setAttribute('data-bs-toggle', 'tooltip');
+        //l.setAttribute('title', 'some text');
     }
 
     group.appendChild(input);
@@ -544,6 +551,13 @@ function createCardButtonsForHumanPlayer() {
 
         btn.classList.add("p1");
         btn.value = card.number;
+
+        // Add tooltip which displays the number of pips and ambition
+        const l = document.querySelector('label#' + btn.id);
+        l.setAttribute('data-bs-toggle', 'tooltip');
+        l.setAttribute('data-bs-html', 'true');
+        l.setAttribute('data-bs-custom-class', 'custom-tooltip');
+        l.setAttribute('title', getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase());
 
         if (card.played) { btn.disabled = true; }
 
@@ -1445,7 +1459,7 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
         let cardDiv = document.createElement("div");
         cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + card.playedByPlayerNumber);
         // If player COPIED, replace the suit played with XXXX 
-        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": "  + ((cardAction == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, cardAction);
+        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": " + ((cardAction == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, cardAction);
         cardListDiv.append(cardDiv);
 
         saveSettingObject('playedCardList', playedCardList);
@@ -1610,4 +1624,3 @@ function test() {
     document.getElementById("yesNoMessage").innerHTML = "Yo!";
     modal.show();
 }
-
