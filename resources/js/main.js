@@ -1,5 +1,6 @@
 //import { Card } from "../class/card";
 
+
 class player {
     constructor(number, isHuman) {
         this.number = number;
@@ -128,6 +129,8 @@ function findCurrentPlayer() {
 
     let player = getPlayerWithInitiative();
 
+    changeInitiative(player);
+
     if (player.hasPlayedACardThisTurn == false) {
         currentPlayer = player;
         enableDisablePlayCardButtons(player.number);
@@ -230,6 +233,9 @@ function clonePlayerNodeAndSetup(playerNumber) {
     const playerPanel = playertemplate.querySelector('#playerpanel');
     playerPanel.id = "playerpanel" + playerNumber.toString();
 
+    const playerinitiative = playertemplate.querySelector('#playerinitiative');
+    playerinitiative.id = "playerinitiative" + playerNumber.toString();
+
     const playcardbutton = playertemplate.querySelector('#playcard');
     playcardbutton.id = "playcard" + playerNumber.toString();
     playcardbutton.disabled = true;
@@ -237,6 +243,8 @@ function clonePlayerNodeAndSetup(playerNumber) {
     if (playerNumber == 1) {
         playcardbutton.classList.add("d-none");
         playerPanel.classList.remove("collapse");
+
+        playerinitiative.classList.remove("d-none");
 
         const actiondiv = document.createElement("div");
         actiondiv.classList.add("mt-3", "header1", "text-center");
@@ -276,6 +284,8 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
     l.id = btntext;
     l.htmlFor = btntext;
     l.textContent = btntext.toUpperCase();
+    //l.setAttribute('data-bs-toggle', 'tooltip');
+    //        l.setAttribute('title', 'some text');
 
     if (groupname == "actiontype") {
         input.onclick = function () {
@@ -284,6 +294,10 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
             // Reset checked on all action type buttons
             document.querySelectorAll('input[name=actiontype]').forEach(input => { input.checked = false });
         };
+    }else{
+        //getCardByNameAndNumber()
+        //l.setAttribute('data-bs-toggle', 'tooltip');
+        //l.setAttribute('title', 'some text');
     }
 
     group.appendChild(input);
@@ -537,6 +551,13 @@ function createCardButtonsForHumanPlayer() {
 
         btn.classList.add("p1");
         btn.value = card.number;
+
+        // Add tooltip which displays the number of pips and ambition
+        const l = document.querySelector('label#' + btn.id);
+        l.setAttribute('data-bs-toggle', 'tooltip');
+        l.setAttribute('data-bs-html', 'true');
+        l.setAttribute('data-bs-custom-class', 'custom-tooltip');
+        l.setAttribute('title', getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase());
 
         if (card.played) { btn.disabled = true; }
 
@@ -1318,7 +1339,6 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
 
         if (hasClaimed) {
             player.hasInitiative = true;
-            setElementValue("initiative", "Player " + player.number.toString());
         } else {
             let playedHighestCard = false;
 
@@ -1338,7 +1358,6 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
 
             if (playedHighestCard) {
                 changeInitiative(player);
-                setElementValue("initiative", "Player " + player.number.toString());
             }
         }
 
@@ -1348,6 +1367,9 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
 function changeInitiative(player) {
     players.forEach(p => {
         p.hasInitiative = (p.number == player.number) ? true : false;
+
+        const element = document.querySelectorAll("#playerinitiative" + p.number);
+        showHideElement(element, (p.number == player.number) ? true : false);
     })
 }
 
@@ -1437,7 +1459,7 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
         let cardDiv = document.createElement("div");
         cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + card.playedByPlayerNumber);
         // If player COPIED, replace the suit played with XXXX 
-        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": "  + ((cardAction == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, cardAction);
+        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": " + ((cardAction == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, cardAction);
         cardListDiv.append(cardDiv);
 
         saveSettingObject('playedCardList', playedCardList);
@@ -1602,4 +1624,3 @@ function test() {
     document.getElementById("yesNoMessage").innerHTML = "Yo!";
     modal.show();
 }
-
