@@ -103,6 +103,8 @@ document.addEventListener("DOMContentLoaded", () => {
         loadPlayedCardList();
         loadAmbitions();
     }
+
+    refreshTooltips();
 });
 
 // #region LOAD
@@ -547,11 +549,7 @@ function createCardButtonsForHumanPlayer() {
         btn.value = card.number;
 
         // Add tooltip which displays the number of pips and ambition
-        const l = document.querySelector('label#' + btn.id);
-        l.setAttribute('data-bs-toggle', 'tooltip');
-        l.setAttribute('data-bs-html', 'true');
-        l.setAttribute('data-bs-custom-class', 'custom-tooltip');
-        l.setAttribute('title', getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase() + "<br>" + getActionsOnCard(card));
+        createTooltip('label#' + btn.id, getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase() + "<br>" + getActionsOnCard(card));
 
         if (card.played) { btn.disabled = true; }
 
@@ -567,6 +565,21 @@ function createCardButtonsForHumanPlayer() {
         };
 
     });
+}
+
+function createTooltip(elementid, title) {
+    const l = document.querySelector(elementid);
+    l.setAttribute('data-bs-toggle', 'tooltip');
+    l.setAttribute('data-bs-html', 'true');
+    l.setAttribute('data-bs-custom-class', 'custom-tooltip');
+    l.setAttribute('title', title);
+
+    refreshTooltips();
+}
+
+function refreshTooltips() {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
 function getActionsOnCard(card){
@@ -1033,42 +1046,6 @@ function findCardToPlay(cards, actionToPlay) {
     SaveAllSettings();
 }
 
-function findCardToPlay_old(cards, actionToPlay) {
-    const cardToPlay = getHighestCard(cards);
-
-    let initiativeClaimedThisTurn;
-
-    if (currentPlayer.hasInitiative) { actionToPlay = "LEAD" }
-
-    if (cardToPlay != null && actionToPlay != "") {
-        playCard(currentPlayer, cardToPlay, actionToPlay, false);
-    } else {
-        if (canSurpass(currentPlayer, playedCardList[0], cards) == false) {
-
-            // Cannot SURPASS and therefore must find focus
-
-            if (initiativeClaimed == false) {
-                initiativeClaimedThisTurn = claim(currentPlayer)
-            }
-
-            if (initiativeClaimedThisTurn == false) {
-                if (canCopy(currentPlayer, playedCardList[0], cards) == false) {
-                    pivot(currentPlayer, cards);
-                }
-            }
-        }
-    }
-
-    if (haveAllPlayersPlayedACard()) {
-        enableNextTurnButton();
-    } else {
-        //changeCurrentPlayer(currentPlayer);
-    }
-
-
-    SaveAllSettings();
-}
-
 function answerNo() {
     // TODO Need to check at this point if player has the right cards
     // to play the action, otherwise don't ask the question
@@ -1466,9 +1443,11 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
 
         let cardDiv = document.createElement("div");
         cardDiv.classList.add("row", "justify-content-md-center", "fw-normal", "playercard" + card.playedByPlayerNumber);
+        cardDiv.id = "playedlist" + getCardFullName(card);
         // If player COPIED, replace the suit played with XXXX 
         cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": " + ((cardAction == "COPY") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, cardAction);
         cardListDiv.append(cardDiv);
+        createTooltip("#" + "playedlist" + getCardFullName(card), getActionsOnCard(card));
 
         saveSettingObject('playedCardList', playedCardList);
     }
