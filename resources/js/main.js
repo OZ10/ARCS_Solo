@@ -92,7 +92,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     break;
                 case "round":
                     roundNumber = parseInt(value);
-                    setElementValue("roundNumber", value);
+                    //setElementValue("roundNumber", value);
+                    updateRoundNumber();
                     break;
                 default:
                     break;
@@ -418,7 +419,10 @@ function resetRound() {
     declaredAmbitions = [];
 
     setElementValue("turnNumber", turnNumber.toString());
-    setElementValue("roundNumber", roundNumber.toString());
+    //setElementValue("roundNumber", roundNumber.toString());
+
+    updateRoundNumber();
+
     setElementValue("declaredAmbitions", 0);
 
     enableDisableButton("nextRound", true);
@@ -433,6 +437,19 @@ function resetRound() {
 
     currentPlayer = getPlayerWithInitiative();
     enableDisablePlayCardButtons(currentPlayer.number);
+}
+
+function updateRoundNumber() {
+    for (let roundNum = 1; roundNum < 6; roundNum++) {
+        let element = document.getElementById("roundNumber" + roundNum);
+        if (roundNum == roundNumber) {
+            element.classList.remove("numberCircle");
+            element.classList.add("numberCircleSelected");
+        } else {
+            element.classList.add("numberCircle");
+            element.classList.remove("numberCircleSelected");
+        }
+    }
 }
 
 function resetPlayedCardList() {

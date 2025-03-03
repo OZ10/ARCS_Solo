@@ -18,26 +18,21 @@
   <body>
     <main class="container-fluid">
       <header class="row">
-        <div class="row">
-          <div class="col">
-            Turn Number:
+        <div class="d-flex justify-content-evenly">
+          <div class="text-center">Turn Number
+            <div class="text-center m-1" id="turnNumber">1</div>
           </div>
-          <div class="col">
-            Round Number:
+          <div class="text-center">Round Number
+            <div class="row justify-content-evenly">
+            <div class="text-center m-1 numberCircleSelected" id="roundNumber1">1</div>
+            <div class="text-center m-1 numberCircle" id="roundNumber2">2</div>
+            <div class="text-center m-1 numberCircle" id="roundNumber3">3</div>
+            <div class="text-center m-1 numberCircle" id="roundNumber4">4</div>
+            <div class="text-center m-1 numberCircle" id="roundNumber5">5</div>
           </div>
-          <div class="col">
-            Declared Ambitions:
           </div>
-        </div>
-        <div class="row">
-          <div class="col">
-            <div id="turnNumber">1</div>
-          </div>
-          <div class="col">
-            <div id="roundNumber">1</div>
-          </div>
-          <div class="col">
-            <div id="declaredAmbitions">0</div>
+          <div class="text-center">Declared Ambitions
+            <div class="text-center m-1" id="declaredAmbitions">0</div>
           </div>
         </div>
       </header>
@@ -60,7 +55,8 @@
                 data-bs-toggle="collapse" data-bs-target="#playerpanel">
                 <div class="row">
                   <div class="col-auto" id="playernumber">Player x</div>
-                  <div class="col-auto d-none" id="playerinitiative">&#9733;</div>
+                  <div class="col-auto d-none"
+                    id="playerinitiative">&#9733;</div>
                 </div>
               </a>
               <div class="row collapse" id="playerpanel">
@@ -110,7 +106,8 @@
                 </div>
                 <div id="playerhand" class="btn-group row" role="group">
                 </div>
-                <button class="btn btn-secondary" id="playcard" data-bs-toggle="tooltip"
+                <button class="btn btn-secondary" id="playcard"
+                  data-bs-toggle="tooltip"
                   onclick="playcardclick()">play card</button>
               </div>
 
@@ -214,7 +211,7 @@
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"></script>
 
-      <!--
+    <!--
       <script>
         window.addEventListener('load', function(){
           const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
