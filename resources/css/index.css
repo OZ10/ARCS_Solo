@@ -2,6 +2,10 @@ body {
   padding-bottom: 180px;
 }
 
+header {
+  background-color: whitesmoke;
+}
+
 .playerheader, .playerheader4, .playerheader3, .playerheader2, .playerheader1 {
   padding: 10px 5px 10px 10px;
   margin: 0px 5px 10px 10px;
@@ -69,4 +73,21 @@ body {
 .custom-tooltip {
   --bs-tooltip-bg: var(--bs-white);
   --bs-tooltip-color: var(--bs-black);
+}
+
+.numberCircle, .numberCircleSelected {
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  background: #fff;
+  border: 2px solid #666;
+  color: #666;
+  text-align: center;
+  font: 16px Arial, sans-serif;
+}
+
+.numberCircleSelected {
+  background: black;
+  color: white;
 }/*# sourceMappingURL=index.css.map */
