@@ -1314,12 +1314,26 @@ function declareAmbition(player, playedCard) {
             break;
     }
 
-    if (sum < 0) { sum = 0};
-
     let unplayedCards = getUnplayedCards(player.cards);
     let numberOfUnplayedCards = unplayedCards.length;
 
     sum += numberOfUnplayedCards;
+
+    switch (roundNumber) {
+        case 2:
+        case 3:
+            sum -= 2;
+            break;
+
+        case 4:
+        case 5:
+            sum -= 3;
+
+        default:
+            break;
+    }
+
+    if (sum < 0) { sum = 0 };
 
     let num = Math.floor(Math.random() * 10);
 
