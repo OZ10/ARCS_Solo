@@ -12,6 +12,8 @@ class player {
     weaponsValue = 0;
     relicsValue = 0;
     psionicsValue = 0;
+    captivesValue = 0;
+    trophiesValue = 0;
     cards = [];
     hasInitiative = false;
     hasPlayedACardThisTurn = false;
@@ -282,6 +284,8 @@ function clonePlayerNodeAndSetup(player) {
     setPlusMinusButtons(playertemplate, player, "weapons");
     setPlusMinusButtons(playertemplate, player, "relics");
     setPlusMinusButtons(playertemplate, player, "psionics");
+    setPlusMinusButtons(playertemplate, player, "captives");
+    setPlusMinusButtons(playertemplate, player, "trophies");
 
     document.getElementById("playerslots").appendChild(playertemplate);
 }
@@ -314,6 +318,14 @@ function setPlusMinusButtons(playertemplate, player, type) {
 
         case "psionics":
             input.value = player.psionicsValue;
+            break;
+
+        case "captives":
+            input.value = player.captivesValue;
+            break;
+
+        case "trophies":
+            input.value = player.trophiesValue;
             break;
 
         default:
@@ -1166,12 +1178,12 @@ function answerNo() {
         case "TYRANT":
 
             if (question == "Can I tax a rival's city to capture?" && possibleActions.includes("secure")) {
-                focus_tycoon(2);
+                focus_tyrant(2);
                 break;
             }
 
             if (question == "Is there a card in the market with rival agents on it that I can secure?" && possibleActions.includes("battle")) {
-                focus_tycoon(3);
+                focus_tyrant(3);
                 break;
             }
 
@@ -1182,12 +1194,12 @@ function answerNo() {
         case "WARLORD":
 
             if (question == "Can I battle a rival?" && possibleActions.includes("secure")) {
-                focus_tycoon(2);
+                focus_warlord(2);
                 break;
             }
 
             if (question == "Is there a weapons card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_tycoon(3);
+                focus_warlord(3);
                 break;
             }
 
@@ -1198,17 +1210,17 @@ function answerNo() {
         case "KEEPER":
 
             if (question == "Can I tax a city for a relic?" && possibleActions.includes("secure")) {
-                focus_tycoon(2);
+                focus_keeper(2);
                 break;
             }
 
             if (question == "Is there a relic card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_tycoon(3);
+                focus_keeper(3);
                 break;
             }
 
             if (question == "Is there a relic card in the market I can influence?" && possibleActions.includes("battle")) {
-                focus_tycoon(4);
+                focus_keeper(4);
                 break;
             }
 
@@ -1219,17 +1231,17 @@ function answerNo() {
         case "EMPATH":
 
             if (question == "Can I tax a city for a psionic?" && possibleActions.includes("secure")) {
-                focus_tycoon(2);
+                focus_empath(2);
                 break;
             }
 
             if (question == "Is there a psionic card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_tycoon(3);
+                focus_empath(3);
                 break;
             }
 
             if (question == "Is there a psionic card in the market I can influence?" && possibleActions.includes("battle")) {
-                focus_tycoon(4);
+                focus_empath(4);
                 break;
             }
 
@@ -1271,6 +1283,58 @@ function enableNextTurnButton() {
 }
 
 function declareAmbition(player, playedCard) {
+    if (declaredAmbitions == 3) {
+        return;
+    }
+
+    let sum = 10;
+
+    switch (playedCard.ambition) {
+        case "tycoon":
+            sum -= player.fuelValue + player.materialsValue;
+            break;
+
+        case "tyrant":
+            sum -= player.captivesValue
+            break;
+
+        case "warlord":
+            sum -= player.trophiesValue;
+            break;
+
+        case "keeper":
+            sum -= player.relicsValue;
+            break;
+
+        case "empath":
+            sum -= player.psionicsValue;
+            break;
+
+        default:
+            break;
+    }
+
+    if (sum < 0) { sum = 0};
+
+    let unplayedCards = getUnplayedCards(player.cards);
+    let numberOfUnplayedCards = unplayedCards.length;
+
+    sum += numberOfUnplayedCards;
+
+    let num = Math.floor(Math.random() * 10);
+
+    if (num >= sum) {
+        alert("Player declared ambition: " + playedCard.ambition);
+        playedCard.number = 0;
+
+        addPlayedCardToList(playedCard, "ANY", "LEAD", true, player);
+
+        declaredAmbitions.push(playedCard.ambition);
+        setElementValue("declaredAmbitions", declaredAmbitions.length);
+    }
+}
+
+function declareAmbition_old(player, playedCard) {
     if (declaredAmbitions == 3) {
         return;
     }
@@ -1585,6 +1649,16 @@ function plusMinusClicked(id, action) {
         case "psionics":
             player.psionicsValue += value;
             resourceValue = player.psionicsValue;
+            break;
+
+        case "captives":
+            player.captivesValue += value;
+            resourceValue = player.captivesValue;
+            break;
+
+        case "trophies":
+            player.trophiesValue += value;
+            resourceValue = player.trophiesValue;
             break;
 
         default:
