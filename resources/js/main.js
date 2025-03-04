@@ -7,6 +7,13 @@ class player {
         this.isHuman = isHuman;
     }
 
+    fuelValue = 0;
+    materialsValue = 0;
+    weaponsValue = 0;
+    relicsValue = 0;
+    psionicsValue = 0;
+    captivesValue = 0;
+    trophiesValue = 0;
     cards = [];
     hasInitiative = false;
     hasPlayedACardThisTurn = false;
@@ -116,7 +123,7 @@ function loadPlayers() {
         const player = getSettingObject(playerNumber);
         if (player != null) {
             players.push(player);
-            clonePlayerNodeAndSetup(player.number);
+            clonePlayerNodeAndSetup(player);
         }
     }
     if (haveAllPlayersPlayedACard() == true) {
@@ -214,11 +221,12 @@ function createPlayers(numberOfPlayers) {
 
         players.push(p);
 
-        clonePlayerNodeAndSetup(playerNumber);
+        clonePlayerNodeAndSetup(p);
     }
 }
 
-function clonePlayerNodeAndSetup(playerNumber) {
+function clonePlayerNodeAndSetup(player) {
+    const playerNumber = player.number;
     const playertemplate = document.getElementById("playerTemplate").cloneNode(true);
     playertemplate.id = "player" + playerNumber.toString();
     playertemplate.classList.add("playerheader" + playerNumber.toString());
@@ -271,7 +279,58 @@ function clonePlayerNodeAndSetup(playerNumber) {
 
     if (playerNumber != 1) { hand.classList.add("d-none") }
 
+    setPlusMinusButtons(playertemplate, player, "fuel");
+    setPlusMinusButtons(playertemplate, player, "materials");
+    setPlusMinusButtons(playertemplate, player, "weapons");
+    setPlusMinusButtons(playertemplate, player, "relics");
+    setPlusMinusButtons(playertemplate, player, "psionics");
+    setPlusMinusButtons(playertemplate, player, "captives");
+    setPlusMinusButtons(playertemplate, player, "trophies");
+
     document.getElementById("playerslots").appendChild(playertemplate);
+}
+
+function setPlusMinusButtons(playertemplate, player, type) {
+    let btn = playertemplate.querySelector("#minusButton_" + type);
+    btn.id = "minusButton_" + type + "_" + player.number;
+    btn = playertemplate.querySelector("#plusButton_" + type);
+    btn.id = "plusButton_" + type + "_" + player.number;
+
+    let input = playertemplate.querySelector("#" + type + "Value");
+    input.id = type + "Value_" + player.number;
+
+    switch (type) {
+        case "fuel":
+            input.value = player.fuelValue;
+            break;
+
+        case "materials":
+            input.value = player.materialsValue;
+            break;
+
+        case "weapons":
+            input.value = player.weaponsValue;
+            break;
+
+        case "relics":
+            input.value = player.relicsValue;
+            break;
+
+        case "psionics":
+            input.value = player.psionicsValue;
+            break;
+
+        case "captives":
+            input.value = player.captivesValue;
+            break;
+
+        case "trophies":
+            input.value = player.trophiesValue;
+            break;
+
+        default:
+            break;
+    }
 }
 
 function createRadioButtons(btntext, group, groupname, btnstyle) {
@@ -599,13 +658,13 @@ function refreshTooltips() {
     const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
-function getActionsOnCard(card){
+function getActionsOnCard(card) {
     let actions;
     const cardActions = card.actions.split(",");
     cardActions.forEach(action => {
-        if (actions == null){
+        if (actions == null) {
             actions = "<b>" + action + "</b>";
-        }else{
+        } else {
             actions += " OR " + "<b>" + action + "</b>";
         }
     })
@@ -1119,12 +1178,12 @@ function answerNo() {
         case "TYRANT":
 
             if (question == "Can I tax a rival's city to capture?" && possibleActions.includes("secure")) {
-                focus_tycoon(2);
+                focus_tyrant(2);
                 break;
             }
 
             if (question == "Is there a card in the market with rival agents on it that I can secure?" && possibleActions.includes("battle")) {
-                focus_tycoon(3);
+                focus_tyrant(3);
                 break;
             }
 
@@ -1135,12 +1194,12 @@ function answerNo() {
         case "WARLORD":
 
             if (question == "Can I battle a rival?" && possibleActions.includes("secure")) {
-                focus_tycoon(2);
+                focus_warlord(2);
                 break;
             }
 
             if (question == "Is there a weapons card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_tycoon(3);
+                focus_warlord(3);
                 break;
             }
 
@@ -1151,17 +1210,17 @@ function answerNo() {
         case "KEEPER":
 
             if (question == "Can I tax a city for a relic?" && possibleActions.includes("secure")) {
-                focus_tycoon(2);
+                focus_keeper(2);
                 break;
             }
 
             if (question == "Is there a relic card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_tycoon(3);
+                focus_keeper(3);
                 break;
             }
 
             if (question == "Is there a relic card in the market I can influence?" && possibleActions.includes("battle")) {
-                focus_tycoon(4);
+                focus_keeper(4);
                 break;
             }
 
@@ -1172,17 +1231,17 @@ function answerNo() {
         case "EMPATH":
 
             if (question == "Can I tax a city for a psionic?" && possibleActions.includes("secure")) {
-                focus_tycoon(2);
+                focus_empath(2);
                 break;
             }
 
             if (question == "Is there a psionic card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_tycoon(3);
+                focus_empath(3);
                 break;
             }
 
             if (question == "Is there a psionic card in the market I can influence?" && possibleActions.includes("battle")) {
-                focus_tycoon(4);
+                focus_empath(4);
                 break;
             }
 
@@ -1224,6 +1283,58 @@ function enableNextTurnButton() {
 }
 
 function declareAmbition(player, playedCard) {
+    if (declaredAmbitions == 3) {
+        return;
+    }
+
+    let sum = 10;
+
+    switch (playedCard.ambition) {
+        case "tycoon":
+            sum -= player.fuelValue + player.materialsValue;
+            break;
+
+        case "tyrant":
+            sum -= player.captivesValue
+            break;
+
+        case "warlord":
+            sum -= player.trophiesValue;
+            break;
+
+        case "keeper":
+            sum -= player.relicsValue;
+            break;
+
+        case "empath":
+            sum -= player.psionicsValue;
+            break;
+
+        default:
+            break;
+    }
+
+    if (sum < 0) { sum = 0};
+
+    let unplayedCards = getUnplayedCards(player.cards);
+    let numberOfUnplayedCards = unplayedCards.length;
+
+    sum += numberOfUnplayedCards;
+
+    let num = Math.floor(Math.random() * 10);
+
+    if (num >= sum) {
+        alert("Player declared ambition: " + playedCard.ambition);
+        playedCard.number = 0;
+
+        addPlayedCardToList(playedCard, "ANY", "LEAD", true, player);
+
+        declaredAmbitions.push(playedCard.ambition);
+        setElementValue("declaredAmbitions", declaredAmbitions.length);
+    }
+}
+
+function declareAmbition_old(player, playedCard) {
     if (declaredAmbitions == 3) {
         return;
     }
@@ -1502,6 +1613,61 @@ function getCardsWithAction(cards, action) {
     });
 
     return cardsWithAction;
+}
+
+function plusMinusClicked(id, action) {
+    const value = (action == 'minus') ? -1 : 1
+
+    const idsplit = id.split('_');
+    const resourceName = idsplit[1];
+    let resourceValue = 0;
+    const playerNumber = idsplit[2];
+
+    const player = getPlayer(playerNumber);
+
+    switch (resourceName) {
+        case "fuel":
+            player.fuelValue += value;
+            resourceValue = player.fuelValue;
+            break;
+
+        case "materials":
+            player.materialsValue += value;
+            resourceValue = player.materialsValue;
+            break;
+
+        case "weapons":
+            player.weaponsValue += value;
+            resourceValue = player.weaponsValue;
+            break;
+
+        case "relics":
+            player.relicsValue += value;
+            resourceValue = player.relicsValue;
+            break;
+
+        case "psionics":
+            player.psionicsValue += value;
+            resourceValue = player.psionicsValue;
+            break;
+
+        case "captives":
+            player.captivesValue += value;
+            resourceValue = player.captivesValue;
+            break;
+
+        case "trophies":
+            player.trophiesValue += value;
+            resourceValue = player.trophiesValue;
+            break;
+
+        default:
+            break;
+    }
+
+    document.getElementById(resourceName + "Value_" + playerNumber).value = resourceValue;
+
+    SaveAllSettings();
 }
 
 // #region UTILS
