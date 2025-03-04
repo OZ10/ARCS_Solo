@@ -7,6 +7,11 @@ class player {
         this.isHuman = isHuman;
     }
 
+    fuelValue = 0;
+    materialsValue = 0;
+    weaponsValue = 0;
+    relicsValue = 0;
+    psionicsValue = 0;
     cards = [];
     hasInitiative = false;
     hasPlayedACardThisTurn = false;
@@ -116,7 +121,7 @@ function loadPlayers() {
         const player = getSettingObject(playerNumber);
         if (player != null) {
             players.push(player);
-            clonePlayerNodeAndSetup(player.number);
+            clonePlayerNodeAndSetup(player);
         }
     }
     if (haveAllPlayersPlayedACard() == true) {
@@ -214,11 +219,12 @@ function createPlayers(numberOfPlayers) {
 
         players.push(p);
 
-        clonePlayerNodeAndSetup(playerNumber);
+        clonePlayerNodeAndSetup(p);
     }
 }
 
-function clonePlayerNodeAndSetup(playerNumber) {
+function clonePlayerNodeAndSetup(player) {
+    const playerNumber = player.number;
     const playertemplate = document.getElementById("playerTemplate").cloneNode(true);
     playertemplate.id = "player" + playerNumber.toString();
     playertemplate.classList.add("playerheader" + playerNumber.toString());
@@ -271,7 +277,48 @@ function clonePlayerNodeAndSetup(playerNumber) {
 
     if (playerNumber != 1) { hand.classList.add("d-none") }
 
+    setPlusMinusButtons(playertemplate, player, "fuel");
+    setPlusMinusButtons(playertemplate, player, "materials");
+    setPlusMinusButtons(playertemplate, player, "weapons");
+    setPlusMinusButtons(playertemplate, player, "relics");
+    setPlusMinusButtons(playertemplate, player, "psionics");
+
     document.getElementById("playerslots").appendChild(playertemplate);
+}
+
+function setPlusMinusButtons(playertemplate, player, type) {
+    let btn = playertemplate.querySelector("#minusButton_" + type);
+    btn.id = "minusButton_" + type + "_" + player.number;
+    btn = playertemplate.querySelector("#plusButton_" + type);
+    btn.id = "plusButton_" + type + "_" + player.number;
+
+    let input = playertemplate.querySelector("#" + type + "Value");
+    input.id = type + "Value_" + player.number;
+
+    switch (type) {
+        case "fuel":
+            input.value = player.fuelValue;
+            break;
+
+        case "materials":
+            input.value = player.materialsValue;
+            break;
+
+        case "weapons":
+            input.value = player.weaponsValue;
+            break;
+
+        case "relics":
+            input.value = player.relicsValue;
+            break;
+
+        case "psionics":
+            input.value = player.psionicsValue;
+            break;
+
+        default:
+            break;
+    }
 }
 
 function createRadioButtons(btntext, group, groupname, btnstyle) {
@@ -599,13 +646,13 @@ function refreshTooltips() {
     const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
-function getActionsOnCard(card){
+function getActionsOnCard(card) {
     let actions;
     const cardActions = card.actions.split(",");
     cardActions.forEach(action => {
-        if (actions == null){
+        if (actions == null) {
             actions = "<b>" + action + "</b>";
-        }else{
+        } else {
             actions += " OR " + "<b>" + action + "</b>";
         }
     })
@@ -1502,6 +1549,51 @@ function getCardsWithAction(cards, action) {
     });
 
     return cardsWithAction;
+}
+
+function plusMinusClicked(id, action) {
+    const value = (action == 'minus') ? -1 : 1
+
+    const idsplit = id.split('_');
+    const resourceName = idsplit[1];
+    let resourceValue = 0;
+    const playerNumber = idsplit[2];
+
+    const player = getPlayer(playerNumber);
+
+    switch (resourceName) {
+        case "fuel":
+            player.fuelValue += value;
+            resourceValue = player.fuelValue;
+            break;
+
+        case "materials":
+            player.materialsValue += value;
+            resourceValue = player.materialsValue;
+            break;
+
+        case "weapons":
+            player.weaponsValue += value;
+            resourceValue = player.weaponsValue;
+            break;
+
+        case "relics":
+            player.relicsValue += value;
+            resourceValue = player.relicsValue;
+            break;
+
+        case "psionics":
+            player.psionicsValue += value;
+            resourceValue = player.psionicsValue;
+            break;
+
+        default:
+            break;
+    }
+
+    document.getElementById(resourceName + "Value_" + playerNumber).value = resourceValue;
+
+    SaveAllSettings();
 }
 
 // #region UTILS
