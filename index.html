@@ -69,14 +69,16 @@
           </a>
           <div class="d-flex ms-auto">
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-custom-class="custom-tooltip"
-            data-bs-title="Play a VOX card">vox</button>
+              data-bs-custom-class="custom-tooltip"
+              data-bs-title="Play a VOX card" onclick="displayVoxCards()">vox</button>
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-custom-class="custom-tooltip"
-            data-bs-title="Draw an Action card"><i class="bi bi-file-plus"></i></button>
+              data-bs-custom-class="custom-tooltip"
+              data-bs-title="Draw an Action card"><i
+                class="bi bi-file-plus"></i></button>
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-custom-class="custom-tooltip"
-            data-bs-title="Seize the initiative"><i class="bi bi-exclamation-circle"></i></button>
+              data-bs-custom-class="custom-tooltip"
+              data-bs-title="Seize the initiative"><i
+                class="bi bi-exclamation-circle"></i></button>
           </div>
         </div>
 
@@ -327,6 +329,36 @@
               onclick="answerNo()"
               data-bs-dismiss="modal">
               No
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="voxCards" tabindex="-1"
+      aria-labelledby="voxCards"
+      aria-hidden="true">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="voxCardsTitle">
+              VOX Card List
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"
+              aria-label="Close"></button>
+          </div>
+          <div class="modal-body d-flex">
+            <p id="">Please select from the list below the VOX card to play</p>
+          </div>
+          <button type="button" class="btn btn-primary"
+            onclick="playVoxCard(this)"
+            data-bs-dismiss="modal">
+            List of VOX cards to click
+          </button>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary"
+              data-bs-dismiss="modal">
+              Close
             </button>
           </div>
         </div>

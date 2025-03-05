@@ -1348,26 +1348,6 @@ function declareAmbition(player, playedCard) {
     }
 }
 
-function declareAmbition_old(player, playedCard) {
-    if (declaredAmbitions == 3) {
-        return;
-    }
-
-    let unplayedCards = getUnplayedCards(player.cards);
-    let numberOfUnplayedCards = unplayedCards.length + 5;
-
-    let num = Math.floor(Math.random() * 10);
-
-    if (num > numberOfUnplayedCards) {
-        alert("Player declared ambition: " + playedCard.ambition);
-        playedCard.number = 0;
-
-        addPlayedCardToList(playedCard, "ANY", "LEAD", true, player);
-
-        declaredAmbitions.push(playedCard.ambition);
-        setElementValue("declaredAmbitions", declaredAmbitions.length);
-    }
-}
 
 function canSurpass(player, playedCard, unplayedCards, actionToPlay) {
     let surpass = false;
@@ -1509,6 +1489,22 @@ function pivot(player, cards, actionToPlay) {
     //          - need to know how many ships are in play
     //          - how many buildings are in play
     if (cards.length > 0) { playCard(player, cards[0], actionToPlay, "PIVOT", true) }
+}
+
+function displayVoxCards(){
+    let modal = new bootstrap.Modal(document.getElementById("voxCards"));
+    modal.show();
+}
+
+function playVoxCard(btn){
+switch (btn.innerText) {
+    case "cardname_here":
+        //action to take here
+        break;
+
+    default:
+        break;
+}
 }
 
 function enableDisablePlayCardButtons(playerNumber) {
