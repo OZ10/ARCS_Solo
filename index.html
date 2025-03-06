@@ -79,6 +79,10 @@
               data-bs-custom-class="custom-tooltip"
               data-bs-title="Seize the initiative"><i
                 class="bi bi-exclamation-circle"></i></button>
+                <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
+                data-bs-custom-class="custom-tooltip"
+                data-bs-title="Declare an ambition"><i
+                  class="bi bi-hexagon-fill"></i></button>
           </div>
         </div>
 
@@ -86,7 +90,7 @@
 
           <div class="row">Resources
             <div class="row">
-              <div class="col-2">Fuel:</div>
+              <div class="col-3">Fuel:</div>
               <div class="col-auto input-group mb-3"
                 style="width: 160px;">
                 <div class="input-group-prepend">
@@ -107,7 +111,7 @@
             </div>
 
             <div class="row">
-              <div class="col-2">Materials:</div>
+              <div class="col-3">Materials:</div>
               <div class="col-auto input-group mb-3"
                 style="width: 160px;">
                 <div class="input-group-prepend">
@@ -128,7 +132,7 @@
             </div>
 
             <div class="row">
-              <div class="col-2">Weapons:</div>
+              <div class="col-3">Weapons:</div>
               <div class="col-auto input-group mb-3"
                 style="width: 160px;">
                 <div class="input-group-prepend">
@@ -149,7 +153,7 @@
             </div>
 
             <div class="row">
-              <div class="col-2">Relics:</div>
+              <div class="col-3">Relics:</div>
               <div class="col-auto input-group mb-3"
                 style="width: 160px;">
                 <div class="input-group-prepend">
@@ -170,7 +174,7 @@
             </div>
 
             <div class="row">
-              <div class="col-2">Psionics:</div>
+              <div class="col-3">Psionics:</div>
               <div class="col-auto input-group mb-3"
                 style="width: 160px;">
                 <div class="input-group-prepend">
@@ -191,7 +195,7 @@
             </div>
 
             <div class="row">
-              <div class="col-2">Captives:</div>
+              <div class="col-3">Captives:</div>
               <div class="col-auto input-group mb-3"
                 style="width: 160px;">
                 <div class="input-group-prepend">
@@ -212,7 +216,7 @@
             </div>
 
             <div class="row">
-              <div class="col-2">Trophies:</div>
+              <div class="col-3">Trophies:</div>
               <div class="col-auto input-group mb-3"
                 style="width: 160px;">
                 <div class="input-group-prepend">
@@ -360,6 +364,25 @@
               data-bs-dismiss="modal">
               Close
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="claimCards" tabindex="-1"
+      aria-labelledby="claimCards"
+      aria-hidden="true">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="claimCardsTitle">
+              Claim Card List
+            </h5>
+          </div>
+          <div class="modal-body d-flex">
+            <p id="">Please select a card second card to play</p>
+          </div>
+          <div class="text-center row" id="claimCardsList">
           </div>
         </div>
       </div>
