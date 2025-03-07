@@ -1322,13 +1322,14 @@ function declareAmbition(player, playedCard) {
     switch (roundNumber) {
         case 2:
         case 3:
-            sum -= 2;
+            sum -= 3;
             break;
 
         case 4:
         case 5:
-            sum -= 3;
-
+            sum -= 4;
+            break;
+            
         default:
             break;
     }
