@@ -1317,7 +1317,7 @@ function declareAmbition(player, playedCard) {
     let unplayedCards = getUnplayedCards(player.cards);
     let numberOfUnplayedCards = unplayedCards.length;
 
-    sum += numberOfUnplayedCards;
+    //sum += numberOfUnplayedCards;
 
     switch (roundNumber) {
         case 2:
