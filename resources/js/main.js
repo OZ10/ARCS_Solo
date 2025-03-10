@@ -962,7 +962,7 @@ function focus_tycoon(questionNumber) {
 
     switch (questionNumber) {
         case 1:
-            document.getElementById("yesNoMessage").innerHTML = "Can I tax a city for weapons or fuel?";
+            document.getElementById("yesNoMessage").innerHTML = "Can I tax a city for materials or fuel?";
             break;
 
         case 2:
