@@ -454,7 +454,7 @@ function nextTurn() {
 
     currentPlayer = getPlayerWithInitiative();
 
-    if (getUnplayedCards(currentPlayer.cards).length == 0){
+    if (getUnplayedCards(currentPlayer.cards).length == 0) {
         // Player has no cards left to play so will
         // move to the next player
         currentPlayer.hasPlayedACardThisTurn = true;
@@ -802,16 +802,16 @@ function changeCurrentPlayer(player) {
         //    players[0].hasPlayedACardThisTurn = true;
         //    changeCurrentPlayer(players[0]);
         //}else{
-            enableDisablePlayCardButtons(1);
+        enableDisablePlayCardButtons(1);
         //}
-        
+
     } else {
         currentPlayer = players[playerNumber - 1];
         //if (getUnplayedCards(players[playerNumber - 1].cards).length == 0){
         //    players[playerNumber - 1].hasPlayedACardThisTurn = true;
         //    changeCurrentPlayer(players[playerNumber - 1]);
         //}else{
-            enableDisablePlayCardButtons(playerNumber);
+        enableDisablePlayCardButtons(playerNumber);
         //}
     }
 }
@@ -1146,9 +1146,123 @@ function answerYes() {
 }
 
 function findCardToPlay(cards, actionToPlay) {
-    const cardToPlay = getHighestCard(cards);
+    let cardToPlay = "";
 
-    //let initiativeClaimedThisTurn;
+    if (currentPlayer.hasInitiative && actionToPlay == "") {
+        // AI player is leading
+        // Check which ambitions they should focus on
+        // and play that card
+        // If there is not a card to play, play the highest possible
+        // card
+
+        const ambitionSorted = prioritiseAndSortAmbitions();
+
+        let cardsWithAmbition = findCardsWithAmbition(ambitionSorted, cards);
+
+        if (cardsWithAmbition.length > 0) { cardToPlay = getHighestCard(cardsWithAmbition); }
+    }
+
+    //const cardToPlay = getHighestCard(cards);
+
+    if (cardToPlay == "") { cardToPlay = getHighestCard(cards); }
+
+    let cardAction = "";
+
+    if (actionToPlay == "") { actionToPlay = "ANY" }
+
+    if (currentPlayer.hasInitiative) { cardAction = "LEAD" }
+
+    if (cardToPlay != null && currentPlayer.hasInitiative) {
+        playCard(currentPlayer, cardToPlay, actionToPlay, cardAction);
+    } else {
+        if (canSurpass(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
+
+            // Cannot SURPASS and therefore must find focus
+
+            if (initiativeClaimedThisTurn == false) {
+                initiativeClaimedThisTurn = claim(currentPlayer, actionToPlay)
+            }
+
+            if (initiativeClaimedThisTurn == false) {
+                if (canCopy(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
+                    pivot(currentPlayer, cards, actionToPlay);
+                }
+            }
+        }
+    }
+
+    if (haveAllPlayersPlayedACard()) {
+        enableNextTurnButton();
+    }
+
+    SaveAllSettings();
+}
+
+function findCardsWithAmbition(ambitionSorted, cards) {
+    let cardsWithAmbition;
+
+    for (let num = 0; num < ambitionSorted.length; num++) {
+        const am = ambitionSorted[num];
+        cardsWithAmbition = getCardsWithAmbition(cards, am[0]);
+        if (cardsWithAmbition.length > 0) { break; }
+    }
+    return cardsWithAmbition;
+}
+
+function prioritiseAndSortAmbitions() {
+    let amibitions = [];
+    amibitions.push(["tycoon", currentPlayer.fuelValue + currentPlayer.materialsValue]);
+    amibitions.push(["tyrant", currentPlayer.captivesValue]);
+    amibitions.push(["warlord", currentPlayer.trophiesValue]);
+    amibitions.push(["keeper", currentPlayer.relicsValue]);
+    amibitions.push(["empath", currentPlayer.psionicsValue]);
+
+    const ambitionSorted = amibitions.slice().sort((a, b) => {
+        const numA = typeof a === 'object' && a !== null ? a[1] : a[1];
+        const numB = typeof b === 'object' && b !== null ? b[1] : b[1];
+        return numB - numA;
+    });
+    return ambitionSorted;
+}
+
+function findCardToPlay_old(cards, actionToPlay) {
+    let ambitionSorted = [];
+    let cardToPlay = "";
+
+    if (currentPlayer.hasInitiative && actionToPlay == "") {
+        // AI player is leading
+        // Check which ambitions they should focus on
+        // and play that card
+        // If there is not a card to play, play the highest possible
+        // card
+
+        let amibitions = [];
+        amibitions.push(["tycoon", currentPlayer.fuelValue + currentPlayer.materialsValue])
+        amibitions.push(["tyrant", currentPlayer.captivesValue])
+        amibitions.push(["warlord", currentPlayer.trophiesValue])
+        amibitions.push(["keeper", currentPlayer.relicsValue])
+        amibitions.push(["empath", currentPlayer.psionicsValue])
+
+        ambitionSorted = amibitions.slice().sort((a, b) => {
+            const numA = typeof a === 'object' && a !== null ? a[1] : a[1];
+            const numB = typeof b === 'object' && b !== null ? b[1] : b[1];
+            return numB - numA;
+        })
+
+        let cc;
+
+        for (let num = 0; num < ambitionSorted.length; num++) {
+            const am = ambitionSorted[num];
+             cc = getCardsWithAmbition(cards, am[0]);
+            if (cc.length > 0) { break; }
+        }
+
+        cardToPlay = getHighestCard(cc);
+    }
+
+    //const cardToPlay = getHighestCard(cards);
+
+    if (cardToPlay == "") { cardToPlay = getHighestCard(cards); }
 
     let cardAction = "";
 
@@ -1379,7 +1493,7 @@ function declareAmbition(player, playedCard) {
     let unplayedCards = getUnplayedCards(player.cards);
     let numberOfUnplayedCards = unplayedCards.length;
 
-    sum += numberOfUnplayedCards;
+    //sum += numberOfUnplayedCards;
 
     switch (roundNumber) {
         case 2:
@@ -1692,6 +1806,17 @@ function getCardsWithAction(cards, action) {
     });
 
     return cardsWithAction;
+}
+
+function getCardsWithAmbition(cards, ambition) {
+    let cardsWithAmbition = [];
+    cards.forEach(card => {
+        if (card.ambition == ambition) {
+            cardsWithAmbition.push(card);
+        }
+    });
+
+    return cardsWithAmbition;
 }
 
 function plusMinusClicked(id, action) {
