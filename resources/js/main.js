@@ -130,6 +130,11 @@ function loadPlayers() {
         enableNextTurnButton();
     } else {
         findCurrentPlayer();
+        checkIfPlayerHasCardsToPlay();
+
+        if (haveAllPlayersPlayedACard() == true) {
+            enableNextTurnButton();
+        }
     }
 
     createCardButtonsForHumanPlayer();
@@ -454,12 +459,11 @@ function nextTurn() {
 
     currentPlayer = getPlayerWithInitiative();
 
-    if (getUnplayedCards(currentPlayer.cards).length == 0) {
-        // Player has no cards left to play so will
-        // move to the next player
-        currentPlayer.hasPlayedACardThisTurn = true;
-        changeCurrentPlayer(players[0]);
-        changeInitiative(currentPlayer);
+    checkIfPlayerHasCardsToPlay();
+
+    if (haveAllCardsBeenPlayed()) {
+        enableDisableButton("nextRound", false);
+        return;
     }
 
     enableDisablePlayCardButtons(currentPlayer.number);
@@ -467,6 +471,16 @@ function nextTurn() {
     SaveAllSettings();
 }
 
+
+function checkIfPlayerHasCardsToPlay() {
+    if (getUnplayedCards(currentPlayer.cards).length == 0) {
+        // Player has no cards left to play so will
+        // move to the next player
+        currentPlayer.hasPlayedACardThisTurn = true;
+        changeCurrentPlayer(currentPlayer);
+        changeInitiative(currentPlayer);
+    }
+}
 
 function haveAllCardsBeenPlayed() {
     let allPlayed;
@@ -796,23 +810,10 @@ function changeCurrentPlayer(player) {
     let playerNumber = player.number + 1;
 
     if (playerNumber > players.length) {
-        // This is the human player
-        //currentPlayer = players[0];
-        //if (getUnplayedCards(currentPlayer.cards).length == 0){
-        //    players[0].hasPlayedACardThisTurn = true;
-        //    changeCurrentPlayer(players[0]);
-        //}else{
         enableDisablePlayCardButtons(1);
-        //}
-
     } else {
         currentPlayer = players[playerNumber - 1];
-        //if (getUnplayedCards(players[playerNumber - 1].cards).length == 0){
-        //    players[playerNumber - 1].hasPlayedACardThisTurn = true;
-        //    changeCurrentPlayer(players[playerNumber - 1]);
-        //}else{
         enableDisablePlayCardButtons(playerNumber);
-        //}
     }
 }
 
@@ -1108,7 +1109,7 @@ function answerYes() {
 
     const question = document.getElementById("yesNoMessage").innerHTML;
     switch (question) {
-        case "Can I tax a city for weapons or fuel?":
+        case "Can I tax a city for materials or fuel?":
         case "Can I tax a rival's city to capture?":
         case "Can I tax a city for a relic?":
         case "Can I tax a city for a psionic?":
@@ -1180,7 +1181,7 @@ function findCardToPlay(cards, actionToPlay) {
             // Cannot SURPASS and therefore must find focus
 
             if (initiativeClaimedThisTurn == false) {
-                initiativeClaimedThisTurn = claim(currentPlayer, actionToPlay)
+                initiativeClaimedThisTurn = claim(currentPlayer, actionToPlay, cardAction)
             }
 
             if (initiativeClaimedThisTurn == false) {
@@ -1223,79 +1224,6 @@ function prioritiseAndSortAmbitions() {
         return numB - numA;
     });
     return ambitionSorted;
-}
-
-function findCardToPlay_old(cards, actionToPlay) {
-    let ambitionSorted = [];
-    let cardToPlay = "";
-
-    if (currentPlayer.hasInitiative && actionToPlay == "") {
-        // AI player is leading
-        // Check which ambitions they should focus on
-        // and play that card
-        // If there is not a card to play, play the highest possible
-        // card
-
-        let amibitions = [];
-        amibitions.push(["tycoon", currentPlayer.fuelValue + currentPlayer.materialsValue])
-        amibitions.push(["tyrant", currentPlayer.captivesValue])
-        amibitions.push(["warlord", currentPlayer.trophiesValue])
-        amibitions.push(["keeper", currentPlayer.relicsValue])
-        amibitions.push(["empath", currentPlayer.psionicsValue])
-
-        ambitionSorted = amibitions.slice().sort((a, b) => {
-            const numA = typeof a === 'object' && a !== null ? a[1] : a[1];
-            const numB = typeof b === 'object' && b !== null ? b[1] : b[1];
-            return numB - numA;
-        })
-
-        let cc;
-
-        for (let num = 0; num < ambitionSorted.length; num++) {
-            const am = ambitionSorted[num];
-             cc = getCardsWithAmbition(cards, am[0]);
-            if (cc.length > 0) { break; }
-        }
-
-        cardToPlay = getHighestCard(cc);
-    }
-
-    //const cardToPlay = getHighestCard(cards);
-
-    if (cardToPlay == "") { cardToPlay = getHighestCard(cards); }
-
-    let cardAction = "";
-
-    if (actionToPlay == "") { actionToPlay = "ANY" }
-
-    if (currentPlayer.hasInitiative) { cardAction = "LEAD" }
-
-    if (cardToPlay != null && currentPlayer.hasInitiative) {
-        playCard(currentPlayer, cardToPlay, actionToPlay, cardAction);
-    } else {
-        if (canSurpass(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
-
-            // Cannot SURPASS and therefore must find focus
-
-            if (initiativeClaimedThisTurn == false) {
-                initiativeClaimedThisTurn = claim(currentPlayer, actionToPlay)
-            }
-
-            if (initiativeClaimedThisTurn == false) {
-                if (canCopy(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
-                    pivot(currentPlayer, cards, actionToPlay);
-                }
-            }
-        }
-    }
-
-    if (haveAllPlayersPlayedACard()) {
-        enableNextTurnButton();
-    } else {
-        //changeCurrentPlayer(currentPlayer);
-    }
-
-    SaveAllSettings();
 }
 
 function answerNo() {
@@ -1490,10 +1418,14 @@ function declareAmbition(player, playedCard) {
             break;
     }
 
-    let unplayedCards = getUnplayedCards(player.cards);
-    let numberOfUnplayedCards = unplayedCards.length;
+    //let unplayedCards = getUnplayedCards(player.cards);
+    //let numberOfUnplayedCards = unplayedCards.length;
 
     //sum += numberOfUnplayedCards;
+
+    // If sum is still 10 here then player has no resources
+    // of the matching ambition and should not declare an ambition
+    if (sum == 10) { return; }
 
     switch (roundNumber) {
         case 2:
@@ -1588,27 +1520,38 @@ function getLowestCardtoPlay(cards) {
     return lowestCard;
 }
 
-function claim(player, actionToPlay) {
+function claim(player, actionToPlay, cardAction) {
     // Logic;
     //  claim needs to be based on a calc between: number of cards in hand, number of ambitions played, .... other things
     //  at the start of the game the calc needs to rarely succeed
 
     let initiativeClaimedThisTurn = false;
 
+    // No point in claiming if cannot declare an ambition
+    if (declaredAmbitions.length >= 3) { return false; }
+
     let unplayedCards = getUnplayedCards(player.cards);
 
-    // For the moment, just do a random calc and selection
-    let num = Math.floor(Math.random() * 10);
+    // No point in claiming if player has two or less cards
+    if (unplayedCards.length <= 2) { return false; }
+
+    // Get the total values of the unplayed cards. The lower the total number, the lower the 
+    // card numbers the player has and therefore the less chance of surpassing
+    let totalValueOfCards = 0;
+    unplayedCards.forEach(card => {
+        totalValueOfCards += card.number;
+    })
+
+    let num = Math.floor(Math.random() * 16);
+
     //num = 9;
-    if (num > 9 && unplayedCards.length > 2) {
-        //if (unplayedCards.length > 2) {
-        // ai has to have more than 2 cards to claim otherwise won't have any cards to play in the next round
-        playCard(player, unplayedCards[0], actionToPlay, "CLAIM", true);
-        playCard(player, unplayedCards[1], actionToPlay, "CLAIM*", false);
+    if (num >= totalValueOfCards) {
+        playCard(player, getLowestCardtoPlay(unplayedCards), actionToPlay, cardAction, true);
+        unplayedCards = getUnplayedCards(unplayedCards);
+        playCard(player, getLowestCardtoPlay(unplayedCards), actionToPlay, "CLAIM", false);
 
         initiativeClaimedThisTurn = true;
-        initiativeClaimedThisTurn = true;
-        checkInitiative(player, unplayedCards[0], true);
+        changeInitiative(player);
     }
 
     return initiativeClaimedThisTurn;
