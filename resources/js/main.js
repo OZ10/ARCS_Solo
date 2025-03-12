@@ -1,4 +1,4 @@
-//import { Card } from "../class/card";
+//import { Card } from "../class/card.js";
 
 
 class player {
@@ -114,6 +114,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     refreshTooltips();
 });
+
+/*
+const setupGameButton = document.getElementById("setupGame");
+setupGameButton.addEventListener('click', setupGame(2));
+*/
 
 // #region LOAD
 
