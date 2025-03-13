@@ -12,13 +12,12 @@
       crossorigin="anonymous">
     <link rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <script src="./resources/js/main.js"></script>
 
     <link href="resources/css/index.css" rel="stylesheet">
   </head>
 
   <body>
-    
+
     <main class="container-fluid">
       <header class="row">
         <div class="d-flex justify-content-evenly">
@@ -68,10 +67,11 @@
                 id="playerinitiative">&#9733;</div>
             </div>
           </a>
-          <div class="d-flex ms-auto">
+          <div class="d-flex ms-auto d-none" id="playeroptions">
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
               data-bs-custom-class="custom-tooltip"
-              data-bs-title="Play a VOX card" onclick="displayVoxCards()">vox</button>
+              data-bs-title="Play a VOX card"
+              onclick="displayVoxCards()">vox</button>
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
               data-bs-custom-class="custom-tooltip"
               data-bs-title="Draw an Action card"><i
@@ -79,11 +79,12 @@
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
               data-bs-custom-class="custom-tooltip"
               data-bs-title="Seize the initiative"><i
-                class="bi bi-exclamation-circle"></i></button>
-                <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
-                data-bs-custom-class="custom-tooltip"
-                data-bs-title="Declare an ambition"><i
-                  class="bi bi-hexagon-fill"></i></button>
+                class="bi bi-exclamation-circle"
+                onclick="seizeInitiative(this)"></i></button>
+            <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
+              data-bs-custom-class="custom-tooltip"
+              data-bs-title="Declare an ambition"><i
+                class="bi bi-hexagon-fill"></i></button>
           </div>
         </div>
 
@@ -353,7 +354,7 @@
               aria-label="Close"></button>
           </div>
           <div class="modal-body d-flex">
-            <p id="">Please select from the list below the VOX card to play</p>
+            <p id>Please select from the list below the VOX card to play</p>
           </div>
           <button type="button" class="btn btn-primary"
             onclick="playVoxCard(this)"
@@ -381,7 +382,7 @@
             </h5>
           </div>
           <div class="modal-body d-flex">
-            <p id="">Please select a card second card to play</p>
+            <p id>Please select a card second card to play</p>
           </div>
           <div class="text-center row" id="claimCardsList">
           </div>
@@ -405,6 +406,8 @@
         </script>
       -->
 
-      <!--<script type="module" src="resources/js/main.js"></script> -->
+    <!--<script type="module" src="resources/js/main.js"></script> -->
+
+    <script src="./resources/js/main.js"></script>
   </body>
 </html>

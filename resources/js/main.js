@@ -83,6 +83,7 @@ const ambitions = [
 let currentactioncards = actioncards.slice();
 
 let playedCardList = [];
+let discardPile = [];
 let initiativeClaimedThisTurn = false;
 let turnNumber = 1;
 let roundNumber = 1;
@@ -235,6 +236,12 @@ function createPlayers(numberOfPlayers) {
     }
 }
 
+function onCollapse(playerNumber, isCollapsed){
+    const el = document.querySelectorAll("#playeroptions" + playerNumber);
+
+    showHideElement(el, isCollapsed ? false : true);
+}
+
 function clonePlayerNodeAndSetup(player) {
     const playerNumber = player.number;
     const playertemplate = document.getElementById("playerTemplate").cloneNode(true);
@@ -254,6 +261,19 @@ function clonePlayerNodeAndSetup(player) {
     const playerPanel = playertemplate.querySelector('#playerpanel');
     playerPanel.id = "playerpanel" + playerNumber.toString();
 
+    playerPanel.addEventListener('hidden.bs.collapse', function () {
+        //alert('Collapse is now fully hidden.');
+        onCollapse(this.id.slice(this.id.length - 1), true);
+    });
+
+    playerPanel.addEventListener('show.bs.collapse', function () {
+        //alert('Collapse is now fully hidden.');
+        onCollapse(this.id.slice(this.id.length - 1), false);
+    });
+
+    const playeroptions = playertemplate.querySelector('#playeroptions');
+    playeroptions.id = "playeroptions" + playerNumber.toString();
+
     const playerinitiative = playertemplate.querySelector('#playerinitiative');
     playerinitiative.id = "playerinitiative" + playerNumber.toString();
 
@@ -264,6 +284,8 @@ function clonePlayerNodeAndSetup(player) {
     if (playerNumber == 1) {
         playcardbutton.classList.add("d-none");
         playerPanel.classList.remove("collapse");
+
+        //onCollapse("1", false);
 
         playerinitiative.classList.remove("d-none");
 
@@ -1185,15 +1207,24 @@ function findCardToPlay(cards, actionToPlay) {
 
             // Cannot SURPASS and therefore must find focus
 
-            if (initiativeClaimedThisTurn == false) {
-                initiativeClaimedThisTurn = claim(currentPlayer, actionToPlay, cardAction)
-            }
-
-            if (initiativeClaimedThisTurn == false) {
+            if (claim(currentPlayer, actionToPlay, cardAction) == false){
                 if (canCopy(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
                     pivot(currentPlayer, cards, actionToPlay);
                 }
             }
+
+            /*
+
+            if (initiativeClaimedThisTurn == false) {
+                initiativeClaimedThisTurn = claim(currentPlayer, actionToPlay, cardAction)
+            }
+
+            //if (initiativeClaimedThisTurn == false) {
+                if (canCopy(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
+                    pivot(currentPlayer, cards, actionToPlay);
+                }
+            //}
+            */
         }
     }
 
@@ -1530,7 +1561,9 @@ function claim(player, actionToPlay, cardAction) {
     //  claim needs to be based on a calc between: number of cards in hand, number of ambitions played, .... other things
     //  at the start of the game the calc needs to rarely succeed
 
-    let initiativeClaimedThisTurn = false;
+    //let initiativeClaimedThisTurn = false;
+
+    if (initiativeClaimedThisTurn == true) { return false;}
 
     // No point in claiming if cannot declare an ambition
     if (declaredAmbitions.length >= 3) { return false; }
@@ -1557,9 +1590,10 @@ function claim(player, actionToPlay, cardAction) {
 
         initiativeClaimedThisTurn = true;
         changeInitiative(player);
+        return true;
     }
 
-    return initiativeClaimedThisTurn;
+    return false;
 }
 
 function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
@@ -1602,6 +1636,17 @@ function changeInitiative(player) {
         const element = document.querySelectorAll("#playerinitiative" + p.number);
         showHideElement(element, (p.number == player.number) ? true : false);
     })
+}
+
+function seizeInitiative(ele) {
+    if (initiativeClaimedThisTurn == true) { 
+        alert("Initiative has already been claimed this turn");
+        return;
+    }else{
+        const playerNumber = ele.parentNode.parentNode.id.slice(ele.parentNode.parentNode.id.length - 1);
+        initiativeClaimedThisTurn = true;
+        changeInitiative(getPlayer(playerNumber));
+    }
 }
 
 function pivot(player, cards, actionToPlay) {
@@ -1650,11 +1695,18 @@ function enableDisablePlayCardButtons(playerNumber) {
 }
 
 function showHidePlayerPanel(player, playerNumber) {
-    let playerPanel = document.querySelector('#playerpanel' + player.number);
+    const playerPanel = document.querySelector('#playerpanel' + player.number);
+
+    const collapse = new bootstrap.Collapse(playerPanel, {
+        toggle: false // Prevents initial toggle
+    });
+
     if (player.number == playerNumber) {
-        playerPanel.classList.remove("collapse");
+        //playerPanel.classList.remove("collapse");
+        collapse.show();
     } else {
-        playerPanel.classList.add("collapse");
+        //playerPanel.classList.add("collapse");
+        collapse.hide();
     }
 }
 
