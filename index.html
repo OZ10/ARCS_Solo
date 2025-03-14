@@ -75,7 +75,8 @@
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
               data-bs-custom-class="custom-tooltip"
               data-bs-title="Draw an Action card"><i
-                class="bi bi-file-plus"></i></button>
+                class="bi bi-file-plus" data-bs-toggle="modal"
+                data-bs-target="#drawCardModal"></i></button>
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
               data-bs-custom-class="custom-tooltip"
               data-bs-title="Seize the initiative"><i
@@ -84,7 +85,8 @@
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
               data-bs-custom-class="custom-tooltip"
               data-bs-title="Declare an ambition"><i
-                class="bi bi-hexagon-fill"></i></button>
+                class="bi bi-hexagon-fill" data-bs-toggle="modal"
+                data-bs-target="#declareAmbitionModal"></i></button>
           </div>
         </div>
 
@@ -354,13 +356,20 @@
               aria-label="Close"></button>
           </div>
           <div class="modal-body d-flex">
-            <p id>Please select from the list below the VOX card to play</p>
+            <div class="container-fluid">
+              <div class="row">
+                <p id>Please select from the list below the VOX card to play</p>
+              </div>
+              <div class="row">
+                <button type="button" class="btn btn-primary"
+                  onclick="playVoxCard(this)"
+                  data-bs-dismiss="modal">
+                  List of VOX cards to click
+                </button>
+              </div>
+            </div>
           </div>
-          <button type="button" class="btn btn-primary"
-            onclick="playVoxCard(this)"
-            data-bs-dismiss="modal">
-            List of VOX cards to click
-          </button>
+
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary"
               data-bs-dismiss="modal">
@@ -371,20 +380,100 @@
       </div>
     </div>
 
-    <div class="modal fade" id="claimCards" tabindex="-1"
-      aria-labelledby="claimCards"
+    <div class="modal fade" id="drawCardModal" tabindex="-1"
+      aria-labelledby="Cards"
       aria-hidden="true">
       <div class="modal-dialog modal-sm">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="claimCardsTitle">
-              Claim Card List
+            <h5 class="modal-title" id>
+              Draw A Card
             </h5>
           </div>
           <div class="modal-body d-flex">
-            <p id>Please select a card second card to play</p>
+            <div class="container-fluid">
+              <div class="row">
+                <p id>Which pile do you need to draw a card from?</p>
+              </div>
+              <div class="text-center row" id>
+                <button type="button" class="btn btn-primary"
+                  onclick="drawACard('playedthisturn')"
+                  data-bs-dismiss="modal">
+                  Cards played this turn</button>
+                <button type="button" class="btn btn-primary"
+                  onclick="drawACard('discardpile')"
+                  data-bs-dismiss="modal">
+                  The discard pile</button>
+              </div>
+            </div>
           </div>
-          <div class="text-center row" id="claimCardsList">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="cardsModal" tabindex="-1"
+      aria-labelledby="Cards"
+      aria-hidden="true">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="cardsModalTitle">
+              Card List
+            </h5>
+          </div>
+          <div class="modal-body d-flex">
+            <div class="container-fluid">
+              <div class="row">
+                <p id="cardsModalPrompt">Please select a card</p>
+              </div>
+              <div class="text-center row" id="cardsModalList">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="declareAmbitionModal" tabindex="-1"
+      aria-labelledby="Ambitions"
+      aria-hidden="true">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id>
+              Declare An Ambition
+            </h5>
+          </div>
+          <div class="modal-body">
+            <div class="container-fluid">
+              <div class="row text-center">
+                <p id="cardsModalPrompt">Please select an Ambition to
+                  declare</p>
+              </div>
+              <div class="row">
+                <button type="button" class="btn btn-primary mb-3"
+                  onclick="declareAmbitionClick('tycoon')"
+                  data-bs-dismiss="modal">
+                  Tycoon</button>
+                <button type="button" class="btn btn-primary mb-3"
+                  onclick="declareAmbitionClick('tyrant')"
+                  data-bs-dismiss="modal">
+                  Tyrant</button>
+                <button type="button" class="btn btn-primary mb-3"
+                  onclick="declareAmbitionClick('warlord')"
+                  data-bs-dismiss="modal">
+                  Warlord</button>
+                <button type="button" class="btn btn-primary mb-3"
+                  onclick="declareAmbitionClick('keeper')"
+                  data-bs-dismiss="modal">
+                  Keeper</button>
+                <button type="button" class="btn btn-primary"
+                  onclick="declareAmbitionClick('empath')"
+                  data-bs-dismiss="modal">
+                  Empath</button>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
