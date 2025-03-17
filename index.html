@@ -81,7 +81,7 @@
               data-bs-custom-class="custom-tooltip"
               data-bs-title="Seize the initiative"><i
                 class="bi bi-exclamation-circle"
-                onclick="seizeInitiative(this)"></i></button>
+                onclick="seizeInitiativeQuestion(this)"></i></button>
             <button class="btn" data-bs-toggle="tooltip" data-bs-placement="top"
               data-bs-custom-class="custom-tooltip"
               data-bs-title="Declare an ambition"><i
@@ -473,7 +473,53 @@
                   Empath</button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
+    <!-- TOASTS -->
+    <div class="toast-container position-fixed top-50 start-50 translate-middle p-3">
+      <div class="toast" id="messageToast" role="alert" aria-live="assertive"
+        aria-atomic="true">
+        <div class="toast-header">
+          <strong class="me-auto" id="messageToastHeader">Bootstrap</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="messageToastBody">
+          Body
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-container position-fixed top-50 start-50 translate-middle p-3">
+      <div class="toast" id="yesNoToast" role="alert" aria-live="assertive"
+        aria-atomic="true" data-bs-autohide="false">
+        <div class="toast-body">
+          Are you sure?
+          <div class="mt-2 pt-2 border-top">
+            <button type="button" class="btn btn-primary btn-sm"
+              data-bs-dismiss="toast">Yes</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+              data-bs-dismiss="toast">No</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-container position-fixed top-50 start-50 translate-middle p-3">
+      <div class="toast" id="seizeToast" role="alert" aria-live="assertive"
+        aria-atomic="true" data-bs-autohide="false">
+        <strong class="toast-header" id="seizeToastHeader">
+          Player
+        </strong>
+        <div class="toast-body">
+          Are you sure you want to seize the inititive?
+          <div class="mt-2 pt-2 border-top">
+            <button type="button" class="btn btn-primary btn-sm"
+              data-bs-dismiss="toast" onclick="seizeInitiative()">Yes</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+              data-bs-dismiss="toast">No</button>
           </div>
         </div>
       </div>
