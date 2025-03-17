@@ -1,7 +1,28 @@
 $playercolour1: goldenrod;
+$playercoloursub1: rgb(216, 160, 17);
 $playercolour2: firebrick;
 $playercolour3: antiquewhite;
 $playercolour4: royalblue;
+
+$primary: #3532b8;
+
+/*
+
+:root {
+    --bs-primary: #ff6347; // Tomato red
+}
+
+.btn-primary {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.btn-primary:hover {
+    background-color: color-mix(in srgb, var(--bs-primary) 80%, black);
+    border-color: color-mix(in srgb, var(--bs-primary) 80%, black);
+}
+
+*/
 
 body {
     padding-bottom: 180px;
@@ -12,9 +33,9 @@ header {
 }
 
 .playerheader {
-    padding: 10px 5px 10px 10px;
-    margin: 0px 5px 10px 10px;
-    border-left-width: 4px;
+    padding: 10px 0px;
+    //margin: 10px;
+    //border-left-width: 4px;
     color: black;
     font-size: large;
     border-radius: 15px;
@@ -23,6 +44,10 @@ header {
         font-size: larger;
         font-weight: bold;
     }
+}
+
+.playerpanel1{
+    background-color: $playercoloursub1;
 }
 
 .playerheader1 {
@@ -90,9 +115,9 @@ header {
 
 .numberCircle {
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    padding: 8px;
+    width: 32px;
+    height: 32px;
+    padding: 6px;
 
     background: #fff;
     border: 2px solid #666;
@@ -107,3 +132,5 @@ header {
     background: black;
     color: white;
 }
+
+@import "../bootstrap/scss/bootstrap.scss";
