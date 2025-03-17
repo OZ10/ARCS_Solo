@@ -100,7 +100,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     break;
                 case "round":
                     roundNumber = parseInt(value);
-                    //setElementValue("roundNumber", value);
                     updateRoundNumber();
                     break;
                 default:
@@ -116,10 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshTooltips();
 });
 
-/*
-const setupGameButton = document.getElementById("setupGame");
-setupGameButton.addEventListener('click', setupGame(2));
-*/
 
 // #region LOAD
 
@@ -135,8 +130,6 @@ function loadPlayers() {
     if (haveAllPlayersPlayedACard() == true) {
         enableNextTurnButton();
     } else {
-        //findCurrentPlayer();
-        //checkIfPlayerHasCardsToPlay();
         setCurrentPlayer(findCurrentPlayer());
     }
 
@@ -150,8 +143,6 @@ function findCurrentPlayer() {
     changeInitiative(player);
 
     if (player.hasPlayedACardThisTurn == false) {
-        //currentPlayer = player;
-        //enableDisablePlayCardButtons(player.number);
         return player;
     } else {
         // Loop through all the players looking for the next player who hasn't played a card
@@ -161,8 +152,6 @@ function findCurrentPlayer() {
                 playerNumber = -1
             } else {
                 if (player.hasPlayedACardThisTurn == false) {
-                    //currentPlayer = player;
-                    //enableDisablePlayCardButtons(player.number);
                     return player;
                 }
             }
@@ -260,12 +249,10 @@ function clonePlayerNodeAndSetup(player) {
     playerPanel.id = "playerpanel" + playerNumber.toString();
 
     playerPanel.addEventListener('hidden.bs.collapse', function () {
-        //alert('Collapse is now fully hidden.');
         onCollapse(this.id.slice(this.id.length - 1), true);
     });
 
     playerPanel.addEventListener('show.bs.collapse', function () {
-        //alert('Collapse is now fully hidden.');
         onCollapse(this.id.slice(this.id.length - 1), false);
     });
 
@@ -281,15 +268,10 @@ function clonePlayerNodeAndSetup(player) {
 
     if (playerNumber == 1) {
         playcardbutton.classList.add("d-none");
-        //playerPanel.classList.remove("collapse");
-
-        //onCollapse("1", false);
-
         playerinitiative.classList.remove("d-none");
 
         const actiondiv = document.createElement("div");
         actiondiv.classList.add("mt-3", "header1", "text-center");
-        //actiondiv.id = "actionbuttons";
         actiondiv.innerHTML = "Actions"
 
         const actionbuttons = document.createElement("div");
@@ -303,7 +285,6 @@ function clonePlayerNodeAndSetup(player) {
         createRadioButtons("PIVOT", actionbuttons, "actiontype", "btn-light");
         createClaimButton("CLAIM", actionbuttons, "actionclaim", "btn-light");
 
-        //actiondiv.appendChild(actionbuttons);
         playerPanel.appendChild(actiondiv);
         playerPanel.appendChild(actionbuttons);
     }
