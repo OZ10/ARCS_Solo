@@ -2,6 +2,13 @@ $playercolour1: goldenrod;
 $playercolour2: firebrick;
 $playercolour3: antiquewhite;
 $playercolour4: royalblue;
+$mainfontcolour: rgb(30, 30, 30);
+
+$primary: #3532b8;
+
+$btn-outline-primary-border: white;
+$btn-outline-primary-color: $primary;
+$btn-outline-primary-hover-bg: lighten($primary, 40%);
 
 body {
     padding-bottom: 180px;
@@ -12,10 +19,11 @@ header {
 }
 
 .playerheader {
-    padding: 10px 5px 10px 10px;
-    margin: 0px 5px 10px 10px;
+    padding: 10px 0px;
+    //margin: 10px;
     border-left-width: 4px;
-    color: black;
+    border-color: black;
+    color: $mainfontcolour;
     font-size: large;
     border-radius: 15px;
 
@@ -30,9 +38,30 @@ header {
     background-color: $playercolour1;
 }
 
+.playerpanel1{
+    background-color: darken($color: $playercolour1, $amount: 2);
+    //background-color: $playercoloursub1;
+}
+
+.playerresources1:disabled{
+    background-color: darken($color: $playercolour1, $amount: 5) !important;
+    border-color: darken($color: $playercolour1, $amount: 1) !important;
+    text-align: center;
+}
+
 .playerheader2 {
     @extend .playerheader;
     background-color: $playercolour2;
+}
+
+.playerpanel2{
+    background-color: darken($color: $playercolour2, $amount: 2);
+}
+
+.playerresources2:disabled{
+    background-color: darken($color: $playercolour2, $amount: 5) !important;
+    border-color: darken($color: $playercolour2, $amount: 1) !important;
+    text-align: center;
 }
 
 .playerheader3 {
@@ -40,9 +69,29 @@ header {
     background-color: $playercolour3;
 }
 
+.playerpanel3{
+    background-color: darken($color: $playercolour3, $amount: 2);
+}
+
+.playerresources3:disabled{
+    background-color: darken($color: $playercolour3, $amount: 5) !important;
+    border-color: darken($color: $playercolour3, $amount: 1) !important;
+    text-align: center;
+}
+
 .playerheader4 {
     @extend .playerheader;
     background-color: $playercolour4;
+}
+
+.playerpanel4{
+    background-color: darken($color: $playercolour4, $amount: 2);
+}
+
+.playerresources4:disabled{
+    background-color: darken($color: $playercolour4, $amount: 5) !important;
+    border-color: darken($color: $playercolour4, $amount: 1) !important;
+    text-align: center;
 }
 
 .playercard1 {
@@ -63,6 +112,10 @@ header {
 .playercard4 {
     color: $playercolour4;
     background-color: black;
+}
+
+.playersTurn{
+    border-left: 3px solid black;
 }
 
 .footerstyle {
@@ -90,9 +143,9 @@ header {
 
 .numberCircle {
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    padding: 8px;
+    width: 32px;
+    height: 32px;
+    padding: 6px;
 
     background: #fff;
     border: 2px solid #666;
@@ -107,3 +160,5 @@ header {
     background: black;
     color: white;
 }
+
+@import "../bootstrap/scss/bootstrap.scss";
