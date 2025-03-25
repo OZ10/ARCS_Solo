@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Bootstrap 5 Example</title>
+    <title>ARCS Bot - v0.1</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -87,15 +87,8 @@
                 data-bs-placement="top"
                 data-bs-custom-class="custom-tooltip"
                 data-bs-title="Declare an ambition"><i
-                  class="bi bi-hexagon-fill" onclick="showDeclareAmbitionModal(this, false, null)"></i></button>
-                  <!--
-              <button class="btn" data-bs-toggle="tooltip"
-                data-bs-placement="top"
-                data-bs-custom-class="custom-tooltip"
-                data-bs-title="Declare an ambition"><i
-                  class="bi bi-hexagon-fill" data-bs-toggle="modal"
-                  data-bs-target="#declareAmbitionModal"></i></button>
-                  -->
+                  class="bi bi-hexagon-fill"
+                  onclick="showDeclareAmbitionModal(this, false, null, null)"></i></button>
             </div>
           </div>
 
@@ -460,27 +453,28 @@
               <div class="row text-center">
                 <p id="declareAmbitionModalPrompt">Please select an Ambition to
                   declare</p>
-                  <p id="playedSeven"></p>
+                <p id="playedSeven" style="display: none;"></p>
+                <p id="playedCard" style="display: none"></p>
               </div>
               <div class="row">
                 <button type="button" class="btn btn-primary mb-3"
-                  onclick="declareAmbitionClick('tycoon', null, null)"
+                  onclick="declareAmbitionClick('tycoon')"
                   data-bs-dismiss="modal">
                   Tycoon</button>
                 <button type="button" class="btn btn-primary mb-3"
-                  onclick="declareAmbitionClick('tyrant', null, null)"
+                  onclick="declareAmbitionClick('tyrant')"
                   data-bs-dismiss="modal">
                   Tyrant</button>
                 <button type="button" class="btn btn-primary mb-3"
-                  onclick="declareAmbitionClick('warlord', null, null)"
+                  onclick="declareAmbitionClick('warlord')"
                   data-bs-dismiss="modal">
                   Warlord</button>
                 <button type="button" class="btn btn-primary mb-3"
-                  onclick="declareAmbitionClick('keeper', null, null)"
+                  onclick="declareAmbitionClick('keeper')"
                   data-bs-dismiss="modal">
                   Keeper</button>
                 <button type="button" class="btn btn-primary"
-                  onclick="declareAmbitionClick('empath', null, null)"
+                  onclick="declareAmbitionClick('empath')"
                   data-bs-dismiss="modal">
                   Empath</button>
               </div>

@@ -268,11 +268,11 @@ function clonePlayerNodeAndSetup(player) {
     playerPanel.classList.add("playerpanel" + playerNumber.toString());
 
     playerPanel.addEventListener('hidden.bs.collapse', function () {
-        onCollapse(this.id.slice(this.id.length - 1), true);
+        onCollapse(getPlayerNumberFromString(this.id), true);
     });
 
     playerPanel.addEventListener('show.bs.collapse', function () {
-        onCollapse(this.id.slice(this.id.length - 1), false);
+        onCollapse(getPlayerNumberFromString(this.id), false);
     });
 
     const playeroptions = playertemplate.querySelector('#playeroptions');
@@ -854,7 +854,7 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
 
             if (playedCard.ambition == "any") {
                 // Show modal
-                showDeclareAmbitionModal(null, true, player);
+                showDeclareAmbitionModal(null, true, player, playedCard);
             } else {
                 showMessageToast("Player" + player.number, "Player declared ambition: " + playedCard.ambition);
                 playedCard.number = 0;
@@ -1549,21 +1549,26 @@ function declareAmbition(player, playedCard) {
     }
 }
 
-function declareAmbitionClick(ambition, player, playedCard) {
+function declareAmbitionClick(ambition) {
     if (declaredAmbitions.length >= 3) {
         return;
     }
 
-    // HERE I NEED TO CHECK FOR ELEMENTS THAT HAVE BEEN SET
-    // WHEN THE PLAYER PLAYED A SEVEN CARD
-    // NEED:
-    // PLAYER
-    // PLAYER NUMBER
-    // PLAYED CARD
+    // If the player has triggered this after playing a 7 card
+    // there are hidden elements for:
+    //      - when a 7 has been played the element will be set to TRUE
+    //      - the player number is in the title
+    //      - the card that was played
     const seven = document.getElementById("playedSeven");
 
     if (seven.innerHTML == "TRUE") {
-        showMessageToast("Player" + player.number, "Player declared ambition: " + playedCard.ambition);
+        const title = document.getElementById("declareAmbitionModalTitle");
+        const playerNumber = getPlayerNumberFromString(title.innerHTML);
+        const player = getPlayer(playerNumber);
+        const playedCardFullName = document.getElementById("playedCard").innerHTML;
+        const playedCard = getCardByNameAndNumber(player.cards, playedCardFullName, true);
+
+        showMessageToast("Player" + player.number, "Player declared ambition: " + ambition);
         playedCard.number = 0;
 
         // Reset the played card list and re-add the declared card
@@ -1578,7 +1583,7 @@ function declareAmbitionClick(ambition, player, playedCard) {
     SaveAllSettings();
 }
 
-function showDeclareAmbitionModal(ele, hasPlayedASeven, player) {
+function showDeclareAmbitionModal(ele, hasPlayedASeven, player, playedCard) {
     let modal = new bootstrap.Modal(document.getElementById("declareAmbitionModal"));
     const playerNumber = ele != null ? getPlayerNumberFromElement(ele) : player.number;
     const title = document.getElementById("declareAmbitionModalTitle");
@@ -1587,6 +1592,9 @@ function showDeclareAmbitionModal(ele, hasPlayedASeven, player) {
     if (hasPlayedASeven) {
         const seven = document.getElementById("playedSeven");
         seven.innerHTML = "TRUE";
+
+        const card = document.getElementById("playedCard");
+        card.innerHTML = getCardFullName(playedCard);
     }
 
     modal.show();
@@ -1752,13 +1760,17 @@ function seizeInitiativeQuestion(ele) {
     }
 }
 
+function getPlayerNumberFromString(s){
+    return s.slice(s.length - 1);
+}
+
 function getPlayerNumberFromElement(ele) {
     return ele.parentNode.parentNode.id.slice(ele.parentNode.parentNode.id.length - 1);
 }
 
 function seizeInitiative() {
     const header = document.querySelector("#seizeToastHeader");
-    const playerNumber = header.innerHTML.slice(header.innerHTML.length - 1);
+    const playerNumber = getPlayerNumberFromString(header.innerHTML);
     hasInitiativeBeenClaimedThisTurn = true;
     changeInitiative(getPlayer(playerNumber));
 }
