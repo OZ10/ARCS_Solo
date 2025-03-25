@@ -1,4 +1,10 @@
 @charset "UTF-8";
+/*
+$playercolour1: lightgrey;
+$playercolour2: lightgrey;
+$playercolour3: lightgrey;
+$playercolour4: lightgrey;
+*/
 body {
   padding-bottom: 180px;
 }
@@ -21,78 +27,78 @@ header {
 }
 
 .playerheader1 {
-  background-color: lightgrey;
+  background-color: goldenrod;
 }
 
 .playerpanel1 {
-  background-color: #cecece;
+  background-color: #d19e1f;
 }
 
 .playerresources1:disabled {
-  background-color: #c6c6c6 !important;
-  border-color: #d0d0d0 !important;
+  background-color: #c4941d !important;
+  border-color: #d6a21f !important;
   text-align: center;
 }
 
 .playerheader2 {
-  background-color: lightgrey;
+  background-color: firebrick;
 }
 
 .playerpanel2 {
-  background-color: #cecece;
+  background-color: #a92020;
 }
 
 .playerresources2:disabled {
-  background-color: #c6c6c6 !important;
-  border-color: #d0d0d0 !important;
+  background-color: #9d1e1e !important;
+  border-color: #ae2121 !important;
   text-align: center;
 }
 
 .playerheader3 {
-  background-color: lightgrey;
+  background-color: antiquewhite;
 }
 
 .playerpanel3 {
-  background-color: #cecece;
+  background-color: #f9e6ce;
 }
 
 .playerresources3:disabled {
-  background-color: #c6c6c6 !important;
-  border-color: #d0d0d0 !important;
+  background-color: #f7e0c0 !important;
+  border-color: #f9e9d2 !important;
   text-align: center;
 }
 
 .playerheader4 {
-  background-color: lightgrey;
+  background-color: royalblue;
 }
 
 .playerpanel4 {
-  background-color: #cecece;
+  background-color: #3862e0;
 }
 
 .playerresources4:disabled {
-  background-color: #c6c6c6 !important;
-  border-color: #d0d0d0 !important;
+  background-color: #2b58de !important;
+  border-color: #3d66e0 !important;
   text-align: center;
 }
 
 .playercard1 {
-  color: lightgrey;
+  color: goldenrod;
   background-color: black;
 }
 
 .playercard2 {
-  color: lightgrey;
+  color: firebrick;
   background-color: black;
 }
 
 .playercard3 {
-  color: lightgrey;
+  color: antiquewhite;
   background-color: black;
 }
 
 .playercard4 {
-  color: lightgrey;
+  color: royalblue;
   background-color: black;
 }
 
