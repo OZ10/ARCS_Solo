@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Bootstrap 5 Example</title>
+    <title>ARCS Bot - v0.1</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -54,7 +54,8 @@
 
         <div class="d-none mb-2 w-100" id="playerTemplate">
           <div class="d-flex">
-            <a class="text-decoration-none playerheader col p-3" id="playerancor"
+            <a class="text-decoration-none playerheader col p-3"
+              id="playerancor"
               href="#0"
               role="button"
               data-bs-toggle="collapse" data-bs-target="#playerpanel">
@@ -69,13 +70,13 @@
                 data-bs-placement="top"
                 data-bs-custom-class="custom-tooltip"
                 data-bs-title="Play a VOX card"
-                onclick="displayVoxCards()">vox</button>
+                onclick="displayVoxCards()" id="vox">vox</button>
               <button class="btn" data-bs-toggle="tooltip"
                 data-bs-placement="top"
                 data-bs-custom-class="custom-tooltip"
                 data-bs-title="Draw an Action card"><i
                   class="bi bi-file-plus" data-bs-toggle="modal"
-                  data-bs-target="#drawCardModal"></i></button>
+                  data-bs-target="#drawCardModal" id="drawcard"></i></button>
               <button class="btn" data-bs-toggle="tooltip"
                 data-bs-placement="top"
                 data-bs-custom-class="custom-tooltip"
@@ -86,8 +87,8 @@
                 data-bs-placement="top"
                 data-bs-custom-class="custom-tooltip"
                 data-bs-title="Declare an ambition"><i
-                  class="bi bi-hexagon-fill" data-bs-toggle="modal"
-                  data-bs-target="#declareAmbitionModal"></i></button>
+                  class="bi bi-hexagon-fill"
+                  onclick="showDeclareAmbitionModal(this, false, null, null)"></i></button>
             </div>
           </div>
 
@@ -283,32 +284,28 @@
 
     <!-- Models -->
     <div class="modal fade" id="numberOfPlayersModal" tabindex="-1"
-      aria-labelledby="exampleModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-body">
-          <div class="modal-content">
-            <div class="container">
-              <div class="row">
-                <div>How many players?</div>
-              </div>
-              <div class="row">
-                <div class="col">
-                  <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="setupGame(2)">2</button>
-                </div>
-                <div class="col">
-                  <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="setupGame(3)">3</button>
-                </div>
-                <div class="col">
-                  <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="setupGame(4)"
-                    disabled>4</button>
-                </div>
-              </div>
+      aria-labelledby="NewGame" aria-hidden="true">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="yesNoTitle">
+              How many players?
+            </h5>
+          </div>
+          <div class="modal-body">
+
+            <div class="d-flex justify-content-evenly">
+              <button type="button" class="btn btn-secondary"
+                data-bs-dismiss="modal" onclick="setupGame(2)">2</button>
+
+              <button type="button" class="btn btn-secondary"
+                data-bs-dismiss="modal" onclick="setupGame(3)">3</button>
+
+              <button type="button" class="btn btn-secondary"
+                data-bs-dismiss="modal" onclick="setupGame(4)">4</button>
             </div>
 
-            <div class="modal-footer">
+            <div class="modal-footer mt-2">
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -447,15 +444,17 @@
       <div class="modal-dialog modal-sm">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id>
-              Declare An Ambition
+            <h5 class="modal-title" id="declareAmbitionModalTitle">
+              Player
             </h5>
           </div>
           <div class="modal-body">
             <div class="container-fluid">
               <div class="row text-center">
-                <p id="cardsModalPrompt">Please select an Ambition to
+                <p id="declareAmbitionModalPrompt">Please select an Ambition to
                   declare</p>
+                <p id="playedSeven" style="display: none;"></p>
+                <p id="playedCard" style="display: none"></p>
               </div>
               <div class="row">
                 <button type="button" class="btn btn-primary mb-3"
