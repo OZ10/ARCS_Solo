@@ -927,22 +927,42 @@ function determineCardToPlay(player) {
 
 function findFocus(player, unplayedCards) {
     // LOGIC:
+    // - TODO Need to check if player is leading and then workout whether they should declare instead of chasing.
+    //   At present, when leading, the AI looks to chase which leads to only one ambition being declared per round.
     // - Chase ambition
     // - Build for future turn
     // - random
 
-    let possibleActions = "";
+    if (player.hasInitiative){
+        findCardToPlay(unplayedCards, "");
+    }else{
+        if (chaseAmbition(player, getPossibleActions(unplayedCards), unplayedCards) == false){
+            // couldn't chase ambition. Play a card.
+            findCardToPlay(unplayedCards, "");
+        }
+    }
 
+    // CARDS CANNOT BE PLAYED BELOW THE ABOVE IF STATEMENT
+    // ANY CODE BELOW WILL RUN WHILE THE MODAL PROMPT IS DISPLAYED
+    // AND WILL RESULT IN THE PLAYER PLAYING MULITPLE CARDS
+}
+
+let modal;
+
+function getPossibleActions(unplayedCards) {
+    let possibleActions = "";
     unplayedCards.forEach(card => {
         possibleActions += card.actions;
-    })
+    });
+    return possibleActions;
+}
 
+function chaseAmbition(player, possibleActions, unplayedCards) {
     if (declaredAmbitions.length > 0 && player.ambitionsEvaluated.length < declaredAmbitions.length) {
         // TODO Need to determine which ambition is best to chase
         // - Have cards to chase?
         // - Have pieces to chase?
         // - Worth most points?
-
         for (let index = 0; index < declaredAmbitions.length + 1; index++) {
             const ambition = declaredAmbitions[index];
             //switch (ambition) {
@@ -953,8 +973,6 @@ function findFocus(player, unplayedCards) {
                 // Q: Is there a materials or fuel card in the market to secure?
                 // Q: Is there a materials or fuel card in the market to influence?
                 // Q: Can I raid a city for materials or fuel?
-
-
                 if (possibleActions.includes("tax")) {
                     focus_ambition("TYCOON", 1);
                     //focus_tycoon(1);
@@ -1059,22 +1077,19 @@ function findFocus(player, unplayedCards) {
                     break;
                 }
             } else if (ambition == null) {
-                findCardToPlay(unplayedCards, "");
+                //findCardToPlay(unplayedCards, "");
+                return false;
             }
         }
 
         //return;
     } else {
-        findCardToPlay(unplayedCards, "");
+        //findCardToPlay(unplayedCards, "");
+        return false;
     }
 
-
-    // CARDS CANNOT BE PLAYED BELOW THE ABOVE IF STATEMENTS
-    // ANY CODE BELOW WILL RUN WHILE THE MODAL PROMPT IS DISPLAYED
-    // AND WILL RESULT IN THE PLAYER PLAYING MULITPLE CARDS
+    return true;
 }
-
-let modal;
 
 function focus_ambition(ambition, questionNumber, answerNo) {
     // Only create a new modal instance if the previous 
@@ -1322,14 +1337,20 @@ function findCardToPlay(cards, actionToPlay) {
         // AI player is leading
         // Check which ambitions they should focus on
         // and play that card
-        // If there is not a card to play, play the highest possible
-        // card
+        // If there is not a card to play, see if player can chase
+        // an ambition, otherwise play the highest possible card
 
         const ambitionSorted = prioritiseAndSortAmbitions();
 
         let cardsWithAmbition = findCardsWithAmbition(ambitionSorted, cards);
 
-        if (cardsWithAmbition.length > 0) { cardToPlay = getHighestCard(cardsWithAmbition); }
+        if (cardsWithAmbition.length > 0) {
+            cardToPlay = getHighestCard(cardsWithAmbition);    
+         }else{
+            if (chaseAmbition(currentPlayer, getPossibleActions(cards), cards ) == false){
+                cardToPlay = getHighestCard(cards);
+            }
+         }
     }
 
     //const cardToPlay = getHighestCard(cards);
