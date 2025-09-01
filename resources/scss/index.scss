@@ -169,4 +169,14 @@ header {
     color: white;
 }
 
+@keyframes flash {
+    0% { background-color: white; }
+    50% { background-color: lightgray; }
+    100% { background-color: white; }
+  }
+  
+  .flash {
+    animation: flash 1.0s ease-in-out;
+  }
+
 @import "../bootstrap/scss/bootstrap.scss";
