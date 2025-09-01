@@ -1383,12 +1383,16 @@ function findCardToPlay(cards, actionToPlay) {
 }
 
 function findCardsWithAmbition(ambitionSorted, cards) {
-    let cardsWithAmbition;
+    let cardsWithAmbition = [];
 
     for (let num = 0; num < ambitionSorted.length; num++) {
         const am = ambitionSorted[num];
-        cardsWithAmbition = getCardsWithAmbition(cards, am[0]);
-        if (cardsWithAmbition.length > 0) { break; }
+        // Here the bot was still finding cards even when they
+        // had no resources matching the ambition ( > 0 )
+        if (am[1] > 0){
+            cardsWithAmbition = getCardsWithAmbition(cards, am[0]);
+            if (cardsWithAmbition.length > 0) { break; }
+        }
     }
     return cardsWithAmbition;
 }
