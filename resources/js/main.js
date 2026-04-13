@@ -15,7 +15,7 @@ class player {
     captivesValue = 0;
     trophiesValue = 0;
     cards = [];
-    hasInitiative = false;
+    //hasInitiative = false;
     hasPlayedACardThisTurn = false;
     ambitionsEvaluated = [];
 }
@@ -34,6 +34,36 @@ class Card {
     playedAction = '';
     playedByPlayerNumber = 0;
 }
+
+/*
+PlayedCard shape:
+{
+  card: Card,
+  effectiveNumber: number,
+  cardAction: string,
+  playedAction: string,
+  playedByPlayerNumber: number
+}
+*/
+
+/*
+PlayIntent:
+{
+  type: "LEAD" | "SURPASS" | "COPY" | "PIVOT",
+  card: Card,
+  action: string
+}
+OR
+{
+  type: "CLAIM",
+  cards: {
+    first: Card,
+    second: Card
+  },
+  action: string
+}
+*/
+
 
 function getCardFullName(card) {
     return card.name + card.number;
@@ -89,6 +119,19 @@ let turnNumber = 1;
 let roundNumber = 1;
 let declaredAmbitions = [];
 let currentPlayer;
+let modalOpen = false;
+let currentLead = null;
+
+/*
+currentLead = {
+    playedEntry: {
+        card,
+        effectiveNumber,
+        cardAction
+    },
+    playerNumber
+};
+*/
 
 document.addEventListener("DOMContentLoaded", () => {
     if (localStorage.length > 0) {
@@ -103,8 +146,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     updateRoundNumber();
                     break;
 
-                case "initiaiteClaimed":
-                    hasInitiativeBeenClaimedThisTurn = value;
+                case "initiaiteClaimed":                    
+                    hasInitiativeBeenClaimedThisTurn = (value === "true");
+                    break;
+
                 default:
                     break;
             }
@@ -126,11 +171,12 @@ function loadPlayers() {
 
         const player = getSettingObject(playerNumber);
         if (player != null) {
+            //player.hasInitiative = false // CHANGE 8
             players.push(player);
             clonePlayerNodeAndSetup(player);
         }
     }
-    if (haveAllPlayersPlayedACard() == true) {
+    if (haveAllCardsBeenPlayed() == true) {
         enableNextTurnButton();
     } else {
         setCurrentPlayer(findCurrentPlayer());
@@ -139,37 +185,28 @@ function loadPlayers() {
     createCardButtonsForHumanPlayer();
 }
 
+
 function findCurrentPlayer() {
+    if (!currentLead) return players.find(p => !p.hasPlayedACardThisTurn);
 
-    let player = getPlayerWithInitiative();
+    const startIndex = players.findIndex(
+        p => p.number === currentLead.playerNumber
+    );
 
-    changeInitiative(player);
-
-    if (player.hasPlayedACardThisTurn == false) {
-        return player;
-    } else {
-        // Loop through all the players looking for the next player who hasn't played a card
-        for (let playerNumber = player.number; playerNumber < players.length + 1; playerNumber++) {
-            player = players[playerNumber];
-            if (playerNumber > players.length - 1) {
-                playerNumber = -1
-            } else {
-                if (player.hasPlayedACardThisTurn == false) {
-                    return player;
-                }
-            }
+    for (let i = 0; i < players.length; i++) {
+        const p = players[(startIndex + i) % players.length];
+        if (!p.hasPlayedACardThisTurn) {
+            return p;
         }
     }
 }
 
 function loadPlayedCardList() {
-    const cardlist = getSettingObject('playedCardList');
+    const saved = getSettingObject("playedCardList");
+    if (!saved) return;
 
-    if (cardlist != null) {
-        cardlist.forEach(card => {
-            addPlayedCardToList(card, card.playedAction, card.cardAction, false);
-        })
-    }
+    playedCardList = saved;
+    playedCardList.forEach(renderPlayedCard);
 }
 
 function loadAmbitions() {
@@ -231,8 +268,12 @@ function createPlayers(numberOfPlayers) {
         if (playerNumber == 1) {
             // Game is being setup, human player is player 1 and has
             // initiative and is set to be the current player
-            p.hasInitiative = true;
-            currentPlayer = p;
+            currentLead = {
+                playedEntry: null,
+                playerNumber: 1
+            };
+            //p.hasInitiative = true;
+            //currentPlayer = p;
         };
 
         players.push(p);
@@ -420,7 +461,8 @@ function showHideActionButtons(isleading, card) {
         return;
     }
 
-    const aiPlayedLeadCard = playedCardList[0];
+    //const aiPlayedLeadCard = playedCardList[0];
+    const aiPlayedLeadCard = currentLead.playedEntry
 
     // Hide the CLAIM button by default
     showHideElement(document.querySelectorAll('#CLAIM'), false);
@@ -437,8 +479,8 @@ function showHideActionButtons(isleading, card) {
     showHideElement(document.querySelectorAll('#LEAD'), false);
     showHideElement(document.querySelectorAll('#DECLARE'), false);
 
-    if (card.name == aiPlayedLeadCard.name) {
-        if (card.number > aiPlayedLeadCard.number) {
+    if (aiPlayedLeadCard && card.name == aiPlayedLeadCard.card.name) {
+        if (card.number > aiPlayedLeadCard.effectiveNumber) {
             // Played the same suit and the number is higher so can Surpass
             showHideElement(document.querySelectorAll('#SURPASS'), true);
             showHideElement(document.querySelectorAll('#COPY'), false);
@@ -517,18 +559,6 @@ function hasPlayerGotCardsToPlay(player) {
     return true;
 }
 
-function haveAllCardsBeenPlayed() {
-    let allPlayed;
-
-    players.forEach(player => {
-        player.cards.forEach(card => {
-            if (card.played == false) { allPlayed = false; return; }
-        });
-    });
-
-    return (allPlayed == false) ? false : true;
-}
-
 function resetPlayedThisTurn() {
     players.forEach(player => {
         player.hasPlayedACardThisTurn = false;
@@ -574,16 +604,25 @@ function resetRound() {
 
     currentactioncards = structuredClone(actioncards);
 
-    addExtraCards();
+    addExtraCards(players.length);
 
     resetDeck(currentactioncards);
 
     resetPlayedThisTurn();
 
     resetHandsAndPlayedCardsDisplay();
+    
+    // Explicitly set starting initiative for the round
+    currentLead = {
+        playedEntry: null,
+        playerNumber: currentLead?.playerNumber ?? 1
+    };
 
     currentPlayer = getPlayerWithInitiative();
+    applyInitiativeFromLead();
     enableDisablePlayerPanels(currentPlayer.number);
+
+    //currentLead = null;
 }
 
 function updateRoundNumber() {
@@ -603,6 +642,7 @@ function resetPlayedCardList() {
     playedCardList = [];
     removeChildElements("playedcards");
     RemoveSettingByKey("playedCardList");
+    //currentLead = null;
 }
 
 function resetPlayersCards() {
@@ -618,6 +658,7 @@ function resetPlayersAmibtions() {
 }
 
 function getPlayerWithInitiative() {
+    /*
     let player;
     for (let playerNumber = 0; playerNumber < players.length; playerNumber++) {
         if (players[playerNumber].hasInitiative) {
@@ -625,6 +666,14 @@ function getPlayerWithInitiative() {
         };
     }
     return player;
+    */
+    
+    
+    if (!currentLead) {
+            return players.find(p => !p.hasPlayedACardThisTurn) ?? players[0];
+    }
+    return getPlayer(currentLead.playerNumber);
+
 }
 
 function resetDeck(cards) {
@@ -642,7 +691,7 @@ function humanSelectedAction(cardAction) {
     const playedCard = getCardByNameAndNumber(player.cards, btnSelected.id, false);
     enableDisableButton(getCardFullName(playedCard), true);
 
-    if (player.hasInitiative) {
+    if (currentLead && currentLead.playerNumber === player.number) { //player.hasInitiative) {
         playCard(player, playedCard, "ANY", cardAction, false);
         showHideElement(document.querySelectorAll("#actionbuttons"), false);
 
@@ -655,19 +704,43 @@ function humanSelectedAction(cardAction) {
             // Human players card was added but list only have one entry
             // AI hasn't played a card because, while it has inititive,
             // it has no cards left to play because it has claimed at some point
-            checkInitiative(player, playedCard, false);
+
+            // CHANGE 6
+            
+        currentLead = {
+            playedEntry: {
+                card: playedCard,
+                effectiveNumber: playedCard.number,
+                cardAction
+            },
+            playerNumber: player.number
+        };
+
+            //checkInitiative(player, playedCard, false);
         } else {
-            const aiPlayedLeadCard = playedCardList[0];
+            //const aiPlayedLeadCard = playedCardList[0];
+            const aiPlayedLeadCard = currentLead.playedEntry
 
             const hasPlayerClaimed = document.getElementById("CLAIM").className.includes("active") ? true : false;
 
-            if (hasPlayerClaimed) {
-                changeInitiative(player);
+        if (hasPlayerClaimed) {
+            currentLead = {
+                playedEntry: currentLead?.playedEntry ?? null,
+                playerNumber: player.number
+            };
+            applyInitiativeFromLead();
 
-                showCardModal(player, getUnplayedCards(player.cards), "Claim Card List", "Please select a card second card to play", "CLAIM");
-
-            } else if (isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard)) {
-                checkInitiative(player, playedCard, false);
+            showCardModal(
+                player,
+                getUnplayedCards(player.cards),
+                "Claim Card List",
+                "Please select a card second card to play",
+                "CLAIM"
+            );
+        }
+        else if (isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard)) {
+                // CHNAGE 6 removed this but it might still be required
+                //checkInitiative(player, playedCard, false);
             }
         }
 
@@ -676,7 +749,7 @@ function humanSelectedAction(cardAction) {
 
         showHideElement(document.querySelectorAll("#actionbuttons"), false);
 
-        if (haveAllPlayersPlayedACard()) {
+        if (haveAllCardsBeenPlayed()) {
             enableNextTurnButton();
         }
     }
@@ -732,7 +805,7 @@ function showCardModal(player, cards, title, prompt, action) {
 }
 
 function isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard) {
-    return (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) ? true : false;
+    return (aiPlayedLeadCard.card.name == playedCard.name && aiPlayedLeadCard.effectiveNumber < playedCard.number) ? true : false;
 }
 
 function dealCards() {
@@ -777,7 +850,7 @@ function createCardButtonsForHumanPlayer() {
         btn.onclick = function () {
             showHideElement(document.querySelectorAll("#actionbuttons"), true);
             document.getElementById("CLAIM").classList.remove("active");
-            if (player.hasInitiative) {
+            if (currentLead && currentLead.playerNumber === player.number){ //player.hasInitiative) {
                 showHideActionButtons(true, getCardByNameAndNumber(players[0].cards, this.id, false));
             } else {
                 const playedCard = getCardByNameAndNumber(player.cards, btn.id, false);
@@ -849,7 +922,7 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
     addPlayedCardToList(playedCard, actionToPlay, cardAction, false, player);
     player.hasPlayedACardThisTurn = true;
 
-    if (player.hasInitiative) {
+    if (currentLead && currentLead.playerNumber === player.number){ //player.hasInitiative) {
         if (player.isHuman && cardAction == "DECLARE") {
 
             if (playedCard.ambition == "any") {
@@ -857,11 +930,22 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
                 showDeclareAmbitionModal(null, true, player, playedCard);
             } else {
                 showMessageToast("Player" + player.number, "Player declared ambition: " + playedCard.ambition);
-                playedCard.number = 0;
+                //playedCard.number = 0;
 
                 // Reset the played card list and re-add the declared card
                 // with a value of 0
                 addPlayedCardToList(playedCard, "ANY", "DECLARE", true, player);
+                
+                currentLead = {
+                    playedEntry: {
+                        card: playedCard,
+                        effectiveNumber: 0,
+                        cardAction: "DECLARE"
+                    },
+                    playerNumber: player.number
+                };
+                applyInitiativeFromLead();
+
 
                 declaredAmbitions.push(playedCard.ambition);
                 setElementValue("declaredAmbitions", declaredAmbitions.length);
@@ -874,23 +958,25 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
     }
     setCurrentPlayer(getNextPlayer(player.number))
 
-    if (player.isHuman && haveAllPlayersPlayedACard()) {
+    if (player.isHuman && haveAllCardsBeenPlayed()) {
         enableNextTurnButton();
     }
 
     SaveAllSettings();
 }
 
-function haveAllPlayersPlayedACard() {
-    for (let playerNumber = 0; playerNumber < players.length; playerNumber++) {
-        if (players[playerNumber].hasPlayedACardThisTurn == false) { return false; }
+function haveAllCardsBeenPlayed() {
+    for (const player of players) {
+        if (getUnplayedCards(player.cards).length > 0) {
+            return false;
+        }
     }
     return true;
 }
 
 function setCurrentPlayer(player) {
 
-    if (haveAllPlayersPlayedACard()) {
+    if (haveAllCardsBeenPlayed()) {
         enableNextTurnButton();
         return;
     }
@@ -901,21 +987,19 @@ function setCurrentPlayer(player) {
 
     } else {
         const nextPlayer = getNextPlayer(player.number);
-        changeInitiative(nextPlayer);
+        //changeInitiative(nextPlayer);
         setCurrentPlayer(nextPlayer);
+        return;
     }
 }
 
-function getNextPlayer(previousPlayerNumber) {
-
-    if (previousPlayerNumber > players.length - 1) {
-        return players[0];
-    } else {
-        return players[previousPlayerNumber];
-    }
+function getNextPlayer(playerNumber) {
+    const index = players.findIndex(p => p.number === playerNumber);
+    return players[(index + 1) % players.length];
 }
 
 function determineCardToPlay(player) {
+    if (modalOpen) return;
 
     if (player.hasPlayedACardThisTurn == false) {
         let unplayedCards = getUnplayedCards(player.cards);
@@ -933,12 +1017,22 @@ function findFocus(player, unplayedCards) {
     // - Build for future turn
     // - random
 
-    if (player.hasInitiative){
-        findCardToPlay(unplayedCards, "");
+    if (modalOpen) return;
+
+    if (currentLead && currentLead.playerNumber === player.number){ //player.hasInitiative){
+        
+        const intent = findCardToPlay(unplayedCards, "");
+        if (intent) {
+            executePlay(player, intent);
+        }
+
     }else{
         if (chaseAmbition(player, getPossibleActions(unplayedCards), unplayedCards) == false){
-            // couldn't chase ambition. Play a card.
-            findCardToPlay(unplayedCards, "");
+            // couldn't chase ambition. Play a card.        
+            const intent = findCardToPlay(unplayedCards, "");
+            if (intent) {
+                executePlay(player, intent);
+            }
         }
     }
 
@@ -966,7 +1060,7 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
         for (let index = 0; index < declaredAmbitions.length + 1; index++) {
             const ambition = declaredAmbitions[index];
             //switch (ambition) {
-            if (ambition == "tycoon" && player.ambitionsEvaluated.includes("TYCOON") == false) {
+            if (ambition == "tycoon" && player.ambitionsEvaluated.includes("tycoon") == false) {
                 // materials and fuel
                 // tax or steal or secure
                 // Q: Can I tax a city for weapons or fuel?
@@ -990,7 +1084,7 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
                     //focus_tycoon(4);
                     break;
                 }
-            } else if (ambition == "tyrant" && player.ambitionsEvaluated.includes("TYRANT") == false) {
+            } else if (ambition == "tyrant" && player.ambitionsEvaluated.includes("tyrant") == false) {
                 // capture
                 // tax rival city or ransack or secure
                 // Q: Can I tax a rival city to capture?
@@ -1009,7 +1103,7 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
                     //focus_tyrant(3);
                     break;
                 }
-            } else if (ambition == "warload" && player.ambitionsEvaluated.includes("WARLORD") == false) {
+            } else if (ambition == "warlord" && player.ambitionsEvaluated.includes("warlord") == false) {
                 // fight
                 // battle or secure
                 // Q: Can I fight?
@@ -1028,7 +1122,7 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
                     //focus_warlord(3);
                     break;
                 }
-            } else if (ambition == "keeper" && player.ambitionsEvaluated.includes("KEEPER") == false) {
+            } else if (ambition == "keeper" && player.ambitionsEvaluated.includes("keeper") == false) {
                 // relics
                 // tax or steal or secure
                 // Q: Can I tax a city for a relic?
@@ -1052,7 +1146,7 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
                     //focus_keeper(4);
                     break;
                 }
-            } else if (ambition == "empath" && player.ambitionsEvaluated.includes("EMPATH") == false) {
+            } else if (ambition == "empath" && player.ambitionsEvaluated.includes("empath") == false) {
                 // psionic
                 // tax or steal or secure
                 // Q: Can I tax a city for a psionic?
@@ -1096,6 +1190,7 @@ function focus_ambition(ambition, questionNumber, answerNo) {
     // answer was not 'No'
     if (answerNo == null && modal == null) {
         modal = openYesNoModal(ambition);
+        modalOpen = true;
     }
 
     switch (ambition) {
@@ -1282,7 +1377,7 @@ function focus_empath(questionNumber) {
 function openYesNoModal(focusTitle) {
     let modal = new bootstrap.Modal(document.getElementById("yesNo"));
     document.getElementById("yesNoTitle").innerHTML = "Player " + currentPlayer.number;
-    document.getElementById("focusMessage").innerHTML = focusTitle;
+    document.getElementById("focusMessage").innerHTML = focusTitle.toUpperCase();
     return modal;
 }
 
@@ -1325,12 +1420,26 @@ function answerYes() {
         default:
             break;
     }
+    
+    modalOpen = false;
+    modal.hide();
+    modal = null;
 
     cardsWithAction = getCardsWithAction(unplayedCards, actionToPlay);
-    findCardToPlay(cardsWithAction, actionToPlay);
+    //findCardToPlay(cardsWithAction, actionToPlay);
+
+    const intent = findCardToPlay(cardsWithAction, actionToPlay);
+    if (intent) {
+        executePlay(currentPlayer, intent);
+    }
+
 }
 
+/*
 function findCardToPlay(cards, actionToPlay) {
+
+    if (modalOpen) return;
+
     let cardToPlay = "";
 
     if (currentPlayer.hasInitiative && actionToPlay == "") {
@@ -1375,12 +1484,164 @@ function findCardToPlay(cards, actionToPlay) {
         }
     }
 
-    if (haveAllPlayersPlayedACard()) {
+    if (haveAllCardsBeenPlayed()) {
         enableNextTurnButton();
     }
 
     SaveAllSettings();
 }
+*/
+
+function findCardToPlay(cards, actionToPlay) {
+
+    if (modalOpen) return;
+
+    let cardToPlay = "";
+
+    if (currentLead && currentLead.playerNumber === currentPlayer.number && actionToPlay === ""){ //currentPlayer.hasInitiative && actionToPlay == "") {
+        // AI player is leading
+        // Check which ambitions they should focus on
+        // and play that card
+        // If there is not a card to play, see if player can chase
+        // an ambition, otherwise play the highest possible card
+
+        const ambitionSorted = prioritiseAndSortAmbitions();
+
+        let cardsWithAmbition = findCardsWithAmbition(ambitionSorted, cards);
+
+        if (cardsWithAmbition.length > 0) {
+            cardToPlay = getHighestCard(cardsWithAmbition);    
+         }else{
+            if (chaseAmbition(currentPlayer, getPossibleActions(cards), cards ) == false){
+                cardToPlay = getHighestCard(cards);
+            }
+         }
+    }
+
+    //const cardToPlay = getHighestCard(cards);
+
+    if (cardToPlay == "") { cardToPlay = getHighestCard(cards); }
+
+    let cardAction = "";
+
+    if (actionToPlay == "") { actionToPlay = "ANY" }
+
+    if (currentPlayer.number === currentLead.playerNumber){ //} currentPlayer.hasInitiative) {
+        return {
+            type: "LEAD",
+            card: cardToPlay,
+            action: actionToPlay || "ANY"
+        };
+    }
+
+    const lead = currentLead?.playedEntry;
+    if (!lead) return null;
+
+    const surpassCard = getSurpassCard(lead, cards);
+    if (surpassCard) {
+        return {
+            type: "SURPASS",
+            card: surpassCard,
+            action: actionToPlay
+        };
+    }
+
+    if (shouldClaim(currentPlayer)) {
+        const unplayed = getUnplayedCards(currentPlayer.cards);
+        const claimCards = getClaimCards(unplayed);
+
+        if (claimCards) {
+            return {
+                type: "CLAIM",
+                cards: claimCards,   // NOTE: plural
+                action: actionToPlay
+            };
+        }
+    }
+
+    const copyCard = getCopyCard(lead, cards);
+    if (copyCard) {
+        return {
+            type: "COPY",
+            card: copyCard,
+            action: actionToPlay
+        };
+    }
+
+    //pivot(currentPlayer, cards, actionToPlay);
+
+    return {
+        type: "PIVOT",
+        card: cards[0],
+        action: actionToPlay
+    };
+
+/*
+    if (haveAllCardsBeenPlayed()) {
+        enableNextTurnButton();
+    }
+
+    SaveAllSettings();
+
+    */
+}
+
+function executePlay(player, intent) {
+
+    switch (intent.type) {
+
+        case "CLAIM": {
+            const { first, second } = intent.cards;
+
+            // Play first claim card
+            playCard(player, first,
+                intent.action === "" ? "CLAIM" : intent.action,
+                "CLAIM"
+            );
+
+            // Play second claim card
+            playCard(player, second, intent.action, "CLAIM");
+
+            hasInitiativeBeenClaimedThisTurn = true;
+
+            currentLead = {
+                playedEntry: {
+                    card: first,
+                    effectiveNumber: first.number,
+                    cardAction: "CLAIM"
+                },
+                playerNumber: player.number
+            };
+
+            applyInitiativeFromLead();
+            break;
+        }
+
+        default: {
+            // LEAD / SURPASS / COPY / PIVOT
+            playCard(player, intent.card, intent.action, intent.type);
+
+            if (intent.type === "LEAD" || intent.type === "SURPASS") {
+                currentLead = {
+                    playedEntry: {
+                        card: intent.card,
+                        effectiveNumber: intent.card.number,
+                        cardAction: intent.type
+                    },
+                    playerNumber: player.number
+                };
+                applyInitiativeFromLead();
+            }
+        }
+    }
+
+    if (haveAllCardsBeenPlayed()) {
+        enableNextTurnButton();
+    }
+
+    SaveAllSettings();
+}
+
 
 function findCardsWithAmbition(ambitionSorted, cards) {
     let cardsWithAmbition = [];
@@ -1514,9 +1775,12 @@ function answerNo() {
         default:
             break;
     }
-
-    currentPlayer.ambitionsEvaluated.push(focus);
+    
+    modalOpen = false;
     modal.hide();
+    modal = null;
+
+    currentPlayer.ambitionsEvaluated.push(focus.toLowerCase());
     findFocus(currentPlayer, unplayedCards);
 }
 
@@ -1609,7 +1873,7 @@ function declareAmbition(player, playedCard) {
 
     if (num >= sum) {
         showMessageToast("Player" + player.number, "Player declared ambition: " + ambition);
-        playedCard.number = 0;
+        //playedCard.number = 0;
 
         addPlayedCardToList(playedCard, "ANY", "LEAD", true, player);
 
@@ -1638,11 +1902,21 @@ function declareAmbitionClick(ambition) {
         const playedCard = getCardByNameAndNumber(player.cards, playedCardFullName, true);
 
         showMessageToast("Player" + player.number, "Player declared ambition: " + ambition);
-        playedCard.number = 0;
+        //playedCard.number = 0;
 
         // Reset the played card list and re-add the declared card
         // with a value of 0
         addPlayedCardToList(playedCard, "ANY", "DECLARE", true, player);
+        
+        currentLead = {
+            playedEntry: {
+                card: playedCard,
+                effectiveNumber: 0,
+                cardAction: "DECLARE"
+            },
+            playerNumber: player.number
+        };
+        applyInitiativeFromLead();
 
         seven.innerHTML = "";
     }
@@ -1650,6 +1924,15 @@ function declareAmbitionClick(ambition) {
     declaredAmbitions.push(ambition);
     setElementValue("declaredAmbitions", declaredAmbitions.length);
     SaveAllSettings();
+}
+
+
+function applyInitiativeFromLead() {
+    players.forEach(p => {
+        const hasInitiative = currentLead && p.number === currentLead.playerNumber;
+        const el = document.querySelectorAll("#playerinitiative" + p.number);
+        showHideElement(el, hasInitiative);
+    });
 }
 
 function showDeclareAmbitionModal(ele, hasPlayedASeven, player, playedCard) {
@@ -1669,6 +1952,7 @@ function showDeclareAmbitionModal(ele, hasPlayedASeven, player, playedCard) {
     modal.show();
 }
 
+/*
 function canSurpass(player, playedCard, unplayedCards, actionToPlay) {
     let surpass = false;
 
@@ -1688,32 +1972,40 @@ function canSurpass(player, playedCard, unplayedCards, actionToPlay) {
 
     playCard(player, cardToPlay, actionToPlay, "SURPASS", true);
     surpass = true;
-    checkInitiative(player, cardToPlay, false);
+
+    // CHANGE 6
+    currentLead = {
+        playedEntry: {
+            cardToPlay,
+            effectiveNumber: cardToPlay.number,
+            cardAction: "SURPASS"
+        },
+        playerNumber: player.number
+    };
+
+    applyInitiativeFromLead();
+
+    //checkInitiative(player, cardToPlay, false);
 
     return surpass;
 }
+    */
 
-function canCopy(player, playedCard, unplayedCards, actionToPlay) {
+function getCopyCard(leadEntry, unplayedCards) {
     let copyCards = [];
-    let canCopy = false;
 
     unplayedCards.forEach(card => {
-        if (playedCard.name == card.name) {
+        if (card.name === leadEntry.card.name) {
             copyCards.push(card);
         }
-    })
+    });
 
-    if (copyCards.length == 0) {
-        // no card to COPY with
-        return canCopy;
+    if (copyCards.length === 0) {
+        return null;
     }
 
-    let cardToPlay = getLowestCardtoPlay(copyCards);
-
-    playCard(player, cardToPlay, actionToPlay, "COPY", true);
-    canCopy = true;
-
-    return canCopy;
+    // Same rule you already had
+    return getLowestCardtoPlay(copyCards);
 }
 
 function getLowestCardtoPlay(cards) {
@@ -1732,6 +2024,7 @@ function getLowestCardtoPlay(cards) {
     return lowestCard;
 }
 
+/*
 function claim(player, actionToPlay, cardAction) {
     // Logic;
     //  claim needs to be based on a calc between: number of cards in hand, number of ambitions played, .... other things
@@ -1760,18 +2053,56 @@ function claim(player, actionToPlay, cardAction) {
 
     //num = 9;
     if (num >= totalValueOfCards) {
-        playCard(player, getLowestCardtoPlay(unplayedCards), actionToPlay == "" ? "CLAIM" : actionToPlay, cardAction, true);
+        // Play two cards to claim
+        let playedEntry = getLowestCardtoPlay(unplayedCards);
+        
+        //playCard(player, getLowestCardtoPlay(unplayedCards), actionToPlay == "" ? "CLAIM" : actionToPlay, cardAction, true);
+        playCard(player, playedEntry, actionToPlay == "" ? "CLAIM" : actionToPlay, cardAction, true);
         unplayedCards = getUnplayedCards(unplayedCards);
         playCard(player, getLowestCardtoPlay(unplayedCards), actionToPlay, "CLAIM", false);
 
         hasInitiativeBeenClaimedThisTurn = true;
-        changeInitiative(player);
+        // CHANGE 6
+        currentLead = {
+            playedEntry,
+            playerNumber: player.number
+        };
+        applyInitiativeFromLead();
+
+        //changeInitiative(player);
         return true;
     }
 
     return false;
 }
+    */
 
+function shouldClaim(player) {
+
+    if (hasInitiativeBeenClaimedThisTurn) return false;
+    if (declaredAmbitions.length >= 3) return false;
+
+    const unplayedCards = getUnplayedCards(player.cards);
+    if (unplayedCards.length <= 2) return false;
+
+    let totalValue = 0;
+    unplayedCards.forEach(card => totalValue += card.number);
+
+    const roll = Math.floor(Math.random() * 16);
+    return roll >= totalValue;
+}
+
+function getClaimCards(unplayedCards) {
+    if (unplayedCards.length < 2) return null;
+
+    const first = getLowestCardtoPlay(unplayedCards);
+    const remaining = unplayedCards.filter(c => c !== first);
+    const second = getLowestCardtoPlay(remaining);
+
+    return { first, second };
+}
+
+/*
 function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
     if (hasInitiativeBeenClaimedThisTurn == true) { return; }
 
@@ -1783,16 +2114,14 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
         } else {
             let playedHighestCard = false;
 
-            for (let cardNumber = 0; cardNumber < playedCardList.length; cardNumber++) {
-                const card = playedCardList[cardNumber];
+            for (let i = 0; i < playedCardList.length; i++) {
+                const entry = playedCardList[i];
 
-                if (playedCard.name == card.name) {
-                    if (playedCard.number > card.number) {
+                if (playedCard.name === entry.card.name) {
+                    if (playedCard.number > entry.effectiveNumber) {
                         playedHighestCard = true;
-                    } else {
-                        if (playedCard.number < card.number) {
-                            playedHighestCard = false;
-                        }
+                    } else if (playedCard.number < entry.effectiveNumber) {
+                        playedHighestCard = false;
                     }
                 }
             }
@@ -1804,6 +2133,7 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
 
     })
 }
+    
 
 function changeInitiative(player) {
     players.forEach(p => {
@@ -1815,6 +2145,7 @@ function changeInitiative(player) {
 
     SaveAllSettings();
 }
+    */
 
 function seizeInitiativeQuestion(ele) {
     if (hasInitiativeBeenClaimedThisTurn == true) {
@@ -1837,12 +2168,31 @@ function getPlayerNumberFromElement(ele) {
     return ele.parentNode.parentNode.id.slice(ele.parentNode.parentNode.id.length - 1);
 }
 
+/*
 function seizeInitiative() {
     const header = document.querySelector("#seizeToastHeader");
     const playerNumber = getPlayerNumberFromString(header.innerHTML);
     hasInitiativeBeenClaimedThisTurn = true;
     changeInitiative(getPlayer(playerNumber));
 }
+    */
+
+
+function seizeInitiative() {
+    const header = document.querySelector("#seizeToastHeader");
+    const playerNumber = Number(getPlayerNumberFromString(header.innerHTML));
+
+    hasInitiativeBeenClaimedThisTurn = true;
+
+    currentLead = {
+        playedEntry: currentLead?.playedEntry ?? null,
+        playerNumber
+    };
+
+    applyInitiativeFromLead();
+    SaveAllSettings();
+}
+
 
 function showMessageToast(headerValue, bodyValue) {
     showToast("messageToast", "messageToastHeader", headerValue, "messageToastBody", bodyValue);
@@ -1968,46 +2318,74 @@ function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
 }
 
 function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
-    if (card != null) {
-        card.played = true;
+    if (!card) return;
+
+    // Mark card as played in hand ONLY
+    card.played = true;
+
+    // Send original card to discard pile
+    if (!reset) {
         discardPile.push(card);
-
-        // TODO The below two IF statements are horrid. Need a better way to do this
-        if (card.cardAction == '') { card.cardAction = cardAction };
-        if (card.playedAction == '') { card.playedAction = actionToPlay };
-        if (card.playedByPlayerNumber == 0) { card.playedByPlayerNumber = player.number };
-
-        if (playedCardList.length == 0) {
-            let turnListDiv = document.getElementById("playedcards");
-
-            let turnDiv = document.createElement("div");
-            turnDiv.classList.add("w-100", "mt-4", "fw-bold", "text-center");
-            turnDiv.id = "Turn" + turnNumber.toString();
-            turnDiv.innerHTML = "Turn " + turnNumber.toString();
-
-            turnListDiv.append(turnDiv);
-        }
-
-        let cardListDiv = document.getElementById("Turn" + turnNumber.toString());
-
-        if (reset) {
-            playedCardList = [];
-            cardListDiv.replaceChildren();
-            cardListDiv.innerHTML = "Turn " + turnNumber.toString();
-        }
-
-        playedCardList.push(card);
-
-        let cardDiv = document.createElement("div");
-        cardDiv.classList.add("fw-normal", "playercard" + card.playedByPlayerNumber);
-        cardDiv.id = "playedlist" + getCardFullName(card);
-        // If player COPIED, replace the suit played with XXXX 
-        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": " + ((cardAction == "COPY" | cardAction == "CLAIM") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, cardAction);
-        cardListDiv.append(cardDiv);
-        createTooltip("#" + "playedlist" + getCardFullName(card), getActionsOnCard(card));
-
-        saveSettingObject('playedCardList', playedCardList);
     }
+
+    // Reset turn group if needed
+    if (reset) {
+        playedCardList = [];
+        const cardListDiv = document.getElementById("Turn" + turnNumber);
+        if (cardListDiv) {
+            cardListDiv.replaceChildren();
+            cardListDiv.innerHTML = "Turn " + turnNumber;
+        }
+    }
+
+    // Create a PlayedCard wrapper
+    const playedEntry = {
+        card,
+        effectiveNumber: cardAction === "DECLARE" ? 0 : card.number,
+        cardAction,
+        playedAction: actionToPlay,
+        playedByPlayerNumber: player.number
+    };
+
+    playedCardList.push(playedEntry);
+
+    renderPlayedCard(playedEntry);
+    saveSettingObject("playedCardList", playedCardList);
+}
+
+function renderPlayedCard(playedEntry) {
+    let turnListDiv = document.getElementById("playedcards");
+
+    if (turnListDiv.querySelectorAll(".turnHeader").length === 0 ||
+        !document.getElementById("Turn" + turnNumber)) {
+
+        let turnDiv = document.createElement("div");
+        turnDiv.classList.add("w-100", "mt-4", "fw-bold", "text-center", "turnHeader");
+        turnDiv.id = "Turn" + turnNumber;
+        turnDiv.innerHTML = "Turn " + turnNumber;
+        turnListDiv.append(turnDiv);
+    }
+
+    const cardListDiv = document.getElementById("Turn" + turnNumber);
+
+    const displayName =
+        playedEntry.cardAction === "COPY" || playedEntry.cardAction === "CLAIM"
+            ? "XXXX"
+            : getCardFullName(playedEntry.card);
+
+    const pips = getNumberOfPipsFromValue(
+        playedEntry.effectiveNumber,
+        playedEntry.cardAction
+    );
+
+    let cardDiv = document.createElement("div");
+    cardDiv.classList.add(
+        "fw-normal",
+        "playercard" + playedEntry.playedByPlayerNumber
+    );
+    cardDiv.innerHTML = `${playedEntry.cardAction}: ${playedEntry.playedAction}: ${displayName}${pips}`;
+
+    cardListDiv.append(cardDiv);
 }
 
 function getNumberOfPips(card, action) {
@@ -2019,6 +2397,18 @@ function getNumberOfPips(card, action) {
             pips += "&#9733;";
         }
     }
+    return pips;
+}
+
+function getNumberOfPipsFromValue(value, action) {
+    let pips = " &#9733;";
+
+    if (action === "SURPASS" || action === "LEAD") {
+        for (let i = 1; i < value; i++) {
+            pips += "&#9733;";
+        }
+    }
+
     return pips;
 }
 
