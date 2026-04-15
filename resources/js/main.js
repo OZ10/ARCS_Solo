@@ -158,6 +158,14 @@ document.addEventListener("DOMContentLoaded", () => {
         loadPlayers();
         loadPlayedCardList();
         loadAmbitions();
+
+        
+        const savedLead = getSettingObject("currentLead");
+        if (savedLead) {
+            currentLead = savedLead;
+            applyInitiativeFromLead();
+        }
+
     }
 
     refreshTooltips();
@@ -176,7 +184,7 @@ function loadPlayers() {
             clonePlayerNodeAndSetup(player);
         }
     }
-    if (haveAllCardsBeenPlayed() == true) {
+    if (haveAllPlayersPlayedACard() == true) {
         enableNextTurnButton();
     } else {
         setCurrentPlayer(findCurrentPlayer());
@@ -950,16 +958,33 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
                 declaredAmbitions.push(playedCard.ambition);
                 setElementValue("declaredAmbitions", declaredAmbitions.length);
             }
-
+        } else if (player.isHuman == true) {
+            currentLead = {
+                    playedEntry: {
+                        card: playedCard,
+                        effectiveNumber: playedCard.number,
+                        cardAction: cardAction
+                    },
+                    playerNumber: player.number
+                };
+                applyInitiativeFromLead();
         } else if (player.isHuman == false) {
             // AI player will determine whether to declare or not
             declareAmbition(player, playedCard);
         }
     }
-    setCurrentPlayer(getNextPlayer(player.number))
 
-    if (player.isHuman && haveAllCardsBeenPlayed()) {
+    if (!haveAllPlayersPlayedACard()) {
+        setCurrentPlayer(getNextPlayer(player.number))
+    }
+
+    //if (player.isHuman && haveAllCardsBeenPlayed()) {
+    //    enableNextTurnButton();
+    //}
+
+    if (haveAllPlayersPlayedACard()) {
         enableNextTurnButton();
+        currentPlayer = null;
     }
 
     SaveAllSettings();
@@ -1586,6 +1611,25 @@ function findCardToPlay(cards, actionToPlay) {
     */
 }
 
+function getSurpassCard(leadEntry, unplayedCards) {
+    if (!leadEntry) return null;
+
+    const { card: leadCard, effectiveNumber } = leadEntry;
+
+    // Find all cards of the same suit with a higher number
+    const surpassCards = unplayedCards.filter(card =>
+        card.name === leadCard.name &&
+        card.number > effectiveNumber
+    );
+
+    if (surpassCards.length === 0) {
+        return null;
+    }
+
+    // Play the LOWEST valid surpass card (conservative / optimal)
+    return getLowestCardtoPlay(surpassCards);
+}
+
 function executePlay(player, intent) {
 
     switch (intent.type) {
@@ -1635,9 +1679,9 @@ function executePlay(player, intent) {
         }
     }
 
-    if (haveAllCardsBeenPlayed()) {
-        enableNextTurnButton();
-    }
+    //if (haveAllCardsBeenPlayed()) {
+    //    enableNextTurnButton();
+    //}
 
     SaveAllSettings();
 }
@@ -1809,6 +1853,12 @@ function enableNextTurnButton() {
     }
     hidePlayerPanels();
 }
+
+
+function haveAllPlayersPlayedACard() {
+    return players.every(p => p.hasPlayedACardThisTurn);
+}
+
 
 function declareAmbition(player, playedCard) {
     if (declaredAmbitions.length >= 3) {
@@ -2575,6 +2625,7 @@ const SaveSettings = (settings) => {
 const SaveAllSettings = () => {
     savePlayers();
     saveSettingObject('ambitions', declaredAmbitions);
+    saveSettingObject('currentLead', currentLead);
     SaveSetting("turn", turnNumber);
     SaveSetting("round", roundNumber);
     SaveSetting("initiaiteClaimed", hasInitiativeBeenClaimedThisTurn);
