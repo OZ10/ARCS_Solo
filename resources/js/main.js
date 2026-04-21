@@ -155,14 +155,20 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        loadPlayers();
-        loadPlayedCardList();
-        loadAmbitions();
-
-        
+        // If game was previously saved, get the Current Lead details
         const savedLead = getSettingObject("currentLead");
         if (savedLead) {
             currentLead = savedLead;
+        }
+
+        // Add Players and UI
+        loadPlayers();
+
+        loadPlayedCardList();
+        loadAmbitions();
+
+        // If game was previously saved, set the Initiative indicator
+        if (savedLead) {
             applyInitiativeFromLead();
         }
 
@@ -695,12 +701,89 @@ function humanSelectedAction(cardAction) {
     const player = players[0];
 
     const btnSelected = document.querySelector('input.p1:checked');
+    const playedCard = getCardByNameAndNumber(player.cards, btnSelected.id, false);
+    enableDisableButton(getCardFullName(playedCard), true);
+
+    // === HUMAN IS LEADING ===
+    if (currentLead && currentLead.playerNumber === player.number) {
+
+        playCard(player, playedCard, "ANY", cardAction, false);
+        setLead(player, playedCard, cardAction);
+
+        showHideElement(document.querySelectorAll("#actionbuttons"), false);
+
+    } 
+    // === HUMAN IS FOLLOWING ===
+    else {
+
+        player.hasPlayedACardThisTurn = true;
+        addPlayedCardToList(playedCard, "ANY", cardAction, false, player);
+
+        // HUMAN ended up being first entry this turn (edge case)
+        if (playedCardList.length === 1) {
+
+            setLead(player, playedCard, cardAction);
+
+        } else {
+
+            const aiPlayedLeadCard = currentLead.playedEntry;
+            const hasPlayerClaimed =
+                document.getElementById("CLAIM").className.includes("active");
+
+            if (hasPlayerClaimed) {
+
+                setLead(
+                    player,
+                    currentLead.playedEntry.card,
+                    currentLead.playedEntry.cardAction
+                );
+
+                showCardModal(
+                    player,
+                    getUnplayedCards(player.cards),
+                    "Claim Card List",
+                    "Please select a card second card to play",
+                    "CLAIM"
+                );
+
+            } 
+            else if (isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard)) {
+
+                // SURPASS
+                setLead(player, playedCard, cardAction);
+
+            }
+        }
+
+        // end-of-turn handling for LAST-CARD SURPASS/PIVOT/COPY
+        if (haveAllPlayersPlayedACard()) {
+            enableNextTurnButton();
+            showHideElement(document.querySelectorAll("#actionbuttons"), false);
+            SaveAllSettings();
+            return;
+        }
+
+        // Otherwise continue normal turn flow
+        setCurrentPlayer(getNextPlayer(player.number));
+        showHideElement(document.querySelectorAll("#actionbuttons"), false);
+    }
+
+    SaveAllSettings();
+}
+
+/*
+function humanSelectedAction(cardAction) {
+
+    const player = players[0];
+
+    const btnSelected = document.querySelector('input.p1:checked');
 
     const playedCard = getCardByNameAndNumber(player.cards, btnSelected.id, false);
     enableDisableButton(getCardFullName(playedCard), true);
 
     if (currentLead && currentLead.playerNumber === player.number) { //player.hasInitiative) {
         playCard(player, playedCard, "ANY", cardAction, false);
+        setLead(player, playedCard, cardAction);
         showHideElement(document.querySelectorAll("#actionbuttons"), false);
 
     } else {
@@ -713,18 +796,8 @@ function humanSelectedAction(cardAction) {
             // AI hasn't played a card because, while it has inititive,
             // it has no cards left to play because it has claimed at some point
 
-            // CHANGE 6
-            
-        currentLead = {
-            playedEntry: {
-                card: playedCard,
-                effectiveNumber: playedCard.number,
-                cardAction
-            },
-            playerNumber: player.number
-        };
+            setLead(player, playedCard, cardAction)
 
-            //checkInitiative(player, playedCard, false);
         } else {
             //const aiPlayedLeadCard = playedCardList[0];
             const aiPlayedLeadCard = currentLead.playedEntry
@@ -732,11 +805,7 @@ function humanSelectedAction(cardAction) {
             const hasPlayerClaimed = document.getElementById("CLAIM").className.includes("active") ? true : false;
 
         if (hasPlayerClaimed) {
-            currentLead = {
-                playedEntry: currentLead?.playedEntry ?? null,
-                playerNumber: player.number
-            };
-            applyInitiativeFromLead();
+            setLead(player, currentLead.playedEntry.card, currentLead.playedEntry.cardAction);
 
             showCardModal(
                 player,
@@ -747,13 +816,13 @@ function humanSelectedAction(cardAction) {
             );
         }
         else if (isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard)) {
-                // CHNAGE 6 removed this but it might still be required
-                //checkInitiative(player, playedCard, false);
+                setLead(player, playedCard, cardAction)
             }
         }
 
-        //changeCurrentPlayer(player, false);
-        setCurrentPlayer(getNextPlayer(player.number));
+        if (!haveAllPlayersPlayedACard()) {
+            setCurrentPlayer(getNextPlayer(player.number));
+        }
 
         showHideElement(document.querySelectorAll("#actionbuttons"), false);
 
@@ -763,6 +832,19 @@ function humanSelectedAction(cardAction) {
     }
 
     SaveAllSettings();
+}
+*/
+
+function setLead(player, card, cardAction) {
+    currentLead = {
+        playedEntry: {
+            card,
+            effectiveNumber: cardAction === "DECLARE" ? 0 : card.number,
+            cardAction
+        },
+        playerNumber: player.number
+    };
+    applyInitiativeFromLead();
 }
 
 function showCardModal(player, cards, title, prompt, action) {
@@ -944,30 +1026,14 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
                 // with a value of 0
                 addPlayedCardToList(playedCard, "ANY", "DECLARE", true, player);
                 
-                currentLead = {
-                    playedEntry: {
-                        card: playedCard,
-                        effectiveNumber: 0,
-                        cardAction: "DECLARE"
-                    },
-                    playerNumber: player.number
-                };
-                applyInitiativeFromLead();
-
+                setLead(player, playedCard, "DECLARE");
 
                 declaredAmbitions.push(playedCard.ambition);
                 setElementValue("declaredAmbitions", declaredAmbitions.length);
             }
         } else if (player.isHuman == true) {
-            currentLead = {
-                    playedEntry: {
-                        card: playedCard,
-                        effectiveNumber: playedCard.number,
-                        cardAction: cardAction
-                    },
-                    playerNumber: player.number
-                };
-                applyInitiativeFromLead();
+            setLead(player, playedCard, cardAction);
+
         } else if (player.isHuman == false) {
             // AI player will determine whether to declare or not
             declareAmbition(player, playedCard);
@@ -1041,6 +1107,11 @@ function findFocus(player, unplayedCards) {
     // - Chase ambition
     // - Build for future turn
     // - random
+
+    
+    if (player.isHuman) {
+        return;
+    }
 
     if (modalOpen) return;
 
@@ -1648,16 +1719,8 @@ function executePlay(player, intent) {
 
             hasInitiativeBeenClaimedThisTurn = true;
 
-            currentLead = {
-                playedEntry: {
-                    card: first,
-                    effectiveNumber: first.number,
-                    cardAction: "CLAIM"
-                },
-                playerNumber: player.number
-            };
+            setLead(player, first, "CLAIM");
 
-            applyInitiativeFromLead();
             break;
         }
 
@@ -1666,15 +1729,7 @@ function executePlay(player, intent) {
             playCard(player, intent.card, intent.action, intent.type);
 
             if (intent.type === "LEAD" || intent.type === "SURPASS") {
-                currentLead = {
-                    playedEntry: {
-                        card: intent.card,
-                        effectiveNumber: intent.card.number,
-                        cardAction: intent.type
-                    },
-                    playerNumber: player.number
-                };
-                applyInitiativeFromLead();
+                setLead(player, intent.card, intent.type);
             }
         }
     }
@@ -1958,15 +2013,7 @@ function declareAmbitionClick(ambition) {
         // with a value of 0
         addPlayedCardToList(playedCard, "ANY", "DECLARE", true, player);
         
-        currentLead = {
-            playedEntry: {
-                card: playedCard,
-                effectiveNumber: 0,
-                cardAction: "DECLARE"
-            },
-            playerNumber: player.number
-        };
-        applyInitiativeFromLead();
+        setLead(player, playedCard, "DECLARE");
 
         seven.innerHTML = "";
     }
@@ -2232,14 +2279,14 @@ function seizeInitiative() {
     const header = document.querySelector("#seizeToastHeader");
     const playerNumber = Number(getPlayerNumberFromString(header.innerHTML));
 
-    hasInitiativeBeenClaimedThisTurn = true;
+    if (currentLead?.playedEntry) {
+        setLead(
+            getPlayer(playerNumber),
+            currentLead.playedEntry.card,
+            currentLead.playedEntry.cardAction
+        );
+    }
 
-    currentLead = {
-        playedEntry: currentLead?.playedEntry ?? null,
-        playerNumber
-    };
-
-    applyInitiativeFromLead();
     SaveAllSettings();
 }
 
@@ -2442,7 +2489,7 @@ function getNumberOfPips(card, action) {
     let pips = "  &#9733;";
 
     // Only add extra pips if the action is...
-    if (action == "SURPASS" | action == "LEAD" | action == "PLAYER") {
+    if (action == "SURPASS" || action == "LEAD" || action == "PLAYER") {
         for (let index = 0; index < card.pips - 1; index++) {
             pips += "&#9733;";
         }
