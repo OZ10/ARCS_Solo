@@ -33,10 +33,17 @@ class Card {
     cardAction = '';
     playedAction = '';
     playedByPlayerNumber = 0;
+    declared = false;
 }
 
 function getCardFullName(card) {
     return card.name + card.number;
+}
+
+function getCardValue(card) {
+    // A card used to declare an ambition counts as 0 for surpassing and
+    // initiative, but keeps its printed number so it can still be found by name
+    return card.declared ? 0 : card.number;
 }
 
 let players = [];
@@ -438,7 +445,7 @@ function showHideActionButtons(isleading, card) {
     showHideElement(document.querySelectorAll('#DECLARE'), false);
 
     if (card.name == aiPlayedLeadCard.name) {
-        if (card.number > aiPlayedLeadCard.number) {
+        if (card.number > getCardValue(aiPlayedLeadCard)) {
             // Played the same suit and the number is higher so can Surpass
             showHideElement(document.querySelectorAll('#SURPASS'), true);
             showHideElement(document.querySelectorAll('#COPY'), false);
@@ -656,6 +663,7 @@ function humanSelectedAction(cardAction) {
         const hasPlayerClaimed = document.getElementById("CLAIM").className.includes("active") ? true : false;
 
         if (hasPlayerClaimed) {
+            hasInitiativeBeenClaimedThisTurn = true;
             changeInitiative(player);
 
             showCardModal(player, getUnplayedCards(player.cards), "Claim Card List", "Please select a card second card to play", "CLAIM");
@@ -710,6 +718,7 @@ function showCardModal(player, cards, title, prompt, action) {
                     // shallow copy of the original card, not a reference to it
                     const drawCard = { ...getCardByNameAndNumber(cards, btn.innerHTML, true) }
                     drawCard.played = false;
+                    drawCard.declared = false;
                     player.cards.push(drawCard);
                     createCardButtonsForHumanPlayer();
                 };
@@ -725,7 +734,7 @@ function showCardModal(player, cards, title, prompt, action) {
 }
 
 function isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard) {
-    return (aiPlayedLeadCard.name == playedCard.name && aiPlayedLeadCard.number < playedCard.number) ? true : false;
+    return (aiPlayedLeadCard.name == playedCard.name && getCardValue(aiPlayedLeadCard) < playedCard.number) ? true : false;
 }
 
 function dealCards() {
@@ -852,7 +861,7 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
                 showDeclareAmbitionModal(null, true, player, playedCard);
             } else {
                 showMessageToast("Player" + player.number, "Player declared ambition: " + playedCard.ambition);
-                playedCard.number = 0;
+                playedCard.declared = true;
 
                 // Reset the played card list and re-add the declared card
                 // with a value of 0
@@ -1624,7 +1633,7 @@ function declareAmbition(player, playedCard) {
 
     if (num >= sum) {
         showMessageToast("Player" + player.number, "Player declared ambition: " + ambition);
-        playedCard.number = 0;
+        playedCard.declared = true;
 
         addPlayedCardToList(playedCard, "ANY", "LEAD", true, player);
 
@@ -1653,7 +1662,7 @@ function declareAmbitionClick(ambition) {
         const playedCard = getCardByNameAndNumber(player.cards, playedCardFullName, true);
 
         showMessageToast("Player" + player.number, "Player declared ambition: " + ambition);
-        playedCard.number = 0;
+        playedCard.declared = true;
 
         // Reset the played card list and re-add the declared card
         // with a value of 0
@@ -1690,7 +1699,7 @@ function canSurpass(player, playedCard, unplayedCards, actionToPlay) {
     let surpassCards = [];
 
     unplayedCards.forEach(card => {
-        if (playedCard.name == card.name && playedCard.number < card.number) {
+        if (playedCard.name == card.name && getCardValue(playedCard) < card.number) {
             surpassCards.push(card);
         }
     })
@@ -1796,21 +1805,13 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
         if (hasClaimed) {
             player.hasInitiative = true;
         } else {
-            let playedHighestCard = false;
-
-            for (let cardNumber = 0; cardNumber < playedCardList.length; cardNumber++) {
-                const card = playedCardList[cardNumber];
-
-                if (playedCard.name == card.name) {
-                    if (playedCard.number > card.number) {
-                        playedHighestCard = true;
-                    } else {
-                        if (playedCard.number < card.number) {
-                            playedHighestCard = false;
-                        }
-                    }
-                }
-            }
+            // The played card must beat every other face up card of the same suit
+            // played this turn. Face down cards (COPY and CLAIM) don't count
+            const playedHighestCard = playedCardList.every(card =>
+                card === playedCard ||
+                card.name != playedCard.name ||
+                card.cardAction == "COPY" || card.cardAction == "CLAIM" ||
+                getCardValue(playedCard) > getCardValue(card));
 
             if (playedHighestCard) {
                 changeInitiative(player);
@@ -2017,7 +2018,7 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
         cardDiv.classList.add("fw-normal", "playercard" + card.playedByPlayerNumber);
         cardDiv.id = "playedlist" + getCardFullName(card);
         // If player COPIED, replace the suit played with XXXX 
-        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": " + ((cardAction == "COPY" | cardAction == "CLAIM") ? "XXXX" : getCardFullName(card)) + getNumberOfPips(card, cardAction);
+        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": " + ((cardAction == "COPY" | cardAction == "CLAIM") ? "XXXX" : getCardFullName(card)) + (card.declared ? " (0)" : "") + getNumberOfPips(card, cardAction);
         cardListDiv.append(cardDiv);
         createTooltip("#" + "playedlist" + getCardFullName(card), getActionsOnCard(card));
 
