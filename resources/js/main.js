@@ -14,6 +14,7 @@ class player {
     psionicsValue = 0;
     captivesValue = 0;
     trophiesValue = 0;
+    powerValue = 0;
     cards = [];
     hasInitiative = false;
     hasPlayedACardThisTurn = false;
@@ -87,6 +88,28 @@ const ambitions = [
     "empath"
 ];
 
+// The three ambition markers for each round as [first place, second place].
+// When an ambition is declared it takes the highest remaining marker (see getRoundMarkers)
+const ambitionMarkerValues = {
+    1: [[5, 3], [3, 2], [2, 0]],
+    2: [[5, 3], [3, 2], [4, 2]],
+    3: [[5, 3], [6, 3], [4, 2]],
+    4: [[9, 4], [6, 3], [4, 2]],
+    5: [[9, 4], [6, 3], [4, 2]]
+};
+
+// What each ambition counts when it's scored
+const ambitionResources = {
+    tycoon: player => player.fuelValue + player.materialsValue,
+    tyrant: player => player.captivesValue,
+    warlord: player => player.trophiesValue,
+    keeper: player => player.relicsValue,
+    empath: player => player.psionicsValue
+};
+
+// A player reaching this much power at the end of a round ends the game
+const powerToWin = { 2: 33, 3: 30, 4: 27 };
+
 let currentactioncards = actioncards.slice();
 
 let playedCardList = [];
@@ -141,6 +164,9 @@ function loadPlayers() {
 
         const player = getSettingObject(playerNumber);
         if (player != null) {
+            // Games saved before power was tracked won't have it
+            if (player.powerValue == null) { player.powerValue = 0; }
+
             players.push(player);
             clonePlayerNodeAndSetup(player);
         }
@@ -306,6 +332,10 @@ function clonePlayerNodeAndSetup(player) {
     const playerinitiative = playertemplate.querySelector('#playerinitiative');
     playerinitiative.id = "playerinitiative" + playerNumber.toString();
 
+    const playerpower = playertemplate.querySelector('#playerpower');
+    playerpower.id = "playerpower" + playerNumber.toString();
+    playerpower.innerHTML = "Power " + player.powerValue;
+
     const playcardbutton = playertemplate.querySelector('#playcard');
     playcardbutton.id = "playcard" + playerNumber.toString();
     playcardbutton.disabled = true;
@@ -342,6 +372,7 @@ function clonePlayerNodeAndSetup(player) {
     setPlusMinusButtons(playertemplate, player, "psionics");
     setPlusMinusButtons(playertemplate, player, "captives");
     setPlusMinusButtons(playertemplate, player, "trophies");
+    setPlusMinusButtons(playertemplate, player, "power");
 
     document.getElementById("playerslots").appendChild(playertemplate);
 }
@@ -383,6 +414,10 @@ function setPlusMinusButtons(playertemplate, player, type) {
 
         case "trophies":
             input.value = player.trophiesValue;
+            break;
+
+        case "power":
+            input.value = player.powerValue;
             break;
 
         default:
@@ -567,9 +602,19 @@ function resetPlayedThisTurn() {
 }
 
 function nextRound() {
+    // Score the ambitions declared this round before moving on.
+    // The next round starts once the scores have been confirmed
+    if (declaredAmbitions.length > 0) {
+        showScoringModal();
+    } else {
+        startNextRound();
+    }
+}
 
-    if (roundNumber == 5) {
-        showMessageToast("End of Round 5", "Who won?");
+function startNextRound() {
+    if (isGameOver()) {
+        enableDisableButton("nextRound", true);
+        showGameOverModal();
         return;
     }
 
@@ -584,6 +629,209 @@ function nextRound() {
 
     SaveAllSettings();
 }
+
+// #region SCORING
+
+function getRoundMarkers(round) {
+    // Highest marker first, ranked by its first place value
+    return ambitionMarkerValues[round].slice().sort((a, b) => b[0] - a[0]);
+}
+
+function getDeclaredAmbitionMarkers() {
+    // Each declared ambition took the highest marker left at the time, so the
+    // nth ambition declared this round has the nth highest marker.
+    // Returns the markers grouped by ambition, in the order first declared
+    const markers = getRoundMarkers(roundNumber);
+    let grouped = [];
+
+    declaredAmbitions.forEach((ambition, index) => {
+        let group = grouped.find(g => g.ambition == ambition);
+        if (group == null) {
+            group = { ambition: ambition, markers: [] };
+            grouped.push(group);
+        }
+        group.markers.push(markers[index]);
+    });
+
+    return grouped;
+}
+
+function scoreAmbition(counts, markers) {
+    // counts is [{ player, count }]. Returns [{ player, points }] for each player who scores
+    // - A player needs at least one matching resource to score
+    // - Most scores first place, second most scores second place
+    // - A tie for first: all tied players score second place and nobody else scores
+    // - A tie for second: all tied players score second place
+    // Several markers on one ambition are scored together
+    const firstPlacePoints = markers.reduce((sum, marker) => sum + marker[0], 0);
+    const secondPlacePoints = markers.reduce((sum, marker) => sum + marker[1], 0);
+
+    const eligible = counts.filter(c => c.count > 0);
+    if (eligible.length == 0) { return []; }
+
+    const highest = Math.max(...eligible.map(c => c.count));
+    const first = eligible.filter(c => c.count == highest);
+
+    if (first.length > 1) {
+        return first.map(c => ({ player: c.player, points: secondPlacePoints }));
+    }
+
+    let results = [{ player: first[0].player, points: firstPlacePoints }];
+
+    const rest = eligible.filter(c => c.count < highest);
+    if (rest.length > 0) {
+        const secondHighest = Math.max(...rest.map(c => c.count));
+        rest.filter(c => c.count == secondHighest).forEach(c => {
+            results.push({ player: c.player, points: secondPlacePoints });
+        });
+    }
+
+    return results;
+}
+
+function showScoringModal() {
+    const list = document.getElementById("scoringList");
+    list.replaceChildren();
+
+    document.getElementById("scoringModalTitle").innerHTML = "Round " + roundNumber + " Scoring";
+
+    getDeclaredAmbitionMarkers().forEach(group => {
+        const section = document.createElement("div");
+        section.classList.add("mb-3", "scoringambition");
+        section.dataset.ambition = group.ambition;
+        section.dataset.markers = JSON.stringify(group.markers);
+
+        const header = document.createElement("div");
+        header.classList.add("fw-bold");
+        header.innerHTML = group.ambition.toUpperCase() + ' <span class="fw-light">' + group.markers.map(m => m[0] + "/" + m[1]).join(" + ") + "</span>";
+        section.appendChild(header);
+
+        players.forEach(player => {
+            const row = document.createElement("div");
+            row.classList.add("d-flex", "align-items-center", "mt-1");
+
+            const id = group.ambition + "_" + player.number;
+
+            const label = document.createElement("label");
+            label.classList.add("me-2");
+            label.style.width = "80px";
+            label.htmlFor = "scoreCount_" + id;
+            label.innerHTML = "Player " + player.number;
+
+            // Filled in from the resources being tracked, but can be changed
+            const input = document.createElement("input");
+            input.type = "number";
+            input.min = "0";
+            input.classList.add("form-control", "form-control-sm");
+            input.style.width = "80px";
+            input.id = "scoreCount_" + id;
+            input.dataset.player = player.number;
+            input.value = ambitionResources[group.ambition](player);
+            input.oninput = updateScoringPreview;
+
+            const points = document.createElement("span");
+            points.classList.add("ms-2", "fw-bold");
+            points.id = "scorePoints_" + id;
+
+            row.append(label, input, points);
+            section.appendChild(row);
+        });
+
+        list.appendChild(section);
+    });
+
+    updateScoringPreview();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("scoringModal")).show();
+}
+
+function getScoringResults() {
+    // Work out the points for each declared ambition from the counts in the scoring modal
+    let results = [];
+
+    document.querySelectorAll("#scoringList .scoringambition").forEach(section => {
+        const counts = [...section.querySelectorAll("input")].map(input => ({
+            player: getPlayer(input.dataset.player),
+            count: parseInt(input.value) || 0
+        }));
+
+        scoreAmbition(counts, JSON.parse(section.dataset.markers)).forEach(result => {
+            results.push({ ambition: section.dataset.ambition, player: result.player, points: result.points });
+        });
+    });
+
+    return results;
+}
+
+function updateScoringPreview() {
+    document.querySelectorAll("#scoringList span[id^=scorePoints_]").forEach(span => { span.innerHTML = ""; });
+
+    getScoringResults().forEach(result => {
+        document.getElementById("scorePoints_" + result.ambition + "_" + result.player.number).innerHTML = "+" + result.points;
+    });
+}
+
+function confirmScoring() {
+    let summary = [];
+
+    getScoringResults().forEach(result => {
+        setPlayerPower(result.player, result.player.powerValue + result.points);
+        if (result.points > 0) {
+            summary.push("Player " + result.player.number + " +" + result.points + " (" + result.ambition + ")");
+        }
+    });
+
+    // The ambitions have been scored, so clear them to stop them being scored again
+    declaredAmbitions = [];
+    setElementValue("declaredAmbitions", 0);
+    SaveAllSettings();
+
+    showMessageToast("Round " + roundNumber + " Scores", summary.length > 0 ? summary.join("<br>") : "Nobody scored");
+
+    // Carry on once the scoring modal has closed, as the game over
+    // modal can't open while another modal is still closing
+    document.getElementById("scoringModal").addEventListener('hidden.bs.modal', () => {
+        startNextRound();
+    }, { once: true });
+}
+
+function setPlayerPower(player, power) {
+    player.powerValue = power;
+
+    const input = document.getElementById("powerValue_" + player.number);
+    if (input != null) { input.value = power; }
+
+    const header = document.getElementById("playerpower" + player.number);
+    if (header != null) { header.innerHTML = "Power " + power; }
+}
+
+function isGameOver() {
+    return roundNumber >= 5 || players.some(player => player.powerValue >= powerToWin[players.length]);
+}
+
+function showGameOverModal() {
+    const standings = players.slice().sort((a, b) => b.powerValue - a.powerValue);
+    const target = powerToWin[players.length];
+    const reachedTarget = standings.filter(player => player.powerValue >= target);
+
+    document.getElementById("gameOverReason").innerHTML = (reachedTarget.length > 0)
+        ? reachedTarget.map(player => "Player " + player.number).join(" and ") + " reached " + target + " power"
+        : "The end of round 5";
+
+    const list = document.getElementById("gameOverList");
+    list.replaceChildren();
+
+    standings.forEach(player => {
+        const row = document.createElement("div");
+        row.classList.add("fs-5");
+        if (player.powerValue == standings[0].powerValue) { row.classList.add("fw-bold"); }
+        row.innerHTML = "Player " + player.number + ": " + player.powerValue + " power";
+        list.appendChild(row);
+    });
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("gameOverModal")).show();
+}
+
+// #endregion
 
 function resetRound() {
     hasInitiativeBeenClaimedThisTurn = false;
@@ -759,7 +1007,11 @@ function showCardModal(player, cards, title, prompt, action) {
                     players.forEach(p => removePlayedCard(p.cards, cardFullName));
 
                     const playedDiv = document.getElementById("playedlist" + cardFullName);
-                    if (playedDiv != null) { playedDiv.remove(); }
+                    if (playedDiv != null) {
+                        const tooltip = bootstrap.Tooltip.getInstance(playedDiv);
+                        if (tooltip != null) { tooltip.dispose(); }
+                        playedDiv.remove();
+                    }
 
                     player.cards.push(drawCard);
                     createCardButtonsForHumanPlayer();
@@ -812,6 +1064,7 @@ function createCardButtonsForHumanPlayer() {
     const player = players[0];
 
     const playerhandDiv = document.getElementById("playerhand1");
+    disposeTooltips(playerhandDiv);
     playerhandDiv.replaceChildren();
 
     player.cards.forEach(card => {
@@ -1887,6 +2140,7 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
 
         if (reset) {
             playedCardList = [];
+            disposeTooltips(cardListDiv);
             cardListDiv.replaceChildren();
             cardListDiv.innerHTML = "Turn " + turnNumber.toString();
         }
@@ -1996,6 +2250,12 @@ function plusMinusClicked(id, action) {
             resourceValue = player.trophiesValue;
             break;
 
+        case "power":
+            // Also updates the power shown in the player's header
+            setPlayerPower(player, player.powerValue + value);
+            resourceValue = player.powerValue;
+            break;
+
         default:
             break;
     }
@@ -2008,7 +2268,18 @@ function plusMinusClicked(id, action) {
 // #region UTILS
 
 function removeChildElements(id) {
-    document.getElementById(id).replaceChildren();
+    const element = document.getElementById(id);
+    disposeTooltips(element);
+    element.replaceChildren();
+}
+
+function disposeTooltips(container) {
+    // Remove the tooltips of elements that are about to be removed. If an element is
+    // removed while its tooltip is showing, the tooltip would be left on screen
+    container.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(element => {
+        const tooltip = bootstrap.Tooltip.getInstance(element);
+        if (tooltip != null) { tooltip.dispose(); }
+    });
 }
 
 function showHideElement(elements, show) {

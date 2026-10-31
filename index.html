@@ -63,6 +63,7 @@
                 <div class="col-auto" id="playernumber">Player x</div>
                 <div class="col-auto d-none"
                   id="playerinitiative">&#9733;</div>
+                <div class="col-auto fw-light" id="playerpower">Power 0</div>
               </div>
             </a>
             <div class="d-flex ms-auto d-none" id="playeroptions">
@@ -240,6 +241,27 @@
                   <div class="input-group-append">
                     <button class="btn btn-outline-secondary"
                       id="plusButton_trophies" type="button"
+                      onclick="plusMinusClicked(id, 'plus')"><i
+                        class="bi bi-plus"></i></button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-3 fs-5 fw-light">Power:</div>
+                <div class="col-auto input-group mb-3"
+                  style="width: 160px;">
+                  <div class="input-group-prepend">
+                    <button class="btn btn-outline-secondary"
+                      id="minusButton_power" type="button"
+                      onclick="plusMinusClicked(id, 'minus')"><i
+                        class="bi bi-dash"></i></button>
+                  </div>
+                  <input type="text" class="form-control" id="powerValue"
+                    value="0" disabled>
+                  <div class="input-group-append">
+                    <button class="btn btn-outline-secondary"
+                      id="plusButton_power" type="button"
                       onclick="plusMinusClicked(id, 'plus')"><i
                         class="bi bi-plus"></i></button>
                   </div>
@@ -479,6 +501,51 @@
                   Empath</button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="scoringModal" tabindex="-1"
+      aria-labelledby="Scoring" aria-hidden="true"
+      data-bs-backdrop="static">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="scoringModalTitle">
+              Round Scoring
+            </h5>
+          </div>
+          <div class="modal-body">
+            <p>Check how many of each ambition's resources every player has.
+              Counts are filled in from the resources being tracked.</p>
+            <div id="scoringList"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary"
+              data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary"
+              onclick="confirmScoring()" data-bs-dismiss="modal"
+              id="confirmScoring">Confirm Scores</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="gameOverModal" tabindex="-1"
+      aria-labelledby="GameOver" aria-hidden="true">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Game Over</h5>
+          </div>
+          <div class="modal-body">
+            <p id="gameOverReason"></p>
+            <div id="gameOverList"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary"
+              data-bs-dismiss="modal">Close</button>
           </div>
         </div>
       </div>
