@@ -111,7 +111,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     break;
 
                 case "initiaiteClaimed":
-                    hasInitiativeBeenClaimedThisTurn = value;
+                    // localStorage holds text, so convert "true"/"false" back to a boolean
+                    hasInitiativeBeenClaimedThisTurn = (value === "true");
+                    break;
+
                 default:
                     break;
             }
@@ -120,6 +123,9 @@ document.addEventListener("DOMContentLoaded", () => {
         // Played cards must be loaded before players, as setCurrentPlayer
         // relies on playedCardList to know if the turn has been led
         loadPlayedCardList();
+        // Loaded after the played cards, as loading those adds them to the
+        // discard pile again. The saved pile already includes them
+        loadDiscardPile();
         loadPlayers();
         loadAmbitions();
     }
@@ -140,6 +146,10 @@ function loadPlayers() {
         }
     }
     if (haveAllPlayersPlayedACard() == true) {
+        // setCurrentPlayer isn't used when everyone has played, so show
+        // the initiative star and give currentPlayer a value here
+        currentPlayer = getPlayerWithInitiative();
+        changeInitiative(currentPlayer);
         enableNextTurnButton();
     } else {
         setCurrentPlayer(findCurrentPlayer());
@@ -178,6 +188,14 @@ function loadPlayedCardList() {
         cardlist.forEach(card => {
             addPlayedCardToList(card, card.playedAction, card.cardAction, false);
         })
+    }
+}
+
+function loadDiscardPile() {
+    const pile = getSettingObject('discardPile');
+
+    if (pile != null) {
+        discardPile = pile;
     }
 }
 
@@ -382,8 +400,9 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
     //input.setAttribute("data-bs-toggle","button");
 
     let l = document.createElement("label");
+    // No id on the label, as the input already uses btntext and ids must be unique.
+    // Find the label with label[for="..."] instead
     l.classList.add("btn", btnstyle, "m-1");
-    l.id = btntext;
     l.htmlFor = btntext;
     l.textContent = btntext.toUpperCase();
 
@@ -416,52 +435,57 @@ function createClaimButton(btntext, group, groupname) {
     return input;
 }
 
+function getActionButtonElements(action) {
+    // The action's input (or CLAIM button) and the label that displays it
+    return document.querySelectorAll('#' + action + ', label[for="' + action + '"]');
+}
+
 function showHideActionButtons(isleading, card) {
     if (isleading) {
-        showHideElement(document.querySelectorAll('#LEAD'), true);
-        showHideElement(document.querySelectorAll('#DECLARE'), (card.number != 1 && declaredAmbitions.length < 3) ? true : false);
-        showHideElement(document.querySelectorAll('#SURPASS'), false);
-        showHideElement(document.querySelectorAll('#COPY'), false);
-        showHideElement(document.querySelectorAll('#PIVOT'), false);
-        showHideElement(document.querySelectorAll('#CLAIM'), false);
+        showHideElement(getActionButtonElements('LEAD'), true);
+        showHideElement(getActionButtonElements('DECLARE'), (card.number != 1 && declaredAmbitions.length < 3) ? true : false);
+        showHideElement(getActionButtonElements('SURPASS'), false);
+        showHideElement(getActionButtonElements('COPY'), false);
+        showHideElement(getActionButtonElements('PIVOT'), false);
+        showHideElement(getActionButtonElements('CLAIM'), false);
         return;
     }
 
     const aiPlayedLeadCard = playedCardList[0];
 
     // Hide the CLAIM button by default
-    showHideElement(document.querySelectorAll('#CLAIM'), false);
+    showHideElement(getActionButtonElements('CLAIM'), false);
 
     // Only show the claim button if:
     // - the inititive hasn't already been claimed this turn OR
     // - the active player has two or more cards to play
     if (hasInitiativeBeenClaimedThisTurn == false && getUnplayedCards(players[0].cards).length > 2) {
-        showHideElement(document.querySelectorAll('#CLAIM'), true);
+        showHideElement(getActionButtonElements('CLAIM'), true);
     }
-    //(getUnplayedCards(players[0].cards).length < 2) ? showHideElement(document.querySelectorAll('#CLAIM'), false) : showHideElement(document.querySelectorAll('#CLAIM'), true)
+    //(getUnplayedCards(players[0].cards).length < 2) ? showHideElement(getActionButtonElements('CLAIM'), false) : showHideElement(getActionButtonElements('CLAIM'), true)
 
     // Not leading so cannot Lead or Declare
-    showHideElement(document.querySelectorAll('#LEAD'), false);
-    showHideElement(document.querySelectorAll('#DECLARE'), false);
+    showHideElement(getActionButtonElements('LEAD'), false);
+    showHideElement(getActionButtonElements('DECLARE'), false);
 
     if (card.name == aiPlayedLeadCard.name) {
         if (card.number > getCardValue(aiPlayedLeadCard)) {
-            // Played the same suit and the number is higher so can Surpass
-            showHideElement(document.querySelectorAll('#SURPASS'), true);
-            showHideElement(document.querySelectorAll('#COPY'), false);
-            showHideElement(document.querySelectorAll('#PIVOT'), false);
-            showHideElement(document.querySelectorAll('#CLAIM'), false);
+            // Played the same suit and the number is higher so can Surpass.
+            // Any card can be played face down to Copy
+            showHideElement(getActionButtonElements('SURPASS'), true);
+            showHideElement(getActionButtonElements('COPY'), true);
+            showHideElement(getActionButtonElements('PIVOT'), false);
         } else {
             // card is the same suit but not higher so can only COPY
-            showHideElement(document.querySelectorAll('#SURPASS'), false);
-            showHideElement(document.querySelectorAll('#COPY'), true);
-            showHideElement(document.querySelectorAll('#PIVOT'), false);
+            showHideElement(getActionButtonElements('SURPASS'), false);
+            showHideElement(getActionButtonElements('COPY'), true);
+            showHideElement(getActionButtonElements('PIVOT'), false);
         }
     } else {
         // played a different suit so can Copy or Pivot
-        showHideElement(document.querySelectorAll('#SURPASS'), false);
-        showHideElement(document.querySelectorAll('#COPY'), true);
-        showHideElement(document.querySelectorAll('#PIVOT'), true);
+        showHideElement(getActionButtonElements('SURPASS'), false);
+        showHideElement(getActionButtonElements('COPY'), true);
+        showHideElement(getActionButtonElements('PIVOT'), true);
     }
 }
 
@@ -668,7 +692,9 @@ function humanSelectedAction(cardAction) {
 
             showCardModal(player, getUnplayedCards(player.cards), "Claim Card List", "Please select a card second card to play", "CLAIM");
 
-        } else if (isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard)) {
+        } else if (cardAction == "SURPASS" && isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard)) {
+            // Only a face up SURPASS can take the initiative. A higher card
+            // played face down as a COPY doesn't count
             checkInitiative(player, playedCard, false);
         }
 
@@ -686,7 +712,7 @@ function humanSelectedAction(cardAction) {
 }
 
 function showCardModal(player, cards, title, prompt, action) {
-    let modal = new bootstrap.Modal(document.getElementById("cardsModal"));
+    let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("cardsModal"));
 
     const cardsModalPrompt = document.querySelector("#cardsModalPrompt");
     cardsModalPrompt.innerHTML = prompt;
@@ -713,14 +739,33 @@ function showCardModal(player, cards, title, prompt, action) {
 
             case "DRAW":
                 btn.onclick = function () {
+                    const cardFullName = btn.innerHTML;
+
                     // add clicked card to players hand
                     // The ... below is a Spread copy meaning that the drawCard is
                     // shallow copy of the original card, not a reference to it
-                    const drawCard = { ...getCardByNameAndNumber(cards, btn.innerHTML, true) }
+                    const drawCard = { ...getCardByNameAndNumber(cards, cardFullName, true) }
+                    // Clear details of how the card was last played
                     drawCard.played = false;
                     drawCard.declared = false;
+                    drawCard.cardAction = '';
+                    drawCard.playedAction = '';
+                    drawCard.playedByPlayerNumber = 0;
+
+                    // The card now only exists in this player's hand, so remove it from the
+                    // discard pile, this turn's played cards and the hand of whoever played it
+                    removePlayedCard(discardPile, cardFullName);
+                    removePlayedCard(playedCardList, cardFullName);
+                    players.forEach(p => removePlayedCard(p.cards, cardFullName));
+
+                    const playedDiv = document.getElementById("playedlist" + cardFullName);
+                    if (playedDiv != null) { playedDiv.remove(); }
+
                     player.cards.push(drawCard);
                     createCardButtonsForHumanPlayer();
+
+                    saveSettingObject('playedCardList', playedCardList);
+                    SaveAllSettings();
                 };
                 break;
 
@@ -731,6 +776,11 @@ function showCardModal(player, cards, title, prompt, action) {
         cardsModalList.appendChild(btn);
     });
     modal.show();
+}
+
+function removePlayedCard(cards, cardFullName) {
+    const index = cards.findIndex(card => getCardFullName(card) == cardFullName && card.played);
+    if (index >= 0) { cards.splice(index, 1); }
 }
 
 function isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard) {
@@ -753,7 +803,7 @@ function dealCards() {
         playerNumber += 1;
 
     }
-    while (players[players.length - 1].cards.length < 5)
+    while (players[players.length - 1].cards.length < 6)
 
     createCardButtonsForHumanPlayer();
 }
@@ -772,7 +822,7 @@ function createCardButtonsForHumanPlayer() {
         btn.value = card.number;
 
         // Add tooltip which displays the number of pips and ambition
-        createTooltip('label#' + btn.id, getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase() + "<br>" + getActionsOnCard(card));
+        createTooltip('label[for="' + btn.id + '"]',getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase() + "<br>" + getActionsOnCard(card));
 
         if (card.played) { btn.disabled = true; }
 
@@ -802,7 +852,8 @@ function createTooltip(elementid, title) {
 
 function refreshTooltips() {
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+    // getOrCreateInstance so elements that already have a tooltip don't get another one
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => bootstrap.Tooltip.getOrCreateInstance(tooltipTriggerEl));
 }
 
 function getActionsOnCard(card) {
@@ -960,6 +1011,34 @@ function findFocus(player, unplayedCards) {
 }
 
 let modal;
+let currentQuestionNumber;
+
+// The action each Yes/No question asks about, in the order the questions are asked.
+// Question 1 is the first entry. The question text is in focus_tycoon, focus_tyrant etc.
+const ambitionQuestionActions = {
+    // materials and fuel: tax, secure, influence, raid
+    TYCOON: ["tax", "secure", "influence", "battle"],
+    // capture: tax a rival city, secure a card with rival agents, ransack the court
+    TYRANT: ["tax", "secure", "battle"],
+    // fight: battle, secure a weapons card, influence a weapons card
+    WARLORD: ["battle", "secure", "influence"],
+    // relics: tax, secure, influence, raid
+    KEEPER: ["tax", "secure", "influence", "battle"],
+    // psionics: tax, secure, influence, raid
+    EMPATH: ["tax", "secure", "influence", "battle"]
+};
+
+function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions) {
+    // Find the next question for the ambition that the player has a card
+    // for, skipping any whose action isn't in their hand. 0 if there are none
+    const questionActions = ambitionQuestionActions[ambition];
+    for (let questionNumber = afterQuestionNumber + 1; questionNumber <= questionActions.length; questionNumber++) {
+        if (possibleActions.includes(questionActions[questionNumber - 1])) {
+            return questionNumber;
+        }
+    }
+    return 0;
+}
 
 function getPossibleActions(unplayedCards) {
     let possibleActions = "";
@@ -970,140 +1049,29 @@ function getPossibleActions(unplayedCards) {
 }
 
 function chaseAmbition(player, possibleActions, unplayedCards) {
-    if (declaredAmbitions.length > 0 && player.ambitionsEvaluated.length < declaredAmbitions.length) {
-        // TODO Need to determine which ambition is best to chase
-        // - Have cards to chase?
-        // - Have pieces to chase?
-        // - Worth most points?
-        for (let index = 0; index < declaredAmbitions.length + 1; index++) {
-            const ambition = declaredAmbitions[index];
-            //switch (ambition) {
-            if (ambition == "tycoon" && player.ambitionsEvaluated.includes("TYCOON") == false) {
-                // materials and fuel
-                // tax or steal or secure
-                // Q: Can I tax a city for weapons or fuel?
-                // Q: Is there a materials or fuel card in the market to secure?
-                // Q: Is there a materials or fuel card in the market to influence?
-                // Q: Can I raid a city for materials or fuel?
-                if (possibleActions.includes("tax")) {
-                    focus_ambition("TYCOON", 1);
-                    //focus_tycoon(1);
-                    break;
-                } else if (possibleActions.includes("secure")) {
-                    focus_ambition("TYCOON", 2);
-                    //focus_tycoon(2);
-                    break;
-                } else if (possibleActions.includes("influence")) {
-                    focus_ambition("TYCOON", 3);
-                    //focus_tycoon(3);
-                    break;
-                } else if (possibleActions.includes("battle")) {
-                    focus_ambition("TYCOON", 4);
-                    //focus_tycoon(4);
-                    break;
-                }
-            } else if (ambition == "tyrant" && player.ambitionsEvaluated.includes("TYRANT") == false) {
-                // capture
-                // tax rival city or ransack or secure
-                // Q: Can I tax a rival city to capture?
-                // Q: Is there a card in the market with rival agents that I can secure?
-                // Q: Can I destroy a city to ransack the court?  
-                if (possibleActions.includes("tax")) {
-                    focus_ambition("TYRANT", 1);
-                    //focus_tyrant(1);
-                    break;
-                } else if (possibleActions.includes("secure")) {
-                    focus_ambition("TYRANT", 2);
-                    //focus_tyrant(2);
-                    break;
-                } else if (possibleActions.includes("battle")) {
-                    focus_ambition("TYRANT", 3);
-                    //focus_tyrant(3);
-                    break;
-                }
-            } else if (ambition == "warlord" && player.ambitionsEvaluated.includes("WARLORD") == false) {
-                // fight
-                // battle or secure
-                // Q: Can I fight?
-                // Q: Is there a weapons card in the market to secure?
-                // Q: Is there a weapons card in the market to influence?
-                if (possibleActions.includes("battle")) {
-                    focus_ambition("WARLORD", 1);
-                    //focus_warlord(1);
-                    break;
-                } else if (possibleActions.includes("secure")) {
-                    focus_ambition("WARLORD", 2);
-                    //focus_warlord(2);
-                    break;
-                } else if (possibleActions.includes("influence")) {
-                    focus_ambition("WARLORD", 3);
-                    //focus_warlord(3);
-                    break;
-                }
-            } else if (ambition == "keeper" && player.ambitionsEvaluated.includes("KEEPER") == false) {
-                // relics
-                // tax or steal or secure
-                // Q: Can I tax a city for a relic?
-                // Q: Is there a relic card in the market to secure?
-                // Q: Is there a relic card in the market to influence?
-                // Q: Can I raid a city for a relic?
-                if (possibleActions.includes("tax")) {
-                    focus_ambition("KEEPER", 1);
-                    //focus_keeper(1);
-                    break;
-                } else if (possibleActions.includes("secure")) {
-                    focus_ambition("KEEPER", 2);
-                    //focus_keeper(2);
-                    break;
-                } else if (possibleActions.includes("influence")) {
-                    focus_ambition("KEEPER", 3);
-                    //focus_keeper(3);
-                    break;
-                } else if (possibleActions.includes("battle")) {
-                    focus_ambition("KEEPER", 4);
-                    //focus_keeper(4);
-                    break;
-                }
-            } else if (ambition == "empath" && player.ambitionsEvaluated.includes("EMPATH") == false) {
-                // psionic
-                // tax or steal or secure
-                // Q: Can I tax a city for a psionic?
-                // Q: Is there a psionic card in the market to secure?
-                // Q: Is there a psionic card in the market to influence?
-                // Q: Can I raid a city for a psionic?
-                if (possibleActions.includes("tax")) {
-                    focus_ambition("EMPATH", 1);
-                    //focus_empath(1);
-                    break;
-                } else if (possibleActions.includes("secure")) {
-                    focus_ambition("EMPATH", 2);
-                    //focus_empath(2);
-                    break;
-                } else if (possibleActions.includes("influence")) {
-                    focus_ambition("EMPATH", 3);
-                    //focus_empath(3);
-                    break;
-                } else if (possibleActions.includes("battle")) {
-                    focus_ambition("EMPATH", 4);
-                    //focus_empath(4);
-                    break;
-                }
-            } else if (ambition == null) {
-                //findCardToPlay(unplayedCards, "");
-                return false;
-            }
-        }
+    // TODO Need to determine which ambition is best to chase
+    // - Have cards to chase?
+    // - Have pieces to chase?
+    // - Worth most points?
+    for (let index = 0; index < declaredAmbitions.length; index++) {
+        const ambition = declaredAmbitions[index].toUpperCase();
 
-        //return;
-    } else {
-        //findCardToPlay(unplayedCards, "");
-        return false;
+        if (player.ambitionsEvaluated.includes(ambition)) { continue; }
+
+        // Ask the first question for this ambition the player has a card for
+        const questionNumber = getNextQuestionNumber(ambition, 0, possibleActions);
+        if (questionNumber > 0) {
+            focus_ambition(ambition, questionNumber);
+            return true;
+        }
     }
 
-    return true;
+    return false;
 }
 
 function focus_ambition(ambition, questionNumber, answerNo) {
+    currentQuestionNumber = questionNumber;
+
     // Only (re)open the modal and set the focus title if the
     // previous answer was not 'No'
     if (answerNo == null) {
@@ -1300,45 +1268,12 @@ function openYesNoModal(focusTitle) {
 
 function answerYes() {
     const unplayedCards = getUnplayedCards(currentPlayer.cards);
-    let cardsWithAction;
-    let actionToPlay;
+    const focus = document.getElementById("focusMessage").innerHTML;
 
-    const question = document.getElementById("yesNoMessage").innerHTML;
-    switch (question) {
-        case "Can I tax a city for materials or fuel?":
-        case "Can I tax a rival's city to capture?":
-        case "Can I tax a city for a relic?":
-        case "Can I tax a city for a psionic?":
-            actionToPlay = "tax";
-            break;
+    // The action the question that was just answered asks about
+    const actionToPlay = ambitionQuestionActions[focus][currentQuestionNumber - 1];
 
-        case "Is there a materials or fuel card in the market I can secure?":
-        case "Is there a card in the market with rival agents on it that I can secure?":
-        case "Is there a weapons card in the market I can secure?":
-        case "Is there a relic card in the market I can secure?":
-        case "Is there a psionic card in the market I can secure?":
-            actionToPlay = "secure";
-            break;
-
-        case "Is there a materials or fuel card in the market I can influence?":
-        case "Is there a weapons card in the market I can influence?":
-        case "Is there a relic card in the market I can influence?":
-        case "Is there a psionic card in the market I can influence?":
-            actionToPlay = "influence";
-            break;
-
-        case "Can I raid a city for materials or fuel?":
-        case "Can I destory a city to ransack the court?":
-        case "Can I battle a rival?":
-        case "Can I raid a city for a relic?":
-        case "Can I raid a city for a psionic?":
-            actionToPlay = "battle";
-            break;
-        default:
-            break;
-    }
-
-    cardsWithAction = getCardsWithAction(unplayedCards, actionToPlay);
+    const cardsWithAction = getCardsWithAction(unplayedCards, actionToPlay);
     findCardToPlay(cardsWithAction, actionToPlay);
 }
 
@@ -1384,7 +1319,7 @@ function findCardToPlay(cards, actionToPlay) {
         playCard(currentPlayer, cardToPlay, actionToPlay, cardAction);
     } else {
         if (canSurpass(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
-            if (claim(currentPlayer, actionToPlay, cardAction) == false) {
+            if (claim(currentPlayer, cards, actionToPlay) == false) {
                 if (canCopy(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
                     pivot(currentPlayer, cards, actionToPlay);
                 }
@@ -1431,107 +1366,18 @@ function prioritiseAndSortAmbitions() {
 }
 
 function answerNo() {
-    const question = document.getElementById("yesNoMessage").innerHTML;
     const focus = document.getElementById("focusMessage").innerHTML;
-
-    // Case AMBITION
-    // If question and has card with action
-    // else next question and has card with action
-    // else check for next ambition??
-    // else just play a random card
-
     const unplayedCards = getUnplayedCards(currentPlayer.cards);
 
-    let possibleActions = "";
-
-    unplayedCards.forEach(card => {
-        possibleActions += card.actions;
-    })
-
-    // Below logic:
-    // Check the question that was JUST asked (i.e. the answer was NO)
-    // and also check that player has cards with the possible action for NEXT question
-
-    switch (focus) {
-        case "TYCOON":
-
-            if (question == "Can I tax a city for materials or fuel?" && possibleActions.includes("secure")) {
-                focus_ambition(focus, 2, true);
-                return;
-            }
-
-            if (question == "Is there a materials or fuel card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_ambition(focus, 3, true);
-                return;
-            }
-
-            if (question == "Is there a materials or fuel card in the market I can influence?" && possibleActions.includes("battle")) {
-                focus_ambition(focus, 4, true);
-                return;
-            }
-
-        case "TYRANT":
-
-            if (question == "Can I tax a rival's city to capture?" && possibleActions.includes("secure")) {
-                focus_ambition(focus, 2, true);
-                return;
-            }
-
-            if (question == "Is there a card in the market with rival agents on it that I can secure?" && possibleActions.includes("battle")) {
-                focus_ambition(focus, 3, true);
-                return;
-            }
-
-        case "WARLORD":
-
-            if (question == "Can I battle a rival?" && possibleActions.includes("secure")) {
-                focus_ambition(focus, 2, true);
-                return;
-            }
-
-            if (question == "Is there a weapons card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_ambition(focus, 3, true);
-                return;
-            }
-
-        case "KEEPER":
-
-            if (question == "Can I tax a city for a relic?" && possibleActions.includes("secure")) {
-                focus_ambition(focus, 2, true);
-                return;
-            }
-
-            if (question == "Is there a relic card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_ambition(focus, 3, true);
-                return;
-            }
-
-            if (question == "Is there a relic card in the market I can influence?" && possibleActions.includes("battle")) {
-                focus_ambition(focus, 4, true);
-                return;
-            }
-
-        case "EMPATH":
-
-            if (question == "Can I tax a city for a psionic?" && possibleActions.includes("secure")) {
-                focus_ambition(focus, 2, true);
-                return;
-            }
-
-            if (question == "Is there a psionic card in the market I can secure?" && possibleActions.includes("influence")) {
-                focus_ambition(focus, 3, true);
-                return;
-            }
-
-            if (question == "Is there a psionic card in the market I can influence?" && possibleActions.includes("battle")) {
-                focus_ambition(focus, 4, true);
-                return;
-            }
-
-        default:
-            break;
+    // Move on to the next question for this ambition that the player has a card for.
+    // Questions whose action isn't in their hand are skipped
+    const nextQuestionNumber = getNextQuestionNumber(focus, currentQuestionNumber, getPossibleActions(unplayedCards));
+    if (nextQuestionNumber > 0) {
+        focus_ambition(focus, nextQuestionNumber, true);
+        return;
     }
 
+    // No questions left for this ambition, so try the next ambition
     currentPlayer.ambitionsEvaluated.push(focus);
 
     // Wait for the modal to finish hiding before moving on. Bootstrap ignores
@@ -1635,7 +1481,7 @@ function declareAmbition(player, playedCard) {
         showMessageToast("Player" + player.number, "Player declared ambition: " + ambition);
         playedCard.declared = true;
 
-        addPlayedCardToList(playedCard, "ANY", "LEAD", true, player);
+        addPlayedCardToList(playedCard, playedCard.playedAction, "LEAD", true, player);
 
         declaredAmbitions.push(ambition);
         setElementValue("declaredAmbitions", declaredAmbitions.length);
@@ -1677,15 +1523,17 @@ function declareAmbitionClick(ambition) {
 }
 
 function showDeclareAmbitionModal(ele, hasPlayedASeven, player, playedCard) {
-    let modal = new bootstrap.Modal(document.getElementById("declareAmbitionModal"));
+    let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("declareAmbitionModal"));
     const playerNumber = ele != null ? getPlayerNumberFromElement(ele) : player.number;
     const title = document.getElementById("declareAmbitionModalTitle");
     title.innerHTML = "Player " + playerNumber;
 
-    if (hasPlayedASeven) {
-        const seven = document.getElementById("playedSeven");
-        seven.innerHTML = "TRUE";
+    // Always set the flag, so a 7 whose declare modal was closed without choosing
+    // doesn't make a later declare (from the Declare icon) treat it as a 7
+    const seven = document.getElementById("playedSeven");
+    seven.innerHTML = hasPlayedASeven ? "TRUE" : "";
 
+    if (hasPlayedASeven) {
         const card = document.getElementById("playedCard");
         card.innerHTML = getCardFullName(playedCard);
     }
@@ -1721,11 +1569,18 @@ function canCopy(player, playedCard, unplayedCards, actionToPlay) {
     let copyCards = [];
     let canCopy = false;
 
+    // A card of the lead suit that can't surpass can only be played as a COPY
     unplayedCards.forEach(card => {
         if (playedCard.name == card.name) {
             copyCards.push(card);
         }
     })
+
+    // Any card can be played face down to COPY. If the player is after an action
+    // the lead card offers, copy with their lowest card and keep the rest for later
+    if (copyCards.length == 0 && actionToPlay != "ANY" && playedCard.actions.includes(actionToPlay)) {
+        copyCards = getUnplayedCards(player.cards);
+    }
 
     if (copyCards.length == 0) {
         // no card to COPY with
@@ -1756,7 +1611,7 @@ function getLowestCardtoPlay(cards) {
     return lowestCard;
 }
 
-function claim(player, actionToPlay, cardAction) {
+function claim(player, cards, actionToPlay) {
     // Logic;
     //  claim needs to be based on a calc between: number of cards in hand, number of ambitions played, .... other things
     //  at the start of the game the calc needs to rarely succeed
@@ -1773,6 +1628,9 @@ function claim(player, actionToPlay, cardAction) {
     // No point in claiming if player has two or less cards
     if (unplayedCards.length <= 2) { return false; }
 
+    // Need a card for this turn's action as well as one to claim with
+    if (cards.length == 0) { return false; }
+
     // Get the total values of the unplayed cards. The lower the total number, the lower the 
     // card numbers the player has and therefore the less chance of surpassing
     let totalValueOfCards = 0;
@@ -1784,9 +1642,15 @@ function claim(player, actionToPlay, cardAction) {
 
     //num = 9;
     if (num >= totalValueOfCards) {
-        playCard(player, getLowestCardtoPlay(unplayedCards), actionToPlay == "" ? "CLAIM" : actionToPlay, cardAction, true);
-        unplayedCards = getUnplayedCards(unplayedCards);
-        playCard(player, getLowestCardtoPlay(unplayedCards), actionToPlay, "CLAIM", false);
+        // First play the card for this turn's action, chosen from the cards that have
+        // the action the player is after. It couldn't surpass, so a card of the lead
+        // suit can only COPY and any other card PIVOTs
+        const actionCard = getLowestCardtoPlay(cards);
+        const actionCardAction = (actionCard.name == playedCardList[0].name) ? "COPY" : "PIVOT";
+        playCard(player, actionCard, actionToPlay, actionCardAction);
+
+        // Then play a second card face down to claim the initiative
+        playCard(player, getLowestCardtoPlay(getUnplayedCards(player.cards)), "ANY", "CLAIM");
 
         hasInitiativeBeenClaimedThisTurn = true;
         changeInitiative(player);
@@ -1890,7 +1754,7 @@ function pivot(player, cards, actionToPlay) {
 }
 
 function displayVoxCards() {
-    let modal = new bootstrap.Modal(document.getElementById("voxCards"));
+    let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("voxCards"));
     modal.show();
 }
 
@@ -1912,14 +1776,24 @@ function playVoxCard(btn) {
     }
 }
 
+let drawingPlayer;
+
+function setDrawingPlayer(ele) {
+    // Remember whose panel the Draw icon was clicked on, as
+    // it isn't necessarily the current player who is drawing
+    drawingPlayer = getPlayer(getPlayerNumberFromElement(ele));
+}
+
 function drawACard(pileName) {
+    const player = (drawingPlayer != null) ? drawingPlayer : currentPlayer;
+
     switch (pileName) {
         case 'playedthisturn':
-            showCardModal(currentPlayer, playedCardList, "Cards Played This Turn", "Select a card to add to player's hand", "DRAW")
+            showCardModal(player, playedCardList, "Cards Played This Turn", "Select a card to add to Player " + player.number + "'s hand", "DRAW")
             break;
 
         case 'discardpile':
-            showCardModal(currentPlayer, discardPile, "Cards In The Discard Pile", "Select a card to add to player's hand", "DRAW")
+            showCardModal(player, discardPile, "Cards In The Discard Pile", "Select a card to add to Player " + player.number + "'s hand", "DRAW")
             break;
 
         default:
@@ -1951,7 +1825,7 @@ function enableDisablePlayerPanels(playerNumber) {
 function showHidePlayerPanel(player, playerNumber) {
     const playerPanel = document.querySelector('#playerpanel' + player.number);
 
-    const collapse = new bootstrap.Collapse(playerPanel, {
+    const collapse = bootstrap.Collapse.getOrCreateInstance(playerPanel, {
         toggle: false // Prevents initial toggle
     });
 
@@ -1986,12 +1860,17 @@ function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
 function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
     if (card != null) {
         card.played = true;
-        discardPile.push(card);
 
-        // TODO The below two IF statements are horrid. Need a better way to do this
-        if (card.cardAction == '') { card.cardAction = cardAction };
-        if (card.playedAction == '') { card.playedAction = actionToPlay };
-        if (card.playedByPlayerNumber == 0) { card.playedByPlayerNumber = player.number };
+        // A reset re-adds a card that's already been played (declaring),
+        // so it's already in the discard pile
+        if (!reset) { discardPile.push(card); }
+
+        // Always record how the card was played this time, so a card drawn back
+        // and played again doesn't keep details from its previous play.
+        // player is only omitted when reloading saved cards, which keep their saved player
+        card.cardAction = cardAction;
+        card.playedAction = actionToPlay;
+        if (player != null) { card.playedByPlayerNumber = player.number };
 
         if (playedCardList.length == 0) {
             let turnListDiv = document.getElementById("playedcards");
@@ -2030,7 +1909,7 @@ function getNumberOfPips(card, action) {
     let pips = "  &#9733;";
 
     // Only add extra pips if the action is...
-    if (action == "SURPASS" | action == "LEAD" | action == "PLAYER") {
+    if (action == "SURPASS" | action == "LEAD" | action == "DECLARE" | action == "PLAYER") {
         for (let index = 0; index < card.pips - 1; index++) {
             pips += "&#9733;";
         }
@@ -2201,6 +2080,7 @@ const SaveSettings = (settings) => {
 const SaveAllSettings = () => {
     savePlayers();
     saveSettingObject('ambitions', declaredAmbitions);
+    saveSettingObject('discardPile', discardPile);
     SaveSetting("turn", turnNumber);
     SaveSetting("round", roundNumber);
     SaveSetting("initiaiteClaimed", hasInitiativeBeenClaimedThisTurn);
@@ -2246,7 +2126,7 @@ function saveAmbitions() {
 
 function test() {
     //document.getElementById("yesNo").modal('show');
-    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("yesNo"));
     updateYesNoText("Yo!");
     modal.show();
 }
