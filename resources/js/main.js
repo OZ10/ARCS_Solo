@@ -110,8 +110,10 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        loadPlayers();
+        // Played cards must be loaded before players, as setCurrentPlayer
+        // relies on playedCardList to know if the turn has been led
         loadPlayedCardList();
+        loadPlayers();
         loadAmbitions();
     }
 
@@ -202,8 +204,6 @@ function setupGame(numberOfPlayers) {
     createPlayers(numberOfPlayers);
 
     resetRound();
-
-    addExtraCards(numberOfPlayers);
 
     dealCards();
 
@@ -574,7 +574,7 @@ function resetRound() {
 
     currentactioncards = structuredClone(actioncards);
 
-    addExtraCards();
+    addExtraCards(players.length);
 
     resetDeck(currentactioncards);
 
@@ -642,7 +642,7 @@ function humanSelectedAction(cardAction) {
     const playedCard = getCardByNameAndNumber(player.cards, btnSelected.id, false);
     enableDisableButton(getCardFullName(playedCard), true);
 
-    if (player.hasInitiative) {
+    if (isLeadingThisTurn()) {
         playCard(player, playedCard, "ANY", cardAction, false);
         showHideElement(document.querySelectorAll("#actionbuttons"), false);
 
@@ -651,24 +651,17 @@ function humanSelectedAction(cardAction) {
         player.hasPlayedACardThisTurn = true;
         addPlayedCardToList(playedCard, "ANY", cardAction, false, player);
 
-        if (playedCardList.length == 1) {
-            // Human players card was added but list only have one entry
-            // AI hasn't played a card because, while it has inititive,
-            // it has no cards left to play because it has claimed at some point
+        const aiPlayedLeadCard = playedCardList[0];
+
+        const hasPlayerClaimed = document.getElementById("CLAIM").className.includes("active") ? true : false;
+
+        if (hasPlayerClaimed) {
+            changeInitiative(player);
+
+            showCardModal(player, getUnplayedCards(player.cards), "Claim Card List", "Please select a card second card to play", "CLAIM");
+
+        } else if (isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard)) {
             checkInitiative(player, playedCard, false);
-        } else {
-            const aiPlayedLeadCard = playedCardList[0];
-
-            const hasPlayerClaimed = document.getElementById("CLAIM").className.includes("active") ? true : false;
-
-            if (hasPlayerClaimed) {
-                changeInitiative(player);
-
-                showCardModal(player, getUnplayedCards(player.cards), "Claim Card List", "Please select a card second card to play", "CLAIM");
-
-            } else if (isPlayedCardSameSuitAndHigher(playedCard, aiPlayedLeadCard)) {
-                checkInitiative(player, playedCard, false);
-            }
         }
 
         //changeCurrentPlayer(player, false);
@@ -777,7 +770,7 @@ function createCardButtonsForHumanPlayer() {
         btn.onclick = function () {
             showHideElement(document.querySelectorAll("#actionbuttons"), true);
             document.getElementById("CLAIM").classList.remove("active");
-            if (player.hasInitiative) {
+            if (isLeadingThisTurn()) {
                 showHideActionButtons(true, getCardByNameAndNumber(players[0].cards, this.id, false));
             } else {
                 const playedCard = getCardByNameAndNumber(player.cards, btn.id, false);
@@ -846,10 +839,12 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
     //  - 2 - claim
     //  - 3 - PIVOT
 
+    const isLeading = isLeadingThisTurn();
+
     addPlayedCardToList(playedCard, actionToPlay, cardAction, false, player);
     player.hasPlayedACardThisTurn = true;
 
-    if (player.hasInitiative) {
+    if (isLeading) {
         if (player.isHuman && cardAction == "DECLARE") {
 
             if (playedCard.ambition == "any") {
@@ -901,7 +896,9 @@ function setCurrentPlayer(player) {
 
     } else {
         const nextPlayer = getNextPlayer(player.number);
-        changeInitiative(nextPlayer);
+        // Only pass initiative on if the player with no cards was due to lead.
+        // A follower with no cards is simply skipped
+        if (isLeadingThisTurn()) { changeInitiative(nextPlayer); }
         setCurrentPlayer(nextPlayer);
     }
 }
@@ -925,6 +922,12 @@ function determineCardToPlay(player) {
     }
 }
 
+function isLeadingThisTurn() {
+    // The first card played in a turn is the lead. Initiative can change hands
+    // mid-turn (surpass, claim, seize) so it can't be used to decide who is leading
+    return playedCardList.length == 0;
+}
+
 function findFocus(player, unplayedCards) {
     // LOGIC:
     // - TODO Need to check if player is leading and then workout whether they should declare instead of chasing.
@@ -933,7 +936,7 @@ function findFocus(player, unplayedCards) {
     // - Build for future turn
     // - random
 
-    if (player.hasInitiative){
+    if (isLeadingThisTurn()){
         findCardToPlay(unplayedCards, "");
     }else{
         if (chaseAmbition(player, getPossibleActions(unplayedCards), unplayedCards) == false){
@@ -1009,7 +1012,7 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
                     //focus_tyrant(3);
                     break;
                 }
-            } else if (ambition == "warload" && player.ambitionsEvaluated.includes("WARLORD") == false) {
+            } else if (ambition == "warlord" && player.ambitionsEvaluated.includes("WARLORD") == false) {
                 // fight
                 // battle or secure
                 // Q: Can I fight?
@@ -1092,9 +1095,9 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
 }
 
 function focus_ambition(ambition, questionNumber, answerNo) {
-    // Only create a new modal instance if the previous 
-    // answer was not 'No'
-    if (answerNo == null && modal == null) {
+    // Only (re)open the modal and set the focus title if the
+    // previous answer was not 'No'
+    if (answerNo == null) {
         modal = openYesNoModal(ambition);
     }
 
@@ -1280,7 +1283,7 @@ function focus_empath(questionNumber) {
 }
 
 function openYesNoModal(focusTitle) {
-    let modal = new bootstrap.Modal(document.getElementById("yesNo"));
+    let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("yesNo"));
     document.getElementById("yesNoTitle").innerHTML = "Player " + currentPlayer.number;
     document.getElementById("focusMessage").innerHTML = focusTitle;
     return modal;
@@ -1332,8 +1335,9 @@ function answerYes() {
 
 function findCardToPlay(cards, actionToPlay) {
     let cardToPlay = "";
+    const isLeading = isLeadingThisTurn();
 
-    if (currentPlayer.hasInitiative && actionToPlay == "") {
+    if (isLeading && actionToPlay == "") {
         // AI player is leading
         // Check which ambitions they should focus on
         // and play that card
@@ -1349,6 +1353,10 @@ function findCardToPlay(cards, actionToPlay) {
          }else{
             if (chaseAmbition(currentPlayer, getPossibleActions(cards), cards ) == false){
                 cardToPlay = getHighestCard(cards);
+            } else {
+                // The Yes/No modal is now open. answerYes/answerNo will
+                // play the card, so don't play one here as well
+                return;
             }
          }
     }
@@ -1361,9 +1369,9 @@ function findCardToPlay(cards, actionToPlay) {
 
     if (actionToPlay == "") { actionToPlay = "ANY" }
 
-    if (currentPlayer.hasInitiative) { cardAction = "LEAD" }
+    if (isLeading) { cardAction = "LEAD" }
 
-    if (cardToPlay != null && currentPlayer.hasInitiative) {
+    if (cardToPlay != null && isLeading) {
         playCard(currentPlayer, cardToPlay, actionToPlay, cardAction);
     } else {
         if (canSurpass(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
@@ -1516,8 +1524,15 @@ function answerNo() {
     }
 
     currentPlayer.ambitionsEvaluated.push(focus);
+
+    // Wait for the modal to finish hiding before moving on. Bootstrap ignores
+    // show() while the modal is fading out, so if findFocus asks about the next
+    // ambition straight away the question would never be displayed
+    document.getElementById("yesNo").addEventListener('hidden.bs.modal', () => {
+        findFocus(currentPlayer, unplayedCards);
+    }, { once: true });
+
     modal.hide();
-    findFocus(currentPlayer, unplayedCards);
 }
 
 function getHighestCard(cards) {
