@@ -20,6 +20,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     hasInitiativeBeenClaimedThisTurn = (value === "true");
                     break;
 
+                case "awaitingDone":
+                    awaitingDone = (value == "") ? null : parseInt(value);
+                    break;
+
                 default:
                     break;
             }
@@ -50,6 +54,7 @@ function setupGame(numberOfPlayers) {
     localStorage.clear();
 
     players = [];
+    awaitingDone = null;
     turnNumber = 1;
     roundNumber = 1;
     declaredAmbitions = [];
@@ -189,6 +194,7 @@ function startNextRound() {
 
 function resetRound() {
     hasInitiativeBeenClaimedThisTurn = false;
+    awaitingDone = null;
 
     resetPlayedCardList();
 
@@ -298,13 +304,103 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
             declareAmbition(player, playedCard);
         }
     }
-    setCurrentPlayer(getNextPlayer(player.number))
 
-    if (player.isHuman && haveAllPlayersPlayedACard()) {
-        enableNextTurnButton();
-    }
+    // Stay with this player while their actions are carried out. Done moves on
+    finishPlay(player);
 
     SaveAllSettings();
+}
+
+// After a player plays their card, their panel stays open so their actions can be carried
+// out (moving ships, a battle, adjusting resources) before the game moves on. The panel
+// shows what they played, and Done moves on to the next player
+
+function finishPlay(player) {
+    awaitingDone = player.number;
+
+    if (player.isHuman) {
+        // No more cards for the human this turn
+        enableDisableButtonsByPlayerNumber(player.number, false);
+        showHideElement(document.querySelectorAll("#actionbuttons"), false);
+    }
+
+    showTurnDone(player);
+    SaveAllSettings();
+}
+
+function showTurnDone(player) {
+    document.getElementById("turnsummary" + player.number).innerHTML = describePlayerPlays(player).join("<br>");
+
+    const next = getNextPlayerToPlay(player);
+    document.getElementById("donebutton" + player.number).innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;
+
+    // A bot has played, so its Play Card button is replaced by Done
+    if (!player.isHuman) { showHideElement([document.getElementById("playcard" + player.number).parentNode], false); }
+
+    const done = document.getElementById("turndone" + player.number);
+    showHideElement([done], true);
+    document.getElementById("donebutton" + player.number).scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function hideTurnDone(player) {
+    showHideElement([document.getElementById("turndone" + player.number)], false);
+    if (!player.isHuman) { showHideElement([document.getElementById("playcard" + player.number).parentNode], true); }
+}
+
+function doneClick() {
+    if (awaitingDone == null) { return; }
+
+    const player = getPlayer(awaitingDone);
+    awaitingDone = null;
+    hideTurnDone(player);
+
+    // On to the next player, or Next Turn if everyone has played
+    setCurrentPlayer(getNextPlayer(player.number));
+    SaveAllSettings();
+}
+
+function getNextPlayerToPlay(player) {
+    // Who Done moves on to: the next player who hasn't played this turn and has cards.
+    // null means everyone has played
+    let next = getNextPlayer(player.number);
+    for (let i = 0; i < players.length; i++) {
+        if (!next.hasPlayedACardThisTurn && getUnplayedCards(next.cards).length > 0) { return next; }
+        next = getNextPlayer(next.number);
+    }
+    return null;
+}
+
+function describePlayerPlays(player) {
+    // What the player played this turn and the actions it gives them, e.g.
+    // "Surpassed with Aggression5: 3 actions (move, secure or battle)"
+    const lead = playedCardList[0];
+
+    return playedCardList.filter(card => card.playedByPlayerNumber == player.number).map(card => {
+        const focus = (card.playedAction != null && card.playedAction.toUpperCase() != "ANY") ? ", for " + card.playedAction : "";
+        const declared = card.declared ? " and declared an ambition" : "";
+
+        switch (card.cardAction) {
+            case "CLAIM":
+                return "Seized the initiative with a card face down";
+            case "COPY":
+                // A copy uses the lead card's actions
+                return "Copied the lead: " + describeActions(1, lead.actions) + focus;
+            case "PIVOT":
+                return "Pivoted with " + getCardFullName(card) + ": " + describeActions(1, card.actions) + focus;
+            case "SURPASS":
+                return "Surpassed with " + getCardFullName(card) + ": " + describeActions(card.pips, card.actions) + focus;
+            default:
+                // LEAD or DECLARE
+                return "Led with " + getCardFullName(card) + declared + ": " + describeActions(card.pips, card.actions) + focus;
+        }
+    });
+}
+
+function describeActions(count, actions) {
+    // e.g. "3 actions (move, secure or battle)"
+    const list = actions.split(",");
+    const text = (list.length > 1) ? list.slice(0, -1).join(", ") + " or " + list[list.length - 1] : list[0];
+    return count + " action" + (count == 1 ? "" : "s") + " (" + text + ")";
 }
 
 function setCurrentPlayer(player) {
@@ -334,6 +430,9 @@ function isLeadingThisTurn() {
 }
 
 function enableNextTurnButton() {
+    // Not while a player is still carrying out their actions. Their Done does this
+    if (awaitingDone != null) { return; }
+
     if (haveAllCardsBeenPlayed()) {
         enableDisableButton("nextRound", false);
     } else if (haveAllPlayersPlayedACard()) {

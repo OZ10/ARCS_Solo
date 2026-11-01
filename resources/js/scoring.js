@@ -148,7 +148,7 @@ function getScoringResults() {
         }));
 
         scoreAmbition(counts, JSON.parse(section.dataset.markers)).forEach(result => {
-            results.push({ ambition: section.dataset.ambition, player: result.player, points: result.points });
+            results.push({ ambition: section.dataset.ambition, player: result.player, points: result.points, cityBonus: result.cityBonus });
         });
     });
 
@@ -159,7 +159,9 @@ function updateScoringPreview() {
     document.querySelectorAll("#scoringList span[id^=scorePoints_]").forEach(span => { span.innerHTML = ""; });
 
     getScoringResults().forEach(result => {
-        document.getElementById("scorePoints_" + result.ambition + "_" + result.player.number).innerHTML = "+" + result.points;
+        // The points include any city bonus, which is shown alongside
+        const bonus = (result.cityBonus > 0) ? " <span class=\"fw-light\">(incl. " + result.cityBonus + " city bonus)</span>" : "";
+        document.getElementById("scorePoints_" + result.ambition + "_" + result.player.number).innerHTML = "+" + result.points + bonus;
     });
 }
 
@@ -169,7 +171,8 @@ function confirmScoring() {
     getScoringResults().forEach(result => {
         setPlayerPower(result.player, result.player.powerValue + result.points);
         if (result.points > 0) {
-            summary.push("Player " + result.player.number + " +" + result.points + " (" + result.ambition + ")");
+            summary.push("Player " + result.player.number + " +" + result.points + " (" + result.ambition
+                + (result.cityBonus > 0 ? ", incl. " + result.cityBonus + " city bonus" : "") + ")");
         }
     });
 

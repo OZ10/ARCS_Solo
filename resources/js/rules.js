@@ -53,17 +53,58 @@ function getAmbitionDeclaredMessage(ambition) {
 // A player reaching this much power at the end of a round ends the game
 const powerToWin = { 2: 33, 3: 30, 4: 27 };
 
+// Battle dice, one entry per face. hits are hits on the defender, damage is damage to the
+// attacker's own ships, and ambush means the defender hits first with all its fresh ships.
+// Raid dice aren't used yet
+const skirmishDieFaces = [
+    { hits: 1 }, { hits: 1 }, { hits: 1 },
+    {}, {}, {}
+];
+const assaultDieFaces = [
+    {},
+    { hits: 1, damage: 1 }, { hits: 1, damage: 1 },
+    { hits: 2 },
+    { hits: 2, damage: 1 },
+    { hits: 1, ambush: true }
+];
+
+// How bots make decisions. The aim is for a bot to feel like a person guessing and sometimes
+// taking a risk, not a calculator. Bot personalities (#71) can later give each bot its own values.
+// riskWeight: how much damage to its own ships matters compared with damage it deals
+//             (1 = the same, lower is braver)
+// moodSwing:  how much riskWeight varies from one decision to the next, so some battles it
+//             feels bold and others careful (0.5 = up to half as much or half as much again)
+// randomness: how loosely it picks between options. Higher means it more often goes with
+//             something other than the best, though clearly bad options stay rare
+//             (0 = always the best)
+const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6 };
+
+// City bonus: the outright winner of an ambition (first place, not tied) gains extra power
+// for their buildings on the board: 2 with four, or 5 with all five (not both).
+// Buildings are cities and starports, but only cities are tracked so far, so a player
+// whose four or five buildings include starports needs the bonus added by hand (Power +)
+const cityBonus = { 4: 2, 5: 5 };
+
+function getCityBonus(player) {
+    // Players without city counts (e.g. in older saved games) get no bonus
+    const cities = getCityCount(player) || 0;
+    if (cities >= 5) { return cityBonus[5]; }
+    if (cities >= 4) { return cityBonus[4]; }
+    return 0;
+}
+
 function getRoundMarkers(round) {
     // Highest marker first, ranked by its first place value
     return ambitionMarkerValues[round].slice().sort((a, b) => b[0] - a[0]);
 }
 
 function scoreAmbition(counts, markers) {
-    // counts is [{ player, count }]. Returns [{ player, points }] for each player who scores
+    // counts is [{ player, count }]. Returns [{ player, points, cityBonus }] for each player who scores
     // - A player needs at least one matching resource to score
     // - Most scores first place, second most scores second place
     // - A tie for first: all tied players score second place and nobody else scores
     // - A tie for second: all tied players score second place
+    // - An outright first place also scores the city bonus (see cityBonus), once per ambition
     // Several markers on one ambition are scored together
     const firstPlacePoints = markers.reduce((sum, marker) => sum + marker[0], 0);
     const secondPlacePoints = markers.reduce((sum, marker) => sum + marker[1], 0);
@@ -75,16 +116,17 @@ function scoreAmbition(counts, markers) {
     const first = eligible.filter(c => c.count == highest);
 
     if (first.length > 1) {
-        return first.map(c => ({ player: c.player, points: secondPlacePoints }));
+        return first.map(c => ({ player: c.player, points: secondPlacePoints, cityBonus: 0 }));
     }
 
-    let results = [{ player: first[0].player, points: firstPlacePoints }];
+    const bonus = getCityBonus(first[0].player);
+    let results = [{ player: first[0].player, points: firstPlacePoints + bonus, cityBonus: bonus }];
 
     const rest = eligible.filter(c => c.count < highest);
     if (rest.length > 0) {
         const secondHighest = Math.max(...rest.map(c => c.count));
         rest.filter(c => c.count == secondHighest).forEach(c => {
-            results.push({ player: c.player, points: secondPlacePoints });
+            results.push({ player: c.player, points: secondPlacePoints, cityBonus: 0 });
         });
     }
 

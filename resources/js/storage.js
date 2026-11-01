@@ -7,14 +7,22 @@ function loadPlayers() {
 
         const player = getSettingObject(playerNumber);
         if (player != null) {
-            // Games saved before power was tracked won't have it
-            if (player.powerValue == null) { player.powerValue = 0; }
+            // Games saved before power or the board counts were tracked won't have them
+            playerCounters.forEach(counter => {
+                if (player[counter + "Value"] == null) { player[counter + "Value"] = 0; }
+            });
 
             players.push(player);
             clonePlayerNodeAndSetup(player);
         }
     }
-    if (haveAllPlayersPlayedACard() == true) {
+    if (awaitingDone != null) {
+        // A player had played their card and was carrying out their actions, so they're
+        // still the current player until Done is tapped
+        currentPlayer = getPlayer(awaitingDone);
+        changeInitiative(getPlayerWithInitiative());
+        enableDisablePlayerPanels(currentPlayer.number);
+    } else if (haveAllPlayersPlayedACard() == true) {
         // setCurrentPlayer isn't used when everyone has played, so show
         // the initiative star and give currentPlayer a value here
         currentPlayer = getPlayerWithInitiative();
@@ -25,6 +33,9 @@ function loadPlayers() {
     }
 
     createCardButtonsForHumanPlayer();
+
+    // Show Done again (and switch off the human's cards) for a player who was mid-actions
+    if (awaitingDone != null) { finishPlay(currentPlayer); }
 }
 
 function findCurrentPlayer() {
@@ -134,6 +145,7 @@ const SaveAllSettings = () => {
     SaveSetting("turn", turnNumber);
     SaveSetting("round", roundNumber);
     SaveSetting("initiaiteClaimed", hasInitiativeBeenClaimedThisTurn);
+    SaveSetting("awaitingDone", (awaitingDone == null) ? "" : awaitingDone);
 }
 
 const saveSettingObject = (settingName, settingObject) => {

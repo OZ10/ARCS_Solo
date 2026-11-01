@@ -14,6 +14,10 @@ let roundNumber = 1;
 let declaredAmbitions = [];
 let currentPlayer;
 
+// The number of the player who has played their card this turn and is carrying out their
+// actions. The game moves on to the next player when Done is tapped. null when nobody is
+let awaitingDone = null;
+
 let modal;
 let currentQuestionNumber;
 

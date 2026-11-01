@@ -82,14 +82,26 @@ function clonePlayerNodeAndSetup(player) {
         cardslabel.classList.add("d-none");
     }
 
-    setPlusMinusButtons(playertemplate, player, "fuel");
-    setPlusMinusButtons(playertemplate, player, "materials");
-    setPlusMinusButtons(playertemplate, player, "weapons");
-    setPlusMinusButtons(playertemplate, player, "relics");
-    setPlusMinusButtons(playertemplate, player, "psionics");
-    setPlusMinusButtons(playertemplate, player, "captives");
-    setPlusMinusButtons(playertemplate, player, "trophies");
-    setPlusMinusButtons(playertemplate, player, "power");
+    // The Battle helper is for bots. The human player chooses their own dice
+    const battlebutton = playertemplate.querySelector("#battlebutton");
+    battlebutton.id = "battlebutton" + playerNumber.toString();
+    if (player.isHuman) { battlebutton.classList.add("d-none"); }
+
+    // Shown once the player has played their card: what they played, and Done to move
+    // on (see finishPlay in game.js)
+    const turndone = playertemplate.querySelector("#turndone");
+    turndone.id = "turndone" + playerNumber.toString();
+    playertemplate.querySelector("#turnsummary").id = "turnsummary" + playerNumber.toString();
+    playertemplate.querySelector("#donebutton").id = "donebutton" + playerNumber.toString();
+    // The human's actions are at the bottom of their panel, so Done goes after them
+    if (player.isHuman) { playerPanel.appendChild(turndone); }
+
+    // The resource and board tiles (see playerCounters in player.js)
+    playerCounters.forEach(counter => setPlusMinusButtons(playertemplate, player, counter));
+
+    const citiestotal = playertemplate.querySelector("#citiestotal");
+    citiestotal.id = "citiestotal" + playerNumber.toString();
+    citiestotal.innerHTML = getCityCount(player);
 
     document.getElementById("playerslots").appendChild(playertemplate);
 }
@@ -102,43 +114,7 @@ function setPlusMinusButtons(playertemplate, player, type) {
 
     let input = playertemplate.querySelector("#" + type + "Value");
     input.id = type + "Value_" + player.number;
-
-    switch (type) {
-        case "fuel":
-            input.value = player.fuelValue;
-            break;
-
-        case "materials":
-            input.value = player.materialsValue;
-            break;
-
-        case "weapons":
-            input.value = player.weaponsValue;
-            break;
-
-        case "relics":
-            input.value = player.relicsValue;
-            break;
-
-        case "psionics":
-            input.value = player.psionicsValue;
-            break;
-
-        case "captives":
-            input.value = player.captivesValue;
-            break;
-
-        case "trophies":
-            input.value = player.trophiesValue;
-            break;
-
-        case "power":
-            input.value = player.powerValue;
-            break;
-
-        default:
-            break;
-    }
+    input.value = player[type + "Value"];
 }
 
 function declareAmbitionClick(ambition) {
@@ -174,6 +150,10 @@ function declareAmbitionClick(ambition) {
 
     declaredAmbitions.push(ambition);
     updateAmbitionsDisplay();
+
+    // Update what Done shows the player played (e.g. a 7 used to declare)
+    if (awaitingDone == player.number) { showTurnDone(player); }
+
     SaveAllSettings();
 }
 
@@ -277,6 +257,9 @@ function enableDisablePlayerPanels(playerNumber) {
             btn.disabled = true;
         }
 
+        // A bot can only battle on its own turn (the human's Battle button is hidden)
+        enableDisableButton("battlebutton" + player.number, player.number != playerNumber || player.isHuman);
+
         showHidePlayerPanel(player, playerNumber);
 
         if (player.isHuman) { enableDisableButtonsByPlayerNumber(player.number, (player.number == playerNumber) ? true : false) }
@@ -318,6 +301,8 @@ function showHidePlayerPanel(player, playerNumber) {
 function hidePlayerPanels() {
     players.forEach(player => {
         showHidePlayerPanel(player, 99);
+        // Between turns it's nobody's turn, so nobody can battle
+        enableDisableButton("battlebutton" + player.number, true);
     })
 }
 
@@ -346,50 +331,20 @@ function plusMinusClicked(id, action) {
 
     const player = getPlayer(playerNumber);
 
-    switch (resourceName) {
-        case "fuel":
-            player.fuelValue += value;
-            resourceValue = player.fuelValue;
-            break;
+    // Counts can't go below 0
+    const newValue = Math.max(0, player[resourceName + "Value"] + value);
 
-        case "materials":
-            player.materialsValue += value;
-            resourceValue = player.materialsValue;
-            break;
+    if (resourceName == "power") {
+        // Also updates the power shown in the player's header
+        setPlayerPower(player, newValue);
+    } else {
+        player[resourceName + "Value"] = newValue;
+    }
+    resourceValue = player[resourceName + "Value"];
 
-        case "weapons":
-            player.weaponsValue += value;
-            resourceValue = player.weaponsValue;
-            break;
-
-        case "relics":
-            player.relicsValue += value;
-            resourceValue = player.relicsValue;
-            break;
-
-        case "psionics":
-            player.psionicsValue += value;
-            resourceValue = player.psionicsValue;
-            break;
-
-        case "captives":
-            player.captivesValue += value;
-            resourceValue = player.captivesValue;
-            break;
-
-        case "trophies":
-            player.trophiesValue += value;
-            resourceValue = player.trophiesValue;
-            break;
-
-        case "power":
-            // Also updates the power shown in the player's header
-            setPlayerPower(player, player.powerValue + value);
-            resourceValue = player.powerValue;
-            break;
-
-        default:
-            break;
+    // Keep the cities total in the Board section up to date
+    if (cityCounters.includes(resourceName)) {
+        document.getElementById("citiestotal" + playerNumber).innerHTML = getCityCount(player);
     }
 
     document.getElementById(resourceName + "Value_" + playerNumber).value = resourceValue;

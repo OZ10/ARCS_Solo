@@ -91,6 +91,13 @@
                 data-bs-title="Declare an ambition"><i
                   class="bi bi-hexagon-fill"
                   onclick="showDeclareAmbitionModal(this, false, null, null)"></i></button>
+              <!-- Bots only: help the bot choose its battle dice (see battle.js) -->
+              <button class="btn" data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-custom-class="custom-tooltip"
+                data-bs-title="Battle: choose this bot's dice"
+                id="battlebutton" onclick="showBattleModal(this)"
+                aria-label="Battle"><i class="bi bi-crosshair"></i></button>
             </div>
           </div>
 
@@ -189,11 +196,113 @@
               </div>
             </div>
 
+            <!-- The player's pieces on the board (see boardCounters in player.js) -->
+            <div class="mx-3 sectionlabel text-center">Board</div>
+
+            <div class="d-flex flex-wrap justify-content-center gap-3 mx-3 mb-2">
+              <!-- Ships in the player's supply and on the board -->
+              <div>
+                <div class="boardgrouplabel">Ships</div>
+                <div class="d-flex gap-1">
+                  <div class="resourcetile">
+                    <div class="resourcelabel">Supply</div>
+                    <input type="text" class="resourcevalue" id="shipsSupplyValue" value="0" disabled>
+                    <div class="d-flex gap-1">
+                      <button class="btn resourcebutton resourceminus" id="minusButton_shipsSupply" type="button"
+                        onclick="plusMinusClicked(id, 'minus')" aria-label="Remove a ship from supply"><i class="bi bi-dash-lg"></i></button>
+                      <button class="btn resourcebutton resourceplus" id="plusButton_shipsSupply" type="button"
+                        onclick="plusMinusClicked(id, 'plus')" aria-label="Add a ship to supply"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                  </div>
+
+                  <div class="resourcetile">
+                    <div class="resourcelabel">On board</div>
+                    <input type="text" class="resourcevalue" id="shipsBoardValue" value="0" disabled>
+                    <div class="d-flex gap-1">
+                      <button class="btn resourcebutton resourceminus" id="minusButton_shipsBoard" type="button"
+                        onclick="plusMinusClicked(id, 'minus')" aria-label="Remove a ship from the board"><i class="bi bi-dash-lg"></i></button>
+                      <button class="btn resourcebutton resourceplus" id="plusButton_shipsBoard" type="button"
+                        onclick="plusMinusClicked(id, 'plus')" aria-label="Add a ship to the board"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- How many of the player's cities are on each resource type, and the total -->
+              <div>
+                <div class="boardgrouplabel">Cities (<span id="citiestotal">0</span>)</div>
+                <div class="d-flex gap-1">
+                  <div class="resourcetile">
+                    <div class="resourcelabel">Fuel</div>
+                    <input type="text" class="resourcevalue" id="citiesFuelValue" value="0" disabled>
+                    <div class="d-flex gap-1">
+                      <button class="btn resourcebutton resourceminus" id="minusButton_citiesFuel" type="button"
+                        onclick="plusMinusClicked(id, 'minus')" aria-label="Remove a city on fuel"><i class="bi bi-dash-lg"></i></button>
+                      <button class="btn resourcebutton resourceplus" id="plusButton_citiesFuel" type="button"
+                        onclick="plusMinusClicked(id, 'plus')" aria-label="Add a city on fuel"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                  </div>
+
+                  <div class="resourcetile">
+                    <div class="resourcelabel">Material</div>
+                    <input type="text" class="resourcevalue" id="citiesMaterialsValue" value="0" disabled>
+                    <div class="d-flex gap-1">
+                      <button class="btn resourcebutton resourceminus" id="minusButton_citiesMaterials" type="button"
+                        onclick="plusMinusClicked(id, 'minus')" aria-label="Remove a city on material"><i class="bi bi-dash-lg"></i></button>
+                      <button class="btn resourcebutton resourceplus" id="plusButton_citiesMaterials" type="button"
+                        onclick="plusMinusClicked(id, 'plus')" aria-label="Add a city on material"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                  </div>
+
+                  <div class="resourcetile">
+                    <div class="resourcelabel">Weapon</div>
+                    <input type="text" class="resourcevalue" id="citiesWeaponsValue" value="0" disabled>
+                    <div class="d-flex gap-1">
+                      <button class="btn resourcebutton resourceminus" id="minusButton_citiesWeapons" type="button"
+                        onclick="plusMinusClicked(id, 'minus')" aria-label="Remove a city on weapon"><i class="bi bi-dash-lg"></i></button>
+                      <button class="btn resourcebutton resourceplus" id="plusButton_citiesWeapons" type="button"
+                        onclick="plusMinusClicked(id, 'plus')" aria-label="Add a city on weapon"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                  </div>
+
+                  <div class="resourcetile">
+                    <div class="resourcelabel">Relic</div>
+                    <input type="text" class="resourcevalue" id="citiesRelicsValue" value="0" disabled>
+                    <div class="d-flex gap-1">
+                      <button class="btn resourcebutton resourceminus" id="minusButton_citiesRelics" type="button"
+                        onclick="plusMinusClicked(id, 'minus')" aria-label="Remove a city on relic"><i class="bi bi-dash-lg"></i></button>
+                      <button class="btn resourcebutton resourceplus" id="plusButton_citiesRelics" type="button"
+                        onclick="plusMinusClicked(id, 'plus')" aria-label="Add a city on relic"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                  </div>
+
+                  <div class="resourcetile">
+                    <div class="resourcelabel">Psionic</div>
+                    <input type="text" class="resourcevalue" id="citiesPsionicsValue" value="0" disabled>
+                    <div class="d-flex gap-1">
+                      <button class="btn resourcebutton resourceminus" id="minusButton_citiesPsionics" type="button"
+                        onclick="plusMinusClicked(id, 'minus')" aria-label="Remove a city on psionic"><i class="bi bi-dash-lg"></i></button>
+                      <button class="btn resourcebutton resourceplus" id="plusButton_citiesPsionics" type="button"
+                        onclick="plusMinusClicked(id, 'plus')" aria-label="Add a city on psionic"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Bots only. Under the resources, where the human player's cards and actions go -->
             <div class="d-flex mx-3 mb-2">
               <button class="btn btn-secondary flex-fill" id="playcard"
                 data-bs-toggle="tooltip"
                 onclick="playcardclick()">PLAY CARD</button>
+            </div>
+
+            <!-- Shown once the player has played their card: what they played and Done to
+                 move on to the next player (see finishPlay in game.js) -->
+            <div class="d-none mx-3 mb-2 text-center" id="turndone">
+              <div class="mb-1" id="turnsummary"></div>
+              <button type="button" class="btn btn-primary w-100" id="donebutton"
+                onclick="doneClick()">Done</button>
             </div>
 
             <div class="text-center sectionlabel" id="cardslabel">
@@ -282,7 +391,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v011126.05</small>
+              <small class="text-muted me-auto" id="appVersion">v011126.06</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -486,6 +595,85 @@
       </div>
     </div>
 
+    <!-- Battle: a bot attacking another player (see battle.js) -->
+    <div class="modal fade" id="battleModal" tabindex="-1"
+      aria-labelledby="battleTitle" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="battleTitle">Battle</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"
+              aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <div class="d-flex flex-wrap gap-3 justify-content-center">
+                  <div>
+                    <div class="boardgrouplabel">Attacker</div>
+                    <div class="resourcetile">
+                      <div class="resourcelabel">Ships</div>
+                      <div class="resourcevalue" id="battleShips">1</div>
+                      <div class="d-flex gap-1">
+                        <button class="btn resourcebutton resourceminus" type="button"
+                          onclick="battleStep('ships', -1)" aria-label="One less attacking ship"><i class="bi bi-dash-lg"></i></button>
+                        <button class="btn resourcebutton resourceplus" type="button"
+                          onclick="battleStep('ships', 1)" aria-label="One more attacking ship"><i class="bi bi-plus-lg"></i></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="boardgrouplabel">Defender</div>
+                    <div class="d-flex gap-1">
+                      <div class="resourcetile">
+                        <div class="resourcelabel">Fresh</div>
+                        <div class="resourcevalue" id="battleFresh">1</div>
+                        <div class="d-flex gap-1">
+                          <button class="btn resourcebutton resourceminus" type="button"
+                            onclick="battleStep('fresh', -1)" aria-label="One less fresh defending ship"><i class="bi bi-dash-lg"></i></button>
+                          <button class="btn resourcebutton resourceplus" type="button"
+                            onclick="battleStep('fresh', 1)" aria-label="One more fresh defending ship"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                      </div>
+                      <div class="resourcetile">
+                        <div class="resourcelabel">Damaged</div>
+                        <div class="resourcevalue" id="battleDamaged">0</div>
+                        <div class="d-flex gap-1">
+                          <button class="btn resourcebutton resourceminus" type="button"
+                            onclick="battleStep('damaged', -1)" aria-label="One less damaged defending ship"><i class="bi bi-dash-lg"></i></button>
+                          <button class="btn resourcebutton resourceplus" type="button"
+                            onclick="battleStep('damaged', 1)" aria-label="One more damaged defending ship"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Filled in with the other players by showBattleModal -->
+                <div class="d-flex flex-wrap gap-1 justify-content-center mt-2" id="battleDefenders"></div>
+
+                <div class="form-check form-switch d-flex justify-content-center gap-2 mt-2">
+                  <input class="form-check-input" type="checkbox" id="battleAttackAgain"
+                    onchange="clearBattleDecision()">
+                  <label class="form-check-label" for="battleAttackAgain">Can attack again this turn</label>
+                </div>
+
+                <!-- Raid dice (an enemy building in the system) will go here later -->
+                <div class="small text-muted text-center mt-1">Raid dice: coming later</div>
+              </div>
+
+              <div class="col-sm-6">
+                <button type="button" class="btn btn-primary w-100" id="chooseBattleDice"
+                  onclick="chooseBattleDice()">Choose dice</button>
+                <div class="mt-2" id="battleAdvice"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="loadGameModal" tabindex="-1"
       aria-labelledby="LoadGame" aria-hidden="true">
       <div class="modal-dialog modal-sm">
@@ -627,6 +815,7 @@
     <script src="./resources/js/panel.js"></script>
     <script src="./resources/js/human.js"></script>
     <script src="./resources/js/bot.js"></script>
+    <script src="./resources/js/battle.js"></script>
     <script src="./resources/js/game.js"></script>
   </body>
 </html>

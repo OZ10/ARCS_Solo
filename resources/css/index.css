@@ -105,6 +105,16 @@ header {
   text-align: center;
 }
 
+.boardgrouplabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  opacity: 0.8;
+  margin-bottom: 2px;
+}
+
 .resourcelabel {
   font-size: 0.7rem;
   font-weight: 600;
@@ -158,6 +168,30 @@ header {
   --bs-btn-active-color: rgb(30, 30, 30);
 }
 
+.modal .resourcetile {
+  background-color: #ececec;
+}
+.modal .btn.resourceminus {
+  --bs-btn-bg: #d9d9d9;
+  --bs-btn-hover-bg: #cccccc;
+}
+.modal .btn.resourceplus {
+  --bs-btn-bg: white;
+}
+
+#battleModal .modal-dialog {
+  max-width: min(760px, 100vw - 1rem);
+}
+
+#battleAdvice {
+  font-size: 0.9rem;
+}
+
+.battleroll {
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
 .playerpanel .btn-check + .btn {
   font-size: 0.85rem;
   padding: 4px 10px;
@@ -169,7 +203,7 @@ header {
   --bs-btn-active-border-color: rgb(30, 30, 30);
 }
 
-#actionbuttons, [id^=playcard] {
+#actionbuttons, [id^=playcard], [id^=donebutton] {
   scroll-margin-bottom: 90px;
 }
 
@@ -183,6 +217,10 @@ header {
 .messagetoast .toast {
   width: 260px;
   font-size: 0.85rem;
+  pointer-events: none;
+}
+.messagetoast .toast .btn-close {
+  pointer-events: auto;
 }
 
 .playedcard {

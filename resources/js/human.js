@@ -139,14 +139,8 @@ function humanSelectedAction(cardAction) {
             checkInitiative(player, playedCard, false);
         }
 
-        //changeCurrentPlayer(player, false);
-        setCurrentPlayer(getNextPlayer(player.number));
-
-        showHideElement(document.querySelectorAll("#actionbuttons"), false);
-
-        if (haveAllPlayersPlayedACard()) {
-            enableNextTurnButton();
-        }
+        // Stay with the human while their actions are carried out. Done moves on
+        finishPlay(player);
     }
 
     SaveAllSettings();
@@ -175,6 +169,8 @@ function showCardModal(player, cards, title, prompt, action) {
                 btn.onclick = function () {
                     addPlayedCardToList(getCardByNameAndNumber(players[0].cards, btn.innerHTML, false), "ANY", "CLAIM", false, players[0]);
                     createCardButtonsForHumanPlayer();
+                    // Update what Done shows the human played
+                    finishPlay(players[0]);
                 };
                 break;
 
@@ -240,7 +236,9 @@ function createCardButtonsForHumanPlayer() {
         // Add tooltip which displays the number of pips and ambition
         createTooltip('label[for="' + btn.id + '"]',getNumberOfPips(card, "LEAD") + "<br>" + card.ambition.toUpperCase() + "<br>" + getActionsOnCard(card));
 
-        if (card.played) { btn.disabled = true; }
+        // Cards can only be played on the human's turn, before they've played this turn
+        const canPlayNow = currentPlayer != null && currentPlayer.number == player.number && awaitingDone != player.number;
+        if (card.played || !canPlayNow) { btn.disabled = true; }
 
         btn.onclick = function () {
             showHideElement(document.querySelectorAll("#actionbuttons"), true);

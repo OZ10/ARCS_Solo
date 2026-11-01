@@ -16,10 +16,33 @@ class player {
     captivesValue = 0;
     trophiesValue = 0;
     powerValue = 0;
+    // Pieces on the board (see boardCounters)
+    shipsSupplyValue = 0;
+    shipsBoardValue = 0;
+    citiesFuelValue = 0;
+    citiesMaterialsValue = 0;
+    citiesWeaponsValue = 0;
+    citiesRelicsValue = 0;
+    citiesPsionicsValue = 0;
     cards = [];
     hasInitiative = false;
     hasPlayedACardThisTurn = false;
     ambitionsEvaluated = [];
+}
+
+// Everything counted with -/+ tiles on a player's panel. Each is stored on the player as
+// <name>Value (e.g. fuelValue, citiesFuelValue)
+const resourceCounters = ["fuel", "materials", "weapons", "relics", "psionics", "captives", "trophies", "power"];
+
+// The player's pieces on the board: ships in their supply and on the board, and how many
+// of their cities are on each resource type
+const boardCounters = ["shipsSupply", "shipsBoard", "citiesFuel", "citiesMaterials", "citiesWeapons", "citiesRelics", "citiesPsionics"];
+const cityCounters = ["citiesFuel", "citiesMaterials", "citiesWeapons", "citiesRelics", "citiesPsionics"];
+
+const playerCounters = resourceCounters.concat(boardCounters);
+
+function getCityCount(player) {
+    return cityCounters.reduce((total, counter) => total + player[counter + "Value"], 0);
 }
 
 function hasPlayerGotCardsToPlay(player) {

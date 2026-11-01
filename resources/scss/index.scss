@@ -137,6 +137,17 @@ header {
     text-align: center;
 }
 
+// The Ships and Cities headings within a player's Board section
+.boardgrouplabel {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+    opacity: 0.8;
+    margin-bottom: 2px;
+}
+
 .resourcelabel {
     font-size: 0.7rem;
     font-weight: 600;
@@ -194,6 +205,39 @@ header {
     --bs-btn-active-color: #{$mainfontcolour};
 }
 
+// Tiles in a window (e.g. Battle) sit on white, so use greys rather than see-through shades
+.modal {
+    .resourcetile {
+        background-color: #ececec;
+    }
+
+    .btn.resourceminus {
+        --bs-btn-bg: #d9d9d9;
+        --bs-btn-hover-bg: #cccccc;
+    }
+
+    .btn.resourceplus {
+        --bs-btn-bg: white;
+    }
+}
+
+// The Battle window uses the screen's width on a phone in landscape (Bootstrap only widens
+// modal-lg on larger screens), so the controls fit on one row and the window isn't too tall
+#battleModal .modal-dialog {
+    max-width: min(760px, calc(100vw - 1rem));
+}
+
+// The Battle window's advice, a little smaller so more of it fits on a phone
+#battleAdvice {
+    font-size: 0.9rem;
+}
+
+// The dice the bot should roll, in the Battle window
+.battleroll {
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
 // Card and action buttons in a player's panel
 .playerpanel .btn-check + .btn {
     font-size: 0.85rem;
@@ -209,7 +253,7 @@ header {
 
 // When scrolled into view, keep the human player's actions and the bots' Play Card
 // buttons clear of the fixed footer
-#actionbuttons, [id^="playcard"] {
+#actionbuttons, [id^="playcard"], [id^="donebutton"] {
     scroll-margin-bottom: 90px;
 }
 
@@ -225,6 +269,14 @@ header {
     .toast {
         width: 260px;
         font-size: 0.85rem;
+
+        // Taps go through the message to whatever is underneath (e.g. a card in the
+        // human player's hand), apart from its close button
+        pointer-events: none;
+
+        .btn-close {
+            pointer-events: auto;
+        }
     }
 }
 

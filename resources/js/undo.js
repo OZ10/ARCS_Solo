@@ -4,7 +4,7 @@
 
 // A single undo of the last card played. Just before a card is played, the saved game is
 // copied. Undo puts that copy back and reloads the page, so the game is rebuilt by the
-// normal loading code. Resources and power are left as they are now, because they track
+// normal loading code. Resources, power and board counts are left as they are now, because they track
 // the physical board. Keeping a list of copies would allow more than one undo later
 const undoKey = "undo";
 
@@ -38,7 +38,7 @@ function showUndoModal() {
     if (undo == null) { return; }
 
     document.getElementById("undoMessage").innerHTML = "Undo Player " + undo.playerNumber + "'s card in round " + undo.round + ", turn " + undo.turn + "?"
-        + "<br><small class=\"text-muted\">Resources and power stay as they are.</small>";
+        + "<br><small class=\"text-muted\">Resources, power and board counts stay as they are.</small>";
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("undoModal")).show();
 }
@@ -47,8 +47,8 @@ function undoLastCard() {
     const undo = getUndoPoint();
     if (undo == null) { return; }
 
-    // Keep each player's resources and power as they are now
-    const resources = ["fuelValue", "materialsValue", "weaponsValue", "relicsValue", "psionicsValue", "captivesValue", "trophiesValue", "powerValue"];
+    // Keep each player's resources, power and board counts as they are now
+    const resources = playerCounters.map(counter => counter + "Value");
     players.forEach(player => {
         if (undo.saved[player.number] == null) { return; }
         const savedPlayer = JSON.parse(undo.saved[player.number]);
