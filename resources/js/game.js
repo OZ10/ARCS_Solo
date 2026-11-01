@@ -1,0 +1,440 @@
+// Game flow: new game, turns, rounds, playing cards, initiative and starting up when the page loads. Loaded last.
+// Part of the ARCS bot. Every file in resources/js shares the same global names, so
+// they are loaded as plain scripts, in order, by index.html
+
+document.addEventListener("DOMContentLoaded", () => {
+    if (localStorage.length > 0) {
+        for (let [key, value] of Object.entries(localStorage)) {
+            switch (key) {
+                case "turn":
+                    turnNumber = parseInt(value);
+                    setElementValue("turnNumber", value);
+                    break;
+                case "round":
+                    roundNumber = parseInt(value);
+                    updateRoundNumber();
+                    break;
+
+                case "initiaiteClaimed":
+                    // localStorage holds text, so convert "true"/"false" back to a boolean
+                    hasInitiativeBeenClaimedThisTurn = (value === "true");
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        // Played cards must be loaded before players, as setCurrentPlayer
+        // relies on playedCardList to know if the turn has been led
+        loadPlayedCardList();
+        // Loaded after the played cards, as loading those adds them to the
+        // discard pile again. The saved pile already includes them
+        loadDiscardPile();
+        loadPlayers();
+        loadAmbitions();
+    }
+
+    updateAmbitionsDisplay();
+    updateUndoButton();
+    refreshTooltips();
+});
+
+
+
+function setupGame(numberOfPlayers) {
+
+    localStorage.clear();
+
+    players = [];
+    turnNumber = 1;
+    roundNumber = 1;
+    declaredAmbitions = [];
+
+    removeChildElements("playerslots");
+    removeChildElements("playedcards");
+
+    createPlayers(numberOfPlayers);
+
+    resetRound();
+
+    dealCards();
+
+    SaveAllSettings();
+
+    // localStorage was cleared above, so there's nothing to undo
+    updateUndoButton();
+}
+
+function addExtraCards(numberOfPlayers) {
+    if (numberOfPlayers == 4) {
+        currentactioncards.push(new Card("Construction", 1, 4, false, "", "build,repair"));
+        currentactioncards.push(new Card("Construction", 7, 1, false, "any", "build,repair"));
+        currentactioncards.push(new Card("Aggression", 1, 3, false, "", "move,secure,battle"));
+        currentactioncards.push(new Card("Aggression", 7, 1, false, "any", "move,secure,battle"));
+        currentactioncards.push(new Card("Administration", 1, 4, false, "", "influence,tax,repair"));
+        currentactioncards.push(new Card("Administration", 7, 1, false, "any", "influence,tax,repair"));
+        currentactioncards.push(new Card("Mobilisation", 1, 4, false, "", "move,influence"));
+        currentactioncards.push(new Card("Mobilisation", 7, 1, false, "any", "move,influence"));
+    }
+}
+
+function createPlayers(numberOfPlayers) {
+    for (let playerNumber = 1; playerNumber < numberOfPlayers + 1; playerNumber++) {
+        let p = new player(playerNumber, (playerNumber == 1) ? true : false);
+
+        if (playerNumber == 1) {
+            // Game is being setup, human player is player 1 and has
+            // initiative and is set to be the current player
+            p.hasInitiative = true;
+            currentPlayer = p;
+        };
+
+        players.push(p);
+
+        clonePlayerNodeAndSetup(p);
+    }
+}
+
+function resetHandsAndPlayedCardsDisplay() {
+    players.forEach(p => {
+        removeChildElements("playerhand" + p.number);
+    });
+
+    removeChildElements("playedcards");
+}
+
+function nextTurn() {
+
+    enableDisableButton("nextTurn", true);
+
+    if (haveAllCardsBeenPlayed()) {
+        enableDisableButton("nextRound", false);
+        return;
+    }
+
+    hasInitiativeBeenClaimedThisTurn = false;
+
+    turnNumber += 1;
+    setElementValue("turnNumber", turnNumber.toString());
+
+    resetPlayedThisTurn();
+
+    resetPlayedCardList();
+
+    resetPlayersAmibtions();
+
+    //currentPlayer = getPlayerWithInitiative();
+    setCurrentPlayer(getPlayerWithInitiative());
+
+    //checkIfPlayerHasCardsToPlay();
+
+    if (haveAllCardsBeenPlayed()) {
+        enableDisableButton("nextRound", false);
+        return;
+    }
+
+    enableDisablePlayerPanels(currentPlayer.number);
+
+    SaveAllSettings();
+}
+
+function haveAllCardsBeenPlayed() {
+    let allPlayed;
+
+    players.forEach(player => {
+        player.cards.forEach(card => {
+            if (card.played == false) { allPlayed = false; return; }
+        });
+    });
+
+    return (allPlayed == false) ? false : true;
+}
+
+function nextRound() {
+    // Score the ambitions declared this round before moving on.
+    // The next round starts once the scores have been confirmed
+    if (declaredAmbitions.length > 0) {
+        showScoringModal();
+    } else {
+        startNextRound();
+    }
+}
+
+function startNextRound() {
+    // The round has been scored, so undoing a card from it is no longer possible
+    clearUndoPoint();
+
+    if (isGameOver()) {
+        enableDisableButton("nextRound", true);
+        showGameOverModal();
+        return;
+    }
+
+    turnNumber = 1;
+    roundNumber += 1;
+
+    resetRound();
+
+    resetPlayersCards();
+
+    dealCards();
+
+    SaveAllSettings();
+}
+
+
+function resetRound() {
+    hasInitiativeBeenClaimedThisTurn = false;
+
+    resetPlayedCardList();
+
+    declaredAmbitions = [];
+
+    discardPile = [];
+
+    setElementValue("turnNumber", turnNumber.toString());
+    //setElementValue("roundNumber", roundNumber.toString());
+
+    updateRoundNumber();
+
+    updateAmbitionsDisplay();
+
+    enableDisableButton("nextRound", true);
+
+    currentactioncards = structuredClone(actioncards);
+
+    addExtraCards(players.length);
+
+    resetDeck(currentactioncards);
+
+    resetPlayedThisTurn();
+
+    resetHandsAndPlayedCardsDisplay();
+
+    currentPlayer = getPlayerWithInitiative();
+    enableDisablePlayerPanels(currentPlayer.number);
+}
+
+function updateRoundNumber() {
+    for (let roundNum = 1; roundNum < 6; roundNum++) {
+        let element = document.getElementById("roundNumber" + roundNum);
+        element.classList.toggle("roundcurrent", roundNum == roundNumber);
+        element.classList.toggle("roundpast", roundNum < roundNumber);
+    }
+
+    // Marker values change by round
+    updateAmbitionsDisplay();
+}
+
+function resetPlayedCardList() {
+    playedCardList = [];
+    removeChildElements("playedcards");
+    RemoveSettingByKey("playedCardList");
+}
+
+function resetDeck(cards) {
+    cards.forEach(card => {
+        card.played = false;
+    })
+}
+
+function dealCards() {
+
+    let playerNumber = 0;
+    do {
+        let num = Math.floor(Math.random() * currentactioncards.length);
+
+        if (playerNumber > players.length - 1) {
+            playerNumber = 0;
+        }
+
+        players[playerNumber].cards.push(currentactioncards[num]);;
+        currentactioncards.splice(num, 1);
+
+        playerNumber += 1;
+
+    }
+    while (players[players.length - 1].cards.length < 6)
+
+    createCardButtonsForHumanPlayer();
+}
+
+function playCard(player, playedCard, actionToPlay, cardAction) {
+    // Can SURPASS = play card
+    // Can't SURPASS
+    //  - 1 - COPY
+    //  - 2 - claim
+    //  - 3 - PIVOT
+
+    const isLeading = isLeadingThisTurn();
+
+    addPlayedCardToList(playedCard, actionToPlay, cardAction, false, player);
+    player.hasPlayedACardThisTurn = true;
+
+    if (isLeading) {
+        if (player.isHuman && cardAction == "DECLARE") {
+
+            if (playedCard.ambition == "any") {
+                // Show modal
+                showDeclareAmbitionModal(null, true, player, playedCard);
+            } else {
+                showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(playedCard.ambition));
+                playedCard.declared = true;
+
+                // Reset the played card list and re-add the declared card
+                // with a value of 0
+                addPlayedCardToList(playedCard, "ANY", "DECLARE", true, player);
+
+                declaredAmbitions.push(playedCard.ambition);
+                updateAmbitionsDisplay();
+            }
+
+        } else if (player.isHuman == false) {
+            // AI player will determine whether to declare or not
+            declareAmbition(player, playedCard);
+        }
+    }
+    setCurrentPlayer(getNextPlayer(player.number))
+
+    if (player.isHuman && haveAllPlayersPlayedACard()) {
+        enableNextTurnButton();
+    }
+
+    SaveAllSettings();
+}
+
+function setCurrentPlayer(player) {
+
+    if (haveAllPlayersPlayedACard()) {
+        enableNextTurnButton();
+        return;
+    }
+
+    if (hasPlayerGotCardsToPlay(player)) {
+        currentPlayer = player;
+        enableDisablePlayerPanels(player.number);
+
+    } else {
+        const nextPlayer = getNextPlayer(player.number);
+        // Only pass initiative on if the player with no cards was due to lead.
+        // A follower with no cards is simply skipped
+        if (isLeadingThisTurn()) { changeInitiative(nextPlayer); }
+        setCurrentPlayer(nextPlayer);
+    }
+}
+
+function isLeadingThisTurn() {
+    // The first card played in a turn is the lead. Initiative can change hands
+    // mid-turn (surpass, claim, seize) so it can't be used to decide who is leading
+    return playedCardList.length == 0;
+}
+
+function enableNextTurnButton() {
+    if (haveAllCardsBeenPlayed()) {
+        enableDisableButton("nextRound", false);
+    } else if (haveAllPlayersPlayedACard()) {
+        enableDisableButton("nextTurn", false);
+    }
+    hidePlayerPanels();
+}
+
+function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
+    if (hasInitiativeBeenClaimedThisTurn == true) { return; }
+
+    players.forEach(player => {
+        if (player.number != claimingPlayer.number) { return; }
+
+        if (hasClaimed) {
+            player.hasInitiative = true;
+        } else {
+            // The played card must beat every other face up card of the same suit
+            // played this turn. Face down cards (COPY and CLAIM) don't count
+            const playedHighestCard = playedCardList.every(card =>
+                card === playedCard ||
+                card.name != playedCard.name ||
+                card.cardAction == "COPY" || card.cardAction == "CLAIM" ||
+                getCardValue(playedCard) > getCardValue(card));
+
+            if (playedHighestCard) {
+                changeInitiative(player);
+            }
+        }
+
+    })
+}
+
+function changeInitiative(player) {
+    players.forEach(p => {
+        p.hasInitiative = (p.number == player.number) ? true : false;
+
+        const element = document.querySelectorAll("#playerinitiative" + p.number);
+        showHideElement(element, (p.number == player.number) ? true : false);
+    })
+
+    SaveAllSettings();
+}
+
+function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
+    if (card != null) {
+        card.played = true;
+
+        // A reset re-adds a card that's already been played (declaring),
+        // so it's already in the discard pile
+        if (!reset) { discardPile.push(card); }
+
+        // Always record how the card was played this time, so a card drawn back
+        // and played again doesn't keep details from its previous play.
+        // player is only omitted when reloading saved cards, which keep their saved player
+        card.cardAction = cardAction;
+        card.playedAction = actionToPlay;
+        if (player != null) { card.playedByPlayerNumber = player.number };
+
+        if (playedCardList.length == 0) {
+            let turnListDiv = document.getElementById("playedcards");
+
+            let turnDiv = document.createElement("div");
+            // The turn's cards sit side by side and wrap, to keep the footer short on a phone
+            turnDiv.classList.add("w-100", "fw-bold", "d-flex", "flex-wrap", "justify-content-center", "align-items-center", "gap-1");
+            turnDiv.id = "Turn" + turnNumber.toString();
+            turnDiv.innerHTML = "Turn " + turnNumber.toString();
+
+            turnListDiv.append(turnDiv);
+        }
+
+        let cardListDiv = document.getElementById("Turn" + turnNumber.toString());
+
+        if (reset) {
+            playedCardList = [];
+            disposeTooltips(cardListDiv);
+            cardListDiv.replaceChildren();
+            cardListDiv.innerHTML = "Turn " + turnNumber.toString();
+        }
+
+        playedCardList.push(card);
+
+        // A button rather than text, so tapping it on Android shows the card's actions
+        // instead of Chrome's "Touch to Search" overlay. The tooltip shows when tapped and
+        // hides when anything else is tapped (focus trigger)
+        let cardDiv = document.createElement("button");
+        cardDiv.type = "button";
+        cardDiv.classList.add("fw-normal", "playedcard", "playercard" + card.playedByPlayerNumber);
+        cardDiv.id = "playedlist" + getCardFullName(card);
+        cardDiv.setAttribute('data-bs-trigger', 'focus');
+        // Only show the action when it's a specific one, to save space
+        const actionText = (actionToPlay.toUpperCase() == "ANY") ? "" : actionToPlay.toUpperCase() + ": ";
+        // If player COPIED, replace the suit played with XXXX
+        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionText + ((cardAction == "COPY" | cardAction == "CLAIM") ? "XXXX" : getCardFullName(card)) + (card.declared ? " (0)" : "") + getNumberOfPips(card, cardAction);
+        cardListDiv.append(cardDiv);
+        createTooltip("#" + "playedlist" + getCardFullName(card), getActionsOnCard(card));
+
+        saveSettingObject('playedCardList', playedCardList);
+    }
+}
+
+function test() {
+    //document.getElementById("yesNo").modal('show');
+    let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("yesNo"));
+    updateYesNoText("Yo!");
+    modal.show();
+}

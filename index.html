@@ -257,7 +257,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v011126.03</small>
+              <small class="text-muted me-auto" id="appVersion">v011126.04</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -568,8 +568,20 @@
         </script>
       -->
 
-    <!--<script type="module" src="resources/js/main.js"></script> -->
-
-    <script src="./resources/js/main.js"></script>
+    <!-- The app's scripts. They share the same global names, so they're plain scripts
+         and the order matters: state.js needs cards.js, and game.js (which starts the
+         app when the page loads) goes last -->
+    <script src="./resources/js/ui.js"></script>
+    <script src="./resources/js/cards.js"></script>
+    <script src="./resources/js/player.js"></script>
+    <script src="./resources/js/rules.js"></script>
+    <script src="./resources/js/state.js"></script>
+    <script src="./resources/js/storage.js"></script>
+    <script src="./resources/js/scoring.js"></script>
+    <script src="./resources/js/undo.js"></script>
+    <script src="./resources/js/panel.js"></script>
+    <script src="./resources/js/human.js"></script>
+    <script src="./resources/js/bot.js"></script>
+    <script src="./resources/js/game.js"></script>
   </body>
 </html>
