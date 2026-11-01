@@ -31,12 +31,15 @@ document.addEventListener("DOMContentLoaded", () => {
         // Loaded after the played cards, as loading those adds them to the
         // discard pile again. The saved pile already includes them
         loadDiscardPile();
-        loadPlayers();
+        // Ambitions must be loaded before players. Loading the players saves the whole
+        // game, which would otherwise overwrite the saved ambitions with an empty list
         loadAmbitions();
+        loadPlayers();
     }
 
     updateAmbitionsDisplay();
     updateUndoButton();
+    setupSavedGameButtons();
     refreshTooltips();
 });
 

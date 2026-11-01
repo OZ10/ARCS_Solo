@@ -171,3 +171,122 @@ function saveAmbitions() {
         saveSettingObject(ambition, ambition);
     })
 }
+
+// Saving the game to a file and loading it back (the Save and Load buttons in the
+// Options window). The file holds everything the game saves to localStorage
+
+// A game read from a file, waiting for the player to confirm loading it
+let pendingGameLoad = null;
+
+function setupSavedGameButtons() {
+    document.getElementById("numberOfPlayersModal").addEventListener('show.bs.modal', () => {
+        // Save is only available when there's a game to save
+        enableDisableButton("saveGame", !hasSavedGame());
+
+        // Start with the player count for a new game closed
+        bootstrap.Collapse.getOrCreateInstance(document.getElementById("newGamePlayers"), { toggle: false }).hide();
+    });
+}
+
+function hasSavedGame() {
+    return localStorage.getItem("1") != null;
+}
+
+function saveGameToFile() {
+    if (!hasSavedGame()) { return; }
+
+    SaveAllSettings();
+
+    let data = {};
+    for (let [key, value] of Object.entries(localStorage)) {
+        // The undo copy is only for this device
+        if (key != undoKey) { data[key] = value; }
+    }
+
+    const exported = new Date();
+    const file = {
+        app: "ARCS Bot",
+        version: document.getElementById("appVersion").textContent,
+        exported: exported.toISOString(),
+        data: data
+    };
+
+    // e.g. ARCS-2026-11-01-R3T2.json, using the local date
+    const twoDigits = n => String(n).padStart(2, "0");
+    const date = exported.getFullYear() + "-" + twoDigits(exported.getMonth() + 1) + "-" + twoDigits(exported.getDate());
+    const name = "ARCS-" + date + "-R" + roundNumber + "T" + turnNumber + ".json";
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([JSON.stringify(file, null, 1)], { type: "application/json" }));
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+
+    showMessageToast("Game saved", name);
+}
+
+function chooseGameFile() {
+    const input = document.getElementById("loadGameFile");
+    // Cleared so choosing the same file again still counts as a change
+    input.value = "";
+    input.click();
+}
+
+function loadGameFile(input) {
+    const file = input.files[0];
+    if (file == null) { return; }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        let game = null;
+        try { game = JSON.parse(reader.result); } catch (e) { game = null; }
+
+        if (!isGameFile(game)) {
+            showMessageToast("Load Game", "That file isn't an ARCS Bot saved game");
+            return;
+        }
+
+        pendingGameLoad = game;
+
+        const numberOfPlayers = [1, 2, 3, 4].filter(n => game.data[n] != null).length;
+        const exported = (game.exported != null) ? new Date(game.exported).toLocaleString() : "on an unknown date";
+        document.getElementById("loadGameMessage").innerHTML = numberOfPlayers + " players, round " + game.data.round + ", turn " + game.data.turn
+            + "<br><small class=\"text-muted\">Saved " + exported + (game.version != null ? " (" + game.version + ")" : "")
+            + ". This replaces the current game.</small>";
+
+        // Close the Options window first, as a modal can't open while another is closing
+        const newGameModal = document.getElementById("numberOfPlayersModal");
+        const showLoadModal = () => bootstrap.Modal.getOrCreateInstance(document.getElementById("loadGameModal")).show();
+        if (newGameModal.classList.contains("show")) {
+            newGameModal.addEventListener('hidden.bs.modal', showLoadModal, { once: true });
+            bootstrap.Modal.getOrCreateInstance(newGameModal).hide();
+        } else {
+            showLoadModal();
+        }
+    };
+    reader.readAsText(file);
+}
+
+function isGameFile(game) {
+    // A saved game has at least two players, plus the turn and round
+    if (game == null || typeof game != "object" || game.data == null || typeof game.data != "object") { return false; }
+    if (game.data.turn == null || game.data.round == null) { return false; }
+
+    try {
+        return JSON.parse(game.data["1"]) != null && JSON.parse(game.data["2"]) != null;
+    } catch (e) {
+        return false;
+    }
+}
+
+function confirmLoadGame() {
+    if (pendingGameLoad == null) { return; }
+
+    // Replace the saved game with the one from the file and reload, so the game is
+    // rebuilt by the normal loading code
+    localStorage.clear();
+    Object.entries(pendingGameLoad.data).forEach(([key, value]) => localStorage.setItem(key, value));
+    location.reload();
+}
