@@ -107,6 +107,20 @@ const ambitionResources = {
     empath: player => player.psionicsValue
 };
 
+// How each ambition is won, shown to the players
+const ambitionConditions = {
+    tycoon: "most fuel and materials",
+    tyrant: "most captives",
+    warlord: "most trophies",
+    keeper: "most relics",
+    empath: "most psionics"
+};
+
+function getAmbitionDeclaredMessage(ambition) {
+    // e.g. "Warlord declared (most trophies)"
+    return ambition.charAt(0).toUpperCase() + ambition.slice(1) + " declared (" + ambitionConditions[ambition] + ")";
+}
+
 // A player reaching this much power at the end of a round ends the game
 const powerToWin = { 2: 33, 3: 30, 4: 27 };
 
@@ -153,6 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loadAmbitions();
     }
 
+    updateAmbitionsDisplay();
     refreshTooltips();
 });
 
@@ -234,7 +249,7 @@ function loadAmbitions() {
         })
     }
 
-    setElementValue("declaredAmbitions", declaredAmbitions.length);
+    updateAmbitionsDisplay();
 }
 
 // #endregion
@@ -345,7 +360,7 @@ function clonePlayerNodeAndSetup(player) {
         playerinitiative.classList.remove("d-none");
 
         const actiondiv = document.createElement("div");
-        actiondiv.classList.add("mt-3", "header1", "text-center");
+        actiondiv.classList.add("mt-1", "sectionlabel", "text-center");
         actiondiv.innerHTML = "Actions"
 
         const actionbuttons = document.createElement("div");
@@ -363,7 +378,14 @@ function clonePlayerNodeAndSetup(player) {
         playerPanel.appendChild(actionbuttons);
     }
 
-    if (playerNumber != 1) { hand.classList.add("d-none") }
+    // Only the human player's hand is shown, so bots don't need the Cards heading either
+    const cardslabel = playertemplate.querySelector("#cardslabel");
+    cardslabel.id = "cardslabel" + playerNumber.toString();
+
+    if (playerNumber != 1) {
+        hand.classList.add("d-none");
+        cardslabel.classList.add("d-none");
+    }
 
     setPlusMinusButtons(playertemplate, player, "fuel");
     setPlusMinusButtons(playertemplate, player, "materials");
@@ -385,7 +407,6 @@ function setPlusMinusButtons(playertemplate, player, type) {
 
     let input = playertemplate.querySelector("#" + type + "Value");
     input.id = type + "Value_" + player.number;
-    input.classList.add("playerresources" + player.number);
 
     switch (type) {
         case "fuel":
@@ -459,7 +480,8 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
 function createClaimButton(btntext, group, groupname) {
     let input = document.createElement("button");
     input.type = "button";
-    input.classList.add("btn", "btn-outline-secondary");
+    // Light so it shows on any player colour. claimbutton styles the toggled on (active) state
+    input.classList.add("btn", "btn-light", "claimbutton");
     input.name = groupname;
     input.id = btntext;
     input.innerHTML = btntext;
@@ -645,6 +667,9 @@ function getDeclaredAmbitionMarkers() {
     let grouped = [];
 
     declaredAmbitions.forEach((ambition, index) => {
+        // There are only three markers
+        if (index >= markers.length) { return; }
+
         let group = grouped.find(g => g.ambition == ambition);
         if (group == null) {
             group = { ambition: ambition, markers: [] };
@@ -654,6 +679,64 @@ function getDeclaredAmbitionMarkers() {
     });
 
     return grouped;
+}
+
+function updateAmbitionsDisplay() {
+    // Show every ambition in the top bar, with the markers on any that have been
+    // declared, followed by the marker the next declared ambition will take
+    const track = document.getElementById("ambitionTrack");
+    disposeTooltips(track);
+    track.replaceChildren();
+
+    const declared = getDeclaredAmbitionMarkers();
+
+    ambitions.forEach(ambition => {
+        const group = declared.find(g => g.ambition == ambition);
+        const points = (group == null) ? "&ndash;" : group.markers.map(m => m[0] + "/" + m[1]).join(" + ");
+
+        // Tapping the chip shows how the ambition is won and, once declared, what it's worth
+        let info = "<b>" + ambition.toUpperCase() + "</b><br>" + ambitionConditions[ambition];
+        if (group != null) {
+            const first = group.markers.reduce((sum, m) => sum + m[0], 0);
+            const second = group.markers.reduce((sum, m) => sum + m[1], 0);
+            info += "<br>1st: " + first + " &middot; 2nd: " + second;
+        }
+
+        track.appendChild(createAmbitionChip(ambition.toUpperCase(), points, (group == null) ? "" : "ambitiondeclared", info));
+    });
+
+    const markers = getRoundMarkers(roundNumber);
+    const next = (declaredAmbitions.length < markers.length) ? markers[declaredAmbitions.length].join("/") : "none";
+    track.appendChild(createAmbitionChip("NEXT", next, "ambitionnext", "The marker the next declared ambition will take"));
+
+    refreshTooltips();
+}
+
+function createAmbitionChip(name, points, style, info) {
+    // A button so it can be tapped on a phone. The tooltip shows when tapped and
+    // hides when anything else is tapped (focus trigger)
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.classList.add("ambitionchip");
+    if (style != "") { chip.classList.add(style); }
+
+    chip.setAttribute('data-bs-toggle', 'tooltip');
+    chip.setAttribute('data-bs-trigger', 'focus');
+    chip.setAttribute('data-bs-html', 'true');
+    chip.setAttribute('data-bs-placement', 'bottom');
+    chip.setAttribute('data-bs-custom-class', 'custom-tooltip');
+    chip.setAttribute('title', info);
+
+    const nameDiv = document.createElement("div");
+    nameDiv.classList.add("ambitionname");
+    nameDiv.innerHTML = name;
+
+    const pointsDiv = document.createElement("div");
+    pointsDiv.classList.add("ambitionpoints");
+    pointsDiv.innerHTML = points;
+
+    chip.append(nameDiv, pointsDiv);
+    return chip;
 }
 
 function scoreAmbition(counts, markers) {
@@ -703,7 +786,7 @@ function showScoringModal() {
 
         const header = document.createElement("div");
         header.classList.add("fw-bold");
-        header.innerHTML = group.ambition.toUpperCase() + ' <span class="fw-light">' + group.markers.map(m => m[0] + "/" + m[1]).join(" + ") + "</span>";
+        header.innerHTML = group.ambition.toUpperCase() + ' <span class="fw-light">' + group.markers.map(m => m[0] + "/" + m[1]).join(" + ") + " (" + ambitionConditions[group.ambition] + ")</span>";
         section.appendChild(header);
 
         players.forEach(player => {
@@ -782,7 +865,7 @@ function confirmScoring() {
 
     // The ambitions have been scored, so clear them to stop them being scored again
     declaredAmbitions = [];
-    setElementValue("declaredAmbitions", 0);
+    updateAmbitionsDisplay();
     SaveAllSettings();
 
     showMessageToast("Round " + roundNumber + " Scores", summary.length > 0 ? summary.join("<br>") : "Nobody scored");
@@ -847,7 +930,7 @@ function resetRound() {
 
     updateRoundNumber();
 
-    setElementValue("declaredAmbitions", 0);
+    updateAmbitionsDisplay();
 
     enableDisableButton("nextRound", true);
 
@@ -868,14 +951,12 @@ function resetRound() {
 function updateRoundNumber() {
     for (let roundNum = 1; roundNum < 6; roundNum++) {
         let element = document.getElementById("roundNumber" + roundNum);
-        if (roundNum == roundNumber) {
-            element.classList.remove("numberCircle");
-            element.classList.add("numberCircleSelected");
-        } else {
-            element.classList.add("numberCircle");
-            element.classList.remove("numberCircleSelected");
-        }
+        element.classList.toggle("roundcurrent", roundNum == roundNumber);
+        element.classList.toggle("roundpast", roundNum < roundNumber);
     }
+
+    // Marker values change by round
+    updateAmbitionsDisplay();
 }
 
 function resetPlayedCardList() {
@@ -1081,6 +1162,9 @@ function createCardButtonsForHumanPlayer() {
 
         btn.onclick = function () {
             showHideElement(document.querySelectorAll("#actionbuttons"), true);
+
+            // On a small screen the actions can be off screen, so bring them into view
+            document.getElementById("actionbuttons").scrollIntoView({ block: "nearest", behavior: "smooth" });
             document.getElementById("CLAIM").classList.remove("active");
             if (isLeadingThisTurn()) {
                 showHideActionButtons(true, getCardByNameAndNumber(players[0].cards, this.id, false));
@@ -1164,7 +1248,7 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
                 // Show modal
                 showDeclareAmbitionModal(null, true, player, playedCard);
             } else {
-                showMessageToast("Player" + player.number, "Player declared ambition: " + playedCard.ambition);
+                showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(playedCard.ambition));
                 playedCard.declared = true;
 
                 // Reset the played card list and re-add the declared card
@@ -1172,7 +1256,7 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
                 addPlayedCardToList(playedCard, "ANY", "DECLARE", true, player);
 
                 declaredAmbitions.push(playedCard.ambition);
-                setElementValue("declaredAmbitions", declaredAmbitions.length);
+                updateAmbitionsDisplay();
             }
 
         } else if (player.isHuman == false) {
@@ -1731,13 +1815,13 @@ function declareAmbition(player, playedCard) {
     let num = Math.floor(Math.random() * 10);
 
     if (num >= sum) {
-        showMessageToast("Player" + player.number, "Player declared ambition: " + ambition);
+        showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = true;
 
         addPlayedCardToList(playedCard, playedCard.playedAction, "LEAD", true, player);
 
         declaredAmbitions.push(ambition);
-        setElementValue("declaredAmbitions", declaredAmbitions.length);
+        updateAmbitionsDisplay();
     }
 }
 
@@ -1753,14 +1837,16 @@ function declareAmbitionClick(ambition) {
     //      - the card that was played
     const seven = document.getElementById("playedSeven");
 
+    // The declaring player's number is in the modal's title
+    const title = document.getElementById("declareAmbitionModalTitle");
+    const player = getPlayer(getPlayerNumberFromString(title.innerHTML));
+
+    showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
+
     if (seven.innerHTML == "TRUE") {
-        const title = document.getElementById("declareAmbitionModalTitle");
-        const playerNumber = getPlayerNumberFromString(title.innerHTML);
-        const player = getPlayer(playerNumber);
         const playedCardFullName = document.getElementById("playedCard").innerHTML;
         const playedCard = getCardByNameAndNumber(player.cards, playedCardFullName, true);
 
-        showMessageToast("Player" + player.number, "Player declared ambition: " + ambition);
         playedCard.declared = true;
 
         // Reset the played card list and re-add the declared card
@@ -1771,7 +1857,7 @@ function declareAmbitionClick(ambition) {
     }
 
     declaredAmbitions.push(ambition);
-    setElementValue("declaredAmbitions", declaredAmbitions.length);
+    updateAmbitionsDisplay();
     SaveAllSettings();
 }
 
@@ -2083,6 +2169,17 @@ function showHidePlayerPanel(player, playerNumber) {
     });
 
     if (player.number == playerNumber) {
+        // On a phone the current player can be off screen, so bring them to the top.
+        // Wait for the panel to finish opening, as the page moves while it does
+        const playerRow = document.getElementById("player" + player.number);
+        if (playerPanel.classList.contains("show")) {
+            playerRow.scrollIntoView({ block: "start", behavior: "smooth" });
+        } else {
+            playerPanel.addEventListener('shown.bs.collapse', () => {
+                playerRow.scrollIntoView({ block: "start", behavior: "smooth" });
+            }, { once: true });
+        }
+
         collapse.show();
     } else {
         collapse.hide();
@@ -2129,7 +2226,8 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
             let turnListDiv = document.getElementById("playedcards");
 
             let turnDiv = document.createElement("div");
-            turnDiv.classList.add("w-100", "mt-4", "fw-bold", "text-center");
+            // The turn's cards sit side by side and wrap, to keep the footer short on a phone
+            turnDiv.classList.add("w-100", "fw-bold", "d-flex", "flex-wrap", "justify-content-center", "align-items-center", "gap-1");
             turnDiv.id = "Turn" + turnNumber.toString();
             turnDiv.innerHTML = "Turn " + turnNumber.toString();
 
@@ -2148,10 +2246,12 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
         playedCardList.push(card);
 
         let cardDiv = document.createElement("div");
-        cardDiv.classList.add("fw-normal", "playercard" + card.playedByPlayerNumber);
+        cardDiv.classList.add("fw-normal", "playedcard", "playercard" + card.playedByPlayerNumber);
         cardDiv.id = "playedlist" + getCardFullName(card);
-        // If player COPIED, replace the suit played with XXXX 
-        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionToPlay.toUpperCase() + ": " + ((cardAction == "COPY" | cardAction == "CLAIM") ? "XXXX" : getCardFullName(card)) + (card.declared ? " (0)" : "") + getNumberOfPips(card, cardAction);
+        // Only show the action when it's a specific one, to save space
+        const actionText = (actionToPlay.toUpperCase() == "ANY") ? "" : actionToPlay.toUpperCase() + ": ";
+        // If player COPIED, replace the suit played with XXXX
+        cardDiv.innerHTML = cardAction.toUpperCase() + ": " + actionText + ((cardAction == "COPY" | cardAction == "CLAIM") ? "XXXX" : getCardFullName(card)) + (card.declared ? " (0)" : "") + getNumberOfPips(card, cardAction);
         cardListDiv.append(cardDiv);
         createTooltip("#" + "playedlist" + getCardFullName(card), getActionsOnCard(card));
 

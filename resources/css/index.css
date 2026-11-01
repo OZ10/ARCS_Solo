@@ -6,80 +6,242 @@ $playercolour3: lightgrey;
 $playercolour4: lightgrey;
 */
 body {
-  padding-bottom: 180px;
+  padding-bottom: 110px;
 }
 
 header {
   background-color: whitesmoke;
 }
 
+.topbarlabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: #666;
+  margin-right: 4px;
+}
+
+.topbarvalue {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.roundtrack {
+  border: 1px solid rgb(30, 30, 30);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.roundsegment {
+  width: 22px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #888;
+  background-color: white;
+  border-left: 1px solid #ccc;
+}
+.roundsegment:first-child {
+  border-left: none;
+}
+
+.roundpast {
+  background-color: #ddd;
+  color: #555;
+}
+
+.roundcurrent {
+  background-color: rgb(30, 30, 30);
+  color: white;
+}
+
+.ambitionchip {
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  padding: 0px 6px;
+  text-align: center;
+  line-height: 1.15;
+  color: #999;
+  background-color: white;
+}
+
+.ambitionname {
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+}
+
+.ambitionpoints {
+  font-size: 0.85rem;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.ambitiondeclared {
+  background-color: rgb(30, 30, 30);
+  border-color: rgb(30, 30, 30);
+  color: white;
+}
+
+.ambitionnext {
+  border-style: dashed;
+  color: rgb(30, 30, 30);
+}
+
+.sectionlabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
+.resourcetile {
+  width: 86px;
+  padding: 4px;
+  border-radius: 10px;
+  background-color: rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+
+.resourcelabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.resourcevalue {
+  width: 100%;
+  padding: 0px;
+  border: none;
+  background-color: transparent;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: bold;
+  line-height: 1.2;
+  color: inherit;
+}
+.resourcevalue:disabled {
+  opacity: 1;
+  -webkit-text-fill-color: currentColor;
+}
+
+.btn.resourcebutton {
+  flex: 1;
+  height: 34px;
+  padding: 0px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn.resourceminus {
+  --bs-btn-bg: rgba(255, 255, 255, 0.55);
+  --bs-btn-color: rgb(30, 30, 30);
+  --bs-btn-hover-bg: rgba(255, 255, 255, 0.7);
+  --bs-btn-hover-color: rgb(30, 30, 30);
+  --bs-btn-active-bg: rgba(255, 255, 255, 0.85);
+  --bs-btn-active-color: rgb(30, 30, 30);
+}
+
+.btn.resourceplus {
+  --bs-btn-bg: rgba(255, 255, 255, 0.9);
+  --bs-btn-color: rgb(30, 30, 30);
+  --bs-btn-hover-bg: white;
+  --bs-btn-hover-color: rgb(30, 30, 30);
+  --bs-btn-active-bg: #e6e6e6;
+  --bs-btn-active-color: rgb(30, 30, 30);
+}
+
+.playerpanel .btn-check + .btn {
+  font-size: 0.85rem;
+  padding: 4px 10px;
+}
+
+.btn.claimbutton.active {
+  --bs-btn-active-bg: rgb(30, 30, 30);
+  --bs-btn-active-color: white;
+  --bs-btn-active-border-color: rgb(30, 30, 30);
+}
+
+#actionbuttons {
+  scroll-margin-bottom: 90px;
+}
+
+#playerslots > div {
+  scroll-margin-top: 45px;
+}
+
+.messagetoast {
+  margin-top: 40px;
+}
+.messagetoast .toast {
+  width: 260px;
+  font-size: 0.85rem;
+}
+
+.playedcard {
+  padding: 0px 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
 .playerheader, .playerheader4, .playerheader3, .playerheader2, .playerheader1 {
-  padding: 10px 0px;
+  padding: 6px 0px;
   border-left-width: 4px;
   border-color: black;
-  color: rgb(30, 30, 30);
-  font-size: large;
-  border-radius: 15px;
+  font-size: 1rem;
+  border-radius: 12px;
 }
 .playerheader a, .playerheader4 a, .playerheader3 a, .playerheader2 a, .playerheader1 a {
-  font-size: larger;
+  color: inherit;
+  font-size: 1.15rem;
   font-weight: bold;
+}
+.playerheader [id^=playeroptions] .btn, .playerheader4 [id^=playeroptions] .btn, .playerheader3 [id^=playeroptions] .btn, .playerheader2 [id^=playeroptions] .btn, .playerheader1 [id^=playeroptions] .btn {
+  color: inherit;
 }
 
 .playerheader1 {
   background-color: goldenrod;
+  color: rgb(30, 30, 30);
 }
 
 .playerpanel1 {
   background-color: #d19e1f;
 }
 
-.playerresources1:disabled {
-  background-color: #c4941d !important;
-  border-color: #d6a21f !important;
-  text-align: center;
-}
-
 .playerheader2 {
   background-color: firebrick;
+  color: white;
 }
 
 .playerpanel2 {
   background-color: #a92020;
 }
 
-.playerresources2:disabled {
-  background-color: #9d1e1e !important;
-  border-color: #ae2121 !important;
-  text-align: center;
-}
-
 .playerheader3 {
   background-color: antiquewhite;
+  color: rgb(30, 30, 30);
 }
 
 .playerpanel3 {
   background-color: #f9e6ce;
 }
 
-.playerresources3:disabled {
-  background-color: #f7e0c0 !important;
-  border-color: #f9e9d2 !important;
-  text-align: center;
-}
-
 .playerheader4 {
   background-color: royalblue;
+  color: white;
 }
 
 .playerpanel4 {
   background-color: #3862e0;
-}
-
-.playerresources4:disabled {
-  background-color: #2b58de !important;
-  border-color: #3d66e0 !important;
-  text-align: center;
 }
 
 .playercard1 {
@@ -110,11 +272,6 @@ header {
   background-color: whitesmoke;
 }
 
-.header1 {
-  font-size: larger;
-  font-weight: bold;
-}
-
 .nextbutton {
   margin-left: 50px;
   margin-right: 50px;
@@ -124,23 +281,6 @@ header {
 .custom-tooltip {
   --bs-tooltip-bg: var(--bs-white);
   --bs-tooltip-color: var(--bs-black);
-}
-
-.numberCircle, .numberCircleSelected {
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  padding: 6px;
-  background: #fff;
-  border: 2px solid #666;
-  color: #666;
-  text-align: center;
-  font: 16px Arial, sans-serif;
-}
-
-.numberCircleSelected {
-  background: black;
-  color: white;
 }
 
 @keyframes flash {

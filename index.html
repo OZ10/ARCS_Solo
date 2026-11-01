@@ -19,42 +19,40 @@
   <body>
 
     <main class="container-fluid">
-      <header class="row">
-        <div class="d-flex justify-content-evenly">
-          <div class="text-center fs-4 fw-light">Turn Number
-            <div class="text-center m-1" id="turnNumber">1</div>
-          </div>
-          <div class="text-center fs-4 fw-light">Round Number
-            <div class="d-flex justify-content-evenly">
-              <div class="text-center m-1"
-                id="roundNumber1">1</div>
-              <div class="text-center m-1"
-                id="roundNumber2">2</div>
-              <div class="text-center m-1"
-                id="roundNumber3">3</div>
-              <div class="text-center m-1"
-                id="roundNumber4">4</div>
-              <div class="text-center m-1"
-                id="roundNumber5">5</div>
+      <!-- Compact top bar so it fits a phone in landscape. Stays at the top when scrolling -->
+      <header class="row sticky-top">
+        <div class="d-flex flex-wrap align-items-center gap-2 px-2 py-1">
+          <div class="d-flex align-items-center">
+            <span class="topbarlabel">Round</span>
+            <!-- updateRoundNumber marks the current round and the ones already played -->
+            <div class="d-flex roundtrack">
+              <div class="roundsegment" id="roundNumber1">1</div>
+              <div class="roundsegment" id="roundNumber2">2</div>
+              <div class="roundsegment" id="roundNumber3">3</div>
+              <div class="roundsegment" id="roundNumber4">4</div>
+              <div class="roundsegment" id="roundNumber5">5</div>
             </div>
           </div>
-          <div class="text-center fs-4 fw-light">Declared Ambitions
-            <div class="text-center m-1" id="declaredAmbitions">0</div>
+          <div class="d-flex align-items-center">
+            <span class="topbarlabel">Turn</span>
+            <span class="topbarvalue" id="turnNumber">1</span>
           </div>
+
+          <!-- Filled in by updateAmbitionsDisplay -->
+          <div class="d-flex flex-wrap gap-1 flex-grow-1 justify-content-center"
+            id="ambitionTrack"></div>
+
+          <button type="button" class="btn btn-primary btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#numberOfPlayersModal">New Game</button>
         </div>
       </header>
 
       <div class="m-1">
-        <div class="text-center">
-          <button type="button" class="btn btn-primary m-2"
-            data-bs-toggle="modal"
-            data-bs-target="#numberOfPlayersModal">New
-            Game</button>
-        </div>
 
         <div class="d-none mb-2 w-100" id="playerTemplate">
           <div class="d-flex">
-            <a class="text-decoration-none playerheader col p-3"
+            <a class="text-decoration-none playerheader col py-2 px-3"
               id="playerancor"
               href="#0"
               role="button"
@@ -96,189 +94,112 @@
 
           <div class="collapse playerpanel w-100" id="playerpanel">
 
-            <div class="m-3 fs-4 fw-light">Resources
-            </div>
-
-            <div class="row m-2">
-              <div class="row">
-                <div class="col-3 fs-5 fw-light">Fuel:</div>
-                <div class="col-auto input-group mb-3"
-                  style="width: 160px;">
-                  <div class="input-group-prepend">
-                    <button class="btn btn-outline-secondary"
-                      id="minusButton_fuel" type="button"
-                      onclick="plusMinusClicked(id, 'minus')"><i
-                        class="bi bi-dash"></i></button>
-                  </div>
-                  <input type="text" class="form-control" id="fuelValue"
-                    value="0" disabled>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary"
-                      id="plusButton_fuel" type="button"
-                      onclick="plusMinusClicked(id, 'plus')"><i
-                        class="bi bi-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-3 fs-5 fw-light">Materials:</div>
-                <div class="col-auto input-group mb-3"
-                  style="width: 160px;">
-                  <div class="input-group-prepend">
-                    <button class="btn btn-outline-secondary"
-                      id="minusButton_materials" type="button"
-                      onclick="plusMinusClicked(id, 'minus')"><i
-                        class="bi bi-dash"></i></button>
-                  </div>
-                  <input type="text" class="form-control"
-                    id="materialsValue" value="0" disabled>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary"
-                      id="plusButton_materials" type="button"
-                      onclick="plusMinusClicked(id, 'plus')"><i
-                        class="bi bi-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-3 fs-5 fw-light">Weapons:</div>
-                <div class="col-auto input-group mb-3"
-                  style="width: 160px;">
-                  <div class="input-group-prepend">
-                    <button class="btn btn-outline-secondary"
-                      id="minusButton_weapons" type="button"
-                      onclick="plusMinusClicked(id, 'minus')"><i
-                        class="bi bi-dash"></i></button>
-                  </div>
-                  <input type="text" class="form-control" id="weaponsValue"
-                    value="0" disabled>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary"
-                      id="plusButton_weapons" type="button"
-                      onclick="plusMinusClicked(id, 'plus')"><i
-                        class="bi bi-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-3 fs-5 fw-light">Relics:</div>
-                <div class="col-auto input-group mb-3"
-                  style="width: 160px;">
-                  <div class="input-group-prepend">
-                    <button class="btn btn-outline-secondary"
-                      id="minusButton_relics" type="button"
-                      onclick="plusMinusClicked(id, 'minus')"><i
-                        class="bi bi-dash"></i></button>
-                  </div>
-                  <input type="text" class="form-control" id="relicsValue"
-                    value="0" disabled>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary"
-                      id="plusButton_relics" type="button"
-                      onclick="plusMinusClicked(id, 'plus')"><i
-                        class="bi bi-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-3 fs-5 fw-light">Psionics:</div>
-                <div class="col-auto input-group mb-3"
-                  style="width: 160px;">
-                  <div class="input-group-prepend">
-                    <button class="btn btn-outline-secondary"
-                      id="minusButton_psionics" type="button"
-                      onclick="plusMinusClicked(id, 'minus')"><i
-                        class="bi bi-dash"></i></button>
-                  </div>
-                  <input type="text" class="form-control" id="psionicsValue"
-                    value="0" disabled>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary"
-                      id="plusButton_psionics" type="button"
-                      onclick="plusMinusClicked(id, 'plus')"><i
-                        class="bi bi-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-3 fs-5 fw-light">Captives:</div>
-                <div class="col-auto input-group mb-3"
-                  style="width: 160px;">
-                  <div class="input-group-prepend">
-                    <button class="btn btn-outline-secondary"
-                      id="minusButton_captives" type="button"
-                      onclick="plusMinusClicked(id, 'minus')"><i
-                        class="bi bi-dash"></i></button>
-                  </div>
-                  <input type="text" class="form-control" id="captivesValue"
-                    value="0" disabled>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary"
-                      id="plusButton_captives" type="button"
-                      onclick="plusMinusClicked(id, 'plus')"><i
-                        class="bi bi-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-3 fs-5 fw-light">Trophies:</div>
-                <div class="col-auto input-group mb-3"
-                  style="width: 160px;">
-                  <div class="input-group-prepend">
-                    <button class="btn btn-outline-secondary"
-                      id="minusButton_trophies" type="button"
-                      onclick="plusMinusClicked(id, 'minus')"><i
-                        class="bi bi-dash"></i></button>
-                  </div>
-                  <input type="text" class="form-control" id="trophiesValue"
-                    value="0" disabled>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary"
-                      id="plusButton_trophies" type="button"
-                      onclick="plusMinusClicked(id, 'plus')"><i
-                        class="bi bi-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row">
-                <div class="col-3 fs-5 fw-light">Power:</div>
-                <div class="col-auto input-group mb-3"
-                  style="width: 160px;">
-                  <div class="input-group-prepend">
-                    <button class="btn btn-outline-secondary"
-                      id="minusButton_power" type="button"
-                      onclick="plusMinusClicked(id, 'minus')"><i
-                        class="bi bi-dash"></i></button>
-                  </div>
-                  <input type="text" class="form-control" id="powerValue"
-                    value="0" disabled>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary"
-                      id="plusButton_power" type="button"
-                      onclick="plusMinusClicked(id, 'plus')"><i
-                        class="bi bi-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="text-center mt-3 header1">
-              Cards
-            </div>
-            <div id="playerhand" class="btn-group d-flex flex-column m-1"
-              role="group">
-            </div>
-            <div class="d-flex mx-3">
+            <!-- At the top of the panel so it's on screen as soon as a bot's turn starts -->
+            <div class="d-flex mx-3 mt-2">
               <button class="btn btn-secondary flex-fill" id="playcard"
                 data-bs-toggle="tooltip"
                 onclick="playcardclick()">PLAY CARD</button>
+            </div>
+
+            <div class="mx-3 mt-2 sectionlabel text-center">Resources
+            </div>
+
+            <div class="d-flex flex-wrap justify-content-center gap-2 mx-3 mb-2">
+              <div class="resourcetile">
+                <div class="resourcelabel">Fuel</div>
+                <input type="text" class="resourcevalue" id="fuelValue" value="0" disabled>
+                <div class="d-flex gap-1">
+                  <button class="btn resourcebutton resourceminus" id="minusButton_fuel" type="button"
+                    onclick="plusMinusClicked(id, 'minus')" aria-label="Remove Fuel"><i class="bi bi-dash-lg"></i></button>
+                  <button class="btn resourcebutton resourceplus" id="plusButton_fuel" type="button"
+                    onclick="plusMinusClicked(id, 'plus')" aria-label="Add Fuel"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
+
+              <div class="resourcetile">
+                <div class="resourcelabel">Materials</div>
+                <input type="text" class="resourcevalue" id="materialsValue" value="0" disabled>
+                <div class="d-flex gap-1">
+                  <button class="btn resourcebutton resourceminus" id="minusButton_materials" type="button"
+                    onclick="plusMinusClicked(id, 'minus')" aria-label="Remove Materials"><i class="bi bi-dash-lg"></i></button>
+                  <button class="btn resourcebutton resourceplus" id="plusButton_materials" type="button"
+                    onclick="plusMinusClicked(id, 'plus')" aria-label="Add Materials"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
+
+              <div class="resourcetile">
+                <div class="resourcelabel">Weapons</div>
+                <input type="text" class="resourcevalue" id="weaponsValue" value="0" disabled>
+                <div class="d-flex gap-1">
+                  <button class="btn resourcebutton resourceminus" id="minusButton_weapons" type="button"
+                    onclick="plusMinusClicked(id, 'minus')" aria-label="Remove Weapons"><i class="bi bi-dash-lg"></i></button>
+                  <button class="btn resourcebutton resourceplus" id="plusButton_weapons" type="button"
+                    onclick="plusMinusClicked(id, 'plus')" aria-label="Add Weapons"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
+
+              <div class="resourcetile">
+                <div class="resourcelabel">Relics</div>
+                <input type="text" class="resourcevalue" id="relicsValue" value="0" disabled>
+                <div class="d-flex gap-1">
+                  <button class="btn resourcebutton resourceminus" id="minusButton_relics" type="button"
+                    onclick="plusMinusClicked(id, 'minus')" aria-label="Remove Relics"><i class="bi bi-dash-lg"></i></button>
+                  <button class="btn resourcebutton resourceplus" id="plusButton_relics" type="button"
+                    onclick="plusMinusClicked(id, 'plus')" aria-label="Add Relics"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
+
+              <div class="resourcetile">
+                <div class="resourcelabel">Psionics</div>
+                <input type="text" class="resourcevalue" id="psionicsValue" value="0" disabled>
+                <div class="d-flex gap-1">
+                  <button class="btn resourcebutton resourceminus" id="minusButton_psionics" type="button"
+                    onclick="plusMinusClicked(id, 'minus')" aria-label="Remove Psionics"><i class="bi bi-dash-lg"></i></button>
+                  <button class="btn resourcebutton resourceplus" id="plusButton_psionics" type="button"
+                    onclick="plusMinusClicked(id, 'plus')" aria-label="Add Psionics"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
+
+              <div class="resourcetile">
+                <div class="resourcelabel">Captives</div>
+                <input type="text" class="resourcevalue" id="captivesValue" value="0" disabled>
+                <div class="d-flex gap-1">
+                  <button class="btn resourcebutton resourceminus" id="minusButton_captives" type="button"
+                    onclick="plusMinusClicked(id, 'minus')" aria-label="Remove Captives"><i class="bi bi-dash-lg"></i></button>
+                  <button class="btn resourcebutton resourceplus" id="plusButton_captives" type="button"
+                    onclick="plusMinusClicked(id, 'plus')" aria-label="Add Captives"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
+
+              <div class="resourcetile">
+                <div class="resourcelabel">Trophies</div>
+                <input type="text" class="resourcevalue" id="trophiesValue" value="0" disabled>
+                <div class="d-flex gap-1">
+                  <button class="btn resourcebutton resourceminus" id="minusButton_trophies" type="button"
+                    onclick="plusMinusClicked(id, 'minus')" aria-label="Remove Trophies"><i class="bi bi-dash-lg"></i></button>
+                  <button class="btn resourcebutton resourceplus" id="plusButton_trophies" type="button"
+                    onclick="plusMinusClicked(id, 'plus')" aria-label="Add Trophies"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
+
+              <div class="resourcetile">
+                <div class="resourcelabel">Power</div>
+                <input type="text" class="resourcevalue" id="powerValue" value="0" disabled>
+                <div class="d-flex gap-1">
+                  <button class="btn resourcebutton resourceminus" id="minusButton_power" type="button"
+                    onclick="plusMinusClicked(id, 'minus')" aria-label="Remove Power"><i class="bi bi-dash-lg"></i></button>
+                  <button class="btn resourcebutton resourceplus" id="plusButton_power" type="button"
+                    onclick="plusMinusClicked(id, 'plus')" aria-label="Add Power"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="text-center sectionlabel" id="cardslabel">
+              Cards
+            </div>
+            <!-- Cards sit side by side and wrap, to keep the panel short on a phone -->
+            <div id="playerhand" class="d-flex flex-wrap justify-content-center m-1"
+              role="group">
             </div>
           </div>
         </div>
@@ -288,15 +209,15 @@
       </div>
 
       <footer class="fixed-bottom footerstyle">
-        <div class="container-fluid h-100 py-2">
+        <div class="container-fluid h-100 py-1">
           <div class="d-flex justify-content-center" id="playedcards">
           </div>
-          <div class="row">
-            <button type="button" class="btn btn-primary col m-2"
+          <div class="d-flex gap-2 mt-1">
+            <button type="button" class="btn btn-primary btn-sm flex-fill"
               id="nextTurn"
               onclick="nextTurn()" disabled>Next
               Turn</button>
-            <button type="button" class="btn btn-primary col m-2"
+            <button type="button" class="btn btn-primary btn-sm flex-fill"
               id="nextRound"
               onclick="nextRound()" disabled>Next
               Round</button>
@@ -553,7 +474,8 @@
 
     <!-- TOASTS -->
     <div
-      class="toast-container position-fixed top-50 start-50 translate-middle p-3">
+      class="toast-container position-fixed top-0 end-0 p-2 messagetoast">
+      <!-- In the corner below the top bar, so it doesn't cover the game on a small screen -->
       <div class="toast" id="messageToast" role="alert" aria-live="assertive"
         aria-atomic="true">
         <div class="toast-header">

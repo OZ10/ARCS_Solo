@@ -10,6 +10,13 @@ $playercolour3: lightgrey;
 $playercolour4: lightgrey;
 */
 
+// Text on each player's colour. Dark on the light colours, white on the dark ones,
+// so names, headings and icons can be read. Change these if a player colour changes
+$playertext1: rgb(30, 30, 30);
+$playertext2: white;
+$playertext3: rgb(30, 30, 30);
+$playertext4: white;
+
 $mainfontcolour: rgb(30, 30, 30);
 
 $primary: #3532b8;
@@ -19,31 +26,235 @@ $btn-outline-primary-color: $primary;
 $btn-outline-primary-hover-bg: lighten($primary, 40%);
 
 body {
-    padding-bottom: 180px;
+    // Room for the fixed footer
+    padding-bottom: 110px;
 }
 
 header {
     background-color: whitesmoke;
 }
 
+.topbarlabel {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #666;
+    margin-right: 4px;
+}
+
+.topbarvalue {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+// Rounds 1-5 as one strip in the top bar
+.roundtrack {
+    border: 1px solid $mainfontcolour;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.roundsegment {
+    width: 22px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #888;
+    background-color: white;
+    border-left: 1px solid #ccc;
+
+    &:first-child {
+        border-left: none;
+    }
+}
+
+.roundpast {
+    background-color: #ddd;
+    color: #555;
+}
+
+.roundcurrent {
+    background-color: $mainfontcolour;
+    color: white;
+}
+
+// Ambition track in the top bar
+.ambitionchip {
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    padding: 0px 6px;
+    text-align: center;
+    line-height: 1.15;
+    color: #999;
+    background-color: white;
+}
+
+.ambitionname {
+    font-size: 0.6rem;
+    letter-spacing: 0.03em;
+}
+
+.ambitionpoints {
+    font-size: 0.85rem;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.ambitiondeclared {
+    background-color: $mainfontcolour;
+    border-color: $mainfontcolour;
+    color: white;
+}
+
+.ambitionnext {
+    border-style: dashed;
+    color: $mainfontcolour;
+}
+
+// Headings inside a player's panel (Resources, Cards, Actions)
+.sectionlabel {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.85;
+}
+
+// A resource in a player's panel: label on top, the count, then large -/+ buttons.
+// A slightly darker shade of the player's colour. The text uses the player's text
+// colour and the buttons are light, so they can be seen on any player colour
+.resourcetile {
+    width: 86px;
+    padding: 4px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.12);
+    text-align: center;
+}
+
+.resourcelabel {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.resourcevalue {
+    width: 100%;
+    padding: 0px;
+    border: none;
+    background-color: transparent;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+    line-height: 1.2;
+    color: inherit;
+
+    // Browsers (iOS Safari especially) grey out disabled inputs
+    &:disabled {
+        opacity: 1;
+        -webkit-text-fill-color: currentColor;
+    }
+}
+
+// Two classes so these win over Bootstrap's .btn, which comes later
+.btn.resourcebutton {
+    flex: 1;
+    height: 34px;
+    padding: 0px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+// Both light with dark icons. Minus is see-through so plus stands out a little more
+.btn.resourceminus {
+    --bs-btn-bg: rgba(255, 255, 255, 0.55);
+    --bs-btn-color: #{$mainfontcolour};
+    --bs-btn-hover-bg: rgba(255, 255, 255, 0.7);
+    --bs-btn-hover-color: #{$mainfontcolour};
+    --bs-btn-active-bg: rgba(255, 255, 255, 0.85);
+    --bs-btn-active-color: #{$mainfontcolour};
+}
+
+.btn.resourceplus {
+    --bs-btn-bg: rgba(255, 255, 255, 0.9);
+    --bs-btn-color: #{$mainfontcolour};
+    --bs-btn-hover-bg: white;
+    --bs-btn-hover-color: #{$mainfontcolour};
+    --bs-btn-active-bg: #e6e6e6;
+    --bs-btn-active-color: #{$mainfontcolour};
+}
+
+// Card and action buttons in a player's panel
+.playerpanel .btn-check + .btn {
+    font-size: 0.85rem;
+    padding: 4px 10px;
+}
+
+// CLAIM is a toggle, so make it obvious when it's on
+.btn.claimbutton.active {
+    --bs-btn-active-bg: #{$mainfontcolour};
+    --bs-btn-active-color: white;
+    --bs-btn-active-border-color: #{$mainfontcolour};
+}
+
+// When scrolled into view, keep the human player's actions clear of the fixed footer
+#actionbuttons {
+    scroll-margin-bottom: 90px;
+}
+
+// When the current player is scrolled to the top, keep them below the sticky top bar
+#playerslots > div {
+    scroll-margin-top: 45px;
+}
+
+// Messages sit in the top corner, below the top bar, and are kept narrow
+.messagetoast {
+    margin-top: 40px;
+
+    .toast {
+        width: 260px;
+        font-size: 0.85rem;
+    }
+}
+
+// A card in the played cards list in the footer
+.playedcard {
+    padding: 0px 8px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
 .playerheader {
-    padding: 10px 0px;
+    padding: 6px 0px;
     //margin: 10px;
     border-left-width: 4px;
     border-color: black;
-    color: $mainfontcolour;
-    font-size: large;
-    border-radius: 15px;
+    font-size: 1rem;
+    border-radius: 12px;
 
     a {
-        font-size: larger;
+        color: inherit;
+        font-size: 1.15rem;
         font-weight: bold;
+    }
+
+    // The vox, draw, seize and declare icons (not the resource buttons in the panel)
+    [id^="playeroptions"] .btn {
+        color: inherit;
     }
 }
 
 .playerheader1 {
     @extend .playerheader;
     background-color: $playercolour1;
+    color: $playertext1;
 }
 
 .playerpanel1{
@@ -51,55 +262,34 @@ header {
     //background-color: $playercoloursub1;
 }
 
-.playerresources1:disabled{
-    background-color: darken($color: $playercolour1, $amount: 5) !important;
-    border-color: darken($color: $playercolour1, $amount: 1) !important;
-    text-align: center;
-}
-
 .playerheader2 {
     @extend .playerheader;
     background-color: $playercolour2;
+    color: $playertext2;
 }
 
 .playerpanel2{
     background-color: darken($color: $playercolour2, $amount: 2);
 }
 
-.playerresources2:disabled{
-    background-color: darken($color: $playercolour2, $amount: 5) !important;
-    border-color: darken($color: $playercolour2, $amount: 1) !important;
-    text-align: center;
-}
-
 .playerheader3 {
     @extend .playerheader;
     background-color: $playercolour3;
+    color: $playertext3;
 }
 
 .playerpanel3{
     background-color: darken($color: $playercolour3, $amount: 2);
 }
 
-.playerresources3:disabled{
-    background-color: darken($color: $playercolour3, $amount: 5) !important;
-    border-color: darken($color: $playercolour3, $amount: 1) !important;
-    text-align: center;
-}
-
 .playerheader4 {
     @extend .playerheader;
     background-color: $playercolour4;
+    color: $playertext4;
 }
 
 .playerpanel4{
     background-color: darken($color: $playercolour4, $amount: 2);
-}
-
-.playerresources4:disabled{
-    background-color: darken($color: $playercolour4, $amount: 5) !important;
-    border-color: darken($color: $playercolour4, $amount: 1) !important;
-    text-align: center;
 }
 
 .playercard1 {
@@ -132,11 +322,6 @@ header {
     //border-radius: 15px;
 }
 
-.header1 {
-    font-size: larger;
-    font-weight: bold;
-}
-
 .nextbutton {
     margin-left: 50px;
     margin-right: 50px;
@@ -149,32 +334,12 @@ header {
     --bs-tooltip-color: var(--bs-black);
 }
 
-.numberCircle {
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    padding: 6px;
-
-    background: #fff;
-    border: 2px solid #666;
-    color: #666;
-    text-align: center;
-
-    font: 16px Arial, sans-serif;
-}
-
-.numberCircleSelected {
-    @extend .numberCircle;
-    background: black;
-    color: white;
-}
-
 @keyframes flash {
     0% { background-color: white; }
     50% { background-color: lightgray; }
     100% { background-color: white; }
   }
-  
+
   .flash {
     animation: flash 1.0s ease-in-out;
   }
