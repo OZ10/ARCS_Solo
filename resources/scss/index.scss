@@ -19,7 +19,10 @@ $playertext4: white;
 
 $mainfontcolour: rgb(30, 30, 30);
 
-$primary: #3532b8;
+// Muted blue-grey used for buttons and played cards
+$slate: #3d4a5c;
+
+$primary: $slate;
 
 $btn-outline-primary-border: white;
 $btn-outline-primary-color: $primary;
@@ -103,8 +106,8 @@ header {
 }
 
 .ambitiondeclared {
-    background-color: $mainfontcolour;
-    border-color: $mainfontcolour;
+    background-color: $slate;
+    border-color: $slate;
     color: white;
 }
 
@@ -126,7 +129,8 @@ header {
 // A slightly darker shade of the player's colour. The text uses the player's text
 // colour and the buttons are light, so they can be seen on any player colour
 .resourcetile {
-    width: 86px;
+    // Sized so all eight fit on one row on a phone in landscape (740px and up)
+    width: 80px;
     padding: 4px;
     border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.12);
@@ -203,8 +207,9 @@ header {
     --bs-btn-active-border-color: #{$mainfontcolour};
 }
 
-// When scrolled into view, keep the human player's actions clear of the fixed footer
-#actionbuttons {
+// When scrolled into view, keep the human player's actions and the bots' Play Card
+// buttons clear of the fixed footer
+#actionbuttons, [id^="playcard"] {
     scroll-margin-bottom: 90px;
 }
 
@@ -292,24 +297,33 @@ header {
     background-color: darken($color: $playercolour4, $amount: 2);
 }
 
+// Played cards: slate with light text, and the player's colour as a stripe near the
+// left edge (player colours as text on slate would be too hard to read). The stripe
+// has slate on both sides so light colours still show against the light footer
+@mixin playercardstripe($colour) {
+    background-image: linear-gradient(to right, $slate 4px, $colour 4px, $colour 9px, $slate 9px);
+}
+
+.playercard1, .playercard2, .playercard3, .playercard4 {
+    color: whitesmoke;
+    background-color: $slate;
+    padding-left: 14px;
+}
+
 .playercard1 {
-    color: $playercolour1;
-    background-color: black;
+    @include playercardstripe($playercolour1);
 }
 
 .playercard2 {
-    color: $playercolour2;
-    background-color: black;
+    @include playercardstripe($playercolour2);
 }
 
 .playercard3 {
-    color: $playercolour3;
-    background-color: black;
+    @include playercardstripe($playercolour3);
 }
 
 .playercard4 {
-    color: $playercolour4;
-    background-color: black;
+    @include playercardstripe($playercolour4);
 }
 
 .playersTurn{

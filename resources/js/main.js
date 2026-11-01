@@ -168,6 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     updateAmbitionsDisplay();
+    updateUndoButton();
     refreshTooltips();
 });
 
@@ -275,6 +276,8 @@ function setupGame(numberOfPlayers) {
 
     SaveAllSettings();
 
+    // localStorage was cleared above, so there's nothing to undo
+    updateUndoButton();
 }
 
 function addExtraCards(numberOfPlayers) {
@@ -547,7 +550,9 @@ function showHideActionButtons(isleading, card) {
 }
 
 function playcardclick() {
-    // This is the AI playing a card
+    // This is the AI playing a card. Save the game first so the card can be undone
+    if (currentPlayer.hasPlayedACardThisTurn == false) { saveUndoPoint(currentPlayer.number); }
+
     determineCardToPlay(currentPlayer);
 }
 
@@ -634,6 +639,9 @@ function nextRound() {
 }
 
 function startNextRound() {
+    // The round has been scored, so undoing a card from it is no longer possible
+    clearUndoPoint();
+
     if (isGameOver()) {
         enableDisableButton("nextRound", true);
         showGameOverModal();
@@ -916,6 +924,71 @@ function showGameOverModal() {
 
 // #endregion
 
+// #region UNDO
+
+// A single undo of the last card played. Just before a card is played, the saved game is
+// copied. Undo puts that copy back and reloads the page, so the game is rebuilt by the
+// normal loading code. Resources and power are left as they are now, because they track
+// the physical board. Keeping a list of copies would allow more than one undo later
+const undoKey = "undo";
+
+function saveUndoPoint(playerNumber) {
+    SaveAllSettings();
+
+    let saved = {};
+    for (let [key, value] of Object.entries(localStorage)) {
+        if (key != undoKey) { saved[key] = value; }
+    }
+
+    localStorage.setItem(undoKey, JSON.stringify({ playerNumber: playerNumber, round: roundNumber, turn: turnNumber, saved: saved }));
+    updateUndoButton();
+}
+
+function getUndoPoint() {
+    return getSettingObject(undoKey);
+}
+
+function clearUndoPoint() {
+    RemoveSettingByKey(undoKey);
+    updateUndoButton();
+}
+
+function updateUndoButton() {
+    enableDisableButton("undo", getUndoPoint() == null);
+}
+
+function showUndoModal() {
+    const undo = getUndoPoint();
+    if (undo == null) { return; }
+
+    document.getElementById("undoMessage").innerHTML = "Undo Player " + undo.playerNumber + "'s card in round " + undo.round + ", turn " + undo.turn + "?"
+        + "<br><small class=\"text-muted\">Resources and power stay as they are.</small>";
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("undoModal")).show();
+}
+
+function undoLastCard() {
+    const undo = getUndoPoint();
+    if (undo == null) { return; }
+
+    // Keep each player's resources and power as they are now
+    const resources = ["fuelValue", "materialsValue", "weaponsValue", "relicsValue", "psionicsValue", "captivesValue", "trophiesValue", "powerValue"];
+    players.forEach(player => {
+        if (undo.saved[player.number] == null) { return; }
+        const savedPlayer = JSON.parse(undo.saved[player.number]);
+        resources.forEach(resource => { savedPlayer[resource] = player[resource]; });
+        undo.saved[player.number] = JSON.stringify(savedPlayer);
+    });
+
+    // Put the copy back. The undo point isn't included, as there's only one undo
+    localStorage.clear();
+    Object.entries(undo.saved).forEach(([key, value]) => localStorage.setItem(key, value));
+
+    location.reload();
+}
+
+// #endregion
+
 function resetRound() {
     hasInitiativeBeenClaimedThisTurn = false;
 
@@ -996,6 +1069,9 @@ function resetDeck(cards) {
 function humanSelectedAction(cardAction) {
 
     const player = players[0];
+
+    // Save the game first so the card can be undone
+    saveUndoPoint(player.number);
 
     const btnSelected = document.querySelector('input.p1:checked');
 
@@ -1599,7 +1675,16 @@ function focus_empath(questionNumber) {
 function openYesNoModal(focusTitle) {
     let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("yesNo"));
     document.getElementById("yesNoTitle").innerHTML = "Player " + currentPlayer.number;
-    document.getElementById("focusMessage").innerHTML = focusTitle;
+
+    // When the modal stays open and moves on to another ambition, flash
+    // the ambition so it's clear the question is about something new
+    const focusMessage = document.getElementById("focusMessage");
+    if (focusMessage.innerHTML != focusTitle) {
+        focusMessage.classList.add("flash");
+        setTimeout(() => { focusMessage.classList.remove("flash"); }, 1000);
+    }
+    focusMessage.innerHTML = focusTitle;
+
     return modal;
 }
 
@@ -1717,14 +1802,15 @@ function answerNo() {
     // No questions left for this ambition, so try the next ambition
     currentPlayer.ambitionsEvaluated.push(focus);
 
-    // Wait for the modal to finish hiding before moving on. Bootstrap ignores
-    // show() while the modal is fading out, so if findFocus asks about the next
-    // ambition straight away the question would never be displayed
-    document.getElementById("yesNo").addEventListener('hidden.bs.modal', () => {
-        findFocus(currentPlayer, unplayedCards);
-    }, { once: true });
+    // Leave the modal open while the player decides what to do next. If they ask about
+    // another ambition, only the modal's text changes. If they play a card instead,
+    // there are no more questions, so close it
+    const player = currentPlayer;
+    findFocus(player, unplayedCards);
 
-    modal.hide();
+    if (player.hasPlayedACardThisTurn) {
+        modal.hide();
+    }
 }
 
 function getHighestCard(cards) {
@@ -2169,15 +2255,22 @@ function showHidePlayerPanel(player, playerNumber) {
     });
 
     if (player.number == playerNumber) {
-        // On a phone the current player can be off screen, so bring them to the top.
+        // On a phone the current player can be off screen, so bring them into view. For the
+        // human player that's their row at the top. For a bot it's their Play Card button,
+        // which is under the resources, just above the footer.
         // Wait for the panel to finish opening, as the page moves while it does
-        const playerRow = document.getElementById("player" + player.number);
+        const scrollToPlayer = () => {
+            if (player.isHuman) {
+                document.getElementById("player" + player.number).scrollIntoView({ block: "start", behavior: "smooth" });
+            } else {
+                document.getElementById("playcard" + player.number).scrollIntoView({ block: "end", behavior: "smooth" });
+            }
+        };
+
         if (playerPanel.classList.contains("show")) {
-            playerRow.scrollIntoView({ block: "start", behavior: "smooth" });
+            scrollToPlayer();
         } else {
-            playerPanel.addEventListener('shown.bs.collapse', () => {
-                playerRow.scrollIntoView({ block: "start", behavior: "smooth" });
-            }, { once: true });
+            playerPanel.addEventListener('shown.bs.collapse', scrollToPlayer, { once: true });
         }
 
         collapse.show();
