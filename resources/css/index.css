@@ -187,9 +187,16 @@ header {
 
 .playedcard {
   padding: 0px 8px;
+  border: none;
   border-radius: 8px;
   font-size: 0.85rem;
   white-space: nowrap;
+}
+
+header, .footerstyle {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .playerheader, .playerheader4, .playerheader3, .playerheader2, .playerheader1 {
@@ -242,6 +249,32 @@ header {
 
 .playerpanel4 {
   background-color: #3862e0;
+}
+
+.playerbanner1 {
+  background-color: goldenrod;
+  color: rgb(30, 30, 30);
+}
+
+.playerbanner2 {
+  background-color: firebrick;
+  color: white;
+}
+.playerbanner2 .btn-close {
+  filter: var(--bs-btn-close-white-filter);
+}
+
+.playerbanner3 {
+  background-color: antiquewhite;
+  color: rgb(30, 30, 30);
+}
+
+.playerbanner4 {
+  background-color: royalblue;
+  color: white;
+}
+.playerbanner4 .btn-close {
+  filter: var(--bs-btn-close-white-filter);
 }
 
 .playercard1, .playercard2, .playercard3, .playercard4 {

@@ -228,12 +228,21 @@ header {
     }
 }
 
-// A card in the played cards list in the footer
+// A card in the played cards list in the footer (a button, so tapping it shows its actions)
 .playedcard {
     padding: 0px 8px;
+    border: none;
     border-radius: 8px;
     font-size: 0.85rem;
     white-space: nowrap;
+}
+
+// Text in the top bar and footer can't be selected, so tapping it on Android doesn't
+// bring up Chrome's "Touch to Search" overlay
+header, .footerstyle {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .playerheader {
@@ -302,6 +311,35 @@ header {
 // has slate on both sides so light colours still show against the light footer
 @mixin playercardstripe($colour) {
     background-image: linear-gradient(to right, $slate 4px, $colour 4px, $colour 9px, $slate 9px);
+}
+
+// A modal's title bar in the colour of the player it's about (e.g. the bot's Yes/No questions)
+@mixin playerbanner($colour, $text) {
+    background-color: $colour;
+    color: $text;
+
+    // Bootstrap's close button is dark, so make it light on the dark player colours
+    @if $text == white {
+        .btn-close {
+            filter: var(--bs-btn-close-white-filter);
+        }
+    }
+}
+
+.playerbanner1 {
+    @include playerbanner($playercolour1, $playertext1);
+}
+
+.playerbanner2 {
+    @include playerbanner($playercolour2, $playertext2);
+}
+
+.playerbanner3 {
+    @include playerbanner($playercolour3, $playertext3);
+}
+
+.playerbanner4 {
+    @include playerbanner($playercolour4, $playertext4);
 }
 
 .playercard1, .playercard2, .playercard3, .playercard4 {

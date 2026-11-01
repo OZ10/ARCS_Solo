@@ -107,6 +107,13 @@ const ambitionResources = {
     empath: player => player.psionicsValue
 };
 
+// Chance (%) of a bot declaring the ambition on the card it leads with: a base chance for
+// the round, plus more for each resource it has towards that ambition, up to a maximum.
+// A bot with none of the ambition's resources never declares it. Tune after play testing
+const declareChanceByRound = { 1: 20, 2: 30, 3: 30, 4: 40, 5: 40 };
+const declareChancePerResource = 10;
+const declareChanceMax = 90;
+
 // How each ambition is won, shown to the players
 const ambitionConditions = {
     tycoon: "most fuel and materials",
@@ -1441,12 +1448,20 @@ const ambitionQuestionActions = {
     EMPATH: ["tax", "secure", "influence", "battle"]
 };
 
-function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions) {
+function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, player) {
     // Find the next question for the ambition that the player has a card
     // for, skipping any whose action isn't in their hand. 0 if there are none
     const questionActions = ambitionQuestionActions[ambition];
+
+    // On the player's final turn of the round (their last card) there's no later turn
+    // to secure a card influenced now, so don't ask about influencing
+    const isFinalTurn = getUnplayedCards(player.cards).length <= 1;
+
     for (let questionNumber = afterQuestionNumber + 1; questionNumber <= questionActions.length; questionNumber++) {
-        if (possibleActions.includes(questionActions[questionNumber - 1])) {
+        const action = questionActions[questionNumber - 1];
+        if (isFinalTurn && action == "influence") { continue; }
+
+        if (possibleActions.includes(action)) {
             return questionNumber;
         }
     }
@@ -1472,7 +1487,7 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
         if (player.ambitionsEvaluated.includes(ambition)) { continue; }
 
         // Ask the first question for this ambition the player has a card for
-        const questionNumber = getNextQuestionNumber(ambition, 0, possibleActions);
+        const questionNumber = getNextQuestionNumber(ambition, 0, possibleActions, player);
         if (questionNumber > 0) {
             focus_ambition(ambition, questionNumber);
             return true;
@@ -1523,9 +1538,18 @@ function focus_ambition(ambition, questionNumber, answerNo) {
     }
 }
 
-function updateYesNoText(text) {
-    
+function setYesNoTitle() {
+    // The title names the player answering, and the title bar is in their colour
     document.getElementById("yesNoTitle").innerHTML = "Player " + currentPlayer.number;
+
+    const header = document.querySelector("#yesNo .modal-header");
+    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    header.classList.add("playerbanner" + currentPlayer.number);
+}
+
+function updateYesNoText(text) {
+
+    setYesNoTitle();
 
     const element = document.getElementById("yesNoMessage");
     element.innerHTML = text
@@ -1674,7 +1698,7 @@ function focus_empath(questionNumber) {
 
 function openYesNoModal(focusTitle) {
     let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("yesNo"));
-    document.getElementById("yesNoTitle").innerHTML = "Player " + currentPlayer.number;
+    setYesNoTitle();
 
     // When the modal stays open and moves on to another ambition, flash
     // the ambition so it's clear the question is about something new
@@ -1793,7 +1817,7 @@ function answerNo() {
 
     // Move on to the next question for this ambition that the player has a card for.
     // Questions whose action isn't in their hand are skipped
-    const nextQuestionNumber = getNextQuestionNumber(focus, currentQuestionNumber, getPossibleActions(unplayedCards));
+    const nextQuestionNumber = getNextQuestionNumber(focus, currentQuestionNumber, getPossibleActions(unplayedCards), currentPlayer);
     if (nextQuestionNumber > 0) {
         focus_ambition(focus, nextQuestionNumber, true);
         return;
@@ -1851,56 +1875,15 @@ function declareAmbition(player, playedCard) {
         ambition = ambitionSorted[0][0];
     }
 
-    let sum = 10;
+    // A bot with none of the ambition's resources doesn't declare it. This
+    // includes the 1 cards, which have no ambition
+    const resources = (ambitionResources[ambition] == null) ? 0 : ambitionResources[ambition](player);
+    if (resources == 0) { return; }
 
-    switch (ambition) {
-        case "tycoon":
-            sum -= player.fuelValue + player.materialsValue;
-            break;
+    // See declareChanceByRound at the top of the file
+    const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource, declareChanceMax);
 
-        case "tyrant":
-            sum -= player.captivesValue
-            break;
-
-        case "warlord":
-            sum -= player.trophiesValue;
-            break;
-
-        case "keeper":
-            sum -= player.relicsValue;
-            break;
-
-        case "empath":
-            sum -= player.psionicsValue;
-            break;
-
-        default:
-            break;
-    }
-
-    // If sum is still 10 here then player has no resources
-    // of the matching ambition and should not declare an ambition
-    if (sum == 10) { return; }
-
-    switch (roundNumber) {
-        case 2:
-        case 3:
-            sum -= 2;
-            break;
-
-        case 4:
-        case 5:
-            sum -= 3;
-
-        default:
-            break;
-    }
-
-    if (sum < 0) { sum = 0 };
-
-    let num = Math.floor(Math.random() * 10);
-
-    if (num >= sum) {
+    if (Math.random() * 100 < chance) {
         showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = true;
 
@@ -2338,9 +2321,14 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
 
         playedCardList.push(card);
 
-        let cardDiv = document.createElement("div");
+        // A button rather than text, so tapping it on Android shows the card's actions
+        // instead of Chrome's "Touch to Search" overlay. The tooltip shows when tapped and
+        // hides when anything else is tapped (focus trigger)
+        let cardDiv = document.createElement("button");
+        cardDiv.type = "button";
         cardDiv.classList.add("fw-normal", "playedcard", "playercard" + card.playedByPlayerNumber);
         cardDiv.id = "playedlist" + getCardFullName(card);
+        cardDiv.setAttribute('data-bs-trigger', 'focus');
         // Only show the action when it's a specific one, to save space
         const actionText = (actionToPlay.toUpperCase() == "ANY") ? "" : actionToPlay.toUpperCase() + ": ";
         // If player COPIED, replace the suit played with XXXX
