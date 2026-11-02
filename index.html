@@ -203,7 +203,7 @@
               <!-- Ships in the player's supply and on the board -->
               <div>
                 <div class="boardgrouplabel">Ships</div>
-                <div class="d-flex gap-1">
+                <div class="d-flex flex-wrap justify-content-center gap-1">
                   <div class="resourcetile">
                     <div class="resourcelabel">Supply</div>
                     <input type="text" class="resourcevalue" id="shipsSupplyValue" value="0" disabled>
@@ -231,7 +231,8 @@
               <!-- How many of the player's cities are on each resource type, and the total -->
               <div>
                 <div class="boardgrouplabel">Cities (<span id="citiestotal">0</span>)</div>
-                <div class="d-flex gap-1">
+                <!-- Wraps onto more rows on a narrow (portrait) screen -->
+                <div class="d-flex flex-wrap justify-content-center gap-1">
                   <div class="resourcetile">
                     <div class="resourcelabel">Fuel</div>
                     <input type="text" class="resourcevalue" id="citiesFuelValue" value="0" disabled>
@@ -391,7 +392,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v011126.06</small>
+              <small class="text-muted me-auto" id="appVersion">v021126.01</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>

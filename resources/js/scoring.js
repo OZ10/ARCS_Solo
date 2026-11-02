@@ -176,12 +176,25 @@ function confirmScoring() {
         }
     });
 
+    // Once Warlord has been scored everyone's trophies go back, and likewise captives for Tyrant
+    let returned = [];
+    const scored = [...document.querySelectorAll("#scoringList .scoringambition")].map(section => section.dataset.ambition);
+    Object.entries(scoredAmbitionReturns).forEach(([ambition, resource]) => {
+        if (!scored.includes(ambition)) { return; }
+        players.forEach(player => {
+            player[resource + "Value"] = 0;
+            const input = document.getElementById(resource + "Value_" + player.number);
+            if (input != null) { input.value = 0; }
+        });
+        returned.push("All " + resource + " returned");
+    });
+
     // The ambitions have been scored, so clear them to stop them being scored again
     declaredAmbitions = [];
     updateAmbitionsDisplay();
     SaveAllSettings();
 
-    showMessageToast("Round " + roundNumber + " Scores", summary.length > 0 ? summary.join("<br>") : "Nobody scored");
+    showMessageToast("Round " + roundNumber + " Scores", (summary.length > 0 ? summary : ["Nobody scored"]).concat(returned).join("<br>"));
 
     // Carry on once the scoring modal has closed, as the game over
     // modal can't open while another modal is still closing

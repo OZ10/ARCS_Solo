@@ -37,6 +37,19 @@ header {
     background-color: whitesmoke;
 }
 
+// Phones in portrait: the round, turn and Options share the first line of the top bar and
+// the ambition track has the second line to itself. In landscape it's all on one line
+@media (max-width: 575.98px) {
+    #ambitionTrack {
+        order: 3;
+        flex-basis: 100%;
+    }
+
+    #optionsButton {
+        margin-left: auto;
+    }
+}
+
 .topbarlabel {
     font-size: 0.7rem;
     text-transform: uppercase;

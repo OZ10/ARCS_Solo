@@ -1,6 +1,10 @@
 // Battle: helping a bot that's attacking another player choose its dice and how to
 // assign the hits. The dice and the bot's personality are in rules.js.
-// Raid dice aren't included yet (see the placeholder in the Battle window)
+// Raid dice aren't included yet (see the placeholder in the Battle window). When they are,
+// review whether the bot should sometimes roll fewer dice than it could: with only assault
+// and skirmish dice that's never better, but with raid dice it may be. Defending buildings
+// aren't included either: hits beyond the defender's ships go to their buildings, and
+// destroying one causes Outrage, so the bot may want fewer dice to avoid that too
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
@@ -67,14 +71,16 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, personality) {
 }
 
 function getDiceOptions(ships, fresh, damaged, personality) {
-    // Every mix of assault and skirmish dice (one die per ship), with the chance the bot
-    // picks each. Skirmish dice can't hurt the attacker, so it always rolls them all.
-    // Options close to the best are picked almost as often as the best (a person can't tell
-    // them apart and guesses), but clearly worse ones quickly become rare.
-    // personality.randomness sets how far from the best counts as "close"
+    // Every mix of assault and skirmish dice (up to one die per ship and maxDicePerType of
+    // each), with the chance the bot picks each. Skirmish dice can't hurt the attacker, so the
+    // ships not rolling assault roll skirmish, up to the limit. Options close to the best are
+    // picked almost as often as the best (a person can't tell them apart and guesses), but
+    // clearly worse ones quickly become rare. personality.randomness sets how far from the
+    // best counts as "close"
     let options = [];
-    for (let assaultDice = 0; assaultDice <= ships; assaultDice++) {
-        options.push(evaluateDice(assaultDice, ships - assaultDice, fresh, damaged, personality));
+    for (let assaultDice = 0; assaultDice <= Math.min(ships, maxDicePerType); assaultDice++) {
+        const skirmishDice = Math.min(ships - assaultDice, maxDicePerType);
+        options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, personality));
     }
 
     const bestScore = Math.max(...options.map(option => option.score));
@@ -190,7 +196,7 @@ function clearBattleDecision() {
     // Anything changed, so the bot needs to choose again
     document.getElementById("battleAdvice").innerHTML =
         "<div class=\"text-muted\">Set up the battle, then choose the dice.</div>";
-    document.getElementById("chooseBattleDice").disabled = false;
+    document.getElementById("chooseBattleDice").innerHTML = "Choose dice";
 }
 
 function chooseBattleDice() {
@@ -233,5 +239,6 @@ function chooseBattleDice() {
         + (others.length > 0 ? ". Others: " + others.join(", ") : "") + "</div>"
         + "</details>";
 
-    document.getElementById("chooseBattleDice").disabled = true;
+    // The bot may attack again (with the same or updated ships), so it can choose again
+    document.getElementById("chooseBattleDice").innerHTML = "Choose again";
 }

@@ -68,6 +68,9 @@ const assaultDieFaces = [
     { hits: 1, ambush: true }
 ];
 
+// An attacker rolls up to one die per ship, but no more than this many of each type
+const maxDicePerType = 6;
+
 // How bots make decisions. The aim is for a bot to feel like a person guessing and sometimes
 // taking a risk, not a calculator. Bot personalities (#71) can later give each bot its own values.
 // riskWeight: how much damage to its own ships matters compared with damage it deals
@@ -80,9 +83,8 @@ const assaultDieFaces = [
 const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6 };
 
 // City bonus: the outright winner of an ambition (first place, not tied) gains extra power
-// for their buildings on the board: 2 with four, or 5 with all five (not both).
-// Buildings are cities and starports, but only cities are tracked so far, so a player
-// whose four or five buildings include starports needs the bonus added by hand (Power +)
+// for the city slots uncovered on their player board: 2 with four cities, or 5 with all
+// five (not both). Only cities count, not starports (rulebook p.18)
 const cityBonus = { 4: 2, 5: 5 };
 
 function getCityBonus(player) {
@@ -92,6 +94,9 @@ function getCityBonus(player) {
     if (cities >= 4) { return cityBonus[4]; }
     return 0;
 }
+
+// After scoring, everyone returns these when that ambition was scored (rulebook p.19)
+const scoredAmbitionReturns = { warlord: "trophies", tyrant: "captives" };
 
 function getRoundMarkers(round) {
     // Highest marker first, ranked by its first place value
@@ -103,7 +108,7 @@ function scoreAmbition(counts, markers) {
     // - A player needs at least one matching resource to score
     // - Most scores first place, second most scores second place
     // - A tie for first: all tied players score second place and nobody else scores
-    // - A tie for second: all tied players score second place
+    // - A tie for second: the tied players don't place and nobody scores second
     // - An outright first place also scores the city bonus (see cityBonus), once per ambition
     // Several markers on one ambition are scored together
     const firstPlacePoints = markers.reduce((sum, marker) => sum + marker[0], 0);
@@ -125,9 +130,10 @@ function scoreAmbition(counts, markers) {
     const rest = eligible.filter(c => c.count < highest);
     if (rest.length > 0) {
         const secondHighest = Math.max(...rest.map(c => c.count));
-        rest.filter(c => c.count == secondHighest).forEach(c => {
-            results.push({ player: c.player, points: secondPlacePoints, cityBonus: 0 });
-        });
+        const second = rest.filter(c => c.count == secondHighest);
+        if (second.length == 1) {
+            results.push({ player: second[0].player, points: secondPlacePoints, cityBonus: 0 });
+        }
     }
 
     return results;
