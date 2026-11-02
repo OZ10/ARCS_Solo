@@ -71,6 +71,28 @@ function getBotPlay(player) {
     }
 }
 
+function canBotTakeAction(player, action) {
+    // The bot can take this action ("build" or "battle") this turn: its card has it
+    // (Construction builds, Aggression battles), or its prelude gave it (a Material for
+    // Build, a Weapon or Psionic for Battle, or a Psionic for an action from a lead card that has it)
+    const play = getBotPlay(player);
+    if (play == null) { return false; }
+    if (play.actions.includes(action)) { return true; }
+
+    const spent = (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
+    return spent.some(offer => offer.action == action || (offer.action == "lead" && playedCardList[0].actions.includes(action)));
+}
+
+function updateBotActionButtons(player) {
+    // The Battle and Build icons only show for a bot that has played a card (or prelude)
+    // that lets it battle or build, until its Done
+    [["battlebutton", "battle"], ["buildbutton", "build"]].forEach(([id, action]) => {
+        const button = document.getElementById(id + player.number);
+        if (button == null) { return; }
+        showHideElement([button], !player.isHuman && awaitingDone == player.number && canBotTakeAction(player, action));
+    });
+}
+
 function getPreludeOffers(player) {
     // What the bot would like to do this turn, as [{ label, text, costs, gains, discards, seize, union }]:
     // the resources it spends and gains, a Guild card it discards, whether it seizes the

@@ -353,14 +353,14 @@ function showTurnDone(player) {
     const done = document.getElementById("turndone" + player.number);
     showHideElement([done], true);
 
-    // A bot that can build now has the Build icon
-    updateBuildButton(player);
+    // A bot that can now battle or build has the Battle or Build icon
+    updateBotActionButtons(player);
     document.getElementById("donebutton" + player.number).scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 function hideTurnDone(player) {
     showHideElement([document.getElementById("turndone" + player.number)], false);
-    showHideElement([document.getElementById("buildbutton" + player.number)], false);
+    showHideElement([document.getElementById("battlebutton" + player.number), document.getElementById("buildbutton" + player.number)], false);
     if (!player.isHuman) { showHideElement([document.getElementById("playcard" + player.number).parentNode], true); }
 }
 

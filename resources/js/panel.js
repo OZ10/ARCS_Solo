@@ -85,7 +85,7 @@ function clonePlayerNodeAndSetup(player) {
     // The Battle helper is for bots. The human player chooses their own dice
     const battlebutton = playertemplate.querySelector("#battlebutton");
     battlebutton.id = "battlebutton" + playerNumber.toString();
-    // Hidden until it's this bot's turn (see enableDisablePlayerPanels)
+    // Hidden until the bot has played a card it can battle with (see updateBotActionButtons)
     battlebutton.classList.add("d-none");
 
     // Likewise the Build helper
@@ -356,10 +356,10 @@ function enableDisablePlayerPanels(playerNumber) {
             btn.disabled = true;
         }
 
-        // A bot can only battle on its own turn, so the Battle icon only shows then (and never
-        // for the human). Hidden rather than disabled, which looked odd
-        showHideElement([document.getElementById("battlebutton" + player.number)], player.number == playerNumber && !player.isHuman);
-        updateBuildButton(player);
+        // A bot can only battle or build on its own turn, once it has played a card that lets
+        // it, so the icons only show then (and never for the human). Hidden rather than
+        // disabled, which looked odd
+        updateBotActionButtons(player);
 
         showHidePlayerPanel(player, playerNumber);
 

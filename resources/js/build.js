@@ -51,24 +51,6 @@ function getBuildChoice(player, slotResources) {
     return { build: "ship", reason: "There's nowhere it needs a building." };
 }
 
-function canBotBuild(player) {
-    // The bot can build this turn: its card has Build (Construction), or its prelude gave it
-    // a Build (a Material spent, or a Psionic for an action from a lead card that builds)
-    const play = getBotPlay(player);
-    if (play == null) { return false; }
-    if (play.actions.includes("build")) { return true; }
-
-    const spent = (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
-    return spent.some(offer => offer.action == "build" || (offer.action == "lead" && playedCardList[0].actions.includes("build")));
-}
-
-function updateBuildButton(player) {
-    // The Build icon only shows for a bot that has played a card it can build with, until Done
-    const button = document.getElementById("buildbutton" + player.number);
-    if (button == null) { return; }
-    showHideElement([button], !player.isHuman && awaitingDone == player.number && canBotBuild(player));
-}
-
 function capitalise(text) {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
