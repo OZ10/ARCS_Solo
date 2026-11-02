@@ -104,7 +104,100 @@ function clonePlayerNodeAndSetup(player) {
     citiestotal.id = "citiestotal" + playerNumber.toString();
     citiestotal.innerHTML = getCityCount(player);
 
+    playertemplate.querySelector("#guildcards").id = "guildcards" + playerNumber.toString();
+
     document.getElementById("playerslots").appendChild(playertemplate);
+    showGuildCardsRow(player);
+}
+
+// A player's Guild cards: one line on their panel, with a window to add a card or to read
+// and remove one. Guild icons count towards ambitions (see ambitionResources in rules.js)
+
+function showGuildCardsRow(player) {
+    const row = document.getElementById("guildcards" + player.number);
+    row.replaceChildren();
+
+    const label = document.createElement("span");
+    label.classList.add("boardgrouplabel", "mb-0", "me-1");
+    label.innerHTML = "Guild";
+    row.appendChild(label);
+
+    getPlayerGuildCards(player).forEach(card => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.classList.add("guildchip", "guild-" + card.resource);
+        chip.innerHTML = card.name;
+        chip.onclick = () => showGuildCard(player, card);
+        row.appendChild(chip);
+    });
+
+    const add = document.createElement("button");
+    add.type = "button";
+    add.classList.add("guildchip", "guildadd");
+    add.setAttribute("aria-label", "Add a Guild card to Player " + player.number);
+    add.innerHTML = "<i class=\"bi bi-plus-lg\"></i>";
+    add.onclick = () => showAddGuildCard(player);
+    row.appendChild(add);
+}
+
+function showGuildCard(player, card) {
+    // A card's text, with Remove (when it's lost, discarded or stolen)
+    document.getElementById("guildTitle").innerHTML = card.name;
+    const body = document.getElementById("guildBody");
+    body.innerHTML = "<div class=\"small text-muted mb-2\">Player " + player.number + " &middot; " + preludeResourceNames[card.resource]
+        + " &middot; " + card.keys + " key" + (card.keys == 1 ? "" : "s") + " &middot; BC " + String(card.number).padStart(2, "0") + "</div>"
+        + "<p>" + card.text + "</p>";
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.classList.add("btn", "btn-outline-secondary", "w-100");
+    remove.innerHTML = "Remove from Player " + player.number;
+    remove.onclick = () => {
+        player.guildCards = player.guildCards.filter(number => number != card.number);
+        showGuildCardsRow(player);
+        SaveAllSettings();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
+    };
+    body.appendChild(remove);
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
+}
+
+function showAddGuildCard(player) {
+    // The Guild cards nobody holds, grouped by resource icon
+    document.getElementById("guildTitle").innerHTML = "Add a Guild card to Player " + player.number;
+    const body = document.getElementById("guildBody");
+    body.replaceChildren();
+
+    ["materials", "fuel", "weapons", "relics", "psionics"].forEach(resource => {
+        const cards = getGuildCards().filter(card => card.resource == resource && getGuildCardHolder(card.number) == null);
+        if (cards.length == 0) { return; }
+
+        const heading = document.createElement("div");
+        heading.classList.add("boardgrouplabel", "text-start", "mt-2");
+        heading.innerHTML = preludeResourceNames[resource];
+        body.appendChild(heading);
+
+        const group = document.createElement("div");
+        group.classList.add("d-flex", "flex-wrap", "gap-1");
+        cards.forEach(card => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.classList.add("guildchip", "guild-" + resource);
+            chip.innerHTML = card.name;
+            chip.onclick = () => {
+                player.guildCards.push(card.number);
+                showGuildCardsRow(player);
+                SaveAllSettings();
+                bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
+            };
+            group.appendChild(chip);
+        });
+        body.appendChild(group);
+    });
+    if (body.children.length == 0) { body.innerHTML = "<div class=\"text-muted\">Every Guild card is already held.</div>"; }
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
 }
 
 function setPlusMinusButtons(playertemplate, player, type) {

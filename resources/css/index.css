@@ -124,6 +124,47 @@ header {
   margin-bottom: 2px;
 }
 
+.guildchip {
+  padding: 1px 8px;
+  border: none;
+  border-left: 5px solid #999;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  white-space: nowrap;
+  color: rgb(30, 30, 30);
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.guild-materials {
+  border-left-color: #9b59b6;
+}
+
+.guild-fuel {
+  border-left-color: #d4a017;
+}
+
+.guild-weapons {
+  border-left-color: #c0392b;
+}
+
+.guild-relics {
+  border-left-color: #3aa6c9;
+}
+
+.guild-psionics {
+  border-left-color: #e0609a;
+}
+
+.guildadd {
+  border-left: none;
+  padding: 1px 7px;
+}
+
+.modal .guildchip {
+  background-color: #ececec;
+}
+
 .resourcelabel {
   font-size: 0.7rem;
   font-weight: 600;

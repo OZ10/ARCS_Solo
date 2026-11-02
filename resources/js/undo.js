@@ -38,7 +38,7 @@ function showUndoModal() {
     if (undo == null) { return; }
 
     document.getElementById("undoMessage").innerHTML = "Undo Player " + undo.playerNumber + "'s card in round " + undo.round + ", turn " + undo.turn + "?"
-        + "<br><small class=\"text-muted\">Resources, power and board counts stay as they are, apart from any spent in the bot's prelude.</small>";
+        + "<br><small class=\"text-muted\">Resources, power, board counts and Guild cards stay as they are, apart from any spent in the bot's prelude.</small>";
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("undoModal")).show();
 }
@@ -47,12 +47,13 @@ function undoLastCard() {
     const undo = getUndoPoint();
     if (undo == null) { return; }
 
-    // Keep each player's resources, power and board counts as they are now
+    // Keep each player's resources, power, board counts and Guild cards as they are now
     const resources = playerCounters.map(counter => counter + "Value");
     players.forEach(player => {
         if (undo.saved[player.number] == null) { return; }
         const savedPlayer = JSON.parse(undo.saved[player.number]);
         resources.forEach(resource => { savedPlayer[resource] = player[resource]; });
+        savedPlayer.guildCards = player.guildCards;
 
         // Except anything the undone card's bot spent in its prelude, which it gets back
         if (player.number == undo.playerNumber && player.prelude != null && player.prelude.spent != null) {

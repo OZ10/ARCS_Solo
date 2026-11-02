@@ -20,13 +20,14 @@ const ambitionMarkerValues = {
     5: [[9, 4], [6, 3], [4, 2]]
 };
 
-// What each ambition counts when it's scored
+// What each ambition counts when it's scored: resources, plus the matching icons on the
+// player's Guild cards (getGuildIconCount in court.js)
 const ambitionResources = {
-    tycoon: player => player.fuelValue + player.materialsValue,
+    tycoon: player => player.fuelValue + player.materialsValue + getGuildIconCount(player, "fuel") + getGuildIconCount(player, "materials"),
     tyrant: player => player.captivesValue,
     warlord: player => player.trophiesValue,
-    keeper: player => player.relicsValue,
-    empath: player => player.psionicsValue
+    keeper: player => player.relicsValue + getGuildIconCount(player, "relics"),
+    empath: player => player.psionicsValue + getGuildIconCount(player, "psionics")
 };
 
 // Chance (%) of a bot declaring the ambition on the card it leads with: a base chance for

@@ -11,6 +11,7 @@ function loadPlayers() {
             playerCounters.forEach(counter => {
                 if (player[counter + "Value"] == null) { player[counter + "Value"] = 0; }
             });
+            if (player.guildCards == null) { player.guildCards = []; }
 
             players.push(player);
             clonePlayerNodeAndSetup(player);

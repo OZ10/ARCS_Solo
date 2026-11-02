@@ -25,6 +25,8 @@ class player {
     citiesRelicsValue = 0;
     citiesPsionicsValue = 0;
     cards = [];
+    // The numbers of the Guild cards held (see court.js)
+    guildCards = [];
     hasInitiative = false;
     hasPlayedACardThisTurn = false;
     ambitionsEvaluated = [];

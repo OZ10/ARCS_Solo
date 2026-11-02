@@ -161,6 +161,37 @@ header {
     margin-bottom: 2px;
 }
 
+// A Guild card on a player's panel or in the Guild window: its name with a stripe in the
+// colour of its resource icon. Small, so a player's cards fit on one line
+$guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3aa6c9, psionics: #e0609a);
+
+.guildchip {
+    padding: 1px 8px;
+    border: none;
+    border-left: 5px solid #999;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    white-space: nowrap;
+    color: $mainfontcolour;
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+@each $resource, $colour in $guildcolours {
+    .guild-#{$resource} {
+        border-left-color: $colour;
+    }
+}
+
+.guildadd {
+    border-left: none;
+    padding: 1px 7px;
+}
+
+.modal .guildchip {
+    background-color: #ececec;
+}
+
 .resourcelabel {
     font-size: 0.7rem;
     font-weight: 600;

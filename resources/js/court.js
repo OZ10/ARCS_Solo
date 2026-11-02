@@ -1,6 +1,6 @@
-// Court cards: the base game's Guild and Vox cards (BC 01-31), as printed. Not used yet. They're
-// here for Guild icons in scoring, bot preludes (#72), drawing played cards (#38) and bots
-// securing Court cards (#74).
+// Court cards: the base game's Guild and Vox cards (BC 01-31), as printed. The Guild cards each
+// player holds are listed on their panel, and their icons count towards ambitions. Also here
+// for bot preludes (#72), drawing played cards (#38) and bots securing Court cards (#74).
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 //
@@ -147,4 +147,19 @@ function getCourtCard(number) {
 
 function getGuildCards() {
     return courtCards.filter(card => card.type == "guild");
+}
+
+function getPlayerGuildCards(player) {
+    // The Guild cards a player holds. Games saved before they were tracked have none
+    return (player.guildCards || []).map(number => getCourtCard(number));
+}
+
+function getGuildIconCount(player, resource) {
+    // Each Guild card has one resource icon, which counts towards ambitions
+    return getPlayerGuildCards(player).filter(card => card.resource == resource).length;
+}
+
+function getGuildCardHolder(number) {
+    // The player holding a Guild card, or undefined
+    return players.find(player => (player.guildCards || []).includes(number));
 }

@@ -291,6 +291,10 @@
               </div>
             </div>
 
+            <!-- The Guild cards the player holds, on one line: tap a card for its text, + to add
+                 one (see showGuildCardsRow in panel.js) -->
+            <div class="d-flex flex-wrap align-items-center justify-content-center gap-1 mx-3 mb-2" id="guildcards"></div>
+
             <!-- Bots only. Under the resources, where the human player's cards and actions go -->
             <div class="d-flex mx-3 mb-2">
               <button class="btn btn-secondary flex-fill" id="playcard"
@@ -429,6 +433,21 @@
               No
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Adding a Guild card to a player, or one card's text with Remove (panel.js) -->
+    <div class="modal fade" id="guildModal" tabindex="-1" aria-labelledby="guildTitle"
+      aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="guildTitle">Guild cards</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"
+              aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="guildBody"></div>
         </div>
       </div>
     </div>
@@ -604,9 +623,9 @@
           <div class="modal-body">
             <p>Check how many of each ambition's resources every player has.
               Counts are filled in from the resources being tracked.</p>
-            <p class="small"><i class="bi bi-info-circle"></i> <b>Include Guild card icons:</b>
-              add any matching icons on a player's Guild cards to their count (Tycoon counts
-              fuel and material icons, Keeper relics, Empath psionics).</p>
+            <p class="small"><i class="bi bi-info-circle"></i> <b>Guild card icons</b> are
+              included for the cards listed on each player's panel. Add a Cartel's supply
+              (Material or Fuel kept on the card) to Tycoon by hand.</p>
             <p class="small d-none" id="scoringNeutralNote"><i class="bi bi-info-circle"></i>
               <b>Neutral:</b> with 2 players, the resources on each ambition box count as a third
               player. They can take a place but gain no power. Counts are remembered for next round.</p>
