@@ -102,6 +102,12 @@ function getCityBonus(player) {
 // After scoring, everyone returns these when that ambition was scored (rulebook p.19)
 const scoredAmbitionReturns = { warlord: "trophies", tyrant: "captives" };
 
+// 2 players: the 6 resources from the out-of-play planets sit on the matching ambition boxes
+// (fuel and material on Tycoon, weapons on Warlord as trophies, relics on Keeper, psionics
+// on Empath) and are scored as a third player who gains no power (rulebook p.4, p.19)
+const neutralAmbitions = ["tycoon", "warlord", "keeper", "empath"];
+const neutralPlayer = { number: "neutral", isNeutral: true };
+
 function getRoundMarkers(round) {
     // Highest marker first, ranked by its first place value
     return ambitionMarkerValues[round].slice().sort((a, b) => b[0] - a[0]);
@@ -114,6 +120,7 @@ function scoreAmbition(counts, markers) {
     // - A tie for first: all tied players score second place and nobody else scores
     // - A tie for second: the tied players don't place and nobody scores second
     // - An outright first place also scores the city bonus (see cityBonus), once per ambition
+    // - The 2 player neutral (neutralPlayer) places like anyone else, but its points aren't added
     // Several markers on one ambition are scored together
     const firstPlacePoints = markers.reduce((sum, marker) => sum + marker[0], 0);
     const secondPlacePoints = markers.reduce((sum, marker) => sum + marker[1], 0);
@@ -128,7 +135,7 @@ function scoreAmbition(counts, markers) {
         return first.map(c => ({ player: c.player, points: secondPlacePoints, cityBonus: 0 }));
     }
 
-    const bonus = getCityBonus(first[0].player);
+    const bonus = first[0].player.isNeutral ? 0 : getCityBonus(first[0].player);
     let results = [{ player: first[0].player, points: firstPlacePoints + bonus, cityBonus: bonus }];
 
     const rest = eligible.filter(c => c.count < highest);

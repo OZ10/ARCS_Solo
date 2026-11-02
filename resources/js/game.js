@@ -58,6 +58,7 @@ function setupGame(numberOfPlayers) {
     turnNumber = 1;
     roundNumber = 1;
     declaredAmbitions = [];
+    neutralCounts = {};
 
     removeChildElements("playerslots");
     removeChildElements("playedcards");

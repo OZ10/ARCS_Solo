@@ -12,6 +12,8 @@ let hasInitiativeBeenClaimedThisTurn = false;
 let turnNumber = 1;
 let roundNumber = 1;
 let declaredAmbitions = [];
+// 2 players: the neutral resources on each ambition box, as { ambition: count }
+let neutralCounts = {};
 let currentPlayer;
 
 // The number of the player who has played their card this turn and is carrying out their

@@ -87,6 +87,7 @@ function showScoringModal() {
     list.replaceChildren();
 
     document.getElementById("scoringModalTitle").innerHTML = "Round " + roundNumber + " Scoring";
+    document.getElementById("scoringNeutralNote").classList.toggle("d-none", players.length != 2);
 
     getDeclaredAmbitionMarkers().forEach(group => {
         const section = document.createElement("div");
@@ -99,7 +100,11 @@ function showScoringModal() {
         header.innerHTML = group.ambition.toUpperCase() + ' <span class="fw-light">' + group.markers.map(m => m[0] + "/" + m[1]).join(" + ") + " (" + ambitionConditions[group.ambition] + ")</span>";
         section.appendChild(header);
 
-        players.forEach(player => {
+        // With 2 players the neutral resources on the ambition box score like a third player
+        let scorers = players.slice();
+        if (players.length == 2 && neutralAmbitions.includes(group.ambition)) { scorers.push(neutralPlayer); }
+
+        scorers.forEach(player => {
             const row = document.createElement("div");
             row.classList.add("d-flex", "align-items-center", "mt-1");
 
@@ -109,7 +114,7 @@ function showScoringModal() {
             label.classList.add("me-2");
             label.style.width = "80px";
             label.htmlFor = "scoreCount_" + id;
-            label.innerHTML = "Player " + player.number;
+            label.innerHTML = player.isNeutral ? "Neutral" : "Player " + player.number;
 
             // Filled in from the resources being tracked, but can be changed
             const input = document.createElement("input");
@@ -119,7 +124,8 @@ function showScoringModal() {
             input.style.width = "80px";
             input.id = "scoreCount_" + id;
             input.dataset.player = player.number;
-            input.value = ambitionResources[group.ambition](player);
+            // The neutral count is remembered from the last time it was scored
+            input.value = player.isNeutral ? (neutralCounts[group.ambition] || 0) : ambitionResources[group.ambition](player);
             input.oninput = updateScoringPreview;
 
             const points = document.createElement("span");
@@ -143,7 +149,7 @@ function getScoringResults() {
 
     document.querySelectorAll("#scoringList .scoringambition").forEach(section => {
         const counts = [...section.querySelectorAll("input")].map(input => ({
-            player: getPlayer(input.dataset.player),
+            player: (input.dataset.player == neutralPlayer.number) ? neutralPlayer : getPlayer(input.dataset.player),
             count: parseInt(input.value) || 0
         }));
 
@@ -161,19 +167,27 @@ function updateScoringPreview() {
     getScoringResults().forEach(result => {
         // The points include any city bonus, which is shown alongside
         const bonus = (result.cityBonus > 0) ? " <span class=\"fw-light\">(incl. " + result.cityBonus + " city bonus)</span>" : "";
-        document.getElementById("scorePoints_" + result.ambition + "_" + result.player.number).innerHTML = "+" + result.points + bonus;
+        const span = document.getElementById("scorePoints_" + result.ambition + "_" + result.player.number);
+        // The neutral takes a place from the players but gains no power
+        span.innerHTML = result.player.isNeutral ? "<span class=\"fw-light\">places (no power)</span>" : "+" + result.points + bonus;
     });
 }
 
 function confirmScoring() {
     let summary = [];
 
-    getScoringResults().forEach(result => {
+    getScoringResults().filter(result => !result.player.isNeutral).forEach(result => {
         setPlayerPower(result.player, result.player.powerValue + result.points);
         if (result.points > 0) {
             summary.push("Player " + result.player.number + " +" + result.points + " (" + result.ambition
                 + (result.cityBonus > 0 ? ", incl. " + result.cityBonus + " city bonus" : "") + ")");
         }
+    });
+
+    // Remember the neutral counts for the next time those ambitions are scored. The neutral's
+    // weapons on Warlord stay, as they aren't trophies taken in battle
+    document.querySelectorAll("#scoringList input[data-player=\"" + neutralPlayer.number + "\"]").forEach(input => {
+        neutralCounts[input.closest(".scoringambition").dataset.ambition] = parseInt(input.value) || 0;
     });
 
     // Once Warlord has been scored everyone's trophies go back, and likewise captives for Tyrant
@@ -217,14 +231,25 @@ function isGameOver() {
     return roundNumber >= 5 || players.some(player => player.powerValue >= powerToWin[players.length]);
 }
 
+function getTurnOrderPosition(player) {
+    // 0 for the player with the initiative, then 1, 2... going round the table
+    const leader = getPlayerWithInitiative();
+    return (player.number - leader.number + players.length) % players.length;
+}
+
 function showGameOverModal() {
-    const standings = players.slice().sort((a, b) => b.powerValue - a.powerValue);
+    // Most power wins. A tie goes to whoever is earliest in turn order (rulebook p.19)
+    const standings = players.slice().sort((a, b) => (b.powerValue - a.powerValue) || (getTurnOrderPosition(a) - getTurnOrderPosition(b)));
+    const winner = standings[0];
+    const tied = standings.filter(player => player.powerValue == winner.powerValue);
     const target = powerToWin[players.length];
     const reachedTarget = standings.filter(player => player.powerValue >= target);
 
-    document.getElementById("gameOverReason").innerHTML = (reachedTarget.length > 0)
+    document.getElementById("gameOverReason").innerHTML = ((reachedTarget.length > 0)
         ? reachedTarget.map(player => "Player " + player.number).join(" and ") + " reached " + target + " power"
-        : "The end of round 5";
+        : "The end of round 5")
+        + "<br><b>Player " + winner.number + " wins</b>"
+        + (tied.length > 1 ? "<br><small class=\"text-muted\">Tied on power: the earliest in turn order wins</small>" : "");
 
     const list = document.getElementById("gameOverList");
     list.replaceChildren();
@@ -232,7 +257,7 @@ function showGameOverModal() {
     standings.forEach(player => {
         const row = document.createElement("div");
         row.classList.add("fs-5");
-        if (player.powerValue == standings[0].powerValue) { row.classList.add("fw-bold"); }
+        if (player === winner) { row.classList.add("fw-bold"); }
         row.innerHTML = "Player " + player.number + ": " + player.powerValue + " power";
         list.appendChild(row);
     });

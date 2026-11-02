@@ -392,7 +392,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v021126.02</small>
+              <small class="text-muted me-auto" id="appVersion">v021126.03</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -583,6 +583,12 @@
           <div class="modal-body">
             <p>Check how many of each ambition's resources every player has.
               Counts are filled in from the resources being tracked.</p>
+            <p class="small"><i class="bi bi-info-circle"></i> <b>Include Guild card icons:</b>
+              add any matching icons on a player's Guild cards to their count (Tycoon counts
+              fuel and material icons, Keeper relics, Empath psionics).</p>
+            <p class="small d-none" id="scoringNeutralNote"><i class="bi bi-info-circle"></i>
+              <b>Neutral:</b> with 2 players, the resources on each ambition box count as a third
+              player. They can take a place but gain no power. Counts are remembered for next round.</p>
             <div id="scoringList"></div>
           </div>
           <div class="modal-footer">
