@@ -86,6 +86,41 @@ const maxDicePerType = 6;
 //             0 = doesn't mind)
 const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6, buildingWeight: 1 };
 
+// Prelude (#72): before its card's actions a bot may spend resources for extra actions.
+// What each resource gives, and the ambition it counts towards (weapons count towards none)
+const preludeResources = ["materials", "fuel", "relics", "weapons", "psionics"];
+const preludeResourceNames = { materials: "Material", fuel: "Fuel", relics: "Relic", weapons: "Weapon", psionics: "Psionic" };
+const preludeAmbitions = { materials: "tycoon", fuel: "tycoon", relics: "keeper", psionics: "empath" };
+
+// At most this many of each resource type a turn. Could be raised later
+const maxPreludePerResource = 1;
+
+// A bot keeps a resource it could use to chase an ambition: when spending one would cost it a
+// place, or this many more would gain it one
+const preludeReachGap = 2;
+
+// In the first few turns of a round an undeclared ambition doesn't hold a bot back from
+// spending. After that it might still be declared, so the bot keeps what it could chase it with
+const preludeEarlyTurns = 2;
+
+// A bot with this many ships on the board is keen to battle
+const manyShipsOnBoard = 6;
+
+// The chance (%) of a bot offering each prelude action. These could become part of the bot
+// personalities (#71)
+const preludeChance = {
+    spare: 60,              // a material, fuel or relic it can spare
+    weaponsHavoc: 10,       // a weapon, just to cause some havoc
+    weaponsWarlord: 70,     // + chasing Warlord
+    weaponsManyShips: 40,   // + lots of ships on the board
+    weaponsSaveTrophies: 15,// + lots of ships and Warlord could still be declared, so trophies now could count later
+    psionicsFollowing: 40,  // a psionic for an action from the lead card, when it didn't lead
+    psionicsBattle: 20,     // + the lead card battles and the bot is keen to battle
+    psionicsWarlord: 45,    // when it led: an extra battle, chasing Warlord
+    psionicsManyShips: 35,  // when it led: an extra battle, lots of ships on the board
+    max: 90
+};
+
 // City bonus: the outright winner of an ambition (first place, not tied) gains extra power
 // for the city slots uncovered on their player board: 2 with four cities, or 5 with all
 // five (not both). Only cities count, not starports (rulebook p.18)

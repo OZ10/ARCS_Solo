@@ -392,7 +392,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v021126.03</small>
+              <small class="text-muted me-auto" id="appVersion">v021126.04</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -428,6 +428,27 @@
               onclick="answerNo()">
               No
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A bot's prelude: the resources it would like to spend, ticked if worth doing (prelude.js) -->
+    <div class="modal fade" id="preludeModal" tabindex="-1" aria-labelledby="preludeTitle"
+      aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="preludeTitle">Prelude</h5>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">Before its actions, the bot would like to spend these.
+              Tick the ones worth doing.</p>
+            <div id="preludeList"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary w-100" id="confirmPrelude"
+              onclick="confirmPrelude()">Spend ticked</button>
           </div>
         </div>
       </div>
@@ -849,6 +870,7 @@
     <script src="./resources/js/panel.js"></script>
     <script src="./resources/js/human.js"></script>
     <script src="./resources/js/bot.js"></script>
+    <script src="./resources/js/prelude.js"></script>
     <script src="./resources/js/battle.js"></script>
     <script src="./resources/js/game.js"></script>
   </body>

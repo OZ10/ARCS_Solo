@@ -28,6 +28,8 @@ class player {
     hasInitiative = false;
     hasPlayedACardThisTurn = false;
     ambitionsEvaluated = [];
+    // A bot's prelude this turn: { offers, spent } (prelude.js)
+    prelude = null;
 }
 
 // Everything counted with -/+ tiles on a player's panel. Each is stored on the player as
@@ -59,6 +61,7 @@ function hasPlayerGotCardsToPlay(player) {
 function resetPlayedThisTurn() {
     players.forEach(player => {
         player.hasPlayedACardThisTurn = false;
+        player.prelude = null;
     })
 }
 

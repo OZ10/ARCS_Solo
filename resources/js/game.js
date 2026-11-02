@@ -327,10 +327,14 @@ function finishPlay(player) {
 
     showTurnDone(player);
     SaveAllSettings();
+
+    // A bot may spend resources before its actions
+    if (!player.isHuman) { startPrelude(player); }
 }
 
 function showTurnDone(player) {
-    document.getElementById("turnsummary" + player.number).innerHTML = describePlayerPlays(player).join("<br>");
+    const prelude = describePrelude(player);
+    document.getElementById("turnsummary" + player.number).innerHTML = describePlayerPlays(player).concat(prelude == null ? [] : [prelude]).join("<br>");
 
     const next = getNextPlayerToPlay(player);
     document.getElementById("donebutton" + player.number).innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;
