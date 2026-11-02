@@ -203,6 +203,19 @@ function confirmScoring() {
         returned.push("All " + resource + " returned");
     });
 
+    // A Cartel's holder keeps that resource's supply, and after scoring their Rivals discard
+    // all of it (Material Cartel, Fuel Cartel)
+    courtCards.filter(card => card.holdsSupply != null).forEach(card => {
+        const holder = getGuildCardHolder(card.number);
+        if (holder == null) { return; }
+        players.filter(player => player !== holder).forEach(player => {
+            player[card.holdsSupply + "Value"] = 0;
+            const input = document.getElementById(card.holdsSupply + "Value_" + player.number);
+            if (input != null) { input.value = 0; }
+        });
+        returned.push("Rivals of Player " + holder.number + " discard all " + preludeResourceNames[card.holdsSupply].toLowerCase() + " (" + card.name + ")");
+    });
+
     // The ambitions have been scored, so clear them to stop them being scored again
     declaredAmbitions = [];
     updateAmbitionsDisplay();

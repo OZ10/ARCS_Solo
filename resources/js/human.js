@@ -176,37 +176,7 @@ function showCardModal(player, cards, title, prompt, action) {
 
             case "DRAW":
                 btn.onclick = function () {
-                    const cardFullName = btn.innerHTML;
-
-                    // add clicked card to players hand
-                    // The ... below is a Spread copy meaning that the drawCard is
-                    // shallow copy of the original card, not a reference to it
-                    const drawCard = { ...getCardByNameAndNumber(cards, cardFullName, true) }
-                    // Clear details of how the card was last played
-                    drawCard.played = false;
-                    drawCard.declared = false;
-                    drawCard.cardAction = '';
-                    drawCard.playedAction = '';
-                    drawCard.playedByPlayerNumber = 0;
-
-                    // The card now only exists in this player's hand, so remove it from the
-                    // discard pile, this turn's played cards and the hand of whoever played it
-                    removePlayedCard(discardPile, cardFullName);
-                    removePlayedCard(playedCardList, cardFullName);
-                    players.forEach(p => removePlayedCard(p.cards, cardFullName));
-
-                    const playedDiv = document.getElementById("playedlist" + cardFullName);
-                    if (playedDiv != null) {
-                        const tooltip = bootstrap.Tooltip.getInstance(playedDiv);
-                        if (tooltip != null) { tooltip.dispose(); }
-                        playedDiv.remove();
-                    }
-
-                    player.cards.push(drawCard);
-                    createCardButtonsForHumanPlayer();
-
-                    saveSettingObject('playedCardList', playedCardList);
-                    SaveAllSettings();
+                    drawCardIntoHand(player, getCardByNameAndNumber(cards, btn.innerHTML, true));
                 };
                 break;
 

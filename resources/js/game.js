@@ -3,6 +3,8 @@
 // they are loaded as plain scripts, in order, by index.html
 
 document.addEventListener("DOMContentLoaded", () => {
+    keepClearOfFooter();
+
     if (localStorage.length > 0) {
         for (let [key, value] of Object.entries(localStorage)) {
             switch (key) {
@@ -117,6 +119,9 @@ function nextTurn() {
 
     enableDisableButton("nextTurn", true);
 
+    // Union cards placed in a prelude: the turn has ended, so their holders draw the cards
+    drawUnionCards();
+
     if (haveAllCardsBeenPlayed()) {
         enableDisableButton("nextRound", false);
         return;
@@ -201,7 +206,9 @@ function resetRound() {
 
     declaredAmbitions = [];
 
+    // New hands are dealt, so Union cards placed on the last turn have nothing to draw
     discardPile = [];
+    players.forEach(player => { player.unionDraws = []; });
 
     setElementValue("turnNumber", turnNumber.toString());
     //setElementValue("roundNumber", roundNumber.toString());
@@ -333,8 +340,9 @@ function finishPlay(player) {
 }
 
 function showTurnDone(player) {
+    // In the order they happen: the prelude, then the card's actions
     const prelude = describePrelude(player);
-    document.getElementById("turnsummary" + player.number).innerHTML = describePlayerPlays(player).concat(prelude == null ? [] : [prelude]).join("<br>");
+    document.getElementById("turnsummary" + player.number).innerHTML = (prelude == null ? [] : [prelude]).concat(describePlayerPlays(player)).join("<br>");
 
     const next = getNextPlayerToPlay(player);
     document.getElementById("donebutton" + player.number).innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;
@@ -344,11 +352,15 @@ function showTurnDone(player) {
 
     const done = document.getElementById("turndone" + player.number);
     showHideElement([done], true);
+
+    // A bot that can build now has the Build icon
+    updateBuildButton(player);
     document.getElementById("donebutton" + player.number).scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 function hideTurnDone(player) {
     showHideElement([document.getElementById("turndone" + player.number)], false);
+    showHideElement([document.getElementById("buildbutton" + player.number)], false);
     if (!player.isHuman) { showHideElement([document.getElementById("playcard" + player.number).parentNode], true); }
 }
 
@@ -464,6 +476,12 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
                 getCardValue(playedCard) > getCardValue(card));
 
             if (playedHighestCard) {
+                // Surpassing with a 7 seizes the initiative (rulebook p.10), so nobody
+                // else can seize it this turn
+                if (getCardValue(playedCard) == 7) {
+                    hasInitiativeBeenClaimedThisTurn = true;
+                    showMessageToast("Player " + player.number, "Seized the initiative by surpassing with a 7");
+                }
                 changeInitiative(player);
             }
         }
@@ -479,6 +497,40 @@ function changeInitiative(player) {
         showHideElement(element, (p.number == player.number) ? true : false);
     })
 
+    SaveAllSettings();
+}
+
+function drawCardIntoHand(player, card) {
+    // Add a played card to a player's hand (the Draw button, or a Union card)
+    const cardFullName = getCardFullName(card);
+
+    // The ... below is a Spread copy meaning that the drawCard is
+    // shallow copy of the original card, not a reference to it
+    const drawCard = { ...card };
+    // Clear details of how the card was last played
+    drawCard.played = false;
+    drawCard.declared = false;
+    drawCard.cardAction = '';
+    drawCard.playedAction = '';
+    drawCard.playedByPlayerNumber = 0;
+
+    // The card now only exists in this player's hand, so remove it from the
+    // discard pile, this turn's played cards and the hand of whoever played it
+    removePlayedCard(discardPile, cardFullName);
+    removePlayedCard(playedCardList, cardFullName);
+    players.forEach(p => removePlayedCard(p.cards, cardFullName));
+
+    const playedDiv = document.getElementById("playedlist" + cardFullName);
+    if (playedDiv != null) {
+        const tooltip = bootstrap.Tooltip.getInstance(playedDiv);
+        if (tooltip != null) { tooltip.dispose(); }
+        playedDiv.remove();
+    }
+
+    player.cards.push(drawCard);
+    createCardButtonsForHumanPlayer();
+
+    saveSettingObject('playedCardList', playedCardList);
     SaveAllSettings();
 }
 

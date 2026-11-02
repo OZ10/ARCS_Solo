@@ -32,6 +32,8 @@ class player {
     ambitionsEvaluated = [];
     // A bot's prelude this turn: { offers, spent } (prelude.js)
     prelude = null;
+    // Union cards placed this turn: [{ guild, card }], drawn when the turn ends (prelude.js)
+    unionDraws = [];
 }
 
 // Everything counted with -/+ tiles on a player's panel. Each is stored on the player as

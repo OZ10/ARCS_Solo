@@ -107,6 +107,10 @@ const preludeEarlyTurns = 2;
 // A bot with this many ships on the board is keen to battle
 const manyShipsOnBoard = 6;
 
+// Build (#75): a bot with fewer ships than this on the board might build a ship (or a
+// starport to build them at) rather than a building it doesn't need
+const fewShipsOnBoard = 5;
+
 // The chance (%) of a bot offering each prelude action. These could become part of the bot
 // personalities (#71)
 const preludeChance = {
@@ -119,6 +123,15 @@ const preludeChance = {
     psionicsBattle: 20,     // + the lead card battles and the bot is keen to battle
     psionicsWarlord: 45,    // when it led: an extra battle, chasing Warlord
     psionicsManyShips: 35,  // when it led: an extra battle, lots of ships on the board
+    // The bot's own Guild cards (see court.js)
+    seize: 30,              // Lattice Spies: seize the initiative
+    gateShips: 25,          // Gatekeepers: a ship in each gate, when keen to battle
+    placeShips: 20,         // Prison Wardens, Skirmishers, Court Enforcers, Loyal Marines: 3 ships, when keen to battle
+    gainSupply: 50,         // Mining or Shipping Interest: fill empty slots, when chasing Tycoon
+    elderBroker: 40,        // Elder Broker: a material, fuel and weapon, when it can spare the relic icon
+    relicFence: 50,         // Relic Fence: a spare resource for a relic, when chasing Keeper
+    steal: 25,              // Silver-Tongues: steal a Guild card or resource
+    union: 60,              // Admin, Construction, Spacing or Arms Union: draw a played card
     max: 90
 };
 

@@ -158,6 +158,7 @@ function getHitAdvice(canAttackAgain) {
 function showBattleModal(button) {
     // Opened from the Battle icon on a bot's panel. That bot is attacking
     battle.attacker = getPlayer(getPlayerNumberFromString(button.parentNode.id));
+    hideIconTooltip(button, "battleModal");
     battle.ships = 1;
     battle.fresh = 1;
     battle.damaged = 0;

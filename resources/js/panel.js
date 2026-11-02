@@ -88,6 +88,11 @@ function clonePlayerNodeAndSetup(player) {
     // Hidden until it's this bot's turn (see enableDisablePlayerPanels)
     battlebutton.classList.add("d-none");
 
+    // Likewise the Build helper
+    const buildbutton = playertemplate.querySelector("#buildbutton");
+    buildbutton.id = "buildbutton" + playerNumber.toString();
+    buildbutton.classList.add("d-none");
+
     // Shown once the player has played their card: what they played, and Done to move
     // on (see finishPlay in game.js)
     const turndone = playertemplate.querySelector("#turndone");
@@ -354,6 +359,7 @@ function enableDisablePlayerPanels(playerNumber) {
         // A bot can only battle on its own turn, so the Battle icon only shows then (and never
         // for the human). Hidden rather than disabled, which looked odd
         showHideElement([document.getElementById("battlebutton" + player.number)], player.number == playerNumber && !player.isHuman);
+        updateBuildButton(player);
 
         showHidePlayerPanel(player, playerNumber);
 
@@ -396,8 +402,9 @@ function showHidePlayerPanel(player, playerNumber) {
 function hidePlayerPanels() {
     players.forEach(player => {
         showHidePlayerPanel(player, 99);
-        // Between turns it's nobody's turn, so nobody can battle
+        // Between turns it's nobody's turn, so nobody can battle or build
         showHideElement([document.getElementById("battlebutton" + player.number)], false);
+        showHideElement([document.getElementById("buildbutton" + player.number)], false);
     })
 }
 

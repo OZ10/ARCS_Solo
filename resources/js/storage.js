@@ -12,6 +12,7 @@ function loadPlayers() {
                 if (player[counter + "Value"] == null) { player[counter + "Value"] = 0; }
             });
             if (player.guildCards == null) { player.guildCards = []; }
+            if (player.unionDraws == null) { player.unionDraws = []; }
 
             players.push(player);
             clonePlayerNodeAndSetup(player);

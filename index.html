@@ -92,12 +92,19 @@
                   class="bi bi-hexagon-fill"
                   onclick="showDeclareAmbitionModal(this, false, null, null)"></i></button>
               <!-- Bots only: help the bot choose its battle dice (see battle.js) -->
-              <button class="btn" data-bs-toggle="tooltip"
+              <button class="btn" data-bs-toggle="tooltip" data-bs-trigger="hover"
                 data-bs-placement="top"
                 data-bs-custom-class="custom-tooltip"
                 data-bs-title="Battle: choose this bot's dice"
                 id="battlebutton" onclick="showBattleModal(this)"
                 aria-label="Battle"><i class="bi bi-crosshair"></i></button>
+              <!-- Bots only: help the bot decide what to build (see build.js) -->
+              <button class="btn" data-bs-toggle="tooltip" data-bs-trigger="hover"
+                data-bs-placement="top"
+                data-bs-custom-class="custom-tooltip"
+                data-bs-title="Build: what this bot builds"
+                id="buildbutton" onclick="showBuildModal(this)"
+                aria-label="Build"><i class="bi bi-buildings"></i></button>
             </div>
           </div>
 
@@ -396,7 +403,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v021126.05</small>
+              <small class="text-muted me-auto" id="appVersion">v021126.06</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -409,30 +416,39 @@
       aria-hidden="true">
       <div class="modal-dialog modal-sm">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="yesNoTitle">
-              Title
-            </h5>
+          <!-- Compact: the player in their colour, the ambition being chased as a small
+               heading with the question under it, then Yes and No side by side (#84) -->
+          <div class="modal-header py-2">
+            <h5 class="modal-title" id="yesNoTitle">Title</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"
               aria-label="Close"></button>
           </div>
-          <div class="modal-body d-flex">
-            <p id="focusMessage">Focus</p>
+          <div class="modal-body py-2">
+            <div class="sectionlabel" id="focusMessage">Focus</div>
+            <div class="mt-1" id="yesNoMessage">Message</div>
           </div>
-          <div class="modal-body d-flex">
-            <p class="p-1" id="yesNoMessage">Message</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-primary"
+          <div class="modal-footer flex-nowrap gap-2 py-2">
+            <button type="button" class="btn btn-primary flex-fill m-0"
               onclick="answerYes()"
-              data-bs-dismiss="modal">
-              Yes
-            </button>
-            <button type="button" class="btn btn-secondary"
-              onclick="answerNo()">
-              No
-            </button>
+              data-bs-dismiss="modal">Yes</button>
+            <button type="button" class="btn btn-secondary flex-fill m-0"
+              onclick="answerNo()">No</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Build: a few questions about the board, then what the bot builds (build.js) -->
+    <div class="modal fade" id="buildModal" tabindex="-1" aria-labelledby="buildTitle"
+      aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="buildTitle">Build</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"
+              aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="buildBody"></div>
         </div>
       </div>
     </div>
@@ -892,6 +908,7 @@
     <script src="./resources/js/bot.js"></script>
     <script src="./resources/js/prelude.js"></script>
     <script src="./resources/js/battle.js"></script>
+    <script src="./resources/js/build.js"></script>
     <script src="./resources/js/game.js"></script>
   </body>
 </html>

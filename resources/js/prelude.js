@@ -1,5 +1,5 @@
 // Prelude (#72): after a bot plays its card, before its actions, it may spend resources for
-// extra actions. The bot can't see the board, so it offers what it would like to spend in the
+// extra actions (with a Loyal card, any resource as that card's type) and use its Guild cards. The bot can't see the board, so it offers what it would like to spend in the
 // Prelude window and the player ticks the ones that are worth doing. The settings are in rules.js.
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
@@ -72,53 +72,134 @@ function getBotPlay(player) {
 }
 
 function getPreludeOffers(player) {
-    // What the bot would like to spend this turn, as [{ resource, amount, text }]
+    // What the bot would like to do this turn, as [{ label, text, costs, gains, discards, seize, union }]:
+    // the resources it spends and gains, a Guild card it discards, whether it seizes the
+    // initiative and a Union card it places ({ guild, card }). See confirmPrelude
     const play = getBotPlay(player);
     if (play == null) { return []; }
 
     const wants = chance => Math.random() * 100 < Math.min(chance, preludeChance.max);
-    const amountOf = resource => Math.min(player[resource + "Value"], maxPreludePerResource);
     const chasingWarlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
     const manyShips = player.shipsBoardValue >= manyShipsOnBoard;
     const keenToBattle = chasingWarlord || manyShips;
+    const guild = getPlayerGuildCards(player);
+    const holds = number => guild.some(card => card.number == number);
+
+    // What's left to spend, as offers are added
+    let available = {};
+    preludeResources.forEach(resource => { available[resource] = player[resource + "Value"]; });
+
+    const payFor = resource => {
+        // The resource to spend for this resource's prelude action: its own if it can spare
+        // it, otherwise (with the Loyal card for it) any other resource it can spare, the one
+        // it has most of. null if it can't pay
+        if (available[resource] > 0 && canSpareResource(player, resource)) { return resource; }
+        if (!guild.some(card => card.spendAnyAs == resource)) { return null; }
+        return preludeResources.filter(other => other != resource && available[other] > 0 && canSpareResource(player, other))
+            .sort((a, b) => available[b] - available[a])[0] || null;
+    };
+
     let offers = [];
+    // action is what it gives: "build", "move", "secure", "battle" or "lead" (an action from
+    // the lead card), so the Build icon can show when the bot can build (see canBotBuild)
+    const offerAction = (resource, text, action) => {
+        const pay = payFor(resource);
+        if (pay == null) { return; }
+        const amount = Math.min(available[pay], maxPreludePerResource);
+        available[pay] -= amount;
+
+        const loyal = guild.find(card => card.spendAnyAs == resource);
+        const label = (pay == resource) ? amount + " " + preludeResourceNames[resource]
+            : amount + " " + preludeResourceNames[pay] + " as " + preludeResourceNames[resource] + " (" + loyal.name + ")";
+        offers.push({ label: label, text: text, costs: { [pay]: amount }, action: action });
+    };
 
     const usefulIf = { materials: "Build or Repair, if there's a good spot", fuel: "Move, if there's a useful move", relics: "Secure, if there's a card worth securing" };
+    const gives = { materials: "build", fuel: "move", relics: "secure" };
     ["materials", "fuel", "relics"].forEach(resource => {
-        if (amountOf(resource) > 0 && canSpareResource(player, resource) && wants(preludeChance.spare)) {
-            offers.push({ resource: resource, amount: amountOf(resource), text: usefulIf[resource] });
-        }
+        if (wants(preludeChance.spare)) { offerAction(resource, usefulIf[resource], gives[resource]); }
     });
 
-    // Weapons turn the card's actions into battles, so only when the card has actions and
-    // doesn't battle already
-    if (amountOf("weapons") > 0 && play.count > 0 && !play.actions.includes("battle")) {
+    // Weapons turn the card's actions into battles (they don't give extra actions), so only
+    // when the card has actions and doesn't battle already
+    if (play.count > 0 && !play.actions.includes("battle")) {
         let chance = preludeChance.weaponsHavoc;
         if (chasingWarlord) { chance += preludeChance.weaponsWarlord; }
         if (manyShips) {
             chance += preludeChance.weaponsManyShips;
             if (!declaredAmbitions.includes("warlord") && declaredAmbitions.length < 3) { chance += preludeChance.weaponsSaveTrophies; }
         }
-        if (wants(chance)) {
-            offers.push({ resource: "weapons", amount: amountOf("weapons"), text: "Battle with one of the card's actions" });
-        }
+        if (wants(chance)) { offerAction("weapons", "Battle with one of the card's actions", "battle"); }
     }
 
     // Psionics give an action from the lead card. When the bot led, that's only worth it for
     // more battles than its card allows
-    if (amountOf("psionics") > 0 && canSpareResource(player, "psionics")) {
-        const lead = playedCardList[0];
-        if (play.leading) {
-            const chance = (chasingWarlord ? preludeChance.psionicsWarlord : 0) + (manyShips ? preludeChance.psionicsManyShips : 0);
-            if (play.actions.includes("battle") && chance > 0 && wants(chance)) {
-                offers.push({ resource: "psionics", amount: amountOf("psionics"), text: "One more Battle than the card allows" });
-            }
-        } else {
-            const chance = preludeChance.psionicsFollowing + ((keenToBattle && lead.actions.includes("battle")) ? preludeChance.psionicsBattle : 0);
-            if (wants(chance)) {
-                offers.push({ resource: "psionics", amount: amountOf("psionics"), text: "An action from the lead card (" + lead.actions.split(",").join(", ") + ")" });
-            }
+    const lead = playedCardList[0];
+    if (play.leading) {
+        const chance = (chasingWarlord ? preludeChance.psionicsWarlord : 0) + (manyShips ? preludeChance.psionicsManyShips : 0);
+        if (play.actions.includes("battle") && chance > 0 && wants(chance)) { offerAction("psionics", "One more Battle than the card allows", "battle"); }
+    } else {
+        const chance = preludeChance.psionicsFollowing + ((keenToBattle && lead.actions.includes("battle")) ? preludeChance.psionicsBattle : 0);
+        if (wants(chance)) { offerAction("psionics", "An action from the lead card (" + lead.actions.split(",").join(", ") + ")", "lead"); }
+    }
+
+    // The bot's own Guild cards
+    const discard = (card, text, extras) => offers.push(Object.assign({ label: "Discard " + card.name, text: text, discards: card.number }, extras));
+
+    // Lattice Spies: seize the initiative, unless it has it or it's been seized this turn
+    if (holds(16) && !player.hasInitiative && !hasInitiativeBeenClaimedThisTurn && wants(preludeChance.seize)) {
+        discard(getCourtCard(16), "seize the initiative", { seize: true });
+    }
+
+    // Ships: a ship in each gate, or 3 ships in a system it controls, when keen to battle.
+    // Only one of these a turn
+    if (keenToBattle) {
+        const shipCard = guild.find(card => card.placesShips && card.number != 8);
+        if (holds(8) && wants(preludeChance.gateShips)) {
+            discard(getCourtCard(8), "place 1 ship in each gate (unless out of play)");
+        } else if (shipCard != null && wants(preludeChance.placeShips)) {
+            discard(shipCard, "place 3 ships in a system it controls");
         }
+    }
+
+    // Mining or Shipping Interest: fill its empty resource slots, when chasing Tycoon. The
+    // number of empty slots isn't tracked, so the resources are added by hand
+    const interest = guild.find(card => card.number == 2 || card.number == 9);
+    if (interest != null && isAmbitionInPlay("tycoon") && isChasingAmbition(player, "tycoon") && wants(preludeChance.gainSupply)) {
+        discard(interest, "gain " + preludeResourceNames[interest.resource] + " up to its empty resource slots (add them yourself)");
+    }
+
+    // Elder Broker: a material, fuel and weapon, when it can spare the card's relic icon
+    if (holds(23) && canSpareResource(player, "relics") && wants(preludeChance.elderBroker)) {
+        discard(getCourtCard(23), "gain 1 Material, 1 Fuel and 1 Weapon", { gains: { materials: 1, fuel: 1, weapons: 1 } });
+    }
+
+    // Relic Fence (kept): swap a spare resource for a relic, when chasing Keeper
+    if (holds(24) && isAmbitionInPlay("keeper") && isChasingAmbition(player, "keeper") && wants(preludeChance.relicFence)) {
+        const pay = preludeResources.filter(resource => resource != "relics" && available[resource] > 0 && canSpareResource(player, resource))
+            .sort((a, b) => available[b] - available[a])[0];
+        if (pay != null) {
+            available[pay] -= 1;
+            offers.push({ label: "Relic Fence", text: "discard 1 " + preludeResourceNames[pay] + " to gain 1 Relic", costs: { [pay]: 1 }, gains: { relics: 1 } });
+        }
+    }
+
+    // Silver-Tongues: steal a Guild card or resource
+    if (holds(20) && wants(preludeChance.steal)) {
+        discard(getCourtCard(20), "steal a Guild card or a resource it's chasing an ambition with");
+    }
+
+    // Unions: placed next to the highest face-up played card of their suit, which the bot
+    // draws when the turn ends. Not on its last card, as the round may then end
+    if (getUnplayedCards(player.cards).length > 0) {
+        guild.filter(card => card.drawsPlayed != null).forEach(card => {
+            const target = playedCardList.filter(played => played.name == card.drawsPlayed && played.cardAction != "COPY" && played.cardAction != "CLAIM")
+                .sort((a, b) => b.number - a.number)[0];
+            if (target != null && wants(preludeChance.union)) {
+                offers.push({ label: card.name, text: "place it next to " + getCardFullName(target) + " and draw that card when the turn ends",
+                    union: { guild: card.number, card: getCardFullName(target) } });
+            }
+        });
     }
 
     return offers;
@@ -165,7 +246,7 @@ function showPreludeModal(player) {
         const label = document.createElement("label");
         label.classList.add("form-check-label");
         label.htmlFor = input.id;
-        label.innerHTML = "<b>" + offer.amount + " " + preludeResourceNames[offer.resource] + ":</b> " + offer.text;
+        label.innerHTML = "<b>" + offer.label + ":</b> " + offer.text;
 
         row.append(input, label);
         list.appendChild(row);
@@ -174,29 +255,65 @@ function showPreludeModal(player) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById("preludeModal")).show();
 }
 
+function setPlayerResource(player, resource, value) {
+    player[resource + "Value"] = Math.max(value, 0);
+    const input = document.getElementById(resource + "Value_" + player.number);
+    if (input != null) { input.value = player[resource + "Value"]; }
+}
+
+function applyPrelude(player, offers) {
+    // Spend and gain the offers' resources and discard their Guild cards (undoLastCard puts them back)
+    offers.forEach(offer => {
+        Object.entries(offer.costs || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] - amount));
+        Object.entries(offer.gains || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] + amount));
+        if (offer.discards != null) { player.guildCards = player.guildCards.filter(number => number != offer.discards); }
+    });
+}
+
 function confirmPrelude() {
-    // Spend the ticked resources
+    // Carry out the ticked offers
     const player = preludePlayer;
     if (player == null) { return; }
 
     player.prelude.spent = player.prelude.offers.filter((offer, index) => document.getElementById("preludeOffer" + index).checked);
+    applyPrelude(player, player.prelude.spent);
+
     player.prelude.spent.forEach(offer => {
-        player[offer.resource + "Value"] = Math.max(player[offer.resource + "Value"] - offer.amount, 0);
-        const input = document.getElementById(offer.resource + "Value_" + player.number);
-        if (input != null) { input.value = player[offer.resource + "Value"]; }
+        if (offer.seize) {
+            hasInitiativeBeenClaimedThisTurn = true;
+            changeInitiative(player);
+        }
+        if (offer.union != null) { player.unionDraws.push(offer.union); }
     });
+    showGuildCardsRow(player);
 
     preludePlayer = null;
     bootstrap.Modal.getOrCreateInstance(document.getElementById("preludeModal")).hide();
 
-    // The turn summary lists what was spent
+    // The turn summary lists what was done
     if (awaitingDone == player.number) { showTurnDone(player); }
     SaveAllSettings();
 }
 
 function describePrelude(player) {
-    // e.g. "Prelude: 1 fuel (Move), 1 weapon (Battle with one of the card's actions)"
+    // e.g. "Prelude: 1 Fuel (Move), Discard Lattice Spies (seize the initiative)"
     if (player.prelude == null || player.prelude.spent == null || player.prelude.spent.length == 0) { return null; }
-    return "Prelude: " + player.prelude.spent.map(offer => offer.amount + " " + preludeResourceNames[offer.resource].toLowerCase()
-        + " (" + offer.text.replace(/, if .*$/, "") + ")").join(", ");
+    return "Prelude: " + player.prelude.spent.map(offer => offer.label + " (" + offer.text.replace(/, if .*$/, "") + ")").join(", ");
+}
+
+function drawUnionCards() {
+    // The turn has ended: each Union card placed this turn draws its card into its holder's
+    // hand, then is discarded
+    players.forEach(player => {
+        (player.unionDraws || []).forEach(draw => {
+            const card = discardPile.find(played => getCardFullName(played) == draw.card);
+            if (card != null) {
+                drawCardIntoHand(player, card);
+                showMessageToast("Player " + player.number, "Draws " + draw.card + " (" + getCourtCard(draw.guild).name + ")");
+            }
+            player.guildCards = player.guildCards.filter(number => number != draw.guild);
+            showGuildCardsRow(player);
+        });
+        player.unionDraws = [];
+    });
 }

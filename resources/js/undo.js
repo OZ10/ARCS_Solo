@@ -53,11 +53,16 @@ function undoLastCard() {
         if (undo.saved[player.number] == null) { return; }
         const savedPlayer = JSON.parse(undo.saved[player.number]);
         resources.forEach(resource => { savedPlayer[resource] = player[resource]; });
-        savedPlayer.guildCards = player.guildCards;
+        savedPlayer.guildCards = player.guildCards.slice();
 
-        // Except anything the undone card's bot spent in its prelude, which it gets back
+        // Except the undone card's bot's prelude, which is put back: resources spent and
+        // gained, and Guild cards discarded. A seize or Union comes back with the rest of the game
         if (player.number == undo.playerNumber && player.prelude != null && player.prelude.spent != null) {
-            player.prelude.spent.forEach(offer => { savedPlayer[offer.resource + "Value"] += offer.amount; });
+            player.prelude.spent.forEach(offer => {
+                Object.entries(offer.costs || {}).forEach(([resource, amount]) => { savedPlayer[resource + "Value"] += amount; });
+                Object.entries(offer.gains || {}).forEach(([resource, amount]) => { savedPlayer[resource + "Value"] = Math.max(savedPlayer[resource + "Value"] - amount, 0); });
+                if (offer.discards != null && !savedPlayer.guildCards.includes(offer.discards)) { savedPlayer.guildCards.push(offer.discards); }
+            });
         }
         undo.saved[player.number] = JSON.stringify(savedPlayer);
     });

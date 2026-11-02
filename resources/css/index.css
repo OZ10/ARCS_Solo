@@ -6,7 +6,7 @@ $playercolour3: lightgrey;
 $playercolour4: lightgrey;
 */
 body {
-  padding-bottom: 110px;
+  padding-bottom: calc(var(--footer-height, 100px) + 10px);
 }
 
 header {
@@ -21,7 +21,19 @@ header {
   #optionsButton {
     margin-left: auto;
   }
+  [id^=playeroptions] .btn {
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
+  }
+  .playerheader.px-3, .px-3.playerheader4, .px-3.playerheader3, .px-3.playerheader2, .px-3.playerheader1 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.5rem !important;
+  }
 }
+.playerheader .row > div, .playerheader4 .row > div, .playerheader3 .row > div, .playerheader2 .row > div, .playerheader1 .row > div {
+  white-space: nowrap;
+}
+
 .topbarlabel {
   font-size: 0.7rem;
   text-transform: uppercase;
@@ -254,7 +266,7 @@ header {
 }
 
 #actionbuttons, [id^=playcard], [id^=donebutton] {
-  scroll-margin-bottom: 90px;
+  scroll-margin-bottom: calc(var(--footer-height, 80px) + 10px);
 }
 
 #playerslots > div {

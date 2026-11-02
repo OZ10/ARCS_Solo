@@ -29,8 +29,9 @@ $btn-outline-primary-color: $primary;
 $btn-outline-primary-hover-bg: lighten($primary, 40%);
 
 body {
-    // Room for the fixed footer
-    padding-bottom: 110px;
+    // Room for the fixed footer. --footer-height is its actual height, set by
+    // keepClearOfFooter (ui.js) as it grows and shrinks
+    padding-bottom: calc(var(--footer-height, 100px) + 10px);
 }
 
 header {
@@ -48,6 +49,23 @@ header {
     #optionsButton {
         margin-left: auto;
     }
+
+    // A bot's header has six icons (vox, draw, seize, declare, battle, build), so tighten
+    // them and the name so they all fit
+    [id^="playeroptions"] .btn {
+        padding-left: 0.3rem;
+        padding-right: 0.3rem;
+    }
+
+    .playerheader.px-3 {
+        padding-left: 0.75rem !important;
+        padding-right: 0.5rem !important;
+    }
+}
+
+// "Player 2" and "Power 0" each stay on one line
+.playerheader .row > div {
+    white-space: nowrap;
 }
 
 .topbarlabel {
@@ -298,7 +316,7 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
 // When scrolled into view, keep the human player's actions and the bots' Play Card
 // buttons clear of the fixed footer
 #actionbuttons, [id^="playcard"], [id^="donebutton"] {
-    scroll-margin-bottom: 90px;
+    scroll-margin-bottom: calc(var(--footer-height, 80px) + 10px);
 }
 
 // When the current player is scrolled to the top, keep them below the sticky top bar
