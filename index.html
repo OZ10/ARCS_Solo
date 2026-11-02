@@ -392,7 +392,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v021126.01</small>
+              <small class="text-muted me-auto" id="appVersion">v021126.02</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -625,7 +625,7 @@
                   </div>
 
                   <div>
-                    <div class="boardgrouplabel">Defender</div>
+                    <div class="boardgrouplabel">Defender ships</div>
                     <div class="d-flex gap-1">
                       <div class="resourcetile">
                         <div class="resourcelabel">Fresh</div>
@@ -645,6 +645,33 @@
                             onclick="battleStep('damaged', -1)" aria-label="One less damaged defending ship"><i class="bi bi-dash-lg"></i></button>
                           <button class="btn resourcebutton resourceplus" type="button"
                             onclick="battleStep('damaged', 1)" aria-label="One more damaged defending ship"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Hits left over once the ships are destroyed go to these, like ships -->
+                  <div>
+                    <div class="boardgrouplabel">Defender buildings</div>
+                    <div class="d-flex gap-1">
+                      <div class="resourcetile">
+                        <div class="resourcelabel">Fresh</div>
+                        <div class="resourcevalue" id="battleFreshBuildings">0</div>
+                        <div class="d-flex gap-1">
+                          <button class="btn resourcebutton resourceminus" type="button"
+                            onclick="battleStep('freshBuildings', -1)" aria-label="One less fresh defending building"><i class="bi bi-dash-lg"></i></button>
+                          <button class="btn resourcebutton resourceplus" type="button"
+                            onclick="battleStep('freshBuildings', 1)" aria-label="One more fresh defending building"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                      </div>
+                      <div class="resourcetile">
+                        <div class="resourcelabel">Damaged</div>
+                        <div class="resourcevalue" id="battleDamagedBuildings">0</div>
+                        <div class="d-flex gap-1">
+                          <button class="btn resourcebutton resourceminus" type="button"
+                            onclick="battleStep('damagedBuildings', -1)" aria-label="One less damaged defending building"><i class="bi bi-dash-lg"></i></button>
+                          <button class="btn resourcebutton resourceplus" type="button"
+                            onclick="battleStep('damagedBuildings', 1)" aria-label="One more damaged defending building"><i class="bi bi-plus-lg"></i></button>
                         </div>
                       </div>
                     </div>

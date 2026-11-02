@@ -80,7 +80,11 @@ const maxDicePerType = 6;
 // randomness: how loosely it picks between options. Higher means it more often goes with
 //             something other than the best, though clearly bad options stay rare
 //             (0 = always the best)
-const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6 };
+// buildingWeight: how much it wants to avoid hitting the defender's buildings, which take
+//             any hits left over once every defending ship is destroyed. Destroying a
+//             building causes Outrage (1 = a hit on a building cancels out a hit on a ship,
+//             0 = doesn't mind)
+const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6, buildingWeight: 1 };
 
 // City bonus: the outright winner of an ambition (first place, not tied) gains extra power
 // for the city slots uncovered on their player board: 2 with four cities, or 5 with all

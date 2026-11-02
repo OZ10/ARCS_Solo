@@ -1,15 +1,18 @@
 // Battle: helping a bot that's attacking another player choose its dice and how to
 // assign the hits. The dice and the bot's personality are in rules.js.
-// Raid dice aren't included yet (see the placeholder in the Battle window). When they are,
-// review whether the bot should sometimes roll fewer dice than it could: with only assault
-// and skirmish dice that's never better, but with raid dice it may be. Defending buildings
-// aren't included either: hits beyond the defender's ships go to their buildings, and
-// destroying one causes Outrage, so the bot may want fewer dice to avoid that too
+// Hits left over once every defending ship is destroyed go to the defender's buildings, and
+// destroying one causes Outrage, so when there are buildings the bot may roll fewer dice than
+// it could. Raid dice aren't included yet (see the placeholder in the Battle window)
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
 // What's entered in the Battle window
-let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0 };
+let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0 };
+
+function getHitsToDestroy(fresh, damaged) {
+    // Ships and buildings both take one hit to damage a fresh one and another to destroy it
+    return fresh * 2 + damaged;
+}
 
 function getDiceOutcomes(assaultDice, skirmishDice) {
     // Every possible result of rolling the dice, as { hits, damage, ambush, chance }.
@@ -44,18 +47,21 @@ function getDiceOutcomes(assaultDice, skirmishDice) {
     return outcomes;
 }
 
-function evaluateDice(assaultDice, skirmishDice, fresh, damaged, personality) {
-    // How good rolling these dice is: the hits that matter (no more than it takes to
-    // destroy every defending ship) minus the damage the attacker expects to take, from its
-    // own dice and from an ambush (one hit per fresh defending ship)
-    const usefulHits = fresh * 2 + damaged;
+function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality) {
+    // How good rolling these dice is: the hits on ships (no more than it takes to destroy
+    // every defending ship) minus the damage the attacker expects to take, from its own dice
+    // and from an ambush (one hit per fresh defending ship), minus the hits left over that
+    // go to the defender's buildings (buildingHits is how many it takes to destroy them all)
+    const usefulHits = getHitsToDestroy(fresh, damaged);
 
     let expectedHits = 0;
+    let expectedBuildingHits = 0;
     let expectedDamage = 0;
     let ambushChance = 0;
 
     getDiceOutcomes(assaultDice, skirmishDice).forEach(outcome => {
         expectedHits += Math.min(outcome.hits, usefulHits) * outcome.chance;
+        expectedBuildingHits += Math.min(Math.max(outcome.hits - usefulHits, 0), buildingHits) * outcome.chance;
         expectedDamage += (outcome.damage + (outcome.ambush ? fresh : 0)) * outcome.chance;
         if (outcome.ambush) { ambushChance += outcome.chance; }
     });
@@ -64,23 +70,28 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, personality) {
         assaultDice: assaultDice,
         skirmishDice: skirmishDice,
         expectedHits: expectedHits,
+        expectedBuildingHits: expectedBuildingHits,
         expectedDamage: expectedDamage,
         ambushChance: ambushChance,
-        score: expectedHits - personality.riskWeight * expectedDamage
+        score: expectedHits - personality.riskWeight * expectedDamage - personality.buildingWeight * expectedBuildingHits
     };
 }
 
-function getDiceOptions(ships, fresh, damaged, personality) {
+function getDiceOptions(ships, fresh, damaged, buildingHits, personality) {
     // Every mix of assault and skirmish dice (up to one die per ship and maxDicePerType of
-    // each), with the chance the bot picks each. Skirmish dice can't hurt the attacker, so the
-    // ships not rolling assault roll skirmish, up to the limit. Options close to the best are
-    // picked almost as often as the best (a person can't tell them apart and guesses), but
-    // clearly worse ones quickly become rare. personality.randomness sets how far from the
-    // best counts as "close"
+    // each), with the chance the bot picks each. Skirmish dice can't hurt the attacker, so
+    // with no buildings to hit the ships not rolling assault roll skirmish, up to the limit.
+    // With buildings, rolling fewer dice than it could is an option too, to avoid hitting them.
+    // Options close to the best are picked almost as often as the best (a person can't tell
+    // them apart and guesses), but clearly worse ones quickly become rare.
+    // personality.randomness sets how far from the best counts as "close"
     let options = [];
     for (let assaultDice = 0; assaultDice <= Math.min(ships, maxDicePerType); assaultDice++) {
-        const skirmishDice = Math.min(ships - assaultDice, maxDicePerType);
-        options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, personality));
+        const mostSkirmishDice = Math.min(ships - assaultDice, maxDicePerType);
+        const fewestSkirmishDice = (buildingHits > 0) ? (assaultDice == 0 ? 1 : 0) : mostSkirmishDice;
+        for (let skirmishDice = fewestSkirmishDice; skirmishDice <= mostSkirmishDice; skirmishDice++) {
+            options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality));
+        }
     }
 
     const bestScore = Math.max(...options.map(option => option.score));
@@ -100,8 +111,14 @@ function getBattleMood(personality) {
     return { ...personality, riskWeight: Math.max(0, personality.riskWeight * (1 + swing)), mood: swing };
 }
 
-function getBattleAttitude(choice) {
+function getMostDice(ships) {
+    // The most dice an attacker with this many ships can roll
+    return Math.min(ships, maxDicePerType * 2);
+}
+
+function getBattleAttitude(choice, ships) {
     // What the bot might say about its roll
+    if (choice.assaultDice + choice.skirmishDice < getMostDice(ships)) { return "Holding back: no need to hit their buildings."; }
     if (choice.assaultDice == 0) { return "Playing it safe."; }
     if (choice.skirmishDice == 0) { return "Going all in!"; }
     return "Taking a bit of a risk.";
@@ -144,6 +161,8 @@ function showBattleModal(button) {
     battle.ships = 1;
     battle.fresh = 1;
     battle.damaged = 0;
+    battle.freshBuildings = 0;
+    battle.damagedBuildings = 0;
     document.getElementById("battleAttackAgain").checked = false;
 
     const header = document.querySelector("#battleModal .modal-header");
@@ -189,6 +208,8 @@ function updateBattleCounts() {
     document.getElementById("battleShips").innerHTML = battle.ships;
     document.getElementById("battleFresh").innerHTML = battle.fresh;
     document.getElementById("battleDamaged").innerHTML = battle.damaged;
+    document.getElementById("battleFreshBuildings").innerHTML = battle.freshBuildings;
+    document.getElementById("battleDamagedBuildings").innerHTML = battle.damagedBuildings;
     clearBattleDecision();
 }
 
@@ -202,17 +223,23 @@ function clearBattleDecision() {
 function chooseBattleDice() {
     const advice = document.getElementById("battleAdvice");
 
-    if (battle.fresh + battle.damaged == 0) {
-        advice.innerHTML = "<div class=\"text-muted\">Player " + battle.defender.number + " has no ships to attack.</div>";
+    const hasShips = battle.fresh + battle.damaged > 0;
+    const buildingHits = getHitsToDestroy(battle.freshBuildings, battle.damagedBuildings);
+    if (!hasShips && buildingHits == 0) {
+        advice.innerHTML = "<div class=\"text-muted\">Player " + battle.defender.number + " has nothing to attack.</div>";
         return;
     }
 
-    // This battle's mood, then a loose pick weighted towards the better options
+    // This battle's mood, then a loose pick weighted towards the better options. With no
+    // defending ships the bot is attacking the buildings on purpose, so hits on them are what
+    // it wants: they count like hits on ships (buildings don't ambush) and nothing is held back
     const mood = getBattleMood(defaultBotPersonality);
-    const options = getDiceOptions(battle.ships, battle.fresh, battle.damaged, mood);
+    const options = hasShips
+        ? getDiceOptions(battle.ships, battle.fresh, battle.damaged, buildingHits, mood)
+        : getDiceOptions(battle.ships, 0, buildingHits, 0, mood);
     const choice = pickDiceOption(options);
     const canAttackAgain = document.getElementById("battleAttackAgain").checked;
-    const usefulHits = battle.fresh * 2 + battle.damaged;
+    const usefulHits = hasShips ? getHitsToDestroy(battle.fresh, battle.damaged) : buildingHits;
 
     // The other options and how likely each was, so the weighting can be checked
     const others = options.filter(option => option !== choice && option.pickChance >= 0.01)
@@ -225,14 +252,18 @@ function chooseBattleDice() {
     // in Details, closed to start with
     advice.innerHTML =
         "<div class=\"battleroll\">Roll " + describeDice(choice) + "</div>"
-        + "<div class=\"fst-italic\">" + getBattleAttitude(choice) + "</div>"
-        + "<div class=\"mt-2\"><b>Assign hits:</b> " + getHitAdvice(canAttackAgain) + "</div>"
+        + "<div class=\"fst-italic\">" + getBattleAttitude(choice, battle.ships) + "</div>"
+        + "<div class=\"mt-2\"><b>Assign hits:</b> "
+        + (hasShips ? getHitAdvice(canAttackAgain) + (buildingHits > 0 ? " Any hits left over go to buildings." : "") : "All hits go to buildings.") + "</div>"
         + "<div><b>Own ships:</b> damage fresh ships before losing damaged ones.</div>"
         + "<details class=\"small text-muted mt-2\" id=\"battleDetails\"><summary>Details</summary>"
-        + "<div>Expected hits: " + choice.expectedHits.toFixed(1) + " (" + usefulHits + " would destroy every ship)</div>"
+        + "<div>Expected hits: " + choice.expectedHits.toFixed(1) + " (" + usefulHits + " would destroy every " + (hasShips ? "ship" : "building") + ")</div>"
         + (battle.fresh > 0 && choice.assaultDice > 0
             ? "<div>Ambush chance: " + Math.round(choice.ambushChance * 100) + "% (would take " + battle.fresh + " hit" + (battle.fresh == 1 ? "" : "s") + " first)</div>"
             : "<div>No risk of an ambush</div>")
+        + (hasShips && buildingHits > 0
+            ? "<div>Expected hits on buildings: " + choice.expectedBuildingHits.toFixed(1) + " (destroying one causes Outrage)</div>"
+            : "")
         + "<div>Expected damage to own ships: " + choice.expectedDamage.toFixed(1) + "</div>"
         + "<div>Mood this battle: " + moodText + "</div>"
         + "<div>Chance of this choice " + Math.round(choice.pickChance * 100) + "%"
