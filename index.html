@@ -403,7 +403,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v021126.07</small>
+              <small class="text-muted me-auto" id="appVersion">v031126.01</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -541,15 +541,18 @@
               <div class="row">
                 <p id>Which pile do you need to draw a card from?</p>
               </div>
-              <div class="text-center row" id>
+              <!-- The base game's ways to draw (see drawACard in panel.js) -->
+              <div class="text-center row gap-2" id>
                 <button type="button" class="btn btn-primary"
                   onclick="drawACard('playedthisturn')"
                   data-bs-dismiss="modal">
-                  Cards played this turn</button>
+                  A card played this turn
+                  <span class="d-block small fw-light">Admin, Construction, Spacing or Arms Union</span></button>
                 <button type="button" class="btn btn-primary"
                   onclick="drawACard('discardpile')"
                   data-bs-dismiss="modal">
-                  The discard pile</button>
+                  Bottom of the discard pile
+                  <span class="d-block small fw-light">Farseers, Call to Action</span></button>
               </div>
             </div>
           </div>

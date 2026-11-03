@@ -324,21 +324,40 @@ function setDrawingPlayer(ele) {
     drawingPlayer = getPlayer(getPlayerNumberFromElement(ele));
 }
 
+function getDiscardedCards() {
+    // The action discard pile, bottom card first, without the cards still in play this turn
+    const inPlay = playedCardList.map(card => getCardFullName(card));
+    return discardPile.filter(card => !inPlay.includes(getCardFullName(card)));
+}
+
 function drawACard(pileName) {
     const player = (drawingPlayer != null) ? drawingPlayer : currentPlayer;
 
+    // The base game's Court cards draw either a face-up card played this turn (the Unions) or
+    // from the bottom of the action discard pile (Farseers, Call to Action)
+    let cards = [];
     switch (pileName) {
         case 'playedthisturn':
-            showCardModal(player, playedCardList, "Cards Played This Turn", "Select a card to add to Player " + player.number + "'s hand", "DRAW")
+            // Not the cards played face down to copy or seize
+            cards = playedCardList.filter(card => card.cardAction != "COPY" && card.cardAction != "CLAIM");
+            if (cards.length > 0) {
+                showCardModal(player, cards, "Cards Played This Turn", "Select a card to add to Player " + player.number + "'s hand", "DRAW");
+            }
             break;
 
         case 'discardpile':
-            showCardModal(player, discardPile, "Cards In The Discard Pile", "Select a card to add to Player " + player.number + "'s hand", "DRAW")
+            // Only the bottom card: the earliest discarded this round. This turn's cards are
+            // still in play, so they aren't in the discard pile yet
+            cards = getDiscardedCards().slice(0, 1);
+            if (cards.length > 0) {
+                showCardModal(player, cards, "Bottom Of The Discard Pile", "Add it to Player " + player.number + "'s hand", "DRAW");
+            }
             break;
 
         default:
             break;
     }
+    if (cards.length == 0) { showMessageToast("Draw a card", "There's no card to draw there"); }
 
     SaveAllSettings();
 }

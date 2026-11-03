@@ -6,7 +6,56 @@ function playcardclick() {
     // This is the AI playing a card. Save the game first so the card can be undone
     if (currentPlayer.hasPlayedACardThisTurn == false) { saveUndoPoint(currentPlayer.number); }
 
-    determineCardToPlay(currentPlayer);
+    // Construction only builds and repairs, so first check it's worth playing one (#62)
+    const player = currentPlayer;
+    if (shouldAskCanBuild(player)) {
+        askYesNo("BUILD", "Can I build or repair anything this turn? An empty building slot where I have a piece, a starport to build a ship at, or a damaged piece.", canBuild => {
+            player.canBuild = canBuild;
+            SaveAllSettings();
+            determineCardToPlay(player);
+        });
+        return;
+    }
+
+    determineCardToPlay(player);
+}
+
+function shouldAskCanBuild(player) {
+    // Only when the bot might play a Construction card face up for its actions: it has one,
+    // and it's leading, Construction was led, or it has no card of the lead suit (so it may
+    // pivot). Asked once a turn
+    const hand = getUnplayedCards(player.cards);
+    if (player.canBuild != null || !hand.some(card => card.name == "Construction")) { return false; }
+    if (isLeadingThisTurn()) { return true; }
+
+    const lead = playedCardList[0];
+    return lead.name == "Construction" || !hand.some(card => card.name == lead.name);
+}
+
+function withoutUselessConstruction(player, cards) {
+    // A bot that can't build or repair doesn't play Construction face up for its actions,
+    // unless that's all it has (#62)
+    if (player.canBuild !== false) { return cards; }
+    const others = cards.filter(card => card.name != "Construction");
+    return (others.length > 0) ? others : cards;
+}
+
+// A one-off Yes/No question that isn't about an ambition (see askYesNo)
+let yesNoCallback = null;
+
+function askYesNo(focus, question, onAnswer) {
+    // Ask in the Yes/No window, then call onAnswer(true or false) once it has closed. Closed
+    // with its X, nothing happens (tapping Play Card asks again)
+    let answer = null;
+    yesNoCallback = value => { answer = value; };
+    document.getElementById("yesNo").addEventListener('hidden.bs.modal', () => {
+        yesNoCallback = null;
+        if (answer != null) { onAnswer(answer); }
+    }, { once: true });
+
+    modal = openYesNoModal(focus);
+    updateYesNoText(question);
+    modal.show();
 }
 
 function determineCardToPlay(player) {
@@ -306,6 +355,9 @@ function openYesNoModal(focusTitle) {
 }
 
 function answerYes() {
+    // A one-off question: Yes also closes the window, and askYesNo carries on from there
+    if (yesNoCallback != null) { yesNoCallback(true); return; }
+
     const unplayedCards = getUnplayedCards(currentPlayer.cards);
     const focus = document.getElementById("focusMessage").innerHTML;
 
@@ -329,13 +381,13 @@ function findCardToPlay(cards, actionToPlay) {
 
         const ambitionSorted = prioritiseAndSortAmbitions();
 
-        let cardsWithAmbition = findCardsWithAmbition(ambitionSorted, cards);
+        let cardsWithAmbition = findCardsWithAmbition(ambitionSorted, withoutUselessConstruction(currentPlayer, cards));
 
         if (cardsWithAmbition.length > 0) {
-            cardToPlay = getHighestCard(cardsWithAmbition);    
+            cardToPlay = getHighestCard(cardsWithAmbition);
          }else{
             if (chaseAmbition(currentPlayer, getPossibleActions(cards), cards ) == false){
-                cardToPlay = getHighestCard(cards);
+                cardToPlay = getHighestCard(withoutUselessConstruction(currentPlayer, cards));
             } else {
                 // The Yes/No modal is now open. answerYes/answerNo will
                 // play the card, so don't play one here as well
@@ -346,7 +398,7 @@ function findCardToPlay(cards, actionToPlay) {
 
     //const cardToPlay = getHighestCard(cards);
 
-    if (cardToPlay == "") { cardToPlay = getHighestCard(cards); }
+    if (cardToPlay == "") { cardToPlay = getHighestCard(withoutUselessConstruction(currentPlayer, cards)); }
 
     let cardAction = "";
 
@@ -357,10 +409,18 @@ function findCardToPlay(cards, actionToPlay) {
     if (cardToPlay != null && isLeading) {
         playCard(currentPlayer, cardToPlay, actionToPlay, cardAction);
     } else {
-        if (canSurpass(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
-            if (claim(currentPlayer, cards, actionToPlay) == false) {
-                if (canCopy(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
-                    pivot(currentPlayer, cards, actionToPlay);
+        // A Construction lead is no use to a bot that can't build or repair, so rather than
+        // surpass or copy it, it pivots with another suit if it can (#62)
+        const usefulCards = withoutUselessConstruction(currentPlayer, cards);
+        const skipLead = currentPlayer.canBuild === false && playedCardList[0].name == "Construction"
+            && getUnplayedCards(currentPlayer.cards).some(card => card.name != "Construction");
+        const pivotCards = (skipLead && !usefulCards.some(card => card.name != "Construction"))
+            ? getUnplayedCards(currentPlayer.cards).filter(card => card.name != "Construction") : usefulCards;
+
+        if (skipLead || canSurpass(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
+            if (claim(currentPlayer, pivotCards, actionToPlay) == false) {
+                if (skipLead || canCopy(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
+                    pivot(currentPlayer, pivotCards, actionToPlay);
                 }
             }
         }
@@ -405,6 +465,12 @@ function prioritiseAndSortAmbitions() {
 }
 
 function answerNo() {
+    if (yesNoCallback != null) {
+        yesNoCallback(false);
+        modal.hide();
+        return;
+    }
+
     const focus = document.getElementById("focusMessage").innerHTML;
     const unplayedCards = getUnplayedCards(currentPlayer.cards);
 

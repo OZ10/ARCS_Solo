@@ -34,6 +34,8 @@ class player {
     prelude = null;
     // Union cards placed this turn: [{ guild, card }], drawn when the turn ends (prelude.js)
     unionDraws = [];
+    // A bot's answer this turn to "Can I build or repair anything?" (null until asked, see bot.js)
+    canBuild = null;
 }
 
 // Everything counted with -/+ tiles on a player's panel. Each is stored on the player as
@@ -66,6 +68,7 @@ function resetPlayedThisTurn() {
     players.forEach(player => {
         player.hasPlayedACardThisTurn = false;
         player.prelude = null;
+        player.canBuild = null;
     })
 }
 
