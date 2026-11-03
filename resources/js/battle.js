@@ -7,7 +7,10 @@
 // they are loaded as plain scripts, in order, by index.html
 
 // What's entered in the Battle window
-let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0 };
+let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0, start: null };
+
+// The counts compared before and after the battle
+const battleCounts = ["ships", "fresh", "damaged", "freshBuildings", "damagedBuildings"];
 
 function getHitsToDestroy(fresh, damaged) {
     // Ships and buildings both take one hit to damage a fresh one and another to destroy it
@@ -164,6 +167,7 @@ function showBattleModal(button) {
     battle.damaged = 0;
     battle.freshBuildings = 0;
     battle.damagedBuildings = 0;
+    battle.start = null;
     document.getElementById("battleAttackAgain").checked = false;
 
     const header = document.querySelector("#battleModal .modal-header");
@@ -180,7 +184,8 @@ function showBattleModal(button) {
         input.classList.add("btn-check");
         input.name = "battleDefender";
         input.id = "battleDefender" + player.number;
-        input.onchange = () => { battle.defender = player; clearBattleDecision(); };
+        // A different defender is a different battle, so its counts start again
+        input.onchange = () => { battle.defender = player; battle.start = null; clearBattleDecision(); };
 
         const label = document.createElement("label");
         label.classList.add("btn", "btn-outline-secondary", "btn-sm");
@@ -215,10 +220,14 @@ function updateBattleCounts() {
 }
 
 function clearBattleDecision() {
-    // Anything changed, so the bot needs to choose again
-    document.getElementById("battleAdvice").innerHTML =
-        "<div class=\"text-muted\">Set up the battle, then choose the dice.</div>";
+    // Anything changed, so the bot needs to choose again. Once it has rolled, the counts are
+    // what's left, so it can attack again or finish
+    document.getElementById("battleAdvice").innerHTML = (battle.start == null)
+        ? "<div class=\"text-muted\">Set up the battle, then choose the dice.</div>"
+        : "<div class=\"text-muted\">To attack again, choose the dice. Otherwise, Done battling updates the players' panels.</div>";
     document.getElementById("chooseBattleDice").innerHTML = "Choose dice";
+    showHideElement([document.getElementById("chooseBattleDice")], true);
+    showHideElement([document.getElementById("battleDone")], battle.start != null);
 }
 
 function chooseBattleDice() {
@@ -269,8 +278,100 @@ function chooseBattleDice() {
         + "<div>Mood this battle: " + moodText + "</div>"
         + "<div>Chance of this choice " + Math.round(choice.pickChance * 100) + "%"
         + (others.length > 0 ? ". Others: " + others.join(", ") : "") + "</div>"
-        + "</details>";
+        + "</details>"
+        + "<div class=\"alert alert-secondary py-2 px-3 mt-2 mb-0 small\"><b>After the roll:</b> set the ships and buildings above to what's left.</div>";
+
+    // The counts before the first roll, to work out what was lost when the battle is done
+    if (battle.start == null) {
+        battle.start = {};
+        battleCounts.forEach(count => { battle.start[count] = battle[count]; });
+    }
+    showHideElement([document.getElementById("battleDone")], true);
 
     // The bot may attack again (with the same or updated ships), so it can choose again
     document.getElementById("chooseBattleDice").innerHTML = "Choose again";
+}
+
+function getBattleLosses() {
+    // What each side lost since the first roll, from the counts now
+    const lost = (before, after) => Math.max(before - after, 0);
+    return {
+        attackerShips: lost(battle.start.ships, battle.ships),
+        defenderShips: lost(battle.start.fresh + battle.start.damaged, battle.fresh + battle.damaged),
+        defenderBuildings: lost(battle.start.freshBuildings + battle.start.damagedBuildings, battle.freshBuildings + battle.damagedBuildings)
+    };
+}
+
+function showBattleResults() {
+    // What the battle changed, to confirm before the players' panels are updated
+    const losses = getBattleLosses();
+    const attacker = "Player " + battle.attacker.number, defender = "Player " + battle.defender.number;
+    const plural = (count, word) => count + " " + word + (count == 1 ? "" : "s");
+
+    let lines = [];
+    if (losses.defenderShips > 0) {
+        lines.push(defender + ": " + plural(losses.defenderShips, "ship") + " destroyed, taken by " + attacker + " as trophies");
+    }
+    if (losses.attackerShips > 0) {
+        lines.push(attacker + ": " + plural(losses.attackerShips, "ship") + " destroyed, taken by " + defender + " as trophies");
+    }
+
+    let html = "<div class=\"fw-bold mb-1\">The battle</div>"
+        + (lines.length > 0 ? lines.map(line => "<div>" + line + "</div>").join("") : (losses.defenderBuildings == 0 ? "<div class=\"text-muted\">Nothing was destroyed.</div>" : ""));
+
+    // Each destroyed building: a city goes back on the defender's player board (which resource?),
+    // a starport back to their supply. Neither is a trophy
+    if (losses.defenderBuildings > 0) {
+        html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. Which?</div>";
+        for (let index = 0; index < losses.defenderBuildings; index++) {
+            const options = ["<option value=\"starport\">Starport (back to supply)</option>"].concat(
+                preludeResources.filter(resource => battle.defender["cities" + capitalise(resource) + "Value"] > 0)
+                    .map(resource => "<option value=\"" + resource + "\">City on " + preludeResourceNames[resource].toLowerCase() + " (back to the player board)</option>"));
+            html += "<select class=\"form-select form-select-sm mt-1 battlebuilding\">" + options.join("") + "</select>";
+        }
+        html += "<div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Remember:</b> destroying a building means Outrage, and Ransack.</div>";
+    }
+
+    html += "<div class=\"d-flex gap-2 mt-3\">"
+        + "<button type=\"button\" class=\"btn btn-secondary flex-fill\" onclick=\"clearBattleDecision()\">Back</button>"
+        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"battleUpdate\" onclick=\"applyBattleResults()\">Update the panels</button>"
+        + "</div>";
+
+    document.getElementById("battleAdvice").innerHTML = html;
+    showHideElement([document.getElementById("chooseBattleDice"), document.getElementById("battleDone")], false);
+}
+
+function adjustCounter(player, counter, change) {
+    // Change a panel counter the same way its -/+ buttons do (totals, headers and saving included)
+    const button = (change > 0 ? "plusButton_" : "minusButton_") + counter + "_" + player.number;
+    for (let step = 0; step < Math.abs(change); step++) { plusMinusClicked(button, change > 0 ? "plus" : "minus"); }
+}
+
+function applyBattleResults() {
+    // Update both players' panels and close the window
+    const losses = getBattleLosses();
+    const { attacker, defender } = battle;
+
+    // Destroyed ships leave the board and become the other side's trophies
+    adjustCounter(defender, "shipsBoard", -losses.defenderShips);
+    adjustCounter(attacker, "trophies", losses.defenderShips);
+    adjustCounter(attacker, "shipsBoard", -losses.attackerShips);
+    adjustCounter(defender, "trophies", losses.attackerShips);
+
+    // Destroyed cities go back on the defender's player board, starports back to their
+    // supply (not counted)
+    let cities = [];
+    document.querySelectorAll("#battleAdvice .battlebuilding").forEach(select => {
+        if (select.value == "starport") { return; }
+        adjustCounter(defender, "cities" + capitalise(select.value), -1);
+        cities.push(preludeResourceNames[select.value].toLowerCase());
+    });
+
+    SaveAllSettings();
+    showMessageToast("Player " + attacker.number + " attacked Player " + defender.number,
+        "Ships destroyed: " + losses.defenderShips + " (Player " + defender.number + "), " + losses.attackerShips + " (Player " + attacker.number + ")"
+        + (losses.defenderBuildings > 0 ? "<br>Buildings destroyed: " + losses.defenderBuildings + (cities.length > 0 ? " (cities on " + cities.join(", ") + ")" : "") : ""));
+
+    battle.start = null;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).hide();
 }

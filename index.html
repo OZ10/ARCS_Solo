@@ -403,7 +403,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v031126.01</small>
+              <small class="text-muted me-auto" id="appVersion">v031126.02</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -760,6 +760,10 @@
                 <button type="button" class="btn btn-primary w-100" id="chooseBattleDice"
                   onclick="chooseBattleDice()">Choose dice</button>
                 <div class="mt-2" id="battleAdvice"></div>
+                <!-- Once the dice have been chosen: update the counts above after each roll,
+                     then this updates the players' panels (see showBattleResults in battle.js) -->
+                <button type="button" class="btn btn-outline-secondary w-100 mt-2 d-none" id="battleDone"
+                  onclick="showBattleResults()">Done battling: update the panels</button>
               </div>
             </div>
           </div>
