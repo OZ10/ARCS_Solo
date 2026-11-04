@@ -14,6 +14,11 @@ function keepClearOfFooter() {
     }).observe(footer);
 }
 
+function getPlayerTag(player) {
+    // A player's name on their own colour, for use in a window's text
+    return "<span class=\"playertag playertag" + player.number + "\">Player " + player.number + "</span>";
+}
+
 function hideIconTooltip(button, modalId) {
     // An icon that opens a window: hide its tooltip and let go of focus, or the tooltip is
     // still showing when the window closes and covers the icon, blocking the next tap.

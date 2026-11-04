@@ -1,13 +1,18 @@
 // Battle: helping a bot that's attacking another player choose its dice and how to
-// assign the hits. The dice and the bot's personality are in rules.js.
+// assign the hits, and updating both players' values afterwards. The human player chooses their
+// own dice, so for them the window only keeps track of the battle. The dice and the bot's
+// personality are in rules.js.
 // Hits left over once every defending ship is destroyed go to the defender's buildings, and
 // destroying one causes Outrage, so when there are buildings the bot may roll fewer dice than
-// it could. Raid dice aren't included yet (see the placeholder in the Battle window)
+// it could. Raid dice (#87) are for stealing: the app doesn't know which resource is in which
+// slot, so the player enters the keys what the bot wants would cost, and it weighs up the chance
+// of rolling them against the risk
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
 // What's entered in the Battle window
-let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0, start: null };
+let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0, start: null,
+    keys: 0, raidItem: null, noBuildings: false, raidRolled: false };
 
 // The counts compared before and after the battle
 const battleCounts = ["ships", "fresh", "damaged", "freshBuildings", "damagedBuildings"];
@@ -17,21 +22,31 @@ function getHitsToDestroy(fresh, damaged) {
     return fresh * 2 + damaged;
 }
 
-function getDiceOutcomes(assaultDice, skirmishDice) {
-    // Every possible result of rolling the dice, as { hits, damage, ambush, chance }.
-    // Results that are the same are combined, so this stays small
-    let outcomes = [{ hits: 0, damage: 0, ambush: false, chance: 1 }];
+// Dice results already worked out. Choosing dice compares hundreds of mixes, and each is one
+// die more than a mix already done, so this keeps it quick with lots of ships
+const diceOutcomes = new Map();
 
-    const rollDie = faces => {
+function getDiceOutcomes(assaultDice, skirmishDice, raidDice = 0) {
+    // Every possible result of rolling the dice, as { hits, damage, ambush, keys, buildingHits, chance }.
+    // Results that are the same are combined, so this stays small
+    const dice = assaultDice + "|" + skirmishDice + "|" + raidDice;
+    if (diceOutcomes.has(dice)) { return diceOutcomes.get(dice); }
+
+    let outcomes = [{ hits: 0, damage: 0, ambush: false, keys: 0, buildingHits: 0, chance: 1 }];
+
+    // The results of one die fewer, plus this die
+    const rollDie = (previous, faces) => {
         let next = new Map();
-        outcomes.forEach(outcome => {
+        previous.forEach(outcome => {
             faces.forEach(face => {
                 const result = {
                     hits: outcome.hits + (face.hits || 0),
                     damage: outcome.damage + (face.damage || 0),
-                    ambush: outcome.ambush || face.ambush == true
+                    ambush: outcome.ambush || face.ambush == true,
+                    keys: outcome.keys + (face.keys || 0),
+                    buildingHits: outcome.buildingHits + (face.buildingHits || 0)
                 };
-                const key = result.hits + "|" + result.damage + "|" + result.ambush;
+                const key = result.hits + "|" + result.damage + "|" + result.ambush + "|" + result.keys + "|" + result.buildingHits;
                 const chance = outcome.chance / faces.length;
 
                 if (next.has(key)) {
@@ -41,30 +56,43 @@ function getDiceOutcomes(assaultDice, skirmishDice) {
                 }
             });
         });
-        outcomes = [...next.values()];
+        return [...next.values()];
     };
 
-    for (let die = 0; die < assaultDice; die++) { rollDie(assaultDieFaces); }
-    for (let die = 0; die < skirmishDice; die++) { rollDie(skirmishDieFaces); }
+    if (raidDice > 0) {
+        outcomes = rollDie(getDiceOutcomes(assaultDice, skirmishDice, raidDice - 1), raidDieFaces);
+    } else if (skirmishDice > 0) {
+        outcomes = rollDie(getDiceOutcomes(assaultDice, skirmishDice - 1), skirmishDieFaces);
+    } else if (assaultDice > 0) {
+        outcomes = rollDie(getDiceOutcomes(assaultDice - 1, 0), assaultDieFaces);
+    }
 
+    diceOutcomes.set(dice, outcomes);
     return outcomes;
 }
 
-function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality) {
+function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice = 0, raid = null) {
     // How good rolling these dice is: the hits on ships (no more than it takes to destroy
     // every defending ship) minus the damage the attacker expects to take, from its own dice
     // and from an ambush (one hit per fresh defending ship), minus the hits left over that
-    // go to the defender's buildings (buildingHits is how many it takes to destroy them all)
+    // go to the defender's buildings (buildingHits is how many it takes to destroy them all).
+    // With raid dice, plus the value of what it's after times the chance of rolling the keys
+    // (raid is { keys, value, buildingsAreTarget }). Raid dice hit buildings directly, which it
+    // only wants if the buildings are what it's attacking
     const usefulHits = getHitsToDestroy(fresh, damaged);
 
     let expectedHits = 0;
     let expectedBuildingHits = 0;
     let expectedDamage = 0;
     let ambushChance = 0;
+    let keyChance = 0;
+    const buildingsAreTarget = raid != null && raid.buildingsAreTarget;
 
-    getDiceOutcomes(assaultDice, skirmishDice).forEach(outcome => {
-        expectedHits += Math.min(outcome.hits, usefulHits) * outcome.chance;
-        expectedBuildingHits += Math.min(Math.max(outcome.hits - usefulHits, 0), buildingHits) * outcome.chance;
+    getDiceOutcomes(assaultDice, skirmishDice, raidDice).forEach(outcome => {
+        const directHits = buildingsAreTarget ? 0 : outcome.buildingHits;
+        expectedHits += Math.min(outcome.hits + (buildingsAreTarget ? outcome.buildingHits : 0), usefulHits) * outcome.chance;
+        expectedBuildingHits += Math.min(Math.max(outcome.hits - usefulHits, 0) + directHits, buildingHits) * outcome.chance;
+        if (raid != null && outcome.keys >= raid.keys) { keyChance += outcome.chance; }
         expectedDamage += (outcome.damage + (outcome.ambush ? fresh : 0)) * outcome.chance;
         if (outcome.ambush) { ambushChance += outcome.chance; }
     });
@@ -72,28 +100,34 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
     return {
         assaultDice: assaultDice,
         skirmishDice: skirmishDice,
+        raidDice: raidDice,
+        keyChance: keyChance,
         expectedHits: expectedHits,
         expectedBuildingHits: expectedBuildingHits,
         expectedDamage: expectedDamage,
         ambushChance: ambushChance,
         score: expectedHits - personality.riskWeight * expectedDamage - personality.buildingWeight * expectedBuildingHits
+            + (raid != null ? keyChance * raid.value : 0)
     };
 }
 
-function getDiceOptions(ships, fresh, damaged, buildingHits, personality) {
-    // Every mix of assault and skirmish dice (up to one die per ship and maxDicePerType of
-    // each), with the chance the bot picks each. Skirmish dice can't hurt the attacker, so
+function getDiceOptions(ships, fresh, damaged, buildingHits, personality, raid = null) {
+    // Every mix of assault and skirmish dice, and raid dice if it's after something (up to one
+    // die per ship and maxDicePerType of each), with the chance the bot picks each. Skirmish dice can't hurt the attacker, so
     // with no buildings to hit the ships not rolling assault roll skirmish, up to the limit.
     // With buildings, rolling fewer dice than it could is an option too, to avoid hitting them.
     // Options close to the best are picked almost as often as the best (a person can't tell
     // them apart and guesses), but clearly worse ones quickly become rare.
     // personality.randomness sets how far from the best counts as "close"
     let options = [];
-    for (let assaultDice = 0; assaultDice <= Math.min(ships, maxDicePerType); assaultDice++) {
-        const mostSkirmishDice = Math.min(ships - assaultDice, maxDicePerType);
-        const fewestSkirmishDice = (buildingHits > 0) ? (assaultDice == 0 ? 1 : 0) : mostSkirmishDice;
-        for (let skirmishDice = fewestSkirmishDice; skirmishDice <= mostSkirmishDice; skirmishDice++) {
-            options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality));
+    const mostRaidDice = (raid != null) ? Math.min(ships, maxDicePerType) : 0;
+    for (let raidDice = 0; raidDice <= mostRaidDice; raidDice++) {
+        for (let assaultDice = 0; assaultDice <= Math.min(ships - raidDice, maxDicePerType); assaultDice++) {
+            const mostSkirmishDice = Math.min(ships - raidDice - assaultDice, maxDicePerType);
+            const fewestSkirmishDice = (buildingHits > 0) ? (assaultDice + raidDice == 0 ? 1 : 0) : mostSkirmishDice;
+            for (let skirmishDice = fewestSkirmishDice; skirmishDice <= mostSkirmishDice; skirmishDice++) {
+                options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice, raid));
+            }
         }
     }
 
@@ -121,7 +155,7 @@ function getMostDice(ships) {
 
 function getBattleAttitude(choice, ships) {
     // What the bot might say about its roll
-    if (choice.assaultDice + choice.skirmishDice < getMostDice(ships)) { return "Holding back: no need to hit their buildings."; }
+    if (choice.assaultDice + choice.skirmishDice + (choice.raidDice || 0) < getMostDice(ships)) { return "Holding back: no need to hit their buildings."; }
     if (choice.assaultDice == 0) { return "Playing it safe."; }
     if (choice.skirmishDice == 0) { return "Going all in!"; }
     return "Taking a bit of a risk.";
@@ -142,6 +176,7 @@ function describeDice(option) {
     let dice = [];
     if (option.assaultDice > 0) { dice.push(option.assaultDice + " assault"); }
     if (option.skirmishDice > 0) { dice.push(option.skirmishDice + " skirmish"); }
+    if (option.raidDice > 0) { dice.push(option.raidDice + " raid"); }
     return dice.join(" + ");
 }
 
@@ -168,7 +203,10 @@ function showBattleModal(button) {
     battle.freshBuildings = 0;
     battle.damagedBuildings = 0;
     battle.start = null;
+    resetBattleRaid();
     document.getElementById("battleAttackAgain").checked = false;
+    // Only needed for the bot's advice
+    showHideElement([document.getElementById("battleAttackAgain").parentNode], !battle.attacker.isHuman);
 
     const header = document.querySelector("#battleModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
@@ -185,10 +223,10 @@ function showBattleModal(button) {
         input.name = "battleDefender";
         input.id = "battleDefender" + player.number;
         // A different defender is a different battle, so its counts start again
-        input.onchange = () => { battle.defender = player; battle.start = null; clearBattleDecision(); };
+        input.onchange = () => { battle.defender = player; battle.start = null; resetBattleRaid(); updateBattleCounts(); };
 
         const label = document.createElement("label");
-        label.classList.add("btn", "btn-outline-secondary", "btn-sm");
+        label.classList.add("btn", "btn-sm", "playerchoice", "playerchoice" + player.number);
         label.htmlFor = input.id;
         label.innerHTML = "Player " + player.number;
 
@@ -204,7 +242,7 @@ function showBattleModal(button) {
 }
 
 function battleStep(field, change) {
-    // The -/+ buttons. The attacker has at least one ship
+    // The -/+ buttons (and the keys for a raid). The attacker has at least one ship
     const minimum = (field == "ships") ? 1 : 0;
     battle[field] = Math.max(minimum, battle[field] + change);
     updateBattleCounts();
@@ -216,17 +254,132 @@ function updateBattleCounts() {
     document.getElementById("battleDamaged").innerHTML = battle.damaged;
     document.getElementById("battleFreshBuildings").innerHTML = battle.freshBuildings;
     document.getElementById("battleDamagedBuildings").innerHTML = battle.damagedBuildings;
+    showBattleRaid();
     clearBattleDecision();
+}
+
+// Raid dice: stealing from the defender
+
+function resetBattleRaid() {
+    battle.keys = 0;
+    battle.raidItem = null;
+    battle.noBuildings = false;
+    battle.raidRolled = false;
+}
+
+function isRaidAllowed() {
+    // A defending building here, or the defender has no buildings on the board at all
+    // (starports aren't counted, so the player says so)
+    return battle.freshBuildings + battle.damagedBuildings > 0 || battle.noBuildings;
+}
+
+function getRaidWants(attacker, defender) {
+    // What the attacker could steal from the defender, most wanted first. Guild cards have
+    // their keys printed on them; a resource's depend on its slot, so the player enters them.
+    // Sworn Guardians stops anything else being stolen until it has been
+    const guardians = getCourtCard(22);
+    if ((defender.guildCards || []).includes(guardians.number)) {
+        return [{ id: "guild:" + guardians.number, name: guardians.name, keys: guardians.keys, need: 0 }];
+    }
+
+    const resources = preludeResources.filter(resource => defender[resource + "Value"] > 0).map(resource => ({
+        id: "resource:" + resource, resource: resource, name: preludeResourceNames[resource], need: getResourceNeed(attacker, resource)
+    }));
+    const guildCards = getPlayerGuildCards(defender).map(card => ({
+        id: "guild:" + card.number, card: card.number, name: card.name, keys: card.keys, need: getResourceNeed(attacker, card.resource)
+    }));
+    return resources.concat(guildCards).sort((a, b) => b.need - a.need);
+}
+
+function getBattleRaidItem() {
+    // What the bot is after in this battle, or null. Once it has rolled raid dice that stands,
+    // even if the roll destroyed the last building
+    if ((!isRaidAllowed() && !battle.raidRolled) || battle.raidItem == "none") { return null; }
+    const wants = getRaidWants(battle.attacker, battle.defender);
+    return wants.find(want => want.id == battle.raidItem) || wants[0] || null;
+}
+
+function getBattleRaid(hasShips) {
+    // What the dice choice needs to know about a raid. Without the keys it can't weigh it up
+    const item = getBattleRaidItem();
+    if (item == null || battle.keys == 0) { return null; }
+    return { keys: battle.keys, value: defaultBotPersonality.raidWeight * raidNeedFactor[item.need], buildingsAreTarget: !hasShips };
+}
+
+function chooseRaidItem(id) {
+    battle.raidItem = id;
+    // A Guild card's keys are printed on it. A resource's depend on its slot
+    const item = getBattleRaidItem();
+    battle.keys = (item != null && item.keys != null) ? item.keys : 0;
+    updateBattleCounts();
+}
+
+function setNoBuildings(noBuildings) {
+    battle.noBuildings = noBuildings;
+    updateBattleCounts();
+}
+
+function showBattleRaid() {
+    // The raid part of the Battle window, which depends on the counts and the defender
+    const section = document.getElementById("battleRaid");
+    const defender = getPlayerTag(battle.defender);
+
+    // The human player chooses their own dice, and says what they stole afterwards
+    if (battle.attacker.isHuman) {
+        section.innerHTML = "";
+        return;
+    }
+
+    let html = "";
+    if (battle.freshBuildings + battle.damagedBuildings == 0) {
+        html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
+            + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleNoBuildings\" onchange=\"setNoBuildings(this.checked)\"" + (battle.noBuildings ? " checked" : "") + ">"
+            + "<label class=\"form-check-label\" for=\"battleNoBuildings\">" + defender + " has no buildings on the board</label></div>";
+    }
+
+    if (!isRaidAllowed()) {
+        section.innerHTML = html + "<div class=\"small text-muted text-center mt-1\">Raid dice need a building here, or a defender with none on the board.</div>";
+        return;
+    }
+
+    const wants = getRaidWants(battle.attacker, battle.defender);
+    if (wants.length == 0) {
+        section.innerHTML = html + "<div class=\"small text-muted text-center mt-1\">" + defender + " has nothing to steal.</div>";
+        return;
+    }
+
+    const item = getBattleRaidItem();
+    if (item != null && item.keys != null) { battle.keys = item.keys; }
+    html += "<div class=\"boardgrouplabel mt-2\">Raid: steal from " + defender + "</div>"
+        + "<select class=\"form-select form-select-sm\" id=\"battleRaidItem\" onchange=\"chooseRaidItem(this.value)\">"
+        + wants.map(want => "<option value=\"" + want.id + "\"" + (item != null && want.id == item.id ? " selected" : "") + ">" + want.name + (want.need == 2 ? " (it's chasing this)" : "") + "</option>").join("")
+        + "<option value=\"none\"" + (item == null ? " selected" : "") + ">Nothing</option></select>";
+
+    if (item != null) {
+        const printed = item.keys != null;
+        html += "<div class=\"d-flex align-items-center justify-content-center gap-2 mt-2\"><div class=\"resourcetile\">"
+            + "<div class=\"resourcelabel\">Keys</div><div class=\"resourcevalue\" id=\"battleKeys\">" + battle.keys + "</div>"
+            + (printed ? "" : "<div class=\"d-flex gap-1\"><button class=\"btn resourcebutton resourceminus\" type=\"button\" onclick=\"battleStep('keys', -1)\" aria-label=\"One key fewer\"><i class=\"bi bi-dash-lg\"></i></button>"
+                + "<button class=\"btn resourcebutton resourceplus\" type=\"button\" onclick=\"battleStep('keys', 1)\" aria-label=\"One key more\"><i class=\"bi bi-plus-lg\"></i></button></div>")
+            + "</div><div class=\"small text-muted\" style=\"max-width: 170px\">" + (printed ? "Printed on the card." : "How many keys does its slot on " + defender + "'s board show?") + "</div></div>";
+    }
+    section.innerHTML = html;
 }
 
 function clearBattleDecision() {
     // Anything changed, so the bot needs to choose again. Once it has rolled, the counts are
-    // what's left, so it can attack again or finish
-    document.getElementById("battleAdvice").innerHTML = (battle.start == null)
-        ? "<div class=\"text-muted\">Set up the battle, then choose the dice.</div>"
-        : "<div class=\"text-muted\">To attack again, choose the dice. Otherwise, Done battling updates the players' panels.</div>";
-    document.getElementById("chooseBattleDice").innerHTML = "Choose dice";
-    showHideElement([document.getElementById("chooseBattleDice")], true);
+    // what's left, so it can attack again or finish. The human player rolls for themselves
+    const isHuman = battle.attacker.isHuman;
+    const advice = isHuman
+        ? (battle.start == null
+            ? "Set the ships and buildings before you roll, then start the battle."
+            : "Roll your dice, then set the ships and buildings above to what's left. Do the same for any more attacks, then tap Done battling.")
+        : (battle.start == null
+            ? "Set up the battle, then choose the dice."
+            : "To attack again, choose the dice. Otherwise, Done battling updates the values.");
+    document.getElementById("battleAdvice").innerHTML = "<div class=\"text-muted\">" + advice + "</div>";
+    document.getElementById("chooseBattleDice").innerHTML = isHuman ? "Start battle" : "Choose dice";
+    showHideElement([document.getElementById("chooseBattleDice")], !(isHuman && battle.start != null));
     showHideElement([document.getElementById("battleDone")], battle.start != null);
 }
 
@@ -236,7 +389,14 @@ function chooseBattleDice() {
     const hasShips = battle.fresh + battle.damaged > 0;
     const buildingHits = getHitsToDestroy(battle.freshBuildings, battle.damagedBuildings);
     if (!hasShips && buildingHits == 0) {
-        advice.innerHTML = "<div class=\"text-muted\">Player " + battle.defender.number + " has nothing to attack.</div>";
+        advice.innerHTML = "<div class=\"text-muted\">" + getPlayerTag(battle.defender) + " has nothing to attack.</div>";
+        return;
+    }
+
+    // The human player rolls for themselves, so just note the counts before the first roll
+    if (battle.attacker.isHuman) {
+        noteBattleStart();
+        clearBattleDecision();
         return;
     }
 
@@ -244,9 +404,11 @@ function chooseBattleDice() {
     // defending ships the bot is attacking the buildings on purpose, so hits on them are what
     // it wants: they count like hits on ships (buildings don't ambush) and nothing is held back
     const mood = getBattleMood(defaultBotPersonality);
+    const raid = getBattleRaid(hasShips);
+    const raidItem = getBattleRaidItem();
     const options = hasShips
-        ? getDiceOptions(battle.ships, battle.fresh, battle.damaged, buildingHits, mood)
-        : getDiceOptions(battle.ships, 0, buildingHits, 0, mood);
+        ? getDiceOptions(battle.ships, battle.fresh, battle.damaged, buildingHits, mood, raid)
+        : getDiceOptions(battle.ships, 0, buildingHits, 0, mood, raid);
     const choice = pickDiceOption(options);
     const canAttackAgain = document.getElementById("battleAttackAgain").checked;
     const usefulHits = hasShips ? getHitsToDestroy(battle.fresh, battle.damaged) : buildingHits;
@@ -262,14 +424,16 @@ function chooseBattleDice() {
     // in Details, closed to start with
     advice.innerHTML =
         "<div class=\"battleroll\">Roll " + describeDice(choice) + "</div>"
-        + "<div class=\"fst-italic\">" + getBattleAttitude(choice, battle.ships) + "</div>"
+        + "<div class=\"fst-italic\">" + ((raid != null && choice.raidDice > 0) ? "Going after their " + raidItem.name + "." : getBattleAttitude(choice, battle.ships)
+            + (raid != null ? " Their " + raidItem.name + " isn't worth the risk." : "")) + "</div>"
         + "<div class=\"mt-2\"><b>Assign hits:</b> "
         + (hasShips ? getHitAdvice(canAttackAgain) + (buildingHits > 0 ? " Any hits left over go to buildings." : "") : "All hits go to buildings.") + "</div>"
         + "<div><b>Own ships:</b> damage fresh ships before losing damaged ones.</div>"
         + "<details class=\"small text-muted mt-2\" id=\"battleDetails\"><summary>Details</summary>"
         + "<div>Expected hits: " + choice.expectedHits.toFixed(1) + " (" + usefulHits + " would destroy every " + (hasShips ? "ship" : "building") + ")</div>"
-        + (battle.fresh > 0 && choice.assaultDice > 0
-            ? "<div>Ambush chance: " + Math.round(choice.ambushChance * 100) + "% (would take " + battle.fresh + " hit" + (battle.fresh == 1 ? "" : "s") + " first)</div>"
+        + (raid != null && choice.raidDice > 0 ? "<div>Chance of " + raid.keys + " key" + (raid.keys == 1 ? "" : "s") + ": " + Math.round(choice.keyChance * 100) + "%</div>" : "")
+        + (battle.fresh > 0 && (choice.assaultDice > 0 || choice.raidDice > 0)
+            ? "<div>Ambush or intercept chance: " + Math.round(choice.ambushChance * 100) + "% (would take " + battle.fresh + " hit" + (battle.fresh == 1 ? "" : "s") + " first)</div>"
             : "<div>No risk of an ambush</div>")
         + (hasShips && buildingHits > 0
             ? "<div>Expected hits on buildings: " + choice.expectedBuildingHits.toFixed(1) + " (destroying one causes Outrage)</div>"
@@ -281,15 +445,19 @@ function chooseBattleDice() {
         + "</details>"
         + "<div class=\"alert alert-secondary py-2 px-3 mt-2 mb-0 small\"><b>After the roll:</b> set the ships and buildings above to what's left.</div>";
 
-    // The counts before the first roll, to work out what was lost when the battle is done
-    if (battle.start == null) {
-        battle.start = {};
-        battleCounts.forEach(count => { battle.start[count] = battle[count]; });
-    }
+    noteBattleStart();
+    if (choice.raidDice > 0) { battle.raidRolled = true; }
     showHideElement([document.getElementById("battleDone")], true);
 
     // The bot may attack again (with the same or updated ships), so it can choose again
     document.getElementById("chooseBattleDice").innerHTML = "Choose again";
+}
+
+function noteBattleStart() {
+    // The counts before the first roll, to work out what was lost when the battle is done
+    if (battle.start != null) { return; }
+    battle.start = {};
+    battleCounts.forEach(count => { battle.start[count] = battle[count]; });
 }
 
 function getBattleLosses() {
@@ -303,9 +471,9 @@ function getBattleLosses() {
 }
 
 function showBattleResults() {
-    // What the battle changed, to confirm before the players' panels are updated
+    // What the battle changed, to confirm before the players' values are updated
     const losses = getBattleLosses();
-    const attacker = "Player " + battle.attacker.number, defender = "Player " + battle.defender.number;
+    const attacker = getPlayerTag(battle.attacker), defender = getPlayerTag(battle.defender);
     const plural = (count, word) => count + " " + word + (count == 1 ? "" : "s");
 
     let lines = [];
@@ -332,9 +500,25 @@ function showBattleResults() {
         html += "<div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Remember:</b> destroying a building means Outrage, and Ransack.</div>";
     }
 
+    // The human player says what they stole, if anything
+    if (battle.attacker.isHuman) {
+        const wants = getRaidWants(battle.attacker, battle.defender);
+        if (wants.length > 0) {
+            html += "<div class=\"mt-2\">What did you steal?</div><select class=\"form-select form-select-sm mt-1\" id=\"battleStolenItem\"><option value=\"none\">Nothing</option>"
+                + wants.map(want => "<option value=\"" + want.id + "\">" + want.name + "</option>").join("") + "</select>";
+        }
+    }
+
+    // If the bot rolled raid dice, did it get the keys?
+    const raidItem = getBattleRaidItem();
+    if (!battle.attacker.isHuman && battle.raidRolled && raidItem != null) {
+        html += "<div class=\"form-check mt-2\"><input class=\"form-check-input\" type=\"checkbox\" id=\"battleStole\">"
+            + "<label class=\"form-check-label\" for=\"battleStole\">" + attacker + " rolled " + battle.keys + " key" + (battle.keys == 1 ? "" : "s") + " and stole the " + raidItem.name + "</label></div>";
+    }
+
     html += "<div class=\"d-flex gap-2 mt-3\">"
         + "<button type=\"button\" class=\"btn btn-secondary flex-fill\" onclick=\"clearBattleDecision()\">Back</button>"
-        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"battleUpdate\" onclick=\"applyBattleResults()\">Update the panels</button>"
+        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"battleUpdate\" onclick=\"applyBattleResults()\">Update values</button>"
         + "</div>";
 
     document.getElementById("battleAdvice").innerHTML = html;
@@ -348,7 +532,7 @@ function adjustCounter(player, counter, change) {
 }
 
 function applyBattleResults() {
-    // Update both players' panels and close the window
+    // Update both players' values and close the window
     const losses = getBattleLosses();
     const { attacker, defender } = battle;
 
@@ -367,10 +551,30 @@ function applyBattleResults() {
         cities.push(preludeResourceNames[select.value].toLowerCase());
     });
 
+    // What it stole moves across. Sworn Guardians is buried instead, so it leaves the game
+    const stoleBox = document.getElementById("battleStole");
+    const stolenList = document.getElementById("battleStolenItem");
+    const stolen = (stolenList != null)
+        ? (getRaidWants(attacker, defender).find(want => want.id == stolenList.value) || null)
+        : ((stoleBox != null && stoleBox.checked) ? getBattleRaidItem() : null);
+    if (stolen != null) {
+        if (stolen.resource != null) {
+            adjustCounter(defender, stolen.resource, -1);
+            adjustCounter(attacker, stolen.resource, 1);
+        } else {
+            const number = parseInt(stolen.id.split(":")[1]);
+            defender.guildCards = defender.guildCards.filter(card => card != number);
+            if (number != 22) { attacker.guildCards.push(number); }
+            showGuildCardsRow(defender);
+            showGuildCardsRow(attacker);
+        }
+    }
+
     SaveAllSettings();
     showMessageToast("Player " + attacker.number + " attacked Player " + defender.number,
         "Ships destroyed: " + losses.defenderShips + " (Player " + defender.number + "), " + losses.attackerShips + " (Player " + attacker.number + ")"
-        + (losses.defenderBuildings > 0 ? "<br>Buildings destroyed: " + losses.defenderBuildings + (cities.length > 0 ? " (cities on " + cities.join(", ") + ")" : "") : ""));
+        + (losses.defenderBuildings > 0 ? "<br>Buildings destroyed: " + losses.defenderBuildings + (cities.length > 0 ? " (cities on " + cities.join(", ") + ")" : "") : "")
+        + (stolen != null ? "<br>Stole the " + stolen.name : ""));
 
     battle.start = null;
     bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).hide();

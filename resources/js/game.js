@@ -354,8 +354,8 @@ function showTurnDone(player) {
     const done = document.getElementById("turndone" + player.number);
     showHideElement([done], true);
 
-    // A bot that can now battle or build has the Battle or Build icon
-    updateBotActionButtons(player);
+    // A player who can now battle or build has the Battle or Build icon
+    updateActionButtons(player);
     document.getElementById("donebutton" + player.number).scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 

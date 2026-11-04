@@ -94,7 +94,7 @@ function canBotTakeAction(player, action) {
     return spent.some(offer => offer.action == action || (offer.action == "lead" && playedCardList[0].actions.includes(action)));
 }
 
-function updateBotActionButtons(player) {
+function updateActionButtons(player) {
     // The Battle and Build icons only show for a bot that has played a card (or prelude)
     // that lets it battle or build, until its Done
     [["battlebutton", "battle"], ["buildbutton", "build"]].forEach(([id, action]) => {
@@ -102,6 +102,12 @@ function updateBotActionButtons(player) {
         if (button == null) { return; }
         showHideElement([button], !player.isHuman && awaitingDone == player.number && canBotTakeAction(player, action));
     });
+
+    // The human player keeps track of their own battles, once they've played a card. The app
+    // doesn't know what they spend in their prelude, so it can't tell whether they can battle
+    if (player.isHuman && awaitingDone == player.number) {
+        showHideElement([document.getElementById("battlebutton" + player.number)], true);
+    }
 }
 
 function getPreludeOffers(player) {

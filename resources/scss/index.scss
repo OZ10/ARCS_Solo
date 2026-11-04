@@ -481,6 +481,34 @@ header, .footerstyle {
     background-image: linear-gradient(to right, $slate 4px, $colour 4px, $colour 9px, $slate 9px);
 }
 
+// A player's name on their own colour, in a window's text
+.playertag {
+    padding: 0 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+// Choosing a player: a button in their colour. The one chosen is outlined, the others faded
+@mixin playerchoice($colour, $text) {
+    --bs-btn-color: #{$text};
+    --bs-btn-bg: #{$colour};
+    --bs-btn-border-color: #{$colour};
+    --bs-btn-hover-color: #{$text};
+    --bs-btn-hover-bg: #{$colour};
+    --bs-btn-hover-border-color: #{$colour};
+    --bs-btn-active-color: #{$text};
+    --bs-btn-active-bg: #{$colour};
+    --bs-btn-active-border-color: #{$colour};
+}
+
+.btn-check:not(:checked) + .btn.playerchoice {
+    opacity: 0.5;
+}
+
+.btn-check:checked + .btn.playerchoice {
+    box-shadow: 0 0 0 2px $mainfontcolour;
+}
+
 // A modal's title bar in the colour of the player it's about (e.g. the bot's Yes/No questions)
 @mixin playerbanner($colour, $text) {
     background-color: $colour;
@@ -492,6 +520,42 @@ header, .footerstyle {
             filter: var(--bs-btn-close-white-filter);
         }
     }
+}
+
+.playertag1 {
+    background-color: $playercolour1;
+    color: $playertext1;
+}
+
+.playertag2 {
+    background-color: $playercolour2;
+    color: $playertext2;
+}
+
+.playertag3 {
+    background-color: $playercolour3;
+    color: $playertext3;
+}
+
+.playertag4 {
+    background-color: $playercolour4;
+    color: $playertext4;
+}
+
+.btn.playerchoice1 {
+    @include playerchoice($playercolour1, $playertext1);
+}
+
+.btn.playerchoice2 {
+    @include playerchoice($playercolour2, $playertext2);
+}
+
+.btn.playerchoice3 {
+    @include playerchoice($playercolour3, $playertext3);
+}
+
+.btn.playerchoice4 {
+    @include playerchoice($playercolour4, $playertext4);
 }
 
 .playerbanner1 {

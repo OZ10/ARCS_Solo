@@ -86,11 +86,11 @@
                 data-bs-title="Declare an ambition"><i
                   class="bi bi-hexagon-fill"
                   onclick="showDeclareAmbitionModal(this, false, null, null)"></i></button>
-              <!-- Bots only: help the bot choose its battle dice (see battle.js) -->
+              <!-- Help a bot choose its dice, and keep track of any player's battle (see battle.js) -->
               <button class="btn" data-bs-toggle="tooltip" data-bs-trigger="hover"
                 data-bs-placement="top"
                 data-bs-custom-class="custom-tooltip"
-                data-bs-title="Battle: choose this bot's dice"
+                data-bs-title="Battle"
                 id="battlebutton" onclick="showBattleModal(this)"
                 aria-label="Battle"><i class="bi bi-crosshair"></i></button>
               <!-- Bots only: help the bot decide what to build (see build.js) -->
@@ -390,7 +390,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v041126.01</small>
+              <small class="text-muted me-auto" id="appVersion">v041126.02</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -702,8 +702,8 @@
                   <label class="form-check-label" for="battleAttackAgain">Can attack again this turn</label>
                 </div>
 
-                <!-- Raid dice (an enemy building in the system) will go here later -->
-                <div class="small text-muted text-center mt-1">Raid dice: coming later</div>
+                <!-- Raid dice: what the bot wants to steal and its keys (see showBattleRaid in battle.js) -->
+                <div class="mt-2" id="battleRaid"></div>
               </div>
 
               <div class="col-sm-6">
@@ -711,9 +711,9 @@
                   onclick="chooseBattleDice()">Choose dice</button>
                 <div class="mt-2" id="battleAdvice"></div>
                 <!-- Once the dice have been chosen: update the counts above after each roll,
-                     then this updates the players' panels (see showBattleResults in battle.js) -->
+                     then this updates the players' values (see showBattleResults in battle.js) -->
                 <button type="button" class="btn btn-outline-secondary w-100 mt-2 d-none" id="battleDone"
-                  onclick="showBattleResults()">Done battling: update the panels</button>
+                  onclick="showBattleResults()">Done battling</button>
               </div>
             </div>
           </div>

@@ -55,11 +55,19 @@ function getAmbitionDeclaredMessage(ambition) {
 const powerToWin = { 2: 33, 3: 30, 4: 27 };
 
 // Battle dice, one entry per face. hits are hits on the defender, damage is damage to the
-// attacker's own ships, and ambush means the defender hits first with all its fresh ships.
-// Raid dice aren't used yet
+// attacker's own ships, and ambush means the defender hits first with all its fresh ships
+// (on the raid die this is the intercept symbol). keys are for stealing, and buildingHits go
+// straight to the defender's buildings
 const skirmishDieFaces = [
     { hits: 1 }, { hits: 1 }, { hits: 1 },
     {}, {}, {}
+];
+const raidDieFaces = [
+    { ambush: true },
+    { ambush: true, keys: 2 },
+    { damage: 1, buildingHits: 1 }, { damage: 1, buildingHits: 1 },
+    { damage: 1, keys: 1 },
+    { buildingHits: 1, keys: 1 }
 ];
 const assaultDieFaces = [
     {},
@@ -85,7 +93,12 @@ const maxDicePerType = 6;
 //             any hits left over once every defending ship is destroyed. Destroying a
 //             building causes Outrage (1 = a hit on a building cancels out a hit on a ship,
 //             0 = doesn't mind)
-const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6, buildingWeight: 1 };
+// raidWeight: how much stealing something it wants matters, in hits on ships
+const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6, buildingWeight: 1, raidWeight: 3 };
+
+// How much more or less it values stealing something, by how much it needs it (getResourceNeed):
+// nothing it's after, an ambition that could still be declared, an ambition it's chasing
+const raidNeedFactor = [0.5, 1, 1.5];
 
 // Prelude (#72): before its card's actions a bot may spend resources for extra actions.
 // What each resource gives, and the ambition it counts towards (weapons count towards none)

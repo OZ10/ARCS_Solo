@@ -393,6 +393,88 @@ header, .footerstyle {
   background-color: #3862e0;
 }
 
+.playertag {
+  padding: 0 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.btn-check:not(:checked) + .btn.playerchoice {
+  opacity: 0.5;
+}
+
+.btn-check:checked + .btn.playerchoice {
+  box-shadow: 0 0 0 2px rgb(30, 30, 30);
+}
+
+.playertag1 {
+  background-color: goldenrod;
+  color: rgb(30, 30, 30);
+}
+
+.playertag2 {
+  background-color: firebrick;
+  color: white;
+}
+
+.playertag3 {
+  background-color: antiquewhite;
+  color: rgb(30, 30, 30);
+}
+
+.playertag4 {
+  background-color: royalblue;
+  color: white;
+}
+
+.btn.playerchoice1 {
+  --bs-btn-color: rgb(30, 30, 30);
+  --bs-btn-bg: goldenrod;
+  --bs-btn-border-color: goldenrod;
+  --bs-btn-hover-color: rgb(30, 30, 30);
+  --bs-btn-hover-bg: goldenrod;
+  --bs-btn-hover-border-color: goldenrod;
+  --bs-btn-active-color: rgb(30, 30, 30);
+  --bs-btn-active-bg: goldenrod;
+  --bs-btn-active-border-color: goldenrod;
+}
+
+.btn.playerchoice2 {
+  --bs-btn-color: white;
+  --bs-btn-bg: firebrick;
+  --bs-btn-border-color: firebrick;
+  --bs-btn-hover-color: white;
+  --bs-btn-hover-bg: firebrick;
+  --bs-btn-hover-border-color: firebrick;
+  --bs-btn-active-color: white;
+  --bs-btn-active-bg: firebrick;
+  --bs-btn-active-border-color: firebrick;
+}
+
+.btn.playerchoice3 {
+  --bs-btn-color: rgb(30, 30, 30);
+  --bs-btn-bg: antiquewhite;
+  --bs-btn-border-color: antiquewhite;
+  --bs-btn-hover-color: rgb(30, 30, 30);
+  --bs-btn-hover-bg: antiquewhite;
+  --bs-btn-hover-border-color: antiquewhite;
+  --bs-btn-active-color: rgb(30, 30, 30);
+  --bs-btn-active-bg: antiquewhite;
+  --bs-btn-active-border-color: antiquewhite;
+}
+
+.btn.playerchoice4 {
+  --bs-btn-color: white;
+  --bs-btn-bg: royalblue;
+  --bs-btn-border-color: royalblue;
+  --bs-btn-hover-color: white;
+  --bs-btn-hover-bg: royalblue;
+  --bs-btn-hover-border-color: royalblue;
+  --bs-btn-active-color: white;
+  --bs-btn-active-bg: royalblue;
+  --bs-btn-active-border-color: royalblue;
+}
+
 .playerbanner1 {
   background-color: goldenrod;
   color: rgb(30, 30, 30);
