@@ -298,7 +298,7 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
                 showDeclareAmbitionModal(null, true, player, playedCard);
             } else {
                 showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(playedCard.ambition));
-                playedCard.declared = true;
+                playedCard.declared = placesZeroMarker(player, playedCard.ambition);
 
                 // Reset the played card list and re-add the declared card
                 // with a value of 0

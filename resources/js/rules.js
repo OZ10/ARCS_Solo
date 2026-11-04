@@ -146,6 +146,9 @@ const preludeChance = {
     steal: 25,              // Silver-Tongues: steal a Guild card or resource
     union: 60,              // Admin, Construction, Spacing or Arms Union: draw a played card
     songOfFreedom: 40,      // Song of Freedom: return one of its own cities to seize the initiative
+    farseers: 40,           // Farseers: discard cards to draw from the bottom of the discard pile
+    galacticBards: 70,      // Galactic Bards: declare the ambition on the card it surpassed or pivoted with
+    cartelSteal: 15,        // Material or Fuel Cartel: give up the supply to steal 1, when chasing Tycoon
     max: 90
 };
 

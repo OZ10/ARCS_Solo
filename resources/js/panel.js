@@ -264,7 +264,7 @@ function declareAmbitionClick(ambition) {
         const playedCardFullName = document.getElementById("playedCard").innerHTML;
         const playedCard = getCardByNameAndNumber(player.cards, playedCardFullName, true);
 
-        playedCard.declared = true;
+        playedCard.declared = placesZeroMarker(player, ambition);
 
         // Reset the played card list and re-add the declared card
         // with a value of 0

@@ -234,6 +234,38 @@ function getPreludeOffers(player) {
         discard(getCourtCard(20), "steal a Guild card or a resource it's chasing an ambition with");
     }
 
+    // Galactic Bards: on a Surpass or Pivot, if nothing's been declared this round, it may declare
+    // the ambition on its card. The card keeps its number
+    const playedCard = playedCardList.find(played => played.playedByPlayerNumber == player.number && played.cardAction != "CLAIM");
+    if (holds(25) && declaredAmbitions.length == 0 && (playedCard.cardAction == "SURPASS" || playedCard.cardAction == "PIVOT")) {
+        const ambition = (playedCard.ambition == "any") ? (getBestAmbitionToDeclare(player) || {}).ambition : playedCard.ambition;
+        if (ambitionResources[ambition] != null && ambitionResources[ambition](player) > 0 && wants(preludeChance.galacticBards)) {
+            offers.push({ label: "Galactic Bards", text: "declare " + capitalise(ambition) + ", the ambition on its card", declares: ambition });
+        }
+    }
+
+    // Farseers: discards itself and any cards from its hand, and draws as many from the bottom
+    // of the discard pile. It swaps its lowest cards while the next card to draw is higher
+    const bottom = getDiscardedCards();
+    if (holds(17) && bottom.length > 0 && wants(preludeChance.farseers)) {
+        const lowest = getUnplayedCards(player.cards).sort((a, b) => a.number - b.number);
+        let swaps = 0;
+        while (swaps < lowest.length && swaps + 1 < bottom.length && lowest[swaps].number < bottom[swaps + 1].number) { swaps += 1; }
+        const discards = lowest.slice(0, swaps).map(getCardFullName);
+        const draws = bottom.slice(0, swaps + 1).map(getCardFullName);
+        discard(getCourtCard(17), "draw " + draws.join(", "), { label: ["Discard Farseers"].concat(discards).join(" and "), farseers: { discards: discards, draws: draws } });
+    }
+
+    // Cartels: giving up the supply to steal 1 is rarely worth it, but it might if chasing Tycoon.
+    // The Rival with the most loses it
+    guild.filter(card => card.holdsSupply != null).forEach(card => {
+        const rival = players.filter(other => other !== player && other[card.holdsSupply + "Value"] > 0)
+            .sort((a, b) => b[card.holdsSupply + "Value"] - a[card.holdsSupply + "Value"])[0];
+        if (rival != null && getEmptySlots(player) > 0 && isAmbitionInPlay("tycoon") && isChasingAmbition(player, "tycoon") && wants(preludeChance.cartelSteal)) {
+            discard(card, "steal 1 " + preludeResourceNames[card.holdsSupply] + " from Player " + rival.number + " (take it off their panel)", { gains: { [card.holdsSupply]: 1 } });
+        }
+    });
+
     // Unions: placed next to the highest face-up played card of their suit, which the bot
     // draws when the turn ends. Not on its last card, as the round may then end
     if (getUnplayedCards(player.cards).length > 0) {
@@ -343,6 +375,20 @@ function confirmPrelude() {
             changeInitiative(player);
         }
         if (offer.union != null) { player.unionDraws.push(offer.union); }
+        if (offer.declares != null) {
+            // Galactic Bards: no zero marker, so the card keeps its number
+            declaredAmbitions.push(offer.declares);
+            updateAmbitionsDisplay();
+            showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(offer.declares));
+        }
+        if (offer.farseers != null) {
+            offer.farseers.discards.forEach(name => {
+                const card = player.cards.find(held => getCardFullName(held) == name);
+                card.played = true;
+                discardPile.push(card);
+            });
+            offer.farseers.draws.forEach(name => drawCardIntoHand(player, discardPile.find(card => getCardFullName(card) == name)));
+        }
     });
     showGuildCardsRow(player);
 

@@ -160,6 +160,15 @@ function getGuildIconCount(player, resource) {
     return getPlayerGuildCards(player).filter(card => card.resource == resource).length;
 }
 
+function holdsGuildCard(player, number) {
+    return (player.guildCards || []).includes(number);
+}
+
+function placesZeroMarker(player, ambition) {
+    // Declaring turns the card played into a 0, except with Secret Order for Keeper or Empath
+    return !(holdsGuildCard(player, 18) && (ambition == "keeper" || ambition == "empath"));
+}
+
 function getGuildCardHolder(number) {
     // The player holding a Guild card, or undefined
     return players.find(player => (player.guildCards || []).includes(number));

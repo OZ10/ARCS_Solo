@@ -26,11 +26,40 @@ function getHitsToDestroy(fresh, damaged) {
 // die more than a mix already done, so this keeps it quick with lots of ships
 const diceOutcomes = new Map();
 
-function getDiceOutcomes(assaultDice, skirmishDice, raidDice = 0) {
+function getSkirmishHits(skirmishDice, rerolls) {
+    // The chance of each number of hits from skirmish dice (half the faces hit), rerolling blanks
+    // up to the number of rerolls (Skirmishers)
+    const choose = (n, k) => { let result = 1; for (let i = 1; i <= k; i++) { result = result * (n - k + i) / i; } return result; };
+    let chances = new Array(skirmishDice + 1).fill(0);
+    for (let hits = 0; hits <= skirmishDice; hits++) {
+        const again = Math.min(rerolls, skirmishDice - hits);
+        for (let extra = 0; extra <= again; extra++) {
+            chances[hits + extra] += choose(skirmishDice, hits) * Math.pow(0.5, skirmishDice) * choose(again, extra) * Math.pow(0.5, again);
+        }
+    }
+    return chances;
+}
+
+function getDiceOutcomes(assaultDice, skirmishDice, raidDice = 0, rerolls = 0) {
     // Every possible result of rolling the dice, as { hits, damage, ambush, keys, buildingHits, chance }.
     // Results that are the same are combined, so this stays small
-    const dice = assaultDice + "|" + skirmishDice + "|" + raidDice;
+    const dice = assaultDice + "|" + skirmishDice + "|" + raidDice + "|" + rerolls;
     if (diceOutcomes.has(dice)) { return diceOutcomes.get(dice); }
+
+    // With Skirmishers, the other dice's results combined with the skirmish hits after rerolls
+    if (rerolls > 0 && skirmishDice > 0) {
+        const chances = getSkirmishHits(skirmishDice, rerolls);
+        const combined = new Map();
+        getDiceOutcomes(assaultDice, 0, raidDice).forEach(outcome => {
+            chances.forEach((chance, hits) => {
+                const result = { ...outcome, hits: outcome.hits + hits, chance: outcome.chance * chance };
+                const key = result.hits + "|" + result.damage + "|" + result.ambush + "|" + result.keys + "|" + result.buildingHits;
+                if (combined.has(key)) { combined.get(key).chance += result.chance; } else { combined.set(key, result); }
+            });
+        });
+        diceOutcomes.set(dice, [...combined.values()]);
+        return diceOutcomes.get(dice);
+    }
 
     let outcomes = [{ hits: 0, damage: 0, ambush: false, keys: 0, buildingHits: 0, chance: 1 }];
 
@@ -71,7 +100,7 @@ function getDiceOutcomes(assaultDice, skirmishDice, raidDice = 0) {
     return outcomes;
 }
 
-function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice = 0, raid = null) {
+function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice = 0, raid = null, rerolls = 0) {
     // How good rolling these dice is: the hits on ships (no more than it takes to destroy
     // every defending ship) minus the damage the attacker expects to take, from its own dice
     // and from an ambush (one hit per fresh defending ship), minus the hits left over that
@@ -88,7 +117,7 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
     let keyChance = 0;
     const buildingsAreTarget = raid != null && raid.buildingsAreTarget;
 
-    getDiceOutcomes(assaultDice, skirmishDice, raidDice).forEach(outcome => {
+    getDiceOutcomes(assaultDice, skirmishDice, raidDice, rerolls).forEach(outcome => {
         const directHits = buildingsAreTarget ? 0 : outcome.buildingHits;
         expectedHits += Math.min(outcome.hits + (buildingsAreTarget ? outcome.buildingHits : 0), usefulHits) * outcome.chance;
         expectedBuildingHits += Math.min(Math.max(outcome.hits - usefulHits, 0) + directHits, buildingHits) * outcome.chance;
@@ -111,7 +140,7 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
     };
 }
 
-function getDiceOptions(ships, fresh, damaged, buildingHits, personality, raid = null) {
+function getDiceOptions(ships, fresh, damaged, buildingHits, personality, raid = null, rerolls = 0) {
     // Every mix of assault and skirmish dice, and raid dice if it's after something (up to one
     // die per ship and maxDicePerType of each), with the chance the bot picks each. Skirmish dice can't hurt the attacker, so
     // with no buildings to hit the ships not rolling assault roll skirmish, up to the limit.
@@ -126,7 +155,7 @@ function getDiceOptions(ships, fresh, damaged, buildingHits, personality, raid =
             const mostSkirmishDice = Math.min(ships - raidDice - assaultDice, maxDicePerType);
             const fewestSkirmishDice = (buildingHits > 0) ? (assaultDice + raidDice == 0 ? 1 : 0) : mostSkirmishDice;
             for (let skirmishDice = fewestSkirmishDice; skirmishDice <= mostSkirmishDice; skirmishDice++) {
-                options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice, raid));
+                options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice, raid, rerolls));
             }
         }
     }
@@ -265,6 +294,24 @@ function resetBattleRaid() {
     battle.raidItem = null;
     battle.noBuildings = false;
     battle.raidRolled = false;
+    battle.inGate = false;
+}
+
+function setInGate(inGate) {
+    // Gatekeepers: 2 more dice when battling in a gate
+    battle.inGate = inGate;
+    updateBattleCounts();
+}
+
+function getBattleDiceLimit() {
+    // One die per ship, and 2 more with Gatekeepers in a gate
+    return battle.ships + (battle.inGate && holdsGuildCard(battle.attacker, 8) ? 2 : 0);
+}
+
+function getBattleRerolls() {
+    // Skirmishers: rerolls up to its Weapon icons from resources and cards
+    if (!holdsGuildCard(battle.attacker, 13)) { return 0; }
+    return battle.attacker.weaponsValue + getGuildIconCount(battle.attacker, "weapons");
 }
 
 function isRaidAllowed() {
@@ -331,6 +378,11 @@ function showBattleRaid() {
     }
 
     let html = "";
+    if (holdsGuildCard(battle.attacker, 8)) {
+        html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
+            + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleInGate\" onchange=\"setInGate(this.checked)\"" + (battle.inGate ? " checked" : "") + ">"
+            + "<label class=\"form-check-label\" for=\"battleInGate\">In a gate (Gatekeepers: 2 more dice)</label></div>";
+    }
     if (battle.freshBuildings + battle.damagedBuildings == 0) {
         html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
             + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleNoBuildings\" onchange=\"setNoBuildings(this.checked)\"" + (battle.noBuildings ? " checked" : "") + ">"
@@ -407,8 +459,8 @@ function chooseBattleDice() {
     const raid = getBattleRaid(hasShips);
     const raidItem = getBattleRaidItem();
     const options = hasShips
-        ? getDiceOptions(battle.ships, battle.fresh, battle.damaged, buildingHits, mood, raid)
-        : getDiceOptions(battle.ships, 0, buildingHits, 0, mood, raid);
+        ? getDiceOptions(getBattleDiceLimit(), battle.fresh, battle.damaged, buildingHits, mood, raid, getBattleRerolls())
+        : getDiceOptions(getBattleDiceLimit(), 0, buildingHits, 0, mood, raid, getBattleRerolls());
     const choice = pickDiceOption(options);
     const canAttackAgain = document.getElementById("battleAttackAgain").checked;
     const usefulHits = hasShips ? getHitsToDestroy(battle.fresh, battle.damaged) : buildingHits;
@@ -424,11 +476,13 @@ function chooseBattleDice() {
     // in Details, closed to start with
     advice.innerHTML =
         "<div class=\"battleroll\">Roll " + describeDice(choice) + "</div>"
-        + "<div class=\"fst-italic\">" + ((raid != null && choice.raidDice > 0) ? "Going after their " + raidItem.name + "." : getBattleAttitude(choice, battle.ships)
+        + "<div class=\"fst-italic\">" + ((raid != null && choice.raidDice > 0) ? "Going after their " + raidItem.name + "." : getBattleAttitude(choice, getBattleDiceLimit())
             + (raid != null ? " Their " + raidItem.name + " isn't worth the risk." : "")) + "</div>"
         + "<div class=\"mt-2\"><b>Assign hits:</b> "
         + (hasShips ? getHitAdvice(canAttackAgain) + (buildingHits > 0 ? " Any hits left over go to buildings." : "") : "All hits go to buildings.") + "</div>"
         + "<div><b>Own ships:</b> damage fresh ships before losing damaged ones.</div>"
+        + (getBattleRerolls() > 0 && choice.skirmishDice > 0
+            ? "<div><b>Skirmishers:</b> reroll up to " + getBattleRerolls() + " blank skirmish " + (getBattleRerolls() == 1 ? "die" : "dice") + " if it still needs hits.</div>" : "")
         + "<details class=\"small text-muted mt-2\" id=\"battleDetails\"><summary>Details</summary>"
         + "<div>Expected hits: " + choice.expectedHits.toFixed(1) + " (" + usefulHits + " would destroy every " + (hasShips ? "ship" : "building") + ")</div>"
         + (raid != null && choice.raidDice > 0 ? "<div>Chance of " + raid.keys + " key" + (raid.keys == 1 ? "" : "s") + ": " + Math.round(choice.keyChance * 100) + "%</div>" : "")
