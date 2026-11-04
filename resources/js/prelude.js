@@ -201,11 +201,11 @@ function getPreludeOffers(player) {
         }
     }
 
-    // Mining or Shipping Interest: fill its empty resource slots, when chasing Tycoon. The
-    // number of empty slots isn't tracked, so the resources are added by hand
+    // Mining or Shipping Interest: fill its empty resource slots, when chasing Tycoon
     const interest = guild.find(card => card.number == 2 || card.number == 9);
-    if (interest != null && isAmbitionInPlay("tycoon") && isChasingAmbition(player, "tycoon") && wants(preludeChance.gainSupply)) {
-        discard(interest, "gain " + preludeResourceNames[interest.resource] + " up to its empty resource slots (add them yourself)");
+    if (interest != null && getEmptySlots(player) > 0 && isAmbitionInPlay("tycoon") && isChasingAmbition(player, "tycoon") && wants(preludeChance.gainSupply)) {
+        const emptySlots = getEmptySlots(player);
+        discard(interest, "gain " + emptySlots + " " + preludeResourceNames[interest.resource] + ", filling its empty resource slots", { gains: { [interest.resource]: emptySlots } });
     }
 
     // Elder Broker: a material, fuel and weapon, when it can spare the card's relic icon
@@ -327,6 +327,9 @@ function confirmPrelude() {
     const record = (step == "guild") ? player.guildActions : player.prelude;
     record.spent = record.offers.filter((offer, index) => document.getElementById("preludeOffer" + index).checked);
     applyPrelude(player, record.spent);
+
+    // Where to put anything it gained
+    showSlotAdvice(player, record.spent.flatMap(offer => Object.keys(offer.gains || {}).filter(resource => preludeResources.includes(resource))));
 
     record.spent.forEach(offer => {
         if (offer.seize) {

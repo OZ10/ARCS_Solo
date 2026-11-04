@@ -54,6 +54,7 @@ function undoLastCard() {
         const savedPlayer = JSON.parse(undo.saved[player.number]);
         resources.forEach(resource => { savedPlayer[resource] = player[resource]; });
         savedPlayer.guildCards = player.guildCards.slice();
+        savedPlayer.startingCity = player.startingCity;
 
         // Except the undone card's bot's prelude and Guild actions, which are put back: resources
         // spent and gained, and Guild cards discarded. A seize or Union comes back with the rest of the game

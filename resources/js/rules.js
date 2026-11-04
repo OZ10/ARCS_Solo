@@ -148,6 +148,17 @@ const preludeChance = {
     max: 90
 };
 
+// The resource slots on a player board: the keys it takes to steal from each, and how many
+// cities must be built to uncover it. Slots 5 and 6 are uncovered by the same city
+const resourceSlots = [
+    { slot: 1, keys: 3, cities: 0 },
+    { slot: 2, keys: 1, cities: 0 },
+    { slot: 3, keys: 1, cities: 1 },
+    { slot: 4, keys: 2, cities: 2 },
+    { slot: 5, keys: 1, cities: 3 },
+    { slot: 6, keys: 3, cities: 3 }
+];
+
 // The chance (%) of a bot offering each Guild card action (see guildactions.js). These could
 // also become part of the bot personalities (#71)
 const guildActionChance = {

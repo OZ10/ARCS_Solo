@@ -429,6 +429,12 @@ function plusMinusClicked(id, action) {
 
     const player = getPlayer(playerNumber);
 
+    // Setting up, the first city tapped is the starting city, not another one. Removing a
+    // city when the tile is already at 0 means the starting city
+    if (player.startingCity && cityCounters.includes(resourceName) && ((action == 'plus' && !hasGameStarted()) || (action == 'minus' && player[resourceName + "Value"] == 0))) {
+        player.startingCity = false;
+    }
+
     // Counts can't go below 0
     const newValue = Math.max(0, player[resourceName + "Value"] + value);
 
@@ -446,6 +452,14 @@ function plusMinusClicked(id, action) {
     }
 
     document.getElementById(resourceName + "Value_" + playerNumber).value = resourceValue;
+
+    // A bot gaining a resource: where to put it. Losing a city covers a slot up again
+    if (action == 'plus' && preludeResources.includes(resourceName)) {
+        showSlotAdvice(player, [resourceName]);
+    } else if (action == 'minus' && cityCounters.includes(resourceName)) {
+        const overCapacity = getOverCapacityAdvice(player);
+        if (overCapacity != null) { showMessageToast("Player " + player.number, overCapacity); }
+    }
 
     SaveAllSettings();
 }

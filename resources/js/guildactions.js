@@ -51,23 +51,25 @@ function getGuildActionOffers(player) {
         if (holds("Execute") && can("influence") && wants(guildActionChance.execute + (wantsTrophies ? guildActionChance.executeWarlord : 0))) {
             offers.push({ label: labelFor("Execute", "influence"), text: "move " + captives + " Captive" + (captives == 1 ? "" : "s") + " to its Trophies",
                 costs: { captives: captives }, gains: { trophies: captives } });
-        } else if (holds("Pressgang") && can("build") && !wantsTrophies && wants(guildActionChance.pressgang)) {
+        } else if (holds("Pressgang") && can("build") && !wantsTrophies && getEmptySlots(player) > 0 && wants(guildActionChance.pressgang)) {
             // The resource it most needs. Equally good ones are picked at random, as a person might
             const best = Math.max(...preludeResources.map(resource => getResourceNeed(player, resource)));
             const choices = preludeResources.filter(resource => getResourceNeed(player, resource) == best);
             const resource = choices[Math.floor(Math.random() * choices.length)];
+            // No more than it has empty slots for
+            const amount = Math.min(captives, getEmptySlots(player));
             offers.push({ label: labelFor("Pressgang", "build"),
-                text: "return " + captives + " Captive" + (captives == 1 ? "" : "s") + " to gain " + captives + " " + preludeResourceNames[resource] + " (only as many as it has empty slots for)",
-                costs: { captives: captives }, gains: { [resource]: captives } });
+                text: "return " + amount + " Captive" + (amount == 1 ? "" : "s") + " to gain " + amount + " " + preludeResourceNames[resource],
+                costs: { captives: amount }, gains: { [resource]: amount } });
         }
     }
 
     // Manufacture and Synthesize: a resource instead of a Build, more likely when chasing Tycoon
     [["Manufacture", "materials"], ["Synthesize", "fuel"]].forEach(([name, resource]) => {
-        if (holds(name) && can("build")) {
+        if (holds(name) && can("build") && getEmptySlots(player) > 0) {
             const chasingTycoon = isAmbitionInPlay("tycoon") && isChasingAmbition(player, "tycoon");
             if (wants(guildActionChance.gainResource + (chasingTycoon ? guildActionChance.gainResourceTycoon : 0))) {
-                offers.push({ label: labelFor(name, "build"), text: "gain 1 " + preludeResourceNames[resource] + ", if it has an empty slot", gains: { [resource]: 1 } });
+                offers.push({ label: labelFor(name, "build"), text: "gain 1 " + preludeResourceNames[resource], gains: { [resource]: 1 } });
             }
         }
     });

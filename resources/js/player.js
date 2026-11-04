@@ -23,6 +23,9 @@ class player {
     citiesWeaponsValue = 0;
     citiesRelicsValue = 0;
     citiesPsionicsValue = 0;
+    // Everyone starts with one city on the map, but the app doesn't know which resource it's on
+    // until a city tile is set during setup. It still counts towards the player's cities
+    startingCity = true;
     cards = [];
     // The numbers of the Guild cards held (see court.js)
     guildCards = [];
@@ -51,7 +54,7 @@ const cityCounters = ["citiesFuel", "citiesMaterials", "citiesWeapons", "citiesR
 const playerCounters = resourceCounters.concat(boardCounters);
 
 function getCityCount(player) {
-    return cityCounters.reduce((total, counter) => total + player[counter + "Value"], 0);
+    return cityCounters.reduce((total, counter) => total + player[counter + "Value"], 0) + (player.startingCity ? 1 : 0);
 }
 
 function hasPlayerGotCardsToPlay(player) {

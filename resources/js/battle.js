@@ -493,6 +493,7 @@ function showBattleResults() {
         html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. Which?</div>";
         for (let index = 0; index < losses.defenderBuildings; index++) {
             const options = ["<option value=\"starport\">Starport (back to supply)</option>"].concat(
+                battle.defender.startingCity ? ["<option value=\"startingCity\">Its starting city (back to the player board)</option>"] : [],
                 preludeResources.filter(resource => battle.defender["cities" + capitalise(resource) + "Value"] > 0)
                     .map(resource => "<option value=\"" + resource + "\">City on " + preludeResourceNames[resource].toLowerCase() + " (back to the player board)</option>"));
             html += "<select class=\"form-select form-select-sm mt-1 battlebuilding\">" + options.join("") + "</select>";
@@ -547,6 +548,12 @@ function applyBattleResults() {
     let cities = [];
     document.querySelectorAll("#battleAdvice .battlebuilding").forEach(select => {
         if (select.value == "starport") { return; }
+        if (select.value == "startingCity") {
+            defender.startingCity = false;
+            document.getElementById("citiestotal" + defender.number).innerHTML = getCityCount(defender);
+            cities.push("its starting city");
+            return;
+        }
         adjustCounter(defender, "cities" + capitalise(select.value), -1);
         cities.push(preludeResourceNames[select.value].toLowerCase());
     });
@@ -573,8 +580,10 @@ function applyBattleResults() {
     SaveAllSettings();
     showMessageToast("Player " + attacker.number + " attacked Player " + defender.number,
         "Ships destroyed: " + losses.defenderShips + " (Player " + defender.number + "), " + losses.attackerShips + " (Player " + attacker.number + ")"
-        + (losses.defenderBuildings > 0 ? "<br>Buildings destroyed: " + losses.defenderBuildings + (cities.length > 0 ? " (cities on " + cities.join(", ") + ")" : "") : "")
-        + (stolen != null ? "<br>Stole the " + stolen.name : ""));
+        + (losses.defenderBuildings > 0 ? "<br>Buildings destroyed: " + losses.defenderBuildings + (cities.length > 0 ? " (cities: " + cities.join(", ") + ")" : "") : "")
+        + (stolen != null ? "<br>Stole the " + stolen.name : "")
+        + [stolen != null && stolen.resource != null ? getSlotAdvice(attacker, stolen.resource) : null, cities.length > 0 ? getOverCapacityAdvice(defender) : null]
+            .filter(line => line != null).map(line => "<br>" + line).join(""));
 
     battle.start = null;
     bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).hide();
