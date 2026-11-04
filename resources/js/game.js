@@ -76,6 +76,9 @@ function setupGame(numberOfPlayers) {
 
     // localStorage was cleared above, so there's nothing to undo
     updateUndoButton();
+
+    // The Options window is still closing, and one window can't open until another has closed
+    document.getElementById("numberOfPlayersModal").addEventListener('hidden.bs.modal', () => askOpeningCourt(), { once: true });
 }
 
 function addExtraCards(numberOfPlayers) {
@@ -381,7 +384,7 @@ function showTurnDone(player) {
     // In the order they happen: the prelude, then the card's actions and any Guild actions
     const prelude = describePrelude(player), plan = describeTurnPlan(player), guildActions = describeGuildActions(player);
     document.getElementById("turnsummary" + player.number).innerHTML = (prelude == null ? [] : [prelude])
-        .concat(describePlayerPlays(player), plan == null ? [] : [plan], guildActions == null ? [] : [guildActions]).join("<br>");
+        .concat(describePlayerPlays(player), plan == null ? [] : [plan], guildActions == null ? [] : [guildActions], getMarketReminder(player) || []).join("<br>");
 
     const next = getNextPlayerToPlay(player);
     document.getElementById("donebutton" + player.number).innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;

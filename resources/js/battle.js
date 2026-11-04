@@ -780,6 +780,7 @@ function applyBattleResults() {
     }
 
     SaveAllSettings();
+    refreshTurnSummary();
     showMessageToast("Player " + attacker.number + " attacked Player " + defender.number,
         "Ships destroyed: " + losses.defenderShips + " (Player " + defender.number + "), " + losses.attackerShips + " (Player " + attacker.number + ")"
         + (losses.defenderBuildings > 0 ? "<br>Buildings destroyed: " + losses.defenderBuildings + (cities.length > 0 ? " (cities: " + cities.join(", ") + ")" : "") : "")

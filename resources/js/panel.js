@@ -202,6 +202,7 @@ function showAddGuildCard(player) {
                 removeFromMarket(card.number);
                 logManualChange({ type: "guildAdd", player: player.number, number: card.number });
                 logManualChange({ type: "marketRemove", number: card.number });
+                refreshTurnSummary();
                 showGuildCardsRow(player);
                 SaveAllSettings();
                 bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
@@ -225,7 +226,7 @@ function showAddGuildCard(player) {
             chip.type = "button";
             chip.classList.add("guildchip");
             chip.innerHTML = card.name;
-            chip.onclick = () => { removeFromMarket(card.number); showVoxCard(player, card); };
+            chip.onclick = () => { removeFromMarket(card.number); refreshTurnSummary(); showVoxCard(player, card); };
             group.appendChild(chip);
         });
         body.appendChild(group);

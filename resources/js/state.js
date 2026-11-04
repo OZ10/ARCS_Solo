@@ -16,6 +16,7 @@ let declaredAmbitions = [];
 let neutralCounts = {};
 // The Court market: [{ number, agents: { playerNumber: count } }] (market.js)
 let courtMarket = [];
+let courtSetup = false;     // the Court window is asking for the opening cards of a new game
 let currentPlayer;
 
 // The number of the player who has played their card this turn and is carrying out their

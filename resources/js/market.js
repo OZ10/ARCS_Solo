@@ -92,8 +92,39 @@ function isMarketQuestionPossible(ambition, action, player) {
 
 function showCourtModal(button) {
     // Opened from the Court icon on a player's panel
-    courtPlayer = getPlayer(getPlayerNumberFromString(button.parentNode.id));
     hideIconTooltip(button, "courtModal");
+    openCourt(getPlayerNumberFromString(button.parentNode.id));
+}
+
+function askOpeningCourt() {
+    // A new game: the cards dealt to the Court. Skipping it just means the bots' advice is more general
+    courtPlayer = players[0];
+    courtSetup = true;
+
+    const modal = document.getElementById("courtModal");
+    modal.querySelector(".modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    document.getElementById("courtTitle").innerHTML = "The Court";
+    modal.addEventListener('hidden.bs.modal', () => { courtSetup = false; }, { once: true });
+
+    showCourtWindow();
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
+function getMarketShortfall() {
+    // How many cards the market is missing, if it has been entered
+    if (!isMarketKnown()) { return 0; }
+    return Math.max(openingCourtCards[players.length] - courtMarket.length, 0);
+}
+
+function getMarketReminder(player) {
+    // For the turn summary, until the replacement is added. Tapping it opens the Court window
+    const shortfall = getMarketShortfall();
+    if (shortfall == 0) { return null; }
+    return "<a href=\"#0\" class=\"marketreminder small fw-normal\" onclick=\"openCourt(" + player.number + "); return false;\">The market is " + shortfall + " card" + (shortfall == 1 ? "" : "s") + " short: add " + (shortfall == 1 ? "the replacement" : "the replacements") + "</a>";
+}
+
+function openCourt(playerNumber) {
+    courtPlayer = getPlayer(playerNumber);
 
     const header = document.querySelector("#courtModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
@@ -130,8 +161,8 @@ function removeMarketCard(number) {
 }
 
 function refreshTurnSummary() {
-    // The plan names market cards, so keep it up to date
-    if (courtPlayer != null && awaitingDone == courtPlayer.number) { showTurnDone(courtPlayer); }
+    // The plan names market cards and the summary says if the market is short, so keep it up to date
+    if (awaitingDone != null) { showTurnDone(getPlayer(awaitingDone)); }
 }
 
 function getCourtAdviceHtml(player) {
@@ -156,10 +187,17 @@ function showCourtWindow() {
     const body = document.getElementById("courtBody");
     body.innerHTML = getCourtAdviceHtml(courtPlayer);
 
-    if (!isMarketKnown()) {
+    const shortfall = getMarketShortfall();
+    const hintText = courtSetup
+        ? "Add the " + openingCourtCards[players.length] + " cards dealt to the Court, so the bots can plan around them."
+        : (!isMarketKnown()
+            ? "Add the cards in the market, and the app can track them and everyone's agents."
+            : (shortfall > 0 ? "The market is " + shortfall + " card" + (shortfall == 1 ? "" : "s") + " short: add " + (shortfall == 1 ? "the replacement" : "the replacements") + " below." : ""));
+    if (hintText != "") {
         const hint = document.createElement("div");
         hint.classList.add("small", "text-muted", "mb-2");
-        hint.innerHTML = "Add the cards in the market, and the app can track them and everyone's agents.";
+        hint.id = "courtHint";
+        hint.innerHTML = hintText;
         body.appendChild(hint);
     }
 
@@ -200,7 +238,8 @@ function showCourtWindow() {
                 + "<button type=\"button\" class=\"marketstep\" aria-label=\"One agent more for Player " + player.number + "\" onclick=\"changeMarketAgents(" + entry.number + ", " + player.number + ", 1)\"><i class=\"bi bi-plus-lg\"></i></button>";
             agents.appendChild(counter);
         });
-        row.appendChild(agents);
+        // No one has any agents yet when the Court is being set up
+        if (!courtSetup) { row.appendChild(agents); }
         body.appendChild(row);
     });
 
@@ -212,7 +251,18 @@ function showCourtWindow() {
     add.innerHTML = "<option value=\"\">Add a card to the market&hellip;</option>"
         + available.map(card => "<option value=\"" + card.number + "\">" + card.name + (card.type == "vox" ? " (Vox)" : " (" + preludeResourceNames[card.resource] + ")") + "</option>").join("");
     add.onchange = () => { if (add.value != "") { addToMarket(add.value); } };
-    body.appendChild(add);
+    const isOpeningFull = courtSetup && courtMarket.length >= openingCourtCards[players.length];
+    if (!isOpeningFull) { body.appendChild(add); }
+
+    if (courtSetup) {
+        const done = document.createElement("button");
+        done.type = "button";
+        done.id = "courtSetupDone";
+        done.classList.add("btn", isOpeningFull ? "btn-primary" : "btn-outline-secondary", "w-100", "mt-3");
+        done.innerHTML = isOpeningFull ? "Done" : "Skip for now";
+        done.onclick = () => bootstrap.Modal.getOrCreateInstance(document.getElementById("courtModal")).hide();
+        body.appendChild(done);
+    }
 }
 
 function getRansackOptions(player, defender) {

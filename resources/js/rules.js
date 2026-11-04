@@ -214,6 +214,9 @@ const resourceSlots = [
     { slot: 6, keys: 3, cities: 3 }
 ];
 
+// How many cards are in the Court market, by number of players (rulebook p.4)
+const openingCourtCards = { 2: 3, 3: 4, 4: 4 };
+
 // How much a bot wants a card in the Court market (see market.js). Generic values by card type,
 // rather than each card's text. These could also become part of the bot personalities (#71)
 const marketValues = {
