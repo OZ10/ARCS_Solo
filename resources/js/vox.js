@@ -18,7 +18,9 @@ function getBestAmbitionToDeclare(player) {
 }
 
 function getOutrageTypeCount(player, resource) {
-    return player[resource + "Value"] + getGuildIconCount(player, resource);
+    // What Outrage would cost: its resources and Guild cards of that type, except a card that says
+    // to keep it
+    return player[resource + "Value"] + getPlayerGuildCards(player).filter(card => card.resource == resource && !card.keepOnOutrage).length;
 }
 
 function getBestOutrageType(player) {
@@ -131,10 +133,16 @@ function showVoxCard(player, card) {
         }
 
         case 28: {
-            // Outrage Spreads: what Outrage does isn't tracked, so the player carries it out
+            // Outrage Spreads: everyone, even the bot, Provokes Outrage of that type
             const best = getBestOutrageType(player);
             if (best == null) { nothing("It doesn't choose a type", "Any type would cost it as much as its Rivals."); break; }
-            nothing(preludeResourceNames[best.resource] + " Outrage", "Rivals hold " + best.rivals + " of these, and it holds " + best.own + ". Everyone Provokes Outrage of this type: carry it out on the board.");
+            showVoxDecision(player, card, preludeResourceNames[best.resource] + " Outrage", "Rivals hold " + best.rivals + " of these, and it holds " + best.own + ". Everyone discards their resources and Guild cards of this type.", [
+                { label: "Don't", run: close },
+                { label: "Provoke Outrage", run: () => {
+                    players.forEach(other => provokeOutrage(other, best.resource));
+                    finishVox(player, "Everyone Provokes " + preludeResourceNames[best.resource] + " Outrage");
+                } }
+            ]);
             break;
         }
 
@@ -199,12 +207,11 @@ function showVoxCard(player, card) {
             // Call to Action
             const bottom = getDiscardedCards()[0];
             if (bottom == null) { nothing("Nothing to draw", "The action discard pile is empty."); break; }
-            showVoxDecision(player, card, "Draw " + getCardFullName(bottom), "The bottom of the action discard pile.", [
+            showVoxDecision(player, card, "Draw a card", "From the bottom of the action discard pile, unseen.", [
                 { label: "Don't", run: close },
                 { label: "Draw it", run: () => {
-                    const name = getCardFullName(bottom);
                     drawCardIntoHand(player, bottom);
-                    finishVox(player, "Drew " + name);
+                    finishVox(player, "Drew a card from the bottom of the discard pile");
                 } }
             ]);
             break;

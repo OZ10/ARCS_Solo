@@ -164,6 +164,7 @@ function showGuildCard(player, card) {
     remove.innerHTML = "Remove from Player " + player.number;
     remove.onclick = () => {
         player.guildCards = player.guildCards.filter(number => number != card.number);
+        logManualChange({ type: "guildRemove", player: player.number, number: card.number });
         showGuildCardsRow(player);
         SaveAllSettings();
         bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
@@ -199,6 +200,8 @@ function showAddGuildCard(player) {
             chip.onclick = () => {
                 player.guildCards.push(card.number);
                 removeFromMarket(card.number);
+                logManualChange({ type: "guildAdd", player: player.number, number: card.number });
+                logManualChange({ type: "marketRemove", number: card.number });
                 showGuildCardsRow(player);
                 SaveAllSettings();
                 bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
@@ -306,6 +309,9 @@ function seizeInitiativeQuestion(ele) {
         //alert("Initiative has already been claimed this turn");
         //showToast("messageToast", "messageToastHeader", "Initiative", "messageToastBody", "Initiative has already been claimed this turn!");
         showMessageToast("Initiative", "Initiative has already been claimed this turn!");
+        return;
+    } else if (getPlayer(getPlayerNumberFromElement(ele)).hasInitiative) {
+        showMessageToast("Initiative", "The player with the initiative can't seize it");
         return;
     } else {
         const playerNumber = getPlayerNumberFromElement(ele);
@@ -445,7 +451,9 @@ function enableDisableButtonsByPlayerNumber(playerNumber, enable) {
     })
 }
 
-function plusMinusClicked(id, action) {
+function plusMinusClicked(id, action, automatic = false) {
+    // automatic is when the app changes a count itself, which Undo reverses. A tile tapped by
+    // hand is kept (see undo.js)
     const value = (action == 'minus') ? -1 : 1
 
     const idsplit = id.split('_');
@@ -459,10 +467,14 @@ function plusMinusClicked(id, action) {
     // city when the tile is already at 0 means the starting city
     if (player.startingCity && cityCounters.includes(resourceName) && ((action == 'plus' && !hasGameStarted()) || (action == 'minus' && player[resourceName + "Value"] == 0))) {
         player.startingCity = false;
+        if (!automatic) { logManualChange({ type: "startingCity", player: player.number }); }
     }
 
     // Counts can't go below 0
     const newValue = Math.max(0, player[resourceName + "Value"] + value);
+    if (!automatic && newValue != player[resourceName + "Value"]) {
+        logManualChange({ type: "counter", player: player.number, counter: resourceName, amount: value });
+    }
 
     if (resourceName == "power") {
         // Also updates the power shown in the player's header

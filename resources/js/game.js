@@ -94,6 +94,7 @@ function addExtraCards(numberOfPlayers) {
 function createPlayers(numberOfPlayers) {
     for (let playerNumber = 1; playerNumber < numberOfPlayers + 1; playerNumber++) {
         let p = new player(playerNumber, (playerNumber == 1) ? true : false);
+        p.shipsBoardValue = startingShips[numberOfPlayers];
 
         if (playerNumber == 1) {
             // Game is being setup, human player is player 1 and has
@@ -275,7 +276,43 @@ function dealCards() {
     }
     while (players[players.length - 1].cards.length < 6)
 
+    // The cards not dealt start the action discard pile, shuffled and face down (rulebook p.5).
+    // Played cards go on top, so the bottom of the pile is unknown
+    discardPile = shuffleCards(currentactioncards.slice());
+
     createCardButtonsForHumanPlayer();
+
+    offerMulligan();
+}
+
+function shuffleCards(cards) {
+    for (let index = cards.length - 1; index > 0; index--) {
+        const other = Math.floor(Math.random() * (index + 1));
+        [cards[index], cards[other]] = [cards[other], cards[index]];
+    }
+    return cards;
+}
+
+function takeMulligan(player) {
+    // A new hand of 6, and the old hand goes into the discard pile with the rest
+    const oldHand = player.cards;
+    player.cards = discardPile.splice(0, 6);
+    discardPile = shuffleCards(discardPile.concat(oldHand));
+    createCardButtonsForHumanPlayer();
+    SaveAllSettings();
+}
+
+function offerMulligan() {
+    // 2 players: the player without the initiative may swap their hand (rulebook p.19)
+    if (players.length != 2) { return; }
+
+    const player = players.find(other => !other.hasInitiative);
+    if (player.isHuman) {
+        askYesNo("MULLIGAN", "Discard your hand and draw 6 new cards? You must keep the new hand.", yes => { if (yes) { takeMulligan(player); } });
+    } else if (player.cards.reduce((total, card) => total + card.number, 0) / player.cards.length < mulliganBelow) {
+        takeMulligan(player);
+        showMessageToast("Player " + player.number, "Discarded its hand and drew 6 new cards");
+    }
 }
 
 function playCard(player, playedCard, actionToPlay, cardAction) {

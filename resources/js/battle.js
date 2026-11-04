@@ -541,18 +541,26 @@ function showBattleResults() {
     let html = "<div class=\"fw-bold mb-1\">The battle</div>"
         + (lines.length > 0 ? lines.map(line => "<div>" + line + "</div>").join("") : (losses.defenderBuildings == 0 ? "<div class=\"text-muted\">Nothing was destroyed.</div>" : ""));
 
-    // Each destroyed building: a city goes back on the defender's player board (which resource?),
-    // a starport back to their supply. Neither is a trophy
+    // Each destroyed building is the attacker's Trophy (rulebook p.14). Destroying a city also
+    // means Outrage for that resource and Ransacking the Court (p.16), so which was it?
     if (losses.defenderBuildings > 0) {
         html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. Which?</div>";
         for (let index = 0; index < losses.defenderBuildings; index++) {
-            const options = ["<option value=\"starport\">Starport (back to supply)</option>"].concat(
-                battle.defender.startingCity ? ["<option value=\"startingCity\">Its starting city (back to the player board)</option>"] : [],
+            const options = ["<option value=\"starport\">Starport</option>"].concat(
                 preludeResources.filter(resource => battle.defender["cities" + capitalise(resource) + "Value"] > 0)
-                    .map(resource => "<option value=\"" + resource + "\">City on " + preludeResourceNames[resource].toLowerCase() + " (back to the player board)</option>"));
+                    .map(resource => "<option value=\"" + resource + "\">City on " + preludeResourceNames[resource].toLowerCase() + "</option>"),
+                // The resource of a starting city that was never set still matters for Outrage
+                battle.defender.startingCity ? preludeResources.map(resource => "<option value=\"startingCity:" + resource + "\">Starting city, on " + preludeResourceNames[resource].toLowerCase() + "</option>") : []);
             html += "<select class=\"form-select form-select-sm mt-1 battlebuilding\">" + options.join("") + "</select>";
         }
-        html += "<div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Remember:</b> destroying a building means Outrage, and Ransack.</div>";
+        html += "<div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Destroying a city:</b> " + attacker + " Provokes Outrage of that resource, discarding its resources and Guild cards of that type, and Ransacks the Court.</div>";
+
+        // Ransack: which card? With no market entered, the player carries it out
+        const ransack = isMarketKnown() ? getRansackOptions(battle.attacker, battle.defender) : [];
+        if (ransack.length > 0) {
+            html += "<div class=\"mt-2\">If a city was destroyed, Ransack:</div><select class=\"form-select form-select-sm mt-1\" id=\"battleRansack\">"
+                + ransack.map(entry => "<option value=\"" + entry.number + "\">" + getCourtCard(entry.number).name + "</option>").join("") + "<option value=\"\">Nothing</option></select>";
+        }
     }
 
     // The human player says what they stole, if anything
@@ -583,7 +591,7 @@ function showBattleResults() {
 function adjustCounter(player, counter, change) {
     // Change a panel counter the same way its -/+ buttons do (totals, headers and saving included)
     const button = (change > 0 ? "plusButton_" : "minusButton_") + counter + "_" + player.number;
-    for (let step = 0; step < Math.abs(change); step++) { plusMinusClicked(button, change > 0 ? "plus" : "minus"); }
+    for (let step = 0; step < Math.abs(change); step++) { plusMinusClicked(button, change > 0 ? "plus" : "minus", true); }
 }
 
 function applyBattleResults() {
@@ -597,20 +605,32 @@ function applyBattleResults() {
     adjustCounter(attacker, "shipsBoard", -losses.attackerShips);
     adjustCounter(defender, "trophies", losses.attackerShips);
 
-    // Destroyed cities go back on the defender's player board, starports back to their
-    // supply (not counted)
+    // Destroyed buildings are the attacker's Trophies (starports aren't otherwise counted). A city
+    // leaves the map, but its slot stays open until the Trophies are returned. The attacker
+    // then Provokes Outrage of that resource and Ransacks the Court (rulebook p.16)
     let cities = [];
+    adjustCounter(attacker, "trophies", losses.defenderBuildings);
     document.querySelectorAll("#battleAdvice .battlebuilding").forEach(select => {
         if (select.value == "starport") { return; }
-        if (select.value == "startingCity") {
+        defender.citiesAsTrophies = (defender.citiesAsTrophies || 0) + 1;
+        const startingCity = select.value.startsWith("startingCity:");
+        const resource = startingCity ? select.value.split(":")[1] : select.value;
+        if (startingCity) {
             defender.startingCity = false;
             document.getElementById("citiestotal" + defender.number).innerHTML = getCityCount(defender);
-            cities.push("its starting city");
-            return;
+        } else {
+            adjustCounter(defender, "cities" + capitalise(resource), -1);
         }
-        adjustCounter(defender, "cities" + capitalise(select.value), -1);
-        cities.push(preludeResourceNames[select.value].toLowerCase());
+        provokeOutrage(attacker, resource);
+        cities.push(preludeResourceNames[resource].toLowerCase());
     });
+
+    // Ransack the Court, if a city was destroyed. With the market not entered, it's a reminder
+    const ransackList = document.getElementById("battleRansack");
+    let ransacked = null;
+    if (cities.length > 0 && ransackList != null && ransackList.value != "") {
+        ransacked = ransackMarketCard(attacker, parseInt(ransackList.value));
+    }
 
     // What it stole moves across. Sworn Guardians is buried instead, so it leaves the game
     const stoleBox = document.getElementById("battleStole");
@@ -635,10 +655,21 @@ function applyBattleResults() {
     showMessageToast("Player " + attacker.number + " attacked Player " + defender.number,
         "Ships destroyed: " + losses.defenderShips + " (Player " + defender.number + "), " + losses.attackerShips + " (Player " + attacker.number + ")"
         + (losses.defenderBuildings > 0 ? "<br>Buildings destroyed: " + losses.defenderBuildings + (cities.length > 0 ? " (cities: " + cities.join(", ") + ")" : "") : "")
+        + (cities.length > 0 ? "<br>Player " + attacker.number + " Provokes Outrage: " + cities.join(", ") : "")
+        + (ransacked != null ? "<br>Ransacked " + ransacked.name + ". Add its replacement to the market." : (cities.length > 0 ? "<br>Ransack the Court." : ""))
         + (stolen != null ? "<br>Stole the " + stolen.name : "")
         + [stolen != null && stolen.resource != null ? getSlotAdvice(attacker, stolen.resource) : null, cities.length > 0 ? getOverCapacityAdvice(defender) : null]
             .filter(line => line != null).map(line => "<br>" + line).join(""));
 
     battle.start = null;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).hide();
+
+    // A bot's Ransacked Vox card resolves once this window has closed
+    const battleModal = document.getElementById("battleModal");
+    if (ransacked != null && ransacked.type == "vox" && !attacker.isHuman) {
+        battleModal.addEventListener('hidden.bs.modal', () => {
+            showVoxCard(attacker, ransacked);
+            bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
+        }, { once: true });
+    }
+    bootstrap.Modal.getOrCreateInstance(battleModal).hide();
 }

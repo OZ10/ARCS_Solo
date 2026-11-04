@@ -26,6 +26,11 @@ class player {
     // Everyone starts with one city on the map, but the app doesn't know which resource it's on
     // until a city tile is set during setup. It still counts towards the player's cities
     startingCity = true;
+    // Cities a Rival has destroyed and holds as Trophies. They don't go back on the player board
+    // until those Trophies are returned, so the slots they uncovered stay open
+    citiesAsTrophies = 0;
+    // The resources this player has Outrage of (rulebook p.16)
+    outraged = [];
     cards = [];
     // The numbers of the Guild cards held (see court.js)
     guildCards = [];
@@ -57,6 +62,12 @@ const playerCounters = resourceCounters.concat(boardCounters);
 
 function getCityCount(player) {
     return cityCounters.reduce((total, counter) => total + player[counter + "Value"], 0) + (player.startingCity ? 1 : 0);
+}
+
+function getUncoveredCities(player) {
+    // How many city slots are open on a player's board: their cities on the map, and any held
+    // as a Rival's Trophies
+    return getCityCount(player) + (player.citiesAsTrophies || 0);
 }
 
 function hasPlayerGotCardsToPlay(player) {

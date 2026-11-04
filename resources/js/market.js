@@ -107,6 +107,7 @@ function showCourtModal(button) {
 function changeMarketAgents(number, playerNumber, change) {
     const entry = courtMarket.find(card => card.number == number);
     entry.agents[playerNumber] = Math.max((entry.agents[playerNumber] || 0) + change, 0);
+    logManualChange({ type: "marketAgents", number: number, player: playerNumber, amount: change });
     SaveAllSettings();
     showCourtWindow();
     refreshTurnSummary();
@@ -114,6 +115,7 @@ function changeMarketAgents(number, playerNumber, change) {
 
 function addToMarket(number) {
     courtMarket.push({ number: parseInt(number), agents: {} });
+    logManualChange({ type: "marketAdd", number: parseInt(number) });
     SaveAllSettings();
     showCourtWindow();
     refreshTurnSummary();
@@ -121,6 +123,7 @@ function addToMarket(number) {
 
 function removeMarketCard(number) {
     removeFromMarket(number);
+    logManualChange({ type: "marketRemove", number: number });
     SaveAllSettings();
     showCourtWindow();
     refreshTurnSummary();
@@ -212,6 +215,26 @@ function showCourtWindow() {
     body.appendChild(add);
 }
 
+function getRansackOptions(player, defender) {
+    // Ransacking the Court: any card with any of the defender's agents (rulebook p.16), the one
+    // the player wants most first
+    return courtMarket.filter(entry => getMarketAgents(entry, defender) > 0)
+        .sort((a, b) => getMarketCardValue(player, b) - getMarketCardValue(player, a));
+}
+
+function ransackMarketCard(player, number) {
+    // Like securing it, except the Rival agents are taken as Trophies. Returns the card
+    const entry = courtMarket.find(card => card.number == number);
+    const card = getCourtCard(number);
+    adjustCounter(player, "trophies", getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0));
+    removeFromMarket(number);
+    if (card.type == "guild") {
+        player.guildCards.push(number);
+        showGuildCardsRow(player);
+    }
+    return card;
+}
+
 function secureMarketCard(number) {
     // The player takes the card: their agents go back and any Rival agents on it are captured
     const player = courtPlayer;
@@ -227,9 +250,9 @@ function secureMarketCard(number) {
     if (card.type == "guild") {
         player.guildCards.push(number);
         showGuildCardsRow(player);
-        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText);
+        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Add its replacement to the market.");
     } else if (player.isHuman) {
-        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Carry out the card.");
+        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Carry out the card, and add its replacement to the market.");
     } else {
         // What the bot does with a Vox card, once this window has closed
         modalElement.addEventListener('hidden.bs.modal', () => {

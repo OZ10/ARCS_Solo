@@ -201,6 +201,15 @@ function confirmScoring() {
             if (input != null) { input.value = 0; }
         });
         returned.push("All " + resource + " returned");
+
+        // Cities held as Trophies go back on their owners' boards, which can cover slots again
+        if (resource == "trophies") {
+            players.forEach(player => {
+                player.citiesAsTrophies = 0;
+                const overCapacity = getOverCapacityAdvice(player);
+                if (overCapacity != null) { returned.push("Player " + player.number + ": " + overCapacity); }
+            });
+        }
     });
 
     // A Cartel's holder keeps that resource's supply, and after scoring their Rivals discard

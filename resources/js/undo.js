@@ -3,9 +3,10 @@
 // they are loaded as plain scripts, in order, by index.html
 
 // A single undo of the last card played. Just before a card is played, the saved game is
-// copied. Undo puts that copy back and reloads the page, so the game is rebuilt by the
-// normal loading code. Resources, power and board counts are left as they are now, because they track
-// the physical board. Keeping a list of copies would allow more than one undo later
+// copied. Undo puts that copy back, so everything the app did since is reversed, then replays
+// what the player changed by hand since (tile taps, Guild cards, the Court), because those track
+// the physical board. It then reloads the page, so the game is rebuilt by the normal loading
+// code. Keeping a list of copies would allow more than one undo later
 const undoKey = "undo";
 
 function saveUndoPoint(playerNumber) {
@@ -16,8 +17,16 @@ function saveUndoPoint(playerNumber) {
         if (key != undoKey) { saved[key] = value; }
     }
 
-    localStorage.setItem(undoKey, JSON.stringify({ playerNumber: playerNumber, round: roundNumber, turn: turnNumber, saved: saved }));
+    localStorage.setItem(undoKey, JSON.stringify({ playerNumber: playerNumber, round: roundNumber, turn: turnNumber, saved: saved, manual: [] }));
     updateUndoButton();
+}
+
+function logManualChange(change) {
+    // Something the player changed by hand since the card, to keep if the card is undone
+    const undo = getUndoPoint();
+    if (undo == null) { return; }
+    undo.manual = (undo.manual || []).concat(change);
+    saveSettingObject(undoKey, undo);
 }
 
 function getUndoPoint() {
@@ -38,7 +47,7 @@ function showUndoModal() {
     if (undo == null) { return; }
 
     document.getElementById("undoMessage").innerHTML = "Undo Player " + undo.playerNumber + "'s card in round " + undo.round + ", turn " + undo.turn + "?"
-        + "<br><small class=\"text-muted\">Resources, power, board counts and Guild cards stay as they are, apart from what the bot's prelude and Guild actions changed.</small>";
+        + "<br><small class=\"text-muted\">Everything the app did since is reversed. What you've changed by hand stays.</small>";
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("undoModal")).show();
 }
@@ -47,26 +56,44 @@ function undoLastCard() {
     const undo = getUndoPoint();
     if (undo == null) { return; }
 
-    // Keep each player's resources, power, board counts and Guild cards as they are now
-    const resources = playerCounters.map(counter => counter + "Value");
-    players.forEach(player => {
-        if (undo.saved[player.number] == null) { return; }
-        const savedPlayer = JSON.parse(undo.saved[player.number]);
-        resources.forEach(resource => { savedPlayer[resource] = player[resource]; });
-        savedPlayer.guildCards = player.guildCards.slice();
-        savedPlayer.startingCity = player.startingCity;
+    // What the player changed by hand since, on top of the copy
+    const savedPlayers = {};
+    players.forEach(player => { if (undo.saved[player.number] != null) { savedPlayers[player.number] = JSON.parse(undo.saved[player.number]); } });
+    let market = JSON.parse(undo.saved.courtMarket || "[]");
 
-        // Except the undone card's bot's prelude and Guild actions, which are put back: resources
-        // spent and gained, and Guild cards discarded. A seize or Union comes back with the rest of the game
-        if (player.number == undo.playerNumber) {
-            [player.prelude, player.guildActions].filter(record => record != null && record.spent != null).flatMap(record => record.spent).forEach(offer => {
-                Object.entries(offer.costs || {}).forEach(([resource, amount]) => { savedPlayer[resource + "Value"] += amount; });
-                Object.entries(offer.gains || {}).forEach(([resource, amount]) => { savedPlayer[resource + "Value"] = Math.max(savedPlayer[resource + "Value"] - amount, 0); });
-                if (offer.discards != null && !savedPlayer.guildCards.includes(offer.discards)) { savedPlayer.guildCards.push(offer.discards); }
-            });
+    (undo.manual || []).forEach(change => {
+        const player = savedPlayers[change.player];
+        switch (change.type) {
+            case "counter":
+                player[change.counter + "Value"] = Math.max((player[change.counter + "Value"] || 0) + change.amount, 0);
+                break;
+            case "startingCity":
+                player.startingCity = false;
+                break;
+            case "guildAdd":
+                if (!(player.guildCards || []).includes(change.number)) { player.guildCards = (player.guildCards || []).concat(change.number); }
+                break;
+            case "guildRemove":
+                player.guildCards = (player.guildCards || []).filter(number => number != change.number);
+                break;
+            case "marketAdd":
+                if (!market.some(entry => entry.number == change.number)) { market.push({ number: change.number, agents: {} }); }
+                break;
+            case "marketRemove":
+                market = market.filter(entry => entry.number != change.number);
+                break;
+            case "marketAgents": {
+                const entry = market.find(card => card.number == change.number);
+                if (entry != null) { entry.agents[change.player] = Math.max((entry.agents[change.player] || 0) + change.amount, 0); }
+                break;
+            }
+            default:
+                break;
         }
-        undo.saved[player.number] = JSON.stringify(savedPlayer);
     });
+
+    Object.entries(savedPlayers).forEach(([number, player]) => { undo.saved[number] = JSON.stringify(player); });
+    undo.saved.courtMarket = JSON.stringify(market);
 
     // Put the copy back. The undo point isn't included, as there's only one undo
     localStorage.clear();

@@ -14,7 +14,7 @@ function getBuildChoice(player, slotResources) {
     // What the bot builds, from the resources of planets with an empty building slot in
     // systems where it has a piece ([] if there are none). Returns { build, resource, reason }
     // with build "city", "starport", "ship" or "shipOrStarport" (the player decides)
-    const citiesLeft = getCityCount(player) < maxCities;
+    const citiesLeft = getUncoveredCities(player) < maxCities;
 
     // A city on a resource it has no city on yet, so it can tax it. A resource for an
     // ambition it's chasing comes first, then one that could still be declared
@@ -149,13 +149,13 @@ function showBuildDecision() {
 
 function builtCity(resource) {
     // One more city on that resource (cities come from the player board, not the supply)
-    plusMinusClicked("plusButton_cities" + capitalise(resource) + "_" + build.player.number, "plus");
+    plusMinusClicked("plusButton_cities" + capitalise(resource) + "_" + build.player.number, "plus", true);
     finishBuild("a city on " + preludeResourceNames[resource].toLowerCase());
 }
 
 function builtShip() {
     // One more ship on the board (the supply isn't counted)
-    plusMinusClicked("plusButton_shipsBoard_" + build.player.number, "plus");
+    plusMinusClicked("plusButton_shipsBoard_" + build.player.number, "plus", true);
     finishBuild("a ship");
 }
 

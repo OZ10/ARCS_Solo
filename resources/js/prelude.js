@@ -138,8 +138,12 @@ function getPreludeOffers(player) {
         // The resource to spend for this resource's prelude action: its own if it can spare
         // it, otherwise (with the Loyal card for it) any other resource it can spare, the one
         // it has most of. null if it can't pay
-        if (available[resource] > 0 && canSpareResource(player, resource)) { return resource; }
-        if (!guild.some(card => card.spendAnyAs == resource)) { return null; }
+        // An Outraged resource can't be spent for its Prelude action, unless the Loyal card for
+        // it says to ignore that (rulebook p.16)
+        const hasLoyal = guild.some(card => card.spendAnyAs == resource);
+        const outraged = (player.outraged || []).includes(resource);
+        if (available[resource] > 0 && canSpareResource(player, resource) && (!outraged || hasLoyal)) { return resource; }
+        if (!hasLoyal) { return null; }
         return preludeResources.filter(other => other != resource && available[other] > 0 && canSpareResource(player, other))
             .sort((a, b) => available[b] - available[a])[0] || null;
     };
@@ -162,11 +166,13 @@ function getPreludeOffers(player) {
     const usefulIf = { materials: "Build or Repair, if there's a good spot", fuel: "Move, if there's a useful move", relics: "Secure, if there's a card worth securing" };
     const gives = { materials: "build", fuel: "move", relics: "secure" };
     ["materials", "fuel", "relics"].forEach(resource => {
+        // With the market entered, it knows whether there's anything for a Relic to secure
+        if (resource == "relics" && isMarketKnown() && getCardsToSecure(player).length == 0) { return; }
         if (wants(preludeChance.spare)) { offerAction(resource, usefulIf[resource], gives[resource]); }
     });
 
-    // Weapons turn the card's actions into battles (they don't give extra actions), so only
-    // when the card has actions and doesn't battle already
+    // A Weapon lets any of the card's actions Battle this turn (it doesn't give extra actions),
+    // so only when the card has actions and doesn't battle already (rulebook p.17)
     if (play.count > 0 && !play.actions.includes("battle")) {
         let chance = preludeChance.weaponsHavoc;
         if (chasingWarlord) { chance += preludeChance.weaponsWarlord; }
@@ -174,7 +180,7 @@ function getPreludeOffers(player) {
             chance += preludeChance.weaponsManyShips;
             if (!declaredAmbitions.includes("warlord") && declaredAmbitions.length < 3) { chance += preludeChance.weaponsSaveTrophies; }
         }
-        if (wants(chance)) { offerAction("weapons", "Battle with one of the card's actions", "battle", true); }
+        if (wants(chance)) { offerAction("weapons", "Its card's actions can Battle this turn", "battle", true); }
     }
 
     // Psionics give an action from the lead card. When the bot led, that's only worth it for
@@ -245,15 +251,12 @@ function getPreludeOffers(player) {
     }
 
     // Farseers: discards itself and any cards from its hand, and draws as many from the bottom
-    // of the discard pile. It swaps its lowest cards while the next card to draw is higher
+    // of the discard pile. Those cards are unknown, so it only swaps its low cards
     const bottom = getDiscardedCards();
     if (holds(17) && bottom.length > 0 && wants(preludeChance.farseers)) {
-        const lowest = getUnplayedCards(player.cards).sort((a, b) => a.number - b.number);
-        let swaps = 0;
-        while (swaps < lowest.length && swaps + 1 < bottom.length && lowest[swaps].number < bottom[swaps + 1].number) { swaps += 1; }
-        const discards = lowest.slice(0, swaps).map(getCardFullName);
-        const draws = bottom.slice(0, swaps + 1).map(getCardFullName);
-        discard(getCourtCard(17), "draw " + draws.join(", "), { label: ["Discard Farseers"].concat(discards).join(" and "), farseers: { discards: discards, draws: draws } });
+        const discards = getUnplayedCards(player.cards).filter(card => card.number <= farseersLowCard).slice(0, bottom.length - 1).map(getCardFullName);
+        const draws = discards.length + 1;
+        discard(getCourtCard(17), "draw " + draws + " from the bottom of the discard pile", { label: ["Discard Farseers"].concat(discards).join(" and "), farseers: { discards: discards, draws: draws } });
     }
 
     // Cartels: giving up the supply to steal 1 is rarely worth it, but it might if chasing Tycoon.
@@ -382,12 +385,14 @@ function confirmPrelude() {
             showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(offer.declares));
         }
         if (offer.farseers != null) {
+            // Take the cards from the bottom first, as what it discards goes on top
+            const draws = getDiscardedCards().slice(0, offer.farseers.draws);
             offer.farseers.discards.forEach(name => {
                 const card = player.cards.find(held => getCardFullName(held) == name);
                 card.played = true;
                 discardPile.push(card);
             });
-            offer.farseers.draws.forEach(name => drawCardIntoHand(player, discardPile.find(card => getCardFullName(card) == name)));
+            draws.forEach(card => drawCardIntoHand(player, card));
         }
     });
     showGuildCardsRow(player);

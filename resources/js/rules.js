@@ -117,8 +117,12 @@ const preludeReachGap = 2;
 // spending. After that it might still be declared, so the bot keeps what it could chase it with
 const preludeEarlyTurns = 2;
 
+// How many ships each player starts with on the board (rulebook p.5): 3 + 3 + 2, or another 2
+// with 2 players
+const startingShips = { 2: 10, 3: 8, 4: 8 };
+
 // A bot with this many ships on the board is keen to battle
-const manyShipsOnBoard = 6;
+const manyShipsOnBoard = 10;
 
 // Build (#75): a bot with fewer ships than this on the board might build a ship (or a
 // starport to build them at) rather than a building it doesn't need
@@ -177,6 +181,13 @@ const planImpossible = -100;
 // The order to take the actions in, whichever are chosen
 const turnPlanOrder = ["move", "battle", "influence", "secure", "tax", "build", "repair"];
 
+// 2 players: the player without the initiative may swap their hand for 6 new cards (rulebook
+// p.19). A bot does if the average number on its cards is below this
+const mulliganBelow = 3.5;
+
+// Farseers: a bot swaps cards with this number or lower
+const farseersLowCard = 3;
+
 // The resource slots on a player board: the keys it takes to steal from each, and how many
 // cities must be built to uncover it. Slots 5 and 6 are uncovered by the same city
 const resourceSlots = [
@@ -220,7 +231,7 @@ const cityBonus = { 4: 2, 5: 5 };
 
 function getCityBonus(player) {
     // Players without city counts (e.g. in older saved games) get no bonus
-    const cities = getCityCount(player) || 0;
+    const cities = getUncoveredCities(player) || 0;
     if (cities >= 5) { return cityBonus[5]; }
     if (cities >= 4) { return cityBonus[4]; }
     return 0;

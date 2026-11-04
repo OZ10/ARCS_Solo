@@ -5,7 +5,7 @@
 // they are loaded as plain scripts, in order, by index.html
 
 function getOpenSlots(player) {
-    const cities = getCityCount(player);
+    const cities = getUncoveredCities(player);
     return resourceSlots.filter(slot => cities >= slot.cities);
 }
 
@@ -32,6 +32,16 @@ function getResourceToLose(player) {
     // The resource it needs least. Of equally unwanted ones, the one it has most of
     const held = preludeResources.filter(resource => player[resource + "Value"] > 0);
     return held.sort((a, b) => (wantsToKeep(player, a) - wantsToKeep(player, b)) || (player[b + "Value"] - player[a + "Value"]))[0];
+}
+
+function provokeOutrage(player, resource) {
+    // Rulebook p.16: discard all resources and Guild cards of that type, except a card that says
+    // to keep it, and that resource can no longer be spent for its Prelude action
+    const lost = getPlayerGuildCards(player).filter(card => card.resource == resource && !card.keepOnOutrage).map(card => card.number);
+    setPlayerResource(player, resource, 0);
+    player.guildCards = player.guildCards.filter(number => !lost.includes(number));
+    showGuildCardsRow(player);
+    if (!(player.outraged || []).includes(resource)) { player.outraged = (player.outraged || []).concat(resource); }
 }
 
 function hasGameStarted() {

@@ -597,6 +597,9 @@ function claim(player, cards, actionToPlay) {
 
     if (hasInitiativeBeenClaimedThisTurn == true) { return false; }
 
+    // The player with the initiative can't seize it (rulebook p.10)
+    if (player.hasInitiative) { return false; }
+
     // No point in claiming if cannot declare an ambition
     if (declaredAmbitions.length >= 3) { return false; }
 

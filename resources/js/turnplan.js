@@ -64,7 +64,7 @@ function getActionPlanScore(player, action, focus) {
         case "build":
             if (player.canBuild === false && !canUseGuildActionInsteadOf(player, "build")) { return { score: planImpossible }; }
             if (player.shipsBoardValue < fewShipsOnBoard) { score += weights.buildFewShips; reason = "short of ships"; }
-            else if (getCityCount(player) == 3 || getCityCount(player) == 4) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
+            else if (getUncoveredCities(player) == 3 || getUncoveredCities(player) == 4) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
             break;
 
         case "repair":
@@ -99,7 +99,8 @@ function getTurnPlan(player) {
     const card = playedCardList.find(played => played.playedByPlayerNumber == player.number && played.cardAction != "CLAIM");
     const focus = (card.playedAction || "").toLowerCase();
 
-    // A Guild action uses up one of the card's actions, and a Weapon has already turned one into a Battle
+    // A Guild action uses up one of the card's actions. A Weapon lets any of them Battle this
+    // turn (rulebook p.17), and it spent one because it means to, so at least one does
     let actionsLeft = Math.max(play.count - guildSpent.length, 0);
     let chosen = [];
     preludeSpent.filter(offer => offer.converts).forEach(() => {
@@ -107,7 +108,7 @@ function getTurnPlan(player) {
     });
 
     // The best action each time. Doing the same one again counts for less
-    const available = play.actions.split(",");
+    const available = play.actions.split(",").concat(preludeSpent.some(offer => offer.converts) ? ["battle"] : []);
     const scores = {};
     available.forEach(action => { scores[action] = getActionPlanScore(player, action, focus); });
     while (actionsLeft > 0) {
