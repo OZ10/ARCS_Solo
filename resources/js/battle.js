@@ -2,9 +2,10 @@
 // assign the hits, and updating both players' values afterwards. The human player chooses their
 // own dice, so for them the window only keeps track of the battle. The dice and the bot's
 // personality are in rules.js.
-// Hits left over once every defending ship is destroyed go to the defender's buildings, and
-// destroying one causes Outrage, so when there are buildings the bot may roll fewer dice than
-// it could. Raid dice (#87) are for stealing: the app doesn't know which resource is in which
+// Hits left over once every defending ship is destroyed go to the defender's buildings.
+// Destroying a city Provokes Outrage for the attacker, usually bad, but it also Ransacks the
+// Court, so the bot weighs up what each building is worth to it and may roll fewer dice than it
+// could, or more if it wants the building. Raid dice (#87) are for stealing: the app doesn't know which resource is in which
 // slot, so the player enters the keys what the bot wants would cost, and it weighs up the chance
 // of rolling them against the risk
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
@@ -12,7 +13,7 @@
 
 // What's entered in the Battle window
 let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0, start: null,
-    keys: 0, raidItem: null, noBuildings: false, raidRolled: false };
+    keys: 0, raidItem: null, noBuildings: false, raidRolled: false, buildingTypes: [] };
 
 // The counts compared before and after the battle
 const battleCounts = ["ships", "fresh", "damaged", "freshBuildings", "damagedBuildings"];
@@ -100,11 +101,62 @@ function getDiceOutcomes(assaultDice, skirmishDice, raidDice = 0, rerolls = 0) {
     return outcomes;
 }
 
-function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice = 0, raid = null, rerolls = 0) {
+function getOutrageNeed(player, resource) {
+    // How much it needs a resource it would lose. Weapons count towards no ambition, but it
+    // wants them when chasing Warlord
+    if (resource == "weapons") { return wantsToKeep(player, resource) ? 2 : 0; }
+    return getResourceNeed(player, resource);
+}
+
+function getBuildingValue(attacker, defender, type) {
+    // What destroying a building is worth to the attacker, as { gain, cost, value }. type is
+    // "starport", or a city's resource ("startingCity:" first if it's a starting city). A starport
+    // is only a Trophy. A city also Ransacks the Court and Provokes Outrage (rulebook p.16)
+    const weights = buildingValues;
+    let gain = (declaredAmbitions.includes("warlord") && isChasingAmbition(attacker, "warlord")) ? weights.trophyWarlord : weights.trophy;
+    let cost = 0;
+
+    if (type != "starport") {
+        const ransack = isMarketKnown() ? getRansackOptions(attacker, defender) : [];
+        if (!isMarketKnown()) { gain += weights.ransackUnknown; }
+        else if (ransack.length > 0) { gain += getMarketCardValue(attacker, ransack[0]) * weights.ransackFactor; }
+
+        const resource = type.split(":").pop();
+        const need = getOutrageNeed(attacker, resource);
+        const cards = getPlayerGuildCards(attacker).filter(card => card.resource == resource);
+        cost = attacker[resource + "Value"] * weights.resourceLost[need]
+            + cards.filter(card => !card.keepOnOutrage).length * weights.guildCardLost[need];
+
+        // Already Outraged, or a Loyal card ignores it for this resource: no further loss
+        if (!(attacker.outraged || []).includes(resource) && !cards.some(card => card.keepOnOutrage)) { cost += weights.preludeLost; }
+    }
+    return { gain: gain, cost: cost, value: gain - cost };
+}
+
+function getBuildingScores(buildings) {
+    // The best the attacker can do with each number of hits on the buildings, as an array by
+    // hits. It chooses where they go, but must assign them all, so enough hits force it to
+    // destroy a building it would rather not. buildings are [{ hits, value }]
+    let scores = [0];
+    buildings.forEach(building => {
+        let next = [];
+        scores.forEach((score, used) => {
+            for (let hits = 0; hits <= building.hits; hits++) {
+                const total = score + (hits == building.hits ? building.value : 0);
+                if (next[used + hits] == null || total > next[used + hits]) { next[used + hits] = total; }
+            }
+        });
+        scores = next;
+    });
+    return scores;
+}
+
+function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice = 0, raid = null, rerolls = 0, buildingScores = []) {
     // How good rolling these dice is: the hits on ships (no more than it takes to destroy
     // every defending ship) minus the damage the attacker expects to take, from its own dice
-    // and from an ambush (one hit per fresh defending ship), minus the hits left over that
-    // go to the defender's buildings (buildingHits is how many it takes to destroy them all).
+    // and from an ambush (one hit per fresh defending ship), plus what the hits left over that go
+    // to the defender's buildings are worth to it (buildingHits is how many it takes to destroy
+    // them all, and buildingScores is getBuildingScores).
     // With raid dice, plus the value of what it's after times the chance of rolling the keys
     // (raid is { keys, value, buildingsAreTarget }). Raid dice hit buildings directly, which it
     // only wants if the buildings are what it's attacking
@@ -112,6 +164,7 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
 
     let expectedHits = 0;
     let expectedBuildingHits = 0;
+    let expectedBuildingValue = 0;
     let expectedDamage = 0;
     let ambushChance = 0;
     let keyChance = 0;
@@ -120,7 +173,9 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
     getDiceOutcomes(assaultDice, skirmishDice, raidDice, rerolls).forEach(outcome => {
         const directHits = buildingsAreTarget ? 0 : outcome.buildingHits;
         expectedHits += Math.min(outcome.hits + (buildingsAreTarget ? outcome.buildingHits : 0), usefulHits) * outcome.chance;
-        expectedBuildingHits += Math.min(Math.max(outcome.hits - usefulHits, 0) + directHits, buildingHits) * outcome.chance;
+        const buildingHitsRolled = Math.min(Math.max(outcome.hits - usefulHits, 0) + directHits, buildingHits);
+        expectedBuildingHits += buildingHitsRolled * outcome.chance;
+        expectedBuildingValue += (buildingScores[buildingHitsRolled] || 0) * outcome.chance;
         if (raid != null && outcome.keys >= raid.keys) { keyChance += outcome.chance; }
         expectedDamage += (outcome.damage + (outcome.ambush ? fresh : 0)) * outcome.chance;
         if (outcome.ambush) { ambushChance += outcome.chance; }
@@ -133,18 +188,19 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
         keyChance: keyChance,
         expectedHits: expectedHits,
         expectedBuildingHits: expectedBuildingHits,
+        expectedBuildingValue: expectedBuildingValue,
         expectedDamage: expectedDamage,
         ambushChance: ambushChance,
-        score: expectedHits - personality.riskWeight * expectedDamage - personality.buildingWeight * expectedBuildingHits
+        score: expectedHits - personality.riskWeight * expectedDamage + personality.buildingWeight * expectedBuildingValue
             + (raid != null ? keyChance * raid.value : 0)
     };
 }
 
-function getDiceOptions(ships, fresh, damaged, buildingHits, personality, raid = null, rerolls = 0) {
+function getDiceOptions(ships, fresh, damaged, buildingHits, personality, raid = null, rerolls = 0, buildingScores = []) {
     // Every mix of assault and skirmish dice, and raid dice if it's after something (up to one
     // die per ship and maxDicePerType of each), with the chance the bot picks each. Skirmish dice can't hurt the attacker, so
     // with no buildings to hit the ships not rolling assault roll skirmish, up to the limit.
-    // With buildings, rolling fewer dice than it could is an option too, to avoid hitting them.
+    // With buildings, rolling fewer dice than it could is an option too, to avoid destroying them.
     // Options close to the best are picked almost as often as the best (a person can't tell
     // them apart and guesses), but clearly worse ones quickly become rare.
     // personality.randomness sets how far from the best counts as "close"
@@ -155,7 +211,7 @@ function getDiceOptions(ships, fresh, damaged, buildingHits, personality, raid =
             const mostSkirmishDice = Math.min(ships - raidDice - assaultDice, maxDicePerType);
             const fewestSkirmishDice = (buildingHits > 0) ? (assaultDice + raidDice == 0 ? 1 : 0) : mostSkirmishDice;
             for (let skirmishDice = fewestSkirmishDice; skirmishDice <= mostSkirmishDice; skirmishDice++) {
-                options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice, raid, rerolls));
+                options.push(evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, personality, raidDice, raid, rerolls, buildingScores));
             }
         }
     }
@@ -207,6 +263,45 @@ function describeDice(option) {
     if (option.skirmishDice > 0) { dice.push(option.skirmishDice + " skirmish"); }
     if (option.raidDice > 0) { dice.push(option.raidDice + " raid"); }
     return dice.join(" + ");
+}
+
+function getBuildingOptions(defender) {
+    // What one of the defender's buildings could be, as [{ value, name }]. The resource of a
+    // starting city that was never set still matters for Outrage
+    return [{ value: "starport", name: "Starport" }].concat(
+        preludeResources.filter(resource => defender["cities" + capitalise(resource) + "Value"] > 0)
+            .map(resource => ({ value: resource, name: "City on " + preludeResourceNames[resource].toLowerCase() })),
+        defender.startingCity ? preludeResources.map(resource => ({ value: "startingCity:" + resource, name: "Starting city, on " + preludeResourceNames[resource].toLowerCase() })) : []);
+}
+
+function getBattleBuildingTypes() {
+    // What each defending building is, fresh ones first. A new one starts as a city if the
+    // defender has one, so the bot is careful unless told otherwise
+    const options = getBuildingOptions(battle.defender);
+    const count = battle.freshBuildings + battle.damagedBuildings;
+    const fallback = (options[1] || options[0]).value;
+    while (battle.buildingTypes.length < count) { battle.buildingTypes.push(fallback); }
+    battle.buildingTypes.length = count;
+    return battle.buildingTypes;
+}
+
+function setBuildingType(index, type) {
+    battle.buildingTypes[index] = type;
+    updateBattleCounts();
+}
+
+function getBuildingName(type) {
+    if (type == "starport") { return "the starport"; }
+    return "the city on " + preludeResourceNames[type.split(":").pop()].toLowerCase();
+}
+
+function getBattleBuildings() {
+    // The defending buildings as the dice choice needs them, the one it most wants first
+    return getBattleBuildingTypes().map((type, index) => ({
+        type: type,
+        hits: index < battle.freshBuildings ? 2 : 1,
+        ...getBuildingValue(battle.attacker, battle.defender, type)
+    })).sort((a, b) => b.value - a.value);
 }
 
 function getHitAdvice(canAttackAgain) {
@@ -295,6 +390,7 @@ function resetBattleRaid() {
     battle.noBuildings = false;
     battle.raidRolled = false;
     battle.inGate = false;
+    battle.buildingTypes = [];
 }
 
 function setInGate(inGate) {
@@ -346,11 +442,11 @@ function getBattleRaidItem() {
     return wants.find(want => want.id == battle.raidItem) || wants[0] || null;
 }
 
-function getBattleRaid(hasShips) {
+function getBattleRaid(buildingsAreTarget) {
     // What the dice choice needs to know about a raid. Without the keys it can't weigh it up
     const item = getBattleRaidItem();
     if (item == null || battle.keys == 0) { return null; }
-    return { keys: battle.keys, value: defaultBotPersonality.raidWeight * raidNeedFactor[item.need], buildingsAreTarget: !hasShips };
+    return { keys: battle.keys, value: defaultBotPersonality.raidWeight * raidNeedFactor[item.need], buildingsAreTarget: buildingsAreTarget };
 }
 
 function chooseRaidItem(id) {
@@ -382,6 +478,15 @@ function showBattleRaid() {
         html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
             + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleInGate\" onchange=\"setInGate(this.checked)\"" + (battle.inGate ? " checked" : "") + ">"
             + "<label class=\"form-check-label\" for=\"battleInGate\">In a gate (Gatekeepers: 2 more dice)</label></div>";
+    }
+    // What each building is, as destroying a city and a starport are very different
+    const buildingOptions = getBuildingOptions(battle.defender);
+    if (buildingOptions.length > 1) {
+        getBattleBuildingTypes().forEach((type, index) => {
+            html += "<div class=\"boardgrouplabel mt-2\">" + (index < battle.freshBuildings ? "Fresh" : "Damaged") + " building</div>"
+                + "<select class=\"form-select form-select-sm battlebuildingtype\" onchange=\"setBuildingType(" + index + ", this.value)\">"
+                + buildingOptions.map(option => "<option value=\"" + option.value + "\"" + (option.value == type ? " selected" : "") + ">" + option.name + "</option>").join("") + "</select>";
+        });
     }
     if (battle.freshBuildings + battle.damagedBuildings == 0) {
         html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
@@ -453,17 +558,29 @@ function chooseBattleDice() {
     }
 
     // This battle's mood, then a loose pick weighted towards the better options. With no
-    // defending ships the bot is attacking the buildings on purpose, so hits on them are what
-    // it wants: they count like hits on ships (buildings don't ambush) and nothing is held back
+    // defending ships the bot is attacking the buildings on purpose if all are worth destroying,
+    // so hits on them are what it wants: they count like hits on ships (buildings don't ambush)
+    // and nothing is held back. If only some are, it holds back to spare the others. If none
+    // are, it only attacks to steal
+    const buildings = getBattleBuildings();
+    const onPurpose = !hasShips && buildings.every(building => building.value >= 0);
     const mood = getBattleMood(defaultBotPersonality);
-    const raid = getBattleRaid(hasShips);
+    const raid = getBattleRaid(onPurpose);
+    if (!hasShips && buildings.every(building => building.value < 0) && raid == null) {
+        advice.innerHTML = "<div class=\"battleroll\">Don't attack</div><div class=\"fst-italic\">Destroying "
+            + buildings.map(building => getBuildingName(building.type)).join(" or ") + " would cost it more than it gains.</div>";
+        return;
+    }
     const raidItem = getBattleRaidItem();
-    const options = hasShips
-        ? getDiceOptions(getBattleDiceLimit(), battle.fresh, battle.damaged, buildingHits, mood, raid, getBattleRerolls())
-        : getDiceOptions(getBattleDiceLimit(), 0, buildingHits, 0, mood, raid, getBattleRerolls());
+    const options = onPurpose
+        ? getDiceOptions(getBattleDiceLimit(), 0, buildingHits, 0, mood, raid, getBattleRerolls())
+        : getDiceOptions(getBattleDiceLimit(), battle.fresh, battle.damaged, buildingHits, mood, raid, getBattleRerolls(), getBuildingScores(buildings));
     const choice = pickDiceOption(options);
     const canAttackAgain = document.getElementById("battleAttackAgain").checked;
-    const usefulHits = hasShips ? getHitsToDestroy(battle.fresh, battle.damaged) : buildingHits;
+    const usefulHits = onPurpose ? buildingHits : getHitsToDestroy(battle.fresh, battle.damaged);
+    const wantedBuilding = buildings.find(building => building.value > 0);
+    const buildingOrder = (buildings.length > 1 && new Set(buildings.map(building => building.value)).size > 1)
+        ? ": " + buildings.map(building => getBuildingName(building.type)).join(", then ") : "";
 
     // The other options and how likely each was, so the weighting can be checked
     const others = options.filter(option => option !== choice && option.pickChance >= 0.01)
@@ -477,21 +594,23 @@ function chooseBattleDice() {
     advice.innerHTML =
         "<div class=\"battleroll\">Roll " + describeDice(choice) + "</div>"
         + "<div class=\"fst-italic\">" + ((raid != null && choice.raidDice > 0) ? "Going after their " + raidItem.name + "." : getBattleAttitude(choice, getBattleDiceLimit())
-            + (raid != null ? " Their " + raidItem.name + " isn't worth the risk." : "")) + "</div>"
+            + (raid != null ? " Their " + raidItem.name + " isn't worth the risk." : "")
+            + (hasShips && wantedBuilding != null && choice.expectedBuildingHits > 0 ? " Happy to hit " + getBuildingName(wantedBuilding.type) + "." : "")) + "</div>"
         + "<div class=\"mt-2\"><b>Assign hits:</b> "
-        + (hasShips ? getHitAdvice(canAttackAgain) + (buildingHits > 0 ? " Any hits left over go to buildings." : "") : "All hits go to buildings.") + "</div>"
+        + (hasShips ? getHitAdvice(canAttackAgain) + (buildingHits > 0 ? " Any hits left over go to buildings" + buildingOrder + "." : "") : "All hits go to buildings" + buildingOrder + ".") + "</div>"
         + "<div><b>Own ships:</b> damage fresh ships before losing damaged ones.</div>"
         + (getBattleRerolls() > 0 && choice.skirmishDice > 0
             ? "<div><b>Skirmishers:</b> reroll up to " + getBattleRerolls() + " blank skirmish " + (getBattleRerolls() == 1 ? "die" : "dice") + " if it still needs hits.</div>" : "")
         + "<details class=\"small text-muted mt-2\" id=\"battleDetails\"><summary>Details</summary>"
-        + "<div>Expected hits: " + choice.expectedHits.toFixed(1) + " (" + usefulHits + " would destroy every " + (hasShips ? "ship" : "building") + ")</div>"
+        + (usefulHits > 0 ? "<div>Expected hits: " + choice.expectedHits.toFixed(1) + " (" + usefulHits + " would destroy every " + (hasShips ? "ship" : "building") + ")</div>" : "")
         + (raid != null && choice.raidDice > 0 ? "<div>Chance of " + raid.keys + " key" + (raid.keys == 1 ? "" : "s") + ": " + Math.round(choice.keyChance * 100) + "%</div>" : "")
         + (battle.fresh > 0 && (choice.assaultDice > 0 || choice.raidDice > 0)
             ? "<div>Ambush or intercept chance: " + Math.round(choice.ambushChance * 100) + "% (would take " + battle.fresh + " hit" + (battle.fresh == 1 ? "" : "s") + " first)</div>"
             : "<div>No risk of an ambush</div>")
         + (hasShips && buildingHits > 0
-            ? "<div>Expected hits on buildings: " + choice.expectedBuildingHits.toFixed(1) + " (destroying one causes Outrage)</div>"
+            ? "<div>Expected hits on buildings: " + choice.expectedBuildingHits.toFixed(1) + "</div>"
             : "")
+        + buildings.map(building => "<div>Destroying " + getBuildingName(building.type) + ": gains " + building.gain.toFixed(1) + ", costs " + building.cost.toFixed(1) + "</div>").join("")
         + "<div>Expected damage to own ships: " + choice.expectedDamage.toFixed(1) + "</div>"
         + "<div>Mood this battle: " + moodText + "</div>"
         + "<div>Chance of this choice " + Math.round(choice.pickChance * 100) + "%"
@@ -512,6 +631,18 @@ function noteBattleStart() {
     if (battle.start != null) { return; }
     battle.start = {};
     battleCounts.forEach(count => { battle.start[count] = battle[count]; });
+    battle.start.buildingTypes = battle.attacker.isHuman ? [] : getBattleBuildingTypes().slice();
+}
+
+function getDestroyedBuildingTypes() {
+    // What was said about the buildings that have gone, from those left. The player can correct it
+    let left = getBattleBuildingTypes().slice();
+    return (battle.start.buildingTypes || []).filter(type => {
+        const index = left.indexOf(type);
+        if (index == -1) { return true; }
+        left.splice(index, 1);
+        return false;
+    });
 }
 
 function getBattleLosses() {
@@ -545,12 +676,9 @@ function showBattleResults() {
     // means Outrage for that resource and Ransacking the Court (p.16), so which was it?
     if (losses.defenderBuildings > 0) {
         html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. Which?</div>";
+        const destroyed = getDestroyedBuildingTypes();
         for (let index = 0; index < losses.defenderBuildings; index++) {
-            const options = ["<option value=\"starport\">Starport</option>"].concat(
-                preludeResources.filter(resource => battle.defender["cities" + capitalise(resource) + "Value"] > 0)
-                    .map(resource => "<option value=\"" + resource + "\">City on " + preludeResourceNames[resource].toLowerCase() + "</option>"),
-                // The resource of a starting city that was never set still matters for Outrage
-                battle.defender.startingCity ? preludeResources.map(resource => "<option value=\"startingCity:" + resource + "\">Starting city, on " + preludeResourceNames[resource].toLowerCase() + "</option>") : []);
+            const options = getBuildingOptions(battle.defender).map(option => "<option value=\"" + option.value + "\"" + (option.value == destroyed[index] ? " selected" : "") + ">" + option.name + "</option>");
             html += "<select class=\"form-select form-select-sm mt-1 battlebuilding\">" + options.join("") + "</select>";
         }
         html += "<div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Destroying a city:</b> " + attacker + " Provokes Outrage of that resource, discarding its resources and Guild cards of that type, and Ransacks the Court.</div>";

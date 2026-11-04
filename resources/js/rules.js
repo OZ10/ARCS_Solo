@@ -89,12 +89,24 @@ const maxDicePerType = 6;
 // randomness: how loosely it picks between options. Higher means it more often goes with
 //             something other than the best, though clearly bad options stay rare
 //             (0 = always the best)
-// buildingWeight: how much it wants to avoid hitting the defender's buildings, which take
-//             any hits left over once every defending ship is destroyed. Destroying a
-//             building causes Outrage (1 = a hit on a building cancels out a hit on a ship,
-//             0 = doesn't mind)
+// buildingWeight: how much what it would gain or lose by destroying the defender's buildings
+//             matters (see buildingValues). They take any hits left over once every defending
+//             ship is destroyed (1 = as buildingValues says, 0 = doesn't mind)
 // raidWeight: how much stealing something it wants matters, in hits on ships
 const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6, buildingWeight: 1, raidWeight: 3 };
+
+// What destroying a building is worth to the attacker, in hits on ships (see getBuildingValue).
+// resourceLost and guildCardLost are for each one Outrage discards, by how much it needs that
+// resource (getResourceNeed). These could also become part of the bot personalities (#71)
+const buildingValues = {
+    trophy: 1,              // + the building as a Trophy
+    trophyWarlord: 2,       // + instead, when chasing Warlord
+    ransackFactor: 0.5,     // + this much of the market value of the best card it could Ransack
+    ransackUnknown: 1,      // + instead, when the market hasn't been entered, so there might be one
+    resourceLost: [0.5, 1, 2],
+    guildCardLost: [1, 2, 3],
+    preludeLost: 1.5        // - no longer being able to spend that resource for its Prelude action
+};
 
 // How much more or less it values stealing something, by how much it needs it (getResourceNeed):
 // nothing it's after, an ambition that could still be declared, an ambition it's chasing
@@ -172,6 +184,9 @@ const turnPlanWeights = {
     taxPerNeed: 1.5,        // + for each level of need for the resource it would tax (getResourceNeed)
     buildFewShips: 1.5,     // + short of ships
     buildNearBonus: 1,      // + 1 or 2 cities short of a city bonus
+    repairFewShips: 1,      // + short of ships
+    repairManyShips: 1,     // - lots of ships on the board
+    repairWarlord: 1,       // + Warlord is declared, as damaged ships are easy Trophies
     moveForBattle: 1.5,     // + a first Move, when it's also going to Battle
     repeat: 1.5,            // - for each time the action is already in the plan
     variation: 1            // + up to this much at random per action, set once a turn

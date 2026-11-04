@@ -63,13 +63,26 @@ function getActionPlanScore(player, action, focus) {
 
         case "build":
             if (player.canBuild === false && !canUseGuildActionInsteadOf(player, "build")) { return { score: planImpossible }; }
-            if (player.shipsBoardValue < fewShipsOnBoard) { score += weights.buildFewShips; reason = "short of ships"; }
+            if (player.shipsBoardValue < fewShipsOnBoard) { score += weights.buildFewShips; reason = "short of ships, or repair a damaged one"; }
             else if (getUncoveredCities(player) == 3 || getUncoveredCities(player) == 4) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
             break;
 
-        case "repair":
-            reason = "if anything's damaged: cities first";
+        case "repair": {
+            // Damage only matters for intercepts and control, which are about ships, and a building
+            // takes hits only once the ships are gone. A city is worth it if it's chasing that
+            // resource. With lots of ships, a damaged one matters less
+            const city = getTaxTargets(player).find(resource => getResourceNeed(player, resource) == 2);
+            if (declaredAmbitions.includes("warlord")) { score += weights.repairWarlord; }
+            else if (player.shipsBoardValue < fewShipsOnBoard) { score += weights.repairFewShips; }
+            else if (player.shipsBoardValue >= manyShipsOnBoard) { score -= weights.repairManyShips; }
+
+            if (declaredAmbitions.includes("warlord")) { reason = "damaged ships first: they're easy Trophies"; }
+            else if (city != null) { reason = "if anything's damaged: its " + preludeResourceNames[city].toLowerCase() + " city, then ships"; }
+            else if (player.shipsBoardValue < fewShipsOnBoard) { reason = "damaged ships first: it's short of them"; }
+            else if (player.shipsBoardValue >= manyShipsOnBoard) { reason = "only if there's nothing better: it has plenty of ships"; }
+            else { reason = "if anything's damaged: ships first, or a city with no ships guarding it"; }
             break;
+        }
 
         default:
             break;
