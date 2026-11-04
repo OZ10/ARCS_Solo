@@ -14,6 +14,8 @@ let roundNumber = 1;
 let declaredAmbitions = [];
 // 2 players: the neutral resources on each ambition box, as { ambition: count }
 let neutralCounts = {};
+// The Court market: [{ number, agents: { playerNumber: count } }] (market.js)
+let courtMarket = [];
 let currentPlayer;
 
 // The number of the player who has played their card this turn and is carrying out their

@@ -61,6 +61,7 @@ function setupGame(numberOfPlayers) {
     roundNumber = 1;
     declaredAmbitions = [];
     neutralCounts = {};
+    courtMarket = [];
 
     removeChildElements("playerslots");
     removeChildElements("playedcards");
@@ -361,7 +362,7 @@ function showTurnDone(player) {
 
 function hideTurnDone(player) {
     showHideElement([document.getElementById("turndone" + player.number)], false);
-    showHideElement([document.getElementById("battlebutton" + player.number), document.getElementById("buildbutton" + player.number)], false);
+    showHideElement([document.getElementById("battlebutton" + player.number), document.getElementById("buildbutton" + player.number), document.getElementById("courtbutton" + player.number)], false);
     if (!player.isHuman) { showHideElement([document.getElementById("playcard" + player.number).parentNode], true); }
 }
 

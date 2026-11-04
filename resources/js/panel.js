@@ -88,6 +88,11 @@ function clonePlayerNodeAndSetup(player) {
     // Hidden until the player has played a card (see updateActionButtons)
     battlebutton.classList.add("d-none");
 
+    // Likewise the Court window (market.js)
+    const courtbutton = playertemplate.querySelector("#courtbutton");
+    courtbutton.id = "courtbutton" + playerNumber.toString();
+    courtbutton.classList.add("d-none");
+
     // Likewise the Build helper
     const buildbutton = playertemplate.querySelector("#buildbutton");
     buildbutton.id = "buildbutton" + playerNumber.toString();
@@ -169,8 +174,9 @@ function showGuildCard(player, card) {
 }
 
 function showAddGuildCard(player) {
-    // The Guild cards nobody holds, grouped by resource icon
-    document.getElementById("guildTitle").innerHTML = "Add a Guild card to Player " + player.number;
+    // The Guild cards nobody holds, grouped by resource icon. For a bot, the Vox cards too, as
+    // this is how it secures a Court card (the human player carries out their own)
+    document.getElementById("guildTitle").innerHTML = (player.isHuman ? "Add a Guild card to Player " : "Add a Court card to Player ") + player.number;
     const body = document.getElementById("guildBody");
     body.replaceChildren();
 
@@ -192,6 +198,7 @@ function showAddGuildCard(player) {
             chip.innerHTML = card.name;
             chip.onclick = () => {
                 player.guildCards.push(card.number);
+                removeFromMarket(card.number);
                 showGuildCardsRow(player);
                 SaveAllSettings();
                 bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
@@ -201,6 +208,25 @@ function showAddGuildCard(player) {
         body.appendChild(group);
     });
     if (body.children.length == 0) { body.innerHTML = "<div class=\"text-muted\">Every Guild card is already held.</div>"; }
+
+    if (!player.isHuman) {
+        const heading = document.createElement("div");
+        heading.classList.add("boardgrouplabel", "text-start", "mt-2");
+        heading.innerHTML = "Vox";
+        body.appendChild(heading);
+
+        const group = document.createElement("div");
+        group.classList.add("d-flex", "flex-wrap", "gap-1");
+        courtCards.filter(card => card.type == "vox").forEach(card => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.classList.add("guildchip");
+            chip.innerHTML = card.name;
+            chip.onclick = () => { removeFromMarket(card.number); showVoxCard(player, card); };
+            group.appendChild(chip);
+        });
+        body.appendChild(group);
+    }
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
 }
@@ -400,7 +426,7 @@ function hidePlayerPanels() {
         showHidePlayerPanel(player, 99);
         // Between turns it's nobody's turn, so nobody can battle or build
         showHideElement([document.getElementById("battlebutton" + player.number)], false);
-        showHideElement([document.getElementById("buildbutton" + player.number)], false);
+        showHideElement([document.getElementById("buildbutton" + player.number), document.getElementById("courtbutton" + player.number)], false);
     })
 }
 

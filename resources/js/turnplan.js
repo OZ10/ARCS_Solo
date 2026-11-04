@@ -40,6 +40,8 @@ function getActionPlanScore(player, action, focus) {
             break;
 
         case "secure":
+            // With the market entered, it knows whether there's anything it can secure
+            if (isMarketKnown() && getCardsToSecure(player).length == 0 && action != focus) { return { score: planImpossible }; }
             if (isLastCard) { score += weights.secureLastCard; }
             if (getWantedCardResource(player) != null) { score += weights.secureWanted; }
             break;
@@ -47,6 +49,7 @@ function getActionPlanScore(player, action, focus) {
         case "influence":
             // No later turn to secure the card
             if (isLastCard) { return { score: planImpossible }; }
+            if (isMarketKnown() && getCardsToInfluence(player).length == 0 && action != focus) { return { score: planImpossible }; }
             if (getWantedCardResource(player) != null) { score += weights.influenceWanted; }
             break;
 
@@ -65,7 +68,7 @@ function getActionPlanScore(player, action, focus) {
             break;
 
         case "repair":
-            reason = "if anything's damaged";
+            reason = "if anything's damaged: cities first";
             break;
 
         default:
@@ -114,7 +117,9 @@ function getTurnPlan(player) {
         // No more Taxes than it has cities to tax, unless it's taxing Rivals to capture
         const canTaxAgain = scores.tax == null || scores.tax.reason == rivalTaxReason
             || chosen.filter(pick => pick.action == "tax").length < Math.max(getTaxTargets(player).length + (player.startingCity ? 1 : 0), 1);
-        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain))
+        // No more Secures than there are cards it can secure
+        const canSecureAgain = !isMarketKnown() || chosen.filter(pick => pick.action == "secure").length < Math.max(getCardsToSecure(player).length, 1);
+        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain))
             .sort((a, b) => value(b) - value(a))[0];
         if (best == null) { break; }
         chosen.push({ action: best, reason: scores[best].reason });
@@ -124,6 +129,8 @@ function getTurnPlan(player) {
     // A move sets up a battle, if there's one
     const hasBattle = chosen.some(pick => pick.action == "battle");
     let taxTargets = getTaxTargets(player);
+    let secureTargets = isMarketKnown() ? getCardsToSecure(player) : [];
+    const influenceTarget = isMarketKnown() ? getCardsToInfluence(player)[0] : null;
     return chosen.sort((a, b) => turnPlanOrder.indexOf(a.action) - turnPlanOrder.indexOf(b.action)).map(pick => {
         let name = capitalise(pick.action);
         let reason = pick.reason;
@@ -134,8 +141,15 @@ function getTurnPlan(player) {
             name = "Tax its " + preludeResourceNames[taxTargets.shift()].toLowerCase() + " city";
         }
         if (pick.action == "secure" || pick.action == "influence") {
+            // The card itself if the market's been entered, otherwise the kind it wants
+            const entry = (pick.action == "secure") ? secureTargets.shift() : influenceTarget;
             const resource = getWantedCardResource(player);
-            if (resource != null) { name += " a " + preludeResourceNames[resource].toLowerCase() + " card"; }
+            if (entry != null) {
+                name += " " + getCourtCard(entry.number).name;
+                if (reason == "") { reason = getMarketReason(player, entry); }
+            } else if (!isMarketKnown() && resource != null) {
+                name += " a " + preludeResourceNames[resource].toLowerCase() + " card";
+            }
         }
         return { action: pick.action, text: name + (reason ? " (" + reason + ")" : "") };
     });

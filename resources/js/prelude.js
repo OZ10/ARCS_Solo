@@ -103,10 +103,16 @@ function updateActionButtons(player) {
         showHideElement([button], !player.isHuman && awaitingDone == player.number && canBotTakeAction(player, action));
     });
 
-    // The human player keeps track of their own battles, once they've played a card. The app
-    // doesn't know what they spend in their prelude, so it can't tell whether they can battle
+    // The Court icon for a bot that can Influence or Secure
+    const court = document.getElementById("courtbutton" + player.number);
+    if (court != null) {
+        showHideElement([court], !player.isHuman && awaitingDone == player.number && (canBotTakeAction(player, "influence") || canBotTakeAction(player, "secure")));
+    }
+
+    // The human player keeps track of their own battles and agents, once they've played a card.
+    // The app doesn't know what they spend in their prelude, so it can't tell what they can do
     if (player.isHuman && awaitingDone == player.number) {
-        showHideElement([document.getElementById("battlebutton" + player.number)], true);
+        showHideElement([document.getElementById("battlebutton" + player.number), court], true);
     }
 }
 

@@ -93,6 +93,13 @@
                 data-bs-title="Battle"
                 id="battlebutton" onclick="showBattleModal(this)"
                 aria-label="Battle"><i class="bi bi-crosshair"></i></button>
+              <!-- The Court market and everyone's agents on it (see market.js) -->
+              <button class="btn" data-bs-toggle="tooltip" data-bs-trigger="hover"
+                data-bs-placement="top"
+                data-bs-custom-class="custom-tooltip"
+                data-bs-title="The Court"
+                id="courtbutton" onclick="showCourtModal(this)"
+                aria-label="The Court"><i class="bi bi-bank"></i></button>
               <!-- Bots only: help the bot decide what to build (see build.js) -->
               <button class="btn" data-bs-toggle="tooltip" data-bs-trigger="hover"
                 data-bs-placement="top"
@@ -390,7 +397,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v041126.04</small>
+              <small class="text-muted me-auto" id="appVersion">v041126.05</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -421,6 +428,21 @@
             <button type="button" class="btn btn-secondary flex-fill m-0"
               onclick="answerNo()">No</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- The Court market and everyone's agents on it (market.js) -->
+    <div class="modal fade" id="courtModal" tabindex="-1" aria-labelledby="courtTitle"
+      aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="courtTitle">The Court</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"
+              aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="courtBody"></div>
         </div>
       </div>
     </div>
@@ -867,6 +889,8 @@
     <script src="./resources/js/prelude.js"></script>
     <script src="./resources/js/guildactions.js"></script>
     <script src="./resources/js/turnplan.js"></script>
+    <script src="./resources/js/vox.js"></script>
+    <script src="./resources/js/market.js"></script>
     <script src="./resources/js/battle.js"></script>
     <script src="./resources/js/build.js"></script>
     <script src="./resources/js/game.js"></script>

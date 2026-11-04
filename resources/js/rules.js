@@ -145,6 +145,7 @@ const preludeChance = {
     relicFence: 50,         // Relic Fence: a spare resource for a relic, when chasing Keeper
     steal: 25,              // Silver-Tongues: steal a Guild card or resource
     union: 60,              // Admin, Construction, Spacing or Arms Union: draw a played card
+    songOfFreedom: 40,      // Song of Freedom: return one of its own cities to seize the initiative
     max: 90
 };
 
@@ -183,6 +184,18 @@ const resourceSlots = [
     { slot: 5, keys: 1, cities: 3 },
     { slot: 6, keys: 3, cities: 3 }
 ];
+
+// How much a bot wants a card in the Court market (see market.js). Generic values by card type,
+// rather than each card's text. These could also become part of the bot personalities (#71)
+const marketValues = {
+    base: 1,
+    perNeed: 1.5,           // + a Guild card, for each level of need for its icon (getResourceNeed)
+    captive: 0.25,          // + each Rival agent it would capture
+    captiveTyrant: 1.5,     // + each Rival agent it would capture, when chasing Tyrant
+    // + a Vox card, by what it does: Mass Uprising, Populist Demands, Outrage Spreads,
+    // Song of Freedom, Guild Struggle, Call to Action
+    vox: { 26: 1.5, 27: 2, 28: 0.5, 29: 1, 30: 1.5, 31: 1 }
+};
 
 // The chance (%) of a bot offering each Guild card action (see guildactions.js). These could
 // also become part of the bot personalities (#71)

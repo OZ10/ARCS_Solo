@@ -105,6 +105,9 @@ function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, p
         const action = questionActions[questionNumber - 1];
         if (isFinalTurn && action == "influence") { continue; }
 
+        // With the market entered, there's no need to ask about a card that isn't there
+        if (!isMarketQuestionPossible(ambition, action, player)) { continue; }
+
         if (possibleActions.includes(action)) {
             return questionNumber;
         }
