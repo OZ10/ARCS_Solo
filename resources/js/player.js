@@ -36,6 +36,8 @@ class player {
     prelude = null;
     // A bot's Guild card actions this turn: { offers, spent } (guildactions.js)
     guildActions = null;
+    // A little variation in a bot's turn plan, set once a turn (turnplan.js)
+    planVariation = null;
     // Union cards placed this turn: [{ guild, card }], drawn when the turn ends (prelude.js)
     unionDraws = [];
     // A bot's answer this turn to "Can I build or repair anything?" (null until asked, see bot.js)
@@ -73,6 +75,7 @@ function resetPlayedThisTurn() {
         player.hasPlayedACardThisTurn = false;
         player.prelude = null;
         player.guildActions = null;
+        player.planVariation = null;
         player.canBuild = null;
     })
 }

@@ -148,6 +148,31 @@ const preludeChance = {
     max: 90
 };
 
+// Turn plan (see turnplan.js): how much a bot wants each action on its card. These could also
+// become part of the bot personalities (#71)
+const turnPlanWeights = {
+    // What each action starts at
+    move: 1, battle: 1, secure: 2, influence: 1.5, tax: 1, build: 1.5, repair: 0.5,
+    focus: 5,               // + what the player said it can do, in the Yes/No questions
+    battleWarlord: 3,       // + chasing Warlord
+    battleTyrant: 2,        // + chasing Tyrant
+    battleManyShips: 1.5,   // + lots of ships on the board
+    secureLastCard: 1,      // + its last card, so its last chance this round
+    secureWanted: 1,        // + there's a resource it wants a card for
+    influenceWanted: 0.5,   // + there's a resource it wants a card for
+    taxTyrant: 2,           // + chasing Tyrant, as taxing a Rival's city captures
+    taxPerNeed: 1.5,        // + for each level of need for the resource it would tax (getResourceNeed)
+    buildFewShips: 1.5,     // + short of ships
+    buildNearBonus: 1,      // + 1 or 2 cities short of a city bonus
+    moveForBattle: 1.5,     // + a first Move, when it's also going to Battle
+    repeat: 1.5,            // - for each time the action is already in the plan
+    variation: 1            // + up to this much at random per action, set once a turn
+};
+const planImpossible = -100;
+
+// The order to take the actions in, whichever are chosen
+const turnPlanOrder = ["move", "battle", "influence", "secure", "tax", "build", "repair"];
+
 // The resource slots on a player board: the keys it takes to steal from each, and how many
 // cities must be built to uncover it. Slots 5 and 6 are uncovered by the same city
 const resourceSlots = [
