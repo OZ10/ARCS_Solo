@@ -12,7 +12,7 @@ function clonePlayerNodeAndSetup(player) {
     const playerNumber = player.number;
     const playertemplate = document.getElementById("playerTemplate").cloneNode(true);
     playertemplate.id = "player" + playerNumber.toString();
-    playertemplate.classList.add("playerheader" + playerNumber.toString());
+    playertemplate.classList.add("playerheader" + getPlayerColour(player));
     playertemplate.classList.remove("d-none");
     playertemplate.querySelector('#' + "playernumber").innerHTML = "Player " + playerNumber.toString();
 
@@ -26,7 +26,7 @@ function clonePlayerNodeAndSetup(player) {
 
     const playerPanel = playertemplate.querySelector('#playerpanel');
     playerPanel.id = "playerpanel" + playerNumber.toString();
-    playerPanel.classList.add("playerpanel" + playerNumber.toString());
+    playerPanel.classList.add("playerpanel" + getPlayerColour(player));
 
     playerPanel.addEventListener('hidden.bs.collapse', function () {
         onCollapse(getPlayerNumberFromString(this.id), true);
@@ -464,9 +464,10 @@ function plusMinusClicked(id, action, automatic = false) {
 
     const player = getPlayer(playerNumber);
 
-    // Setting up, the first city tapped is the starting city, not another one. Removing a
+    // While the starting city isn't set, the first city tapped is that city, not another one,
+    // whenever it's tapped. Building one through the Build window is a new city. Removing a
     // city when the tile is already at 0 means the starting city
-    if (player.startingCity && cityCounters.includes(resourceName) && ((action == 'plus' && !hasGameStarted()) || (action == 'minus' && player[resourceName + "Value"] == 0))) {
+    if (player.startingCity && cityCounters.includes(resourceName) && ((action == 'plus' && !automatic) || (action == 'minus' && player[resourceName + "Value"] == 0))) {
         player.startingCity = false;
         if (!automatic) { logManualChange({ type: "startingCity", player: player.number }); }
     }

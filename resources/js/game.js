@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loadPlayers();
     }
 
+    showChosenColour();
     updateAmbitionsDisplay();
     updateUndoButton();
     setupSavedGameButtons();
@@ -81,6 +82,12 @@ function setupGame(numberOfPlayers) {
     document.getElementById("numberOfPlayersModal").addEventListener('hidden.bs.modal', () => askOpeningCourt(), { once: true });
 }
 
+function showChosenColour() {
+    // The next new game starts on the colour the human player has now
+    if (players.length == 0) { return; }
+    document.getElementById("humanColour" + getPlayerColour(players[0])).checked = true;
+}
+
 function addExtraCards(numberOfPlayers) {
     if (numberOfPlayers == 4) {
         currentactioncards.push(new Card("Construction", 1, 4, false, "", "build,repair"));
@@ -95,9 +102,13 @@ function addExtraCards(numberOfPlayers) {
 }
 
 function createPlayers(numberOfPlayers) {
+    // The human player takes the colour they chose, and whoever had it takes theirs
+    const humanColour = parseInt(document.querySelector("input[name=humanColour]:checked").value);
+
     for (let playerNumber = 1; playerNumber < numberOfPlayers + 1; playerNumber++) {
         let p = new player(playerNumber, (playerNumber == 1) ? true : false);
         p.shipsBoardValue = startingShips[numberOfPlayers];
+        p.colour = (playerNumber == 1) ? humanColour : (playerNumber == humanColour ? 1 : playerNumber);
 
         if (playerNumber == 1) {
             // Game is being setup, human player is player 1 and has
@@ -619,7 +630,9 @@ function addPlayedCardToList(card, actionToPlay, cardAction, reset, player) {
         // hides when anything else is tapped (focus trigger)
         let cardDiv = document.createElement("button");
         cardDiv.type = "button";
-        cardDiv.classList.add("fw-normal", "playedcard", "playercard" + card.playedByPlayerNumber);
+        // Played cards are loaded before the players, so the saved player may be needed
+        const cardOwner = getPlayer(card.playedByPlayerNumber) || getSettingObject(card.playedByPlayerNumber);
+        cardDiv.classList.add("fw-normal", "playedcard", "playercard" + (cardOwner != null ? getPlayerColour(cardOwner) : card.playedByPlayerNumber));
         cardDiv.id = "playedlist" + getCardFullName(card);
         cardDiv.setAttribute('data-bs-trigger', 'focus');
         // Only show the action when it's a specific one, to save space

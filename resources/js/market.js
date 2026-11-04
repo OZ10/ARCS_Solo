@@ -128,7 +128,7 @@ function openCourt(playerNumber) {
 
     const header = document.querySelector("#courtModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
-    header.classList.add("playerbanner" + courtPlayer.number);
+    header.classList.add("playerbanner" + getPlayerColour(courtPlayer));
     document.getElementById("courtTitle").innerHTML = "Player " + courtPlayer.number + " at the Court";
 
     showCourtWindow();
@@ -232,7 +232,7 @@ function showCourtWindow() {
         agents.classList.add("d-flex", "flex-wrap", "gap-1", "justify-content-center");
         players.forEach(player => {
             const counter = document.createElement("div");
-            counter.classList.add("marketcounter", "playertag" + player.number);
+            counter.classList.add("marketcounter", "playertag" + getPlayerColour(player));
             counter.innerHTML = "<button type=\"button\" class=\"marketstep\" aria-label=\"One agent fewer for Player " + player.number + "\" onclick=\"changeMarketAgents(" + entry.number + ", " + player.number + ", -1)\"><i class=\"bi bi-dash-lg\"></i></button>"
                 + "<span class=\"marketagents\" id=\"marketAgents_" + entry.number + "_" + player.number + "\">" + getMarketAgents(entry, player) + "</span>"
                 + "<button type=\"button\" class=\"marketstep\" aria-label=\"One agent more for Player " + player.number + "\" onclick=\"changeMarketAgents(" + entry.number + ", " + player.number + ", 1)\"><i class=\"bi bi-plus-lg\"></i></button>";

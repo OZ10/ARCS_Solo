@@ -60,7 +60,7 @@ function showBuildModal(button) {
 
     const header = document.querySelector("#buildModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
-    header.classList.add("playerbanner" + build.player.number);
+    header.classList.add("playerbanner" + getPlayerColour(build.player));
     document.getElementById("buildTitle").innerHTML = "Player " + build.player.number + " builds";
 
     showBuildSlotQuestion();

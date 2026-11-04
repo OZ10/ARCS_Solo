@@ -16,7 +16,7 @@ function keepClearOfFooter() {
 
 function getPlayerTag(player) {
     // A player's name on their own colour, for use in a window's text
-    return "<span class=\"playertag playertag" + player.number + "\">Player " + player.number + "</span>";
+    return "<span class=\"playertag playertag" + getPlayerColour(player) + "\">Player " + player.number + "</span>";
 }
 
 function hideIconTooltip(button, modalId) {

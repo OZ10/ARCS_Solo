@@ -191,7 +191,7 @@ function setYesNoTitle() {
 
     const header = document.querySelector("#yesNo .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
-    header.classList.add("playerbanner" + currentPlayer.number);
+    header.classList.add("playerbanner" + getPlayerColour(currentPlayer));
 }
 
 function updateYesNoText(text) {

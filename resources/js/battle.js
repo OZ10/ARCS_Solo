@@ -334,7 +334,7 @@ function showBattleModal(button) {
 
     const header = document.querySelector("#battleModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
-    header.classList.add("playerbanner" + battle.attacker.number);
+    header.classList.add("playerbanner" + getPlayerColour(battle.attacker));
     document.getElementById("battleTitle").innerHTML = "Player " + battle.attacker.number + " attacks";
 
     // The defender can be any other player
@@ -350,7 +350,7 @@ function showBattleModal(button) {
         input.onchange = () => { battle.defender = player; battle.start = null; resetBattleRaid(); updateBattleCounts(); };
 
         const label = document.createElement("label");
-        label.classList.add("btn", "btn-sm", "playerchoice", "playerchoice" + player.number);
+        label.classList.add("btn", "btn-sm", "playerchoice", "playerchoice" + getPlayerColour(player));
         label.htmlFor = input.id;
         label.innerHTML = "Player " + player.number;
 

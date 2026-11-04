@@ -8,6 +8,9 @@ class player {
         this.isHuman = isHuman;
     }
 
+    // Which of the four player colours in index.scss (1 yellow, 2 red, 3 white, 4 blue)
+    colour = null;
+
     fuelValue = 0;
     materialsValue = 0;
     weaponsValue = 0;
@@ -47,6 +50,11 @@ class player {
     unionDraws = [];
     // A bot's answer this turn to "Can I build or repair anything?" (null until asked, see bot.js)
     canBuild = null;
+}
+
+function getPlayerColour(player) {
+    // Games saved before the colour could be chosen went by player number
+    return player.colour || player.number;
 }
 
 // Everything counted with -/+ tiles on a player's panel. Each is stored on the player as
