@@ -23,9 +23,11 @@ function playcardclick() {
 function shouldAskCanBuild(player) {
     // Only when the bot might play a Construction card face up for its actions: it has one,
     // and it's leading, Construction was led, or it has no card of the lead suit (so it may
-    // pivot). Asked once a turn
+    // pivot). Asked once a turn. Not if it has a Guild card action it can use instead of a Build,
+    // as that doesn't need a slot, so Construction is still worth playing (#86)
     const hand = getUnplayedCards(player.cards);
     if (player.canBuild != null || !hand.some(card => card.name == "Construction")) { return false; }
+    if (canUseGuildActionInsteadOf(player, "build")) { return false; }
     if (isLeadingThisTurn()) { return true; }
 
     const lead = playedCardList[0];

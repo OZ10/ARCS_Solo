@@ -20,12 +20,7 @@ function getBuildChoice(player, slotResources) {
     // ambition it's chasing comes first, then one that could still be declared
     const needed = citiesLeft ? slotResources.filter(resource => player["cities" + capitalise(resource) + "Value"] == 0) : [];
     if (needed.length > 0) {
-        const priority = resource => {
-            const ambition = preludeAmbitions[resource];
-            if (ambition == null) { return 0; }
-            if (declaredAmbitions.includes(ambition) && isChasingAmbition(player, ambition)) { return 2; }
-            return isAmbitionInPlay(ambition) ? 1 : 0;
-        };
+        const priority = resource => getResourceNeed(player, resource);
         // Equally good resources are picked at random, as a person might
         const best = Math.max(...needed.map(priority));
         const choices = needed.filter(resource => priority(resource) == best);
@@ -147,7 +142,7 @@ function showBuildDecision() {
 
     body.innerHTML = "<div class=\"battleroll\">" + headline + "</div>"
         + "<div class=\"fst-italic mb-2\">" + choice.reason + "</div>"
-        + "<div class=\"small text-muted mb-3\">In a system a Rival controls, it's built damaged. Ships are built at a starport it controls, one per starport each turn"
+        + "<div class=\"small text-muted mb-3\">In a system a Rival controls, it's built damaged. Ships are built at a starport it controls, one per starport each turn, if it has any left in supply"
         + (choice.build == "ship" ? ". Nothing to build? Repair instead" : "") + ".</div>"
         + "<div class=\"d-flex gap-2\">" + buttons + "</div>";
 }
@@ -159,10 +154,8 @@ function builtCity(resource) {
 }
 
 function builtShip() {
-    // A ship from the supply onto the board
-    const number = build.player.number;
-    plusMinusClicked("plusButton_shipsBoard_" + number, "plus");
-    if (build.player.shipsSupplyValue > 0) { plusMinusClicked("minusButton_shipsSupply_" + number, "minus"); }
+    // One more ship on the board (the supply isn't counted)
+    plusMinusClicked("plusButton_shipsBoard_" + build.player.number, "plus");
     finishBuild("a ship");
 }
 

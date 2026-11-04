@@ -17,7 +17,6 @@ class player {
     trophiesValue = 0;
     powerValue = 0;
     // Pieces on the board (see boardCounters)
-    shipsSupplyValue = 0;
     shipsBoardValue = 0;
     citiesFuelValue = 0;
     citiesMaterialsValue = 0;
@@ -32,6 +31,8 @@ class player {
     ambitionsEvaluated = [];
     // A bot's prelude this turn: { offers, spent } (prelude.js)
     prelude = null;
+    // A bot's Guild card actions this turn: { offers, spent } (guildactions.js)
+    guildActions = null;
     // Union cards placed this turn: [{ guild, card }], drawn when the turn ends (prelude.js)
     unionDraws = [];
     // A bot's answer this turn to "Can I build or repair anything?" (null until asked, see bot.js)
@@ -42,9 +43,9 @@ class player {
 // <name>Value (e.g. fuelValue, citiesFuelValue)
 const resourceCounters = ["fuel", "materials", "weapons", "relics", "psionics", "captives", "trophies", "power"];
 
-// The player's pieces on the board: ships in their supply and on the board, and how many
+// The player's pieces on the board: their ships, and how many
 // of their cities are on each resource type
-const boardCounters = ["shipsSupply", "shipsBoard", "citiesFuel", "citiesMaterials", "citiesWeapons", "citiesRelics", "citiesPsionics"];
+const boardCounters = ["shipsBoard", "citiesFuel", "citiesMaterials", "citiesWeapons", "citiesRelics", "citiesPsionics"];
 const cityCounters = ["citiesFuel", "citiesMaterials", "citiesWeapons", "citiesRelics", "citiesPsionics"];
 
 const playerCounters = resourceCounters.concat(boardCounters);
@@ -68,6 +69,7 @@ function resetPlayedThisTurn() {
     players.forEach(player => {
         player.hasPlayedACardThisTurn = false;
         player.prelude = null;
+        player.guildActions = null;
         player.canBuild = null;
     })
 }

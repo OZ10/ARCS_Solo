@@ -21,6 +21,7 @@
 // seizes      - can be used to seize the initiative
 // declares    - lets the holder declare an ambition
 // placesShips - Prelude: discard to place ships
+// replacesActions - actions the holder can take in place of a normal action (see guildactions.js)
 
 class CourtCard {
     constructor(number, name, type, resource, keys, text, extras) {
@@ -41,7 +42,7 @@ const courtCards = [
         { spendAnyAs: "materials", keepOnOutrage: true }),
     new CourtCard(2, "Mining Interest", "guild", "materials", 2,
         "Manufacture (Build): Gain 1 Material. Prelude: You may discard this to gain Material up to your number of empty resource slots. If the Material supply empties, steal the Material instead.",
-        { prelude: true }),
+        { prelude: true, replacesActions: [{ name: "Manufacture", replaces: "build" }] }),
     new CourtCard(3, "Material Cartel", "guild", "materials", 2,
         "You keep the Material supply on here. (You add it to Tycoon but can't spend it.) After scoring, Rivals discard all Material. Prelude: You may discard this to steal 1 Material.",
         { prelude: true, holdsSupply: "materials" }),
@@ -64,7 +65,7 @@ const courtCards = [
         { prelude: true, placesShips: true }),
     new CourtCard(9, "Shipping Interest", "guild", "fuel", 2,
         "Synthesize (Build): Gain 1 Fuel. Prelude: You may discard this to gain Fuel up to your number of empty resource slots. If the Fuel supply empties, steal the Fuel instead.",
-        { prelude: true }),
+        { prelude: true, replacesActions: [{ name: "Synthesize", replaces: "build" }] }),
     new CourtCard(10, "Spacing Union", "guild", "fuel", 2,
         "Prelude: You may place this card next to a face-up played Mobilization card. When the round ends, draw that card into your hand and discard this card.",
         { prelude: true, drawsPlayed: "Mobilisation" }),
@@ -75,13 +76,13 @@ const courtCards = [
         { prelude: true, drawsPlayed: "Aggression" }),
     new CourtCard(12, "Prison Wardens", "guild", "weapons", 2,
         "Pressgang (Build): Return any number of your Captives to gain any 1 resource for each. Execute (Influence): Move any number of your Captives to your Trophies. Prelude: You may discard this to place 3 ships in a system you control.",
-        { prelude: true, placesShips: true }),
+        { prelude: true, placesShips: true, replacesActions: [{ name: "Pressgang", replaces: "build" }, { name: "Execute", replaces: "influence" }] }),
     new CourtCard(13, "Skirmishers", "guild", "weapons", 2,
         "After you roll in battle, you may reroll a number of skirmish dice up to your total Weapon icons from resources and cards. Prelude: You may discard this to place 3 ships in a system you control.",
         { prelude: true, placesShips: true }),
     new CourtCard(14, "Court Enforcers", "guild", "weapons", 2,
         "Abduct (Battle): Capture all Rival agents from a card in the Court that has fewer Rival agents than your total Weapon icons from resources and cards. Prelude: You may discard this to place 3 ships in a system you control.",
-        { prelude: true, placesShips: true }),
+        { prelude: true, placesShips: true, replacesActions: [{ name: "Abduct", replaces: "battle" }] }),
     new CourtCard(15, "Loyal Marines", "guild", "weapons", 3,
         "If you Provoke Outrage, keep this card. You may spend any resources as Weapons. You ignore Outrage when spending Weapons for their Prelude action. Prelude: You may discard this to place 3 ships in a system you control.",
         { prelude: true, placesShips: true, spendAnyAs: "weapons", keepOnOutrage: true }),
@@ -112,7 +113,7 @@ const courtCards = [
         {}),
     new CourtCard(23, "Elder Broker", "guild", "relics", 2,
         "Trade (Tax): Choose a Rival city you control. Swap 1 resource with that Rival—take a resource of that city type from them, and give them a resource they don't have. Prelude: You may discard this to gain 1 Material, 1 Fuel, and 1 Weapon.",
-        { prelude: true }),
+        { prelude: true, replacesActions: [{ name: "Trade", replaces: "tax" }] }),
     new CourtCard(24, "Relic Fence", "guild", "relics", 2,
         "Prelude: Once per turn, you may discard 1 resource to gain 1 Relic.",
         { prelude: true }),

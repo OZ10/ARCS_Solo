@@ -50,7 +50,7 @@ header {
         margin-left: auto;
     }
 
-    // A bot's header has six icons (vox, draw, seize, declare, battle, build), so tighten
+    // A bot's header can have five icons (draw, seize, declare, battle, build), so tighten
     // them and the name so they all fit
     [id^="playeroptions"] .btn {
         padding-left: 0.3rem;
@@ -166,6 +166,60 @@ header {
     border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.12);
     text-align: center;
+}
+
+// A player's Board section: shaded behind the whole section, with shorter, wider tiles (the
+// count between - and + on one line), so a city on fuel can't be mistaken for the fuel resource.
+// Sized so three fit on a row on a 360px phone
+.boardsection {
+    padding: 6px;
+    border-radius: 12px;
+    background-color: rgba(0, 0, 0, 0.25);
+
+    .resourcetile {
+        display: grid;
+        grid-template-columns: 28px 1fr 28px;
+        align-items: center;
+        column-gap: 2px;
+        width: 90px;
+        padding: 3px;
+        border-radius: 8px;
+        background-color: rgba(255, 255, 255, 0.16);
+
+        // The - and + buttons sit in the tile's grid, either side of the count
+        .d-flex {
+            display: contents !important;
+        }
+    }
+
+    .resourcelabel {
+        grid-column: 1 / -1;
+        font-size: 0.65rem;
+    }
+
+    .resourcevalue {
+        grid-column: 2;
+        grid-row: 2;
+        font-size: 1.1rem;
+    }
+
+    .btn.resourcebutton {
+        grid-row: 2;
+        height: 28px;
+    }
+
+    .btn.resourceminus {
+        grid-column: 1;
+    }
+
+    .btn.resourceplus {
+        grid-column: 3;
+    }
+}
+
+// The same shading looks muddy on the light player colours, so it's lighter on those
+.playerpanel1 .boardsection, .playerpanel3 .boardsection {
+    background-color: rgba(0, 0, 0, 0.13);
 }
 
 // The Ships and Cities headings within a player's Board section
@@ -373,7 +427,7 @@ header, .footerstyle {
         font-weight: bold;
     }
 
-    // The vox, draw, seize and declare icons (not the resource buttons in the panel)
+    // The draw, seize, declare, battle and build icons (not the resource buttons in the panel)
     [id^="playeroptions"] .btn {
         color: inherit;
     }

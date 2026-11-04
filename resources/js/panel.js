@@ -1,4 +1,4 @@
-// Player panels: building them, resources +/-, and the panel icons (vox, draw, seize, declare).
+// Player panels: building them, resources +/-, and the panel icons (draw, seize, declare).
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
@@ -295,28 +295,6 @@ function seizeInitiative() {
     changeInitiative(getPlayer(playerNumber));
 }
 
-function displayVoxCards() {
-    let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("voxCards"));
-    modal.show();
-}
-
-function playVoxCard(btn) {
-    switch (btn.innerText) {
-        case "Call To Action":
-            //Draw a card from action discard pile
-            break;
-        case "Populist Demands":
-            //Declare ambition
-            break;
-
-        case "Song Of Freedom":
-            //Return city you control to seize the initiative (if possible)
-            break;
-
-        default:
-            break;
-    }
-}
 
 function setDrawingPlayer(ele) {
     // Remember whose panel the Draw icon was clicked on, as

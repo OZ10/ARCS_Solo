@@ -126,6 +126,48 @@ header {
   text-align: center;
 }
 
+.boardsection {
+  padding: 6px;
+  border-radius: 12px;
+  background-color: rgba(0, 0, 0, 0.25);
+}
+.boardsection .resourcetile {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+  column-gap: 2px;
+  width: 90px;
+  padding: 3px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.16);
+}
+.boardsection .resourcetile .d-flex {
+  display: contents !important;
+}
+.boardsection .resourcelabel {
+  grid-column: 1/-1;
+  font-size: 0.65rem;
+}
+.boardsection .resourcevalue {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 1.1rem;
+}
+.boardsection .btn.resourcebutton {
+  grid-row: 2;
+  height: 28px;
+}
+.boardsection .btn.resourceminus {
+  grid-column: 1;
+}
+.boardsection .btn.resourceplus {
+  grid-column: 3;
+}
+
+.playerpanel1 .boardsection, .playerpanel3 .boardsection {
+  background-color: rgba(0, 0, 0, 0.13);
+}
+
 .boardgrouplabel {
   font-size: 0.65rem;
   font-weight: 600;

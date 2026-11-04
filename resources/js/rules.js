@@ -135,6 +135,19 @@ const preludeChance = {
     max: 90
 };
 
+// The chance (%) of a bot offering each Guild card action (see guildactions.js). These could
+// also become part of the bot personalities (#71)
+const guildActionChance = {
+    abduct: 50,             // Abduct instead of a Battle
+    abductTyrant: 40,       // + chasing Tyrant
+    execute: 25,            // Execute instead of an Influence
+    executeWarlord: 45,     // + chasing Warlord
+    pressgang: 50,          // Pressgang instead of a Build
+    gainResource: 40,       // Manufacture or Synthesize instead of a Build
+    gainResourceTycoon: 30, // + chasing Tycoon
+    trade: 40               // Trade instead of a Tax
+};
+
 // City bonus: the outright winner of an ambition (first place, not tied) gains extra power
 // for the city slots uncovered on their player board: 2 with four cities, or 5 with all
 // five (not both). Only cities count, not starports (rulebook p.18)

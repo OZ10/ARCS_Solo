@@ -340,9 +340,10 @@ function finishPlay(player) {
 }
 
 function showTurnDone(player) {
-    // In the order they happen: the prelude, then the card's actions
-    const prelude = describePrelude(player);
-    document.getElementById("turnsummary" + player.number).innerHTML = (prelude == null ? [] : [prelude]).concat(describePlayerPlays(player)).join("<br>");
+    // In the order they happen: the prelude, then the card's actions and any Guild actions
+    const prelude = describePrelude(player), guildActions = describeGuildActions(player);
+    document.getElementById("turnsummary" + player.number).innerHTML = (prelude == null ? [] : [prelude])
+        .concat(describePlayerPlays(player), guildActions == null ? [] : [guildActions]).join("<br>");
 
     const next = getNextPlayerToPlay(player);
     document.getElementById("donebutton" + player.number).innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;

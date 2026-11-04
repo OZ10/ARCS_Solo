@@ -4,8 +4,10 @@
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
-// The bot whose Prelude window is open or waiting to open
+// The bot whose window is open or waiting to open, and which step: "prelude" or "guild"
+// (its Guild card actions, see guildactions.js, which use the same window)
 let preludePlayer = null;
+let preludeStep = null;
 
 function getAmbitionPlacePoints(player, ambition, count) {
     // How this player would place in an ambition with this count against everyone else (and
@@ -49,6 +51,15 @@ function canSpareResource(player, resource) {
     const ambition = preludeAmbitions[resource];
     if (ambition == null || !isAmbitionInPlay(ambition)) { return true; }
     return !isAmbitionInReach(player, ambition);
+}
+
+function getResourceNeed(player, resource) {
+    // How much the bot needs a resource: 2 for an ambition it's chasing, 1 for one that could
+    // still be declared, otherwise 0
+    const ambition = preludeAmbitions[resource];
+    if (ambition == null) { return 0; }
+    if (declaredAmbitions.includes(ambition) && isChasingAmbition(player, ambition)) { return 2; }
+    return isAmbitionInPlay(ambition) ? 1 : 0;
 }
 
 function getBotPlay(player) {
@@ -124,7 +135,7 @@ function getPreludeOffers(player) {
     let offers = [];
     // action is what it gives: "build", "move", "secure", "battle" or "lead" (an action from
     // the lead card), so the Build icon can show when the bot can build (see canBotBuild)
-    const offerAction = (resource, text, action) => {
+    const offerAction = (resource, text, action, converts) => {
         const pay = payFor(resource);
         if (pay == null) { return; }
         const amount = Math.min(available[pay], maxPreludePerResource);
@@ -133,7 +144,7 @@ function getPreludeOffers(player) {
         const loyal = guild.find(card => card.spendAnyAs == resource);
         const label = (pay == resource) ? amount + " " + preludeResourceNames[resource]
             : amount + " " + preludeResourceNames[pay] + " as " + preludeResourceNames[resource] + " (" + loyal.name + ")";
-        offers.push({ label: label, text: text, costs: { [pay]: amount }, action: action });
+        offers.push({ label: label, text: text, costs: { [pay]: amount }, action: action, converts: converts });
     };
 
     const usefulIf = { materials: "Build or Repair, if there's a good spot", fuel: "Move, if there's a useful move", relics: "Secure, if there's a card worth securing" };
@@ -151,7 +162,7 @@ function getPreludeOffers(player) {
             chance += preludeChance.weaponsManyShips;
             if (!declaredAmbitions.includes("warlord") && declaredAmbitions.length < 3) { chance += preludeChance.weaponsSaveTrophies; }
         }
-        if (wants(chance)) { offerAction("weapons", "Battle with one of the card's actions", "battle"); }
+        if (wants(chance)) { offerAction("weapons", "Battle with one of the card's actions", "battle", true); }
     }
 
     // Psionics give an action from the lead card. When the bot led, that's only worth it for
@@ -234,29 +245,38 @@ function startPrelude(player) {
         player.prelude = { offers: getPreludeOffers(player), spent: null };
         SaveAllSettings();
     }
-    if (player.prelude.offers.length > 0 && player.prelude.spent == null) { showPreludeModal(player); }
+    if (player.prelude.offers.length > 0 && player.prelude.spent == null) {
+        showPreludeModal(player, "prelude");
+    } else {
+        startGuildActions(player);
+    }
 }
 
-function showPreludeModal(player) {
-    if (preludePlayer === player) { return; }
+function showPreludeModal(player, step) {
+    if (preludePlayer === player && preludeStep == step) { return; }
 
     // Another window (e.g. the Yes/No questions) may still be closing, and two can't be
     // open at once, so wait for it
     const open = document.querySelector(".modal.show");
     if (open != null && open.id != "preludeModal") {
-        open.addEventListener('hidden.bs.modal', () => showPreludeModal(player), { once: true });
+        open.addEventListener('hidden.bs.modal', () => showPreludeModal(player, step), { once: true });
         return;
     }
     preludePlayer = player;
+    preludeStep = step;
 
-    document.getElementById("preludeTitle").innerHTML = "Player " + player.number + "'s prelude";
+    const isGuild = (step == "guild");
+    document.getElementById("preludeTitle").innerHTML = "Player " + player.number + (isGuild ? "'s Guild actions" : "'s prelude");
+    document.getElementById("preludeIntro").innerHTML = (isGuild
+        ? "In place of its normal actions, the bot would like to use these." : "Before its actions, the bot would like to spend these.") + " Tick the ones worth doing.";
+    document.getElementById("confirmPrelude").innerHTML = isGuild ? "Use ticked" : "Spend ticked";
     const header = document.querySelector("#preludeModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     header.classList.add("playerbanner" + player.number);
 
     const list = document.getElementById("preludeList");
     list.replaceChildren();
-    player.prelude.offers.forEach((offer, index) => {
+    (isGuild ? player.guildActions : player.prelude).offers.forEach((offer, index) => {
         const row = document.createElement("div");
         row.classList.add("form-check", "mb-2");
 
@@ -297,10 +317,12 @@ function confirmPrelude() {
     const player = preludePlayer;
     if (player == null) { return; }
 
-    player.prelude.spent = player.prelude.offers.filter((offer, index) => document.getElementById("preludeOffer" + index).checked);
-    applyPrelude(player, player.prelude.spent);
+    const step = preludeStep;
+    const record = (step == "guild") ? player.guildActions : player.prelude;
+    record.spent = record.offers.filter((offer, index) => document.getElementById("preludeOffer" + index).checked);
+    applyPrelude(player, record.spent);
 
-    player.prelude.spent.forEach(offer => {
+    record.spent.forEach(offer => {
         if (offer.seize) {
             hasInitiativeBeenClaimedThisTurn = true;
             changeInitiative(player);
@@ -310,7 +332,12 @@ function confirmPrelude() {
     showGuildCardsRow(player);
 
     preludePlayer = null;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("preludeModal")).hide();
+    preludeStep = null;
+
+    // After the prelude come its Guild card actions, once this window has closed
+    const preludeModal = document.getElementById("preludeModal");
+    if (step == "prelude") { preludeModal.addEventListener('hidden.bs.modal', () => startGuildActions(player), { once: true }); }
+    bootstrap.Modal.getOrCreateInstance(preludeModal).hide();
 
     // The turn summary lists what was done
     if (awaitingDone == player.number) { showTurnDone(player); }

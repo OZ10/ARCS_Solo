@@ -70,11 +70,6 @@
               <button class="btn" data-bs-toggle="tooltip"
                 data-bs-placement="top"
                 data-bs-custom-class="custom-tooltip"
-                data-bs-title="Play a VOX card"
-                onclick="displayVoxCards()" id="vox">vox</button>
-              <button class="btn" data-bs-toggle="tooltip"
-                data-bs-placement="top"
-                data-bs-custom-class="custom-tooltip"
                 data-bs-title="Draw an Action card"><i
                   class="bi bi-file-plus" data-bs-toggle="modal"
                   data-bs-target="#drawCardModal" id="drawcard"
@@ -203,25 +198,16 @@
               </div>
             </div>
 
-            <!-- The player's pieces on the board (see boardCounters in player.js) -->
-            <div class="mx-3 sectionlabel text-center">Board</div>
+            <!-- The player's pieces on the board (see boardCounters in player.js). Shaded, with
+                 shorter tiles, so they aren't mistaken for the resource tiles above -->
+            <div class="boardsection mx-3 mb-2">
+            <div class="sectionlabel text-center">Board</div>
 
-            <div class="d-flex flex-wrap justify-content-center gap-3 mx-3 mb-2">
-              <!-- Ships in the player's supply and on the board -->
+            <div class="d-flex flex-wrap justify-content-center gap-3">
+              <!-- Ships on the board -->
               <div>
                 <div class="boardgrouplabel">Ships</div>
                 <div class="d-flex flex-wrap justify-content-center gap-1">
-                  <div class="resourcetile">
-                    <div class="resourcelabel">Supply</div>
-                    <input type="text" class="resourcevalue" id="shipsSupplyValue" value="0" disabled>
-                    <div class="d-flex gap-1">
-                      <button class="btn resourcebutton resourceminus" id="minusButton_shipsSupply" type="button"
-                        onclick="plusMinusClicked(id, 'minus')" aria-label="Remove a ship from supply"><i class="bi bi-dash-lg"></i></button>
-                      <button class="btn resourcebutton resourceplus" id="plusButton_shipsSupply" type="button"
-                        onclick="plusMinusClicked(id, 'plus')" aria-label="Add a ship to supply"><i class="bi bi-plus-lg"></i></button>
-                    </div>
-                  </div>
-
                   <div class="resourcetile">
                     <div class="resourcelabel">On board</div>
                     <input type="text" class="resourcevalue" id="shipsBoardValue" value="0" disabled>
@@ -296,6 +282,7 @@
                   </div>
                 </div>
               </div>
+            </div>
             </div>
 
             <!-- The Guild cards the player holds, on one line: tap a card for its text, + to add
@@ -403,7 +390,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v031126.02</small>
+              <small class="text-muted me-auto" id="appVersion">v041126.01</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -468,7 +455,7 @@
       </div>
     </div>
 
-    <!-- A bot's prelude: the resources it would like to spend, ticked if worth doing (prelude.js) -->
+    <!-- A bot's prelude, then its Guild actions: what it would like to do, ticked if worth doing (prelude.js) -->
     <div class="modal fade" id="preludeModal" tabindex="-1" aria-labelledby="preludeTitle"
       aria-hidden="true" data-bs-backdrop="static">
       <div class="modal-dialog modal-sm">
@@ -477,8 +464,7 @@
             <h5 class="modal-title" id="preludeTitle">Prelude</h5>
           </div>
           <div class="modal-body">
-            <p class="small text-muted">Before its actions, the bot would like to spend these.
-              Tick the ones worth doing.</p>
+            <p class="small text-muted" id="preludeIntro"></p>
             <div id="preludeList"></div>
           </div>
           <div class="modal-footer">
@@ -489,42 +475,6 @@
       </div>
     </div>
 
-    <div class="modal fade" id="voxCards" tabindex="-1"
-      aria-labelledby="voxCards"
-      aria-hidden="true">
-      <div class="modal-dialog modal-sm">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="voxCardsTitle">
-              VOX Card List
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"
-              aria-label="Close"></button>
-          </div>
-          <div class="modal-body d-flex">
-            <div class="container-fluid">
-              <div class="row">
-                <p id>Please select from the list below the VOX card to play</p>
-              </div>
-              <div class="row">
-                <button type="button" class="btn btn-primary"
-                  onclick="playVoxCard(this)"
-                  data-bs-dismiss="modal">
-                  List of VOX cards to click
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary"
-              data-bs-dismiss="modal">
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="modal fade" id="drawCardModal" tabindex="-1"
       aria-labelledby="Cards"
@@ -914,6 +864,7 @@
     <script src="./resources/js/human.js"></script>
     <script src="./resources/js/bot.js"></script>
     <script src="./resources/js/prelude.js"></script>
+    <script src="./resources/js/guildactions.js"></script>
     <script src="./resources/js/battle.js"></script>
     <script src="./resources/js/build.js"></script>
     <script src="./resources/js/game.js"></script>

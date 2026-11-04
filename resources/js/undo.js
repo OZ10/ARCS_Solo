@@ -38,7 +38,7 @@ function showUndoModal() {
     if (undo == null) { return; }
 
     document.getElementById("undoMessage").innerHTML = "Undo Player " + undo.playerNumber + "'s card in round " + undo.round + ", turn " + undo.turn + "?"
-        + "<br><small class=\"text-muted\">Resources, power, board counts and Guild cards stay as they are, apart from any spent in the bot's prelude.</small>";
+        + "<br><small class=\"text-muted\">Resources, power, board counts and Guild cards stay as they are, apart from what the bot's prelude and Guild actions changed.</small>";
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("undoModal")).show();
 }
@@ -55,10 +55,10 @@ function undoLastCard() {
         resources.forEach(resource => { savedPlayer[resource] = player[resource]; });
         savedPlayer.guildCards = player.guildCards.slice();
 
-        // Except the undone card's bot's prelude, which is put back: resources spent and
-        // gained, and Guild cards discarded. A seize or Union comes back with the rest of the game
-        if (player.number == undo.playerNumber && player.prelude != null && player.prelude.spent != null) {
-            player.prelude.spent.forEach(offer => {
+        // Except the undone card's bot's prelude and Guild actions, which are put back: resources
+        // spent and gained, and Guild cards discarded. A seize or Union comes back with the rest of the game
+        if (player.number == undo.playerNumber) {
+            [player.prelude, player.guildActions].filter(record => record != null && record.spent != null).flatMap(record => record.spent).forEach(offer => {
                 Object.entries(offer.costs || {}).forEach(([resource, amount]) => { savedPlayer[resource + "Value"] += amount; });
                 Object.entries(offer.gains || {}).forEach(([resource, amount]) => { savedPlayer[resource + "Value"] = Math.max(savedPlayer[resource + "Value"] - amount, 0); });
                 if (offer.discards != null && !savedPlayer.guildCards.includes(offer.discards)) { savedPlayer.guildCards.push(offer.discards); }
