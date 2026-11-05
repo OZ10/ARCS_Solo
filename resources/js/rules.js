@@ -229,6 +229,10 @@ const marketValues = {
     vox: { 26: 1.5, 27: 2, 28: 0.5, 29: 1, 30: 1.5, 31: 1 }
 };
 
+// The chance (%) a turn that a bot wants a city on a resource it has no city on, when no declared
+// ambition calls for it (#92). This could also become part of the bot personalities (#71)
+const newCityChance = 40;
+
 // The chance (%) of a bot offering each Guild card action (see guildactions.js). These could
 // also become part of the bot personalities (#71)
 const guildActionChance = {

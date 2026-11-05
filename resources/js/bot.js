@@ -24,20 +24,55 @@ function shouldAskCanBuild(player) {
     // Only when the bot might play a Construction card face up for its actions: it has one,
     // and it's leading, Construction was led, or it has no card of the lead suit (so it may
     // pivot). Asked once a turn. Not if it has a Guild card action it can use instead of a Build,
-    // as that doesn't need a slot, so Construction is still worth playing (#86)
+    // as that doesn't need a slot, so Construction is still worth playing (#86). Not if it has no
+    // reason to build, as the answer is nearly always Yes (#92)
     const hand = getUnplayedCards(player.cards);
     if (player.canBuild != null || !hand.some(card => card.name == "Construction")) { return false; }
-    if (canUseGuildActionInsteadOf(player, "build")) { return false; }
+    if (canUseGuildActionInsteadOf(player, "build") || !wantsToBuild(player)) { return false; }
     if (isLeadingThisTurn()) { return true; }
 
     const lead = playedCardList[0];
     return lead.name == "Construction" || !hand.some(card => card.name == lead.name);
 }
 
+function wantsNewCityType(player) {
+    // It has no city on a resource a declared ambition counts, or it might just fancy one on
+    // another. Rolled once a turn, so its mind doesn't change partway through the turn
+    if (getUncoveredCities(player) >= maxCities) { return false; }
+    const missing = preludeResources.filter(resource => player["cities" + capitalise(resource) + "Value"] == 0);
+    if (missing.length == 0) { return false; }
+    if (missing.some(resource => declaredAmbitions.includes(resource == "weapons" ? "warlord" : preludeAmbitions[resource]))) { return true; }
+
+    if (player.newCityWanted == null) { player.newCityWanted = Math.random() * 100 < newCityChance; }
+    return player.newCityWanted;
+}
+
+function wantsToBuild(player) {
+    // It's short of ships, a city away from a bonus, or wants a city on a new resource
+    return player.shipsBoardValue < fewShipsOnBoard || isNearCityBonus(player) || wantsNewCityType(player);
+}
+
+function avoidsConstruction(player) {
+    // It was told it can't build or repair, or it has no reason to. A Guild card action it can
+    // use instead of a Build still makes Construction worth playing (#86)
+    if (player.canBuild != null) { return player.canBuild === false; }
+    return !wantsToBuild(player) && !canUseGuildActionInsteadOf(player, "build");
+}
+
 function withoutUselessConstruction(player, cards) {
     // A bot that can't build or repair doesn't play Construction face up for its actions,
     // unless that's all it has (#62)
     if (player.canBuild !== false) { return cards; }
+    return withoutConstruction(cards);
+}
+
+function withoutUnwantedConstruction(player, cards) {
+    // Likewise a bot with no reason to build (#92). Only for choosing a card for its actions: it
+    // can still lead one to declare its ambition
+    return avoidsConstruction(player) ? withoutConstruction(cards) : cards;
+}
+
+function withoutConstruction(cards) {
     const others = cards.filter(card => card.name != "Construction");
     return (others.length > 0) ? others : cards;
 }
@@ -370,6 +405,8 @@ function answerYes() {
     const unplayedCards = getUnplayedCards(currentPlayer.cards);
     const focus = document.getElementById("focusMessage").innerHTML;
 
+    currentPlayer.playReason = { type: "chase", ambition: focus.toLowerCase() };
+
     // The action the question that was just answered asks about
     const actionToPlay = ambitionQuestionActions[focus][currentQuestionNumber - 1];
 
@@ -394,9 +431,10 @@ function findCardToPlay(cards, actionToPlay) {
 
         if (cardsWithAmbition.length > 0) {
             cardToPlay = getHighestCard(cardsWithAmbition);
+            currentPlayer.playReason = { type: "lead", ambition: cardToPlay.ambition };
          }else{
             if (chaseAmbition(currentPlayer, getPossibleActions(cards), cards ) == false){
-                cardToPlay = getHighestCard(withoutUselessConstruction(currentPlayer, cards));
+                cardToPlay = getHighestCard(withoutUnwantedConstruction(currentPlayer, cards));
             } else {
                 // The Yes/No modal is now open. answerYes/answerNo will
                 // play the card, so don't play one here as well
@@ -407,7 +445,7 @@ function findCardToPlay(cards, actionToPlay) {
 
     //const cardToPlay = getHighestCard(cards);
 
-    if (cardToPlay == "") { cardToPlay = getHighestCard(withoutUselessConstruction(currentPlayer, cards)); }
+    if (cardToPlay == "") { cardToPlay = getHighestCard(withoutUnwantedConstruction(currentPlayer, cards)); }
 
     let cardAction = "";
 
@@ -418,10 +456,10 @@ function findCardToPlay(cards, actionToPlay) {
     if (cardToPlay != null && isLeading) {
         playCard(currentPlayer, cardToPlay, actionToPlay, cardAction);
     } else {
-        // A Construction lead is no use to a bot that can't build or repair, so rather than
+        // A Construction lead is no use to a bot that can't or doesn't want to build, so rather than
         // surpass or copy it, it pivots with another suit if it can (#62)
-        const usefulCards = withoutUselessConstruction(currentPlayer, cards);
-        const skipLead = currentPlayer.canBuild === false && playedCardList[0].name == "Construction"
+        const usefulCards = withoutUnwantedConstruction(currentPlayer, cards);
+        const skipLead = avoidsConstruction(currentPlayer) && playedCardList[0].name == "Construction"
             && getUnplayedCards(currentPlayer.cards).some(card => card.name != "Construction");
         const pivotCards = (skipLead && !usefulCards.some(card => card.name != "Construction"))
             ? getUnplayedCards(currentPlayer.cards).filter(card => card.name != "Construction") : usefulCards;

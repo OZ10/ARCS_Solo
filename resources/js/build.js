@@ -34,16 +34,36 @@ function getBuildChoice(player, slotResources) {
         return { build: "shipOrStarport", reason: "Only " + player.shipsBoardValue + " ship" + (player.shipsBoardValue == 1 ? "" : "s") + " on the board." };
     }
 
-    // A building it doesn't need: a city towards the city bonus (4 or 5 cities), else a starport
+    // Only planets it already has a city on. Another one means one more Tax each turn (the limit
+    // is per city, rulebook p.12), but it's only worth it for a resource it's chasing, the city
+    // bonus (4 or 5 cities), or a resource slot it needs. Otherwise a starport (#92)
     if (slotResources.length > 0) {
         if (citiesLeft) {
+            const chased = slotResources.find(resource => getResourceNeed(player, resource) == 2);
+            if (chased != null) {
+                return { build: "city", resource: chased, reason: "It's chasing " + capitalise(preludeAmbitions[chased]) + ", and another city means one more Tax each turn." };
+            }
+
             const resource = slotResources[Math.floor(Math.random() * slotResources.length)];
-            return { build: "city", resource: resource, reason: "Another city towards the bonus for 4 or 5 cities." };
+            const cities = getUncoveredCities(player);
+            if (isNearCityBonus(player)) {
+                return { build: "city", resource: resource, reason: "Another city towards the bonus for 4 or 5 cities." };
+            }
+            if (getEmptySlots(player) == 0 && cities < 3) {
+                return { build: "city", resource: resource, reason: "It has no empty resource slots, and another city opens one." };
+            }
+            return { build: "starport", reason: "It already has a city there, so a starport lets it build ships here instead." };
         }
         return { build: "starport", reason: "All its cities are built." };
     }
 
     return { build: "ship", reason: "There's nowhere it needs a building." };
+}
+
+function isNearCityBonus(player) {
+    // Another city would reach the bonus for 4 or 5 cities
+    const cities = getUncoveredCities(player);
+    return cities == 3 || cities == 4;
 }
 
 function capitalise(text) {

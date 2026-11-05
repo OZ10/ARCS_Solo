@@ -52,6 +52,10 @@ class player {
     canBuild = null;
     // The ambitions it was told it can't Tax for this turn (see answerNo in bot.js)
     noTax = [];
+    // Whether it fancies a city on a new resource this turn, once rolled (see bot.js)
+    newCityWanted = null;
+    // Why it chose its card this turn: { type, ambition } (see describeBuildChange)
+    playReason = null;
 }
 
 function getPlayerColour(player) {
@@ -99,6 +103,8 @@ function resetPlayedThisTurn() {
         player.planVariation = null;
         player.canBuild = null;
         player.noTax = [];
+        player.newCityWanted = null;
+        player.playReason = null;
     })
 }
 

@@ -76,7 +76,7 @@ function getActionPlanScore(player, action, focus) {
         case "build":
             if (player.canBuild === false && !canUseGuildActionInsteadOf(player, "build")) { return { score: planImpossible }; }
             if (player.shipsBoardValue < fewShipsOnBoard) { score += weights.buildFewShips; reason = "short of ships, or repair a damaged one"; }
-            else if (getUncoveredCities(player) == 3 || getUncoveredCities(player) == 4) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
+            else if (isNearCityBonus(player)) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
             break;
 
         case "repair": {

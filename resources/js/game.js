@@ -395,7 +395,7 @@ function showTurnDone(player) {
     // In the order they happen: the prelude, then the card's actions and any Guild actions
     const prelude = describePrelude(player), plan = describeTurnPlan(player), guildActions = describeGuildActions(player);
     document.getElementById("turnsummary" + player.number).innerHTML = (prelude == null ? [] : [prelude])
-        .concat(describePlayerPlays(player), plan == null ? [] : [plan], guildActions == null ? [] : [guildActions], getMarketReminder(player) || []).join("<br>");
+        .concat(describePlayerPlays(player), describeBuildChange(player) || [], plan == null ? [] : [plan], guildActions == null ? [] : [guildActions], getMarketReminder(player) || []).join("<br>");
 
     const next = getNextPlayerToPlay(player);
     document.getElementById("donebutton" + player.number).innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;
@@ -464,6 +464,18 @@ function describePlayerPlays(player) {
                 return "Led with " + getCardFullName(card) + declared + ": " + describeActions(card.pips, card.actions) + focus;
         }
     });
+}
+
+function describeBuildChange(player) {
+    // The player said it could build, but its card can't: say why it changed its mind (#92)
+    const play = getBotPlay(player);
+    if (player.isHuman || player.canBuild !== true || play == null || play.actions.split(",").includes("build")) { return null; }
+
+    const reason = player.playReason;
+    const ambition = (reason != null && Object.keys(ambitionResources).includes(reason.ambition)) ? capitalise(reason.ambition) : null;
+    if (ambition != null && reason.type == "chase") { return "You said it could build, but it's chasing " + ambition + " instead."; }
+    if (ambition != null) { return "You said it could build, but it's leading with its best card for " + ambition + " instead."; }
+    return "You said it could build, but another card suited this turn better.";
 }
 
 function describeActions(count, actions) {
