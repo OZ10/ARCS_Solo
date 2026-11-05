@@ -105,6 +105,10 @@ function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, p
         const action = questionActions[questionNumber - 1];
         if (isFinalTurn && action == "influence") { continue; }
 
+        // No need to ask about taxing for a resource that has run out
+        const taxResources = ambitionTaxResources[ambition];
+        if (action == "tax" && taxResources != null && !taxResources.some(resource => getResourceSupply(resource) > 0)) { continue; }
+
         // With the market entered, there's no need to ask about a card that isn't there
         if (!isMarketQuestionPossible(ambition, action, player)) { continue; }
 
@@ -478,6 +482,11 @@ function answerNo() {
 
     const focus = document.getElementById("focusMessage").innerHTML;
     const unplayedCards = getUnplayedCards(currentPlayer.cards);
+
+    // The turn plan shouldn't then suggest what the player just said it can't do
+    if (ambitionQuestionActions[focus][currentQuestionNumber - 1] == "tax") {
+        currentPlayer.noTax = (currentPlayer.noTax || []).concat(focus);
+    }
 
     // Move on to the next question for this ambition that the player has a card for.
     // Questions whose action isn't in their hand are skipped

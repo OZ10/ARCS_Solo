@@ -50,6 +50,8 @@ class player {
     unionDraws = [];
     // A bot's answer this turn to "Can I build or repair anything?" (null until asked, see bot.js)
     canBuild = null;
+    // The ambitions it was told it can't Tax for this turn (see answerNo in bot.js)
+    noTax = [];
 }
 
 function getPlayerColour(player) {
@@ -96,6 +98,7 @@ function resetPlayedThisTurn() {
         player.guildActions = null;
         player.planVariation = null;
         player.canBuild = null;
+        player.noTax = [];
     })
 }
 

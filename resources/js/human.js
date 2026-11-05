@@ -37,7 +37,7 @@ function createClaimButton(btntext, group, groupname) {
     let input = document.createElement("button");
     input.type = "button";
     // Light so it shows on any player colour. claimbutton styles the toggled on (active) state
-    input.classList.add("btn", "btn-light", "claimbutton");
+    input.classList.add("btn", "btn-light", "claimbutton", "m-1");
     input.name = groupname;
     input.id = btntext;
     input.innerHTML = btntext;

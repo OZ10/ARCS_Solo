@@ -182,7 +182,7 @@ function showAddGuildCard(player) {
     body.replaceChildren();
 
     ["materials", "fuel", "weapons", "relics", "psionics"].forEach(resource => {
-        const cards = getGuildCards().filter(card => card.resource == resource && getGuildCardHolder(card.number) == null);
+        const cards = getGuildCards().filter(card => card.resource == resource && getGuildCardHolder(card.number) == null).sort(byCardName);
         if (cards.length == 0) { return; }
 
         const heading = document.createElement("div");
@@ -221,7 +221,7 @@ function showAddGuildCard(player) {
 
         const group = document.createElement("div");
         group.classList.add("d-flex", "flex-wrap", "gap-1");
-        courtCards.filter(card => card.type == "vox").forEach(card => {
+        courtCards.filter(card => card.type == "vox").sort(byCardName).forEach(card => {
             const chip = document.createElement("button");
             chip.type = "button";
             chip.classList.add("guildchip");

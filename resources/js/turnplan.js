@@ -12,6 +12,18 @@ function getTaxTargets(player) {
         .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a));
 }
 
+function getResourceSupply(resource) {
+    // What's left to take: every token not held by a player. With 2 players some are out of play
+    // on the ambitions, so this can be too high, but the Tax question still catches that
+    return Math.max(resourceTokens - players.reduce((total, player) => total + player[resource + "Value"], 0), 0);
+}
+
+function getCitiesToTax(player) {
+    // Its cities it can gain a resource from: there's one left, and it wasn't told it can't
+    const ruledOut = (player.noTax || []).flatMap(ambition => ambitionTaxResources[ambition] || []);
+    return getTaxTargets(player).filter(resource => getResourceSupply(resource) > 0 && !ruledOut.includes(resource));
+}
+
 function getWantedCardResource(player) {
     // The resource it most wants a Court card for: the ambition it's chasing, otherwise one that
     // could still be declared. Weapons when chasing Warlord. null if nothing stands out
@@ -54,8 +66,8 @@ function getActionPlanScore(player, action, focus) {
             break;
 
         case "tax": {
-            const targets = getTaxTargets(player);
-            if (chasing("tyrant")) { score += weights.taxTyrant; reason = rivalTaxReason; break; }
+            const targets = getCitiesToTax(player);
+            if (chasing("tyrant") && !(player.noTax || []).includes("TYRANT")) { score += weights.taxTyrant; reason = rivalTaxReason; break; }
             if (action != focus && (getEmptySlots(player) == 0 || (targets.length == 0 && !player.startingCity))) { return { score: planImpossible }; }
             if (targets.length > 0) { score += getResourceNeed(player, targets[0]) * weights.taxPerNeed; }
             break;
@@ -130,7 +142,7 @@ function getTurnPlan(player) {
             + (action == "move" && chosen.some(pick => pick.action == "battle") && !chosen.some(pick => pick.action == "move") ? turnPlanWeights.moveForBattle : 0);
         // No more Taxes than it has cities to tax, unless it's taxing Rivals to capture
         const canTaxAgain = scores.tax == null || scores.tax.reason == rivalTaxReason
-            || chosen.filter(pick => pick.action == "tax").length < Math.max(getTaxTargets(player).length + (player.startingCity ? 1 : 0), 1);
+            || chosen.filter(pick => pick.action == "tax").length < Math.max(getCitiesToTax(player).length + (player.startingCity ? 1 : 0), 1);
         // No more Secures than there are cards it can secure
         const canSecureAgain = !isMarketKnown() || chosen.filter(pick => pick.action == "secure").length < Math.max(getCardsToSecure(player).length, 1);
         const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain))
@@ -142,7 +154,7 @@ function getTurnPlan(player) {
 
     // A move sets up a battle, if there's one
     const hasBattle = chosen.some(pick => pick.action == "battle");
-    let taxTargets = getTaxTargets(player);
+    let taxTargets = getCitiesToTax(player);
     let secureTargets = isMarketKnown() ? getCardsToSecure(player) : [];
     const influenceTarget = isMarketKnown() ? getCardsToInfluence(player)[0] : null;
     return chosen.sort((a, b) => turnPlanOrder.indexOf(a.action) - turnPlanOrder.indexOf(b.action)).map(pick => {

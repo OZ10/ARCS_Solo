@@ -25,8 +25,8 @@ function getBuildChoice(player, slotResources) {
         const best = Math.max(...needed.map(priority));
         const choices = needed.filter(resource => priority(resource) == best);
         const resource = choices[Math.floor(Math.random() * choices.length)];
-        return { build: "city", resource: resource, reason: "It has no city on " + preludeResourceNames[resource].toLowerCase() + " yet, so it can tax it"
-            + (best == 2 ? " and it's chasing " + capitalise(preludeAmbitions[resource]) : "") + "." };
+        return { build: "city", resource: resource, reason: "It has no city on a " + preludeResourceNames[resource].toLowerCase() + " planet yet"
+            + (best == 2 ? ", and it's chasing " + capitalise(preludeAmbitions[resource]) : "") + "." };
     }
 
     // Short of ships: a ship, or a starport to build them at. The player decides

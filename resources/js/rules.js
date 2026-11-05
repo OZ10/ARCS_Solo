@@ -308,6 +308,12 @@ function scoreAmbition(counts, markers) {
 
 // The action each Yes/No question asks about, in the order the questions are asked.
 // Question 1 is the first entry. The question text is in focus_tycoon, focus_tyrant etc.
+// How many tokens of each resource there are (rulebook p.4)
+const resourceTokens = 5;
+
+// The resources each ambition's Tax question is about (Tyrant's is any Rival's city)
+const ambitionTaxResources = { TYCOON: ["materials", "fuel"], KEEPER: ["relics"], EMPATH: ["psionics"] };
+
 const ambitionQuestionActions = {
     // materials and fuel: tax, secure, influence, raid
     TYCOON: ["tax", "secure", "influence", "battle"],

@@ -296,7 +296,7 @@ header {
   font-weight: bold;
 }
 
-.playerpanel .btn-check + .btn {
+.playerpanel .btn-check + .btn, .playerpanel .claimbutton {
   font-size: 0.85rem;
   padding: 4px 10px;
 }

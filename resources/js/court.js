@@ -164,6 +164,10 @@ function holdsGuildCard(player, number) {
     return (player.guildCards || []).includes(number);
 }
 
+function byCardName(a, b) {
+    return a.name.localeCompare(b.name);
+}
+
 function placesZeroMarker(player, ambition) {
     // Declaring turns the card played into a 0, except with Secret Order for Keeper or Empath
     return !(holdsGuildCard(player, 18) && (ambition == "keeper" || ambition == "empath"));

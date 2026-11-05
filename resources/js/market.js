@@ -104,10 +104,30 @@ function askOpeningCourt() {
     const modal = document.getElementById("courtModal");
     modal.querySelector(".modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     document.getElementById("courtTitle").innerHTML = "The Court";
-    modal.addEventListener('hidden.bs.modal', () => { courtSetup = false; }, { once: true });
+    modal.addEventListener('hidden.bs.modal', () => { courtSetup = false; showSetUpPlayers(); }, { once: true });
 
     showCourtWindow();
     bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
+function showSetUpPlayers() {
+    // A new game, once the Court has been entered: what each player starts with (rulebook p.5).
+    // The app can't see the setup card, so the player enters it
+    document.getElementById("guildTitle").innerHTML = "Set up the players";
+    const body = document.getElementById("guildBody");
+    body.innerHTML = "<p class=\"mb-2\">On each player's panel, bots included:</p>"
+        + "<ol class=\"ps-3 mb-3\"><li class=\"mb-1\">Add the 2 resources they start with.</li>"
+        + "<li>Tap + on the type of planet their starting city is on.</li></ol>";
+
+    const done = document.createElement("button");
+    done.type = "button";
+    done.id = "setUpPlayersDone";
+    done.classList.add("btn", "btn-primary", "w-100");
+    done.innerHTML = "OK";
+    done.onclick = () => bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
+    body.appendChild(done);
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
 }
 
 function getMarketShortfall() {
@@ -243,23 +263,23 @@ function showCourtWindow() {
         body.appendChild(row);
     });
 
-    // Add a card: any Court card not held by anyone or already in the market
-    const available = courtCards.filter(card => !courtMarket.some(entry => entry.number == card.number) && getGuildCardHolder(card.number) == null);
+    // Add a card, until the market is full: any Court card not held by anyone or already in the market
+    const available = courtCards.filter(card => !courtMarket.some(entry => entry.number == card.number) && getGuildCardHolder(card.number) == null).sort(byCardName);
     const add = document.createElement("select");
     add.classList.add("form-select", "form-select-sm", "mt-2");
     add.id = "courtAdd";
     add.innerHTML = "<option value=\"\">Add a card to the market&hellip;</option>"
         + available.map(card => "<option value=\"" + card.number + "\">" + card.name + (card.type == "vox" ? " (Vox)" : " (" + preludeResourceNames[card.resource] + ")") + "</option>").join("");
     add.onchange = () => { if (add.value != "") { addToMarket(add.value); } };
-    const isOpeningFull = courtSetup && courtMarket.length >= openingCourtCards[players.length];
-    if (!isOpeningFull) { body.appendChild(add); }
+    const isFull = courtMarket.length >= openingCourtCards[players.length];
+    if (!isFull) { body.appendChild(add); }
 
     if (courtSetup) {
         const done = document.createElement("button");
         done.type = "button";
         done.id = "courtSetupDone";
-        done.classList.add("btn", isOpeningFull ? "btn-primary" : "btn-outline-secondary", "w-100", "mt-3");
-        done.innerHTML = isOpeningFull ? "Done" : "Skip for now";
+        done.classList.add("btn", isFull ? "btn-primary" : "btn-outline-secondary", "w-100", "mt-3");
+        done.innerHTML = isFull ? "Done" : "Skip for now";
         done.onclick = () => bootstrap.Modal.getOrCreateInstance(document.getElementById("courtModal")).hide();
         body.appendChild(done);
     }

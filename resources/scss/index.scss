@@ -355,7 +355,7 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
 }
 
 // Card and action buttons in a player's panel
-.playerpanel .btn-check + .btn {
+.playerpanel .btn-check + .btn, .playerpanel .claimbutton {
     font-size: 0.85rem;
     padding: 4px 10px;
 }

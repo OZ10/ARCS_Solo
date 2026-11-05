@@ -347,7 +347,7 @@ function showBattleModal(button) {
         input.name = "battleDefender";
         input.id = "battleDefender" + player.number;
         // A different defender is a different battle, so its counts start again
-        input.onchange = () => { battle.defender = player; battle.start = null; resetBattleRaid(); updateBattleCounts(); };
+        input.onchange = () => { battle.defender = player; battle.start = null; battle.ships = Math.max(battle.ships, 1); resetBattleRaid(); updateBattleCounts(); };
 
         const label = document.createElement("label");
         label.classList.add("btn", "btn-sm", "playerchoice", "playerchoice" + getPlayerColour(player));
@@ -366,8 +366,9 @@ function showBattleModal(button) {
 }
 
 function battleStep(field, change) {
-    // The -/+ buttons (and the keys for a raid). The attacker has at least one ship
-    const minimum = (field == "ships") ? 1 : 0;
+    // The -/+ buttons (and the keys for a raid). The attacker needs a ship to start, but can
+    // lose them all once it has rolled
+    const minimum = (field == "ships" && battle.start == null) ? 1 : 0;
     battle[field] = Math.max(minimum, battle[field] + change);
     updateBattleCounts();
 }
@@ -533,10 +534,12 @@ function clearBattleDecision() {
             : "Roll your dice, then set the ships and buildings above to what's left. Do the same for any more attacks, then tap Done battling.")
         : (battle.start == null
             ? "Set up the battle, then choose the dice."
-            : "To attack again, choose the dice. Otherwise, Done battling updates the values.");
+            : (battle.ships == 0
+                ? "It has no ships left. Done battling updates the values."
+                : "To attack again, choose the dice. Otherwise, Done battling updates the values."));
     document.getElementById("battleAdvice").innerHTML = "<div class=\"text-muted\">" + advice + "</div>";
     document.getElementById("chooseBattleDice").innerHTML = isHuman ? "Start battle" : "Choose dice";
-    showHideElement([document.getElementById("chooseBattleDice")], !(isHuman && battle.start != null));
+    showHideElement([document.getElementById("chooseBattleDice")], !(battle.start != null && (isHuman || battle.ships == 0)));
     showHideElement([document.getElementById("battleDone")], battle.start != null);
 }
 
@@ -691,8 +694,9 @@ function showBattleResults() {
         }
     }
 
-    // The human player says what they stole, if anything
-    if (battle.attacker.isHuman) {
+    // The human player says what they stole, if anything. With no attacking ships left, no one
+    // can spend the keys (rulebook p.16)
+    if (battle.attacker.isHuman && battle.ships > 0) {
         const wants = getRaidWants(battle.attacker, battle.defender);
         if (wants.length > 0) {
             html += "<div class=\"mt-2\">What did you steal?</div><select class=\"form-select form-select-sm mt-1\" id=\"battleStolenItem\"><option value=\"none\">Nothing</option>"
@@ -702,7 +706,7 @@ function showBattleResults() {
 
     // If the bot rolled raid dice, did it get the keys?
     const raidItem = getBattleRaidItem();
-    if (!battle.attacker.isHuman && battle.raidRolled && raidItem != null) {
+    if (!battle.attacker.isHuman && battle.raidRolled && raidItem != null && battle.ships > 0) {
         html += "<div class=\"form-check mt-2\"><input class=\"form-check-input\" type=\"checkbox\" id=\"battleStole\">"
             + "<label class=\"form-check-label\" for=\"battleStole\">" + attacker + " rolled " + battle.keys + " key" + (battle.keys == 1 ? "" : "s") + " and stole the " + raidItem.name + "</label></div>";
     }
