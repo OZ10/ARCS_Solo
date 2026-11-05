@@ -127,6 +127,71 @@ function findFocus(player, unplayedCards) {
     // AND WILL RESULT IN THE PLAYER PLAYING MULITPLE CARDS
 }
 
+function getRaidHolders(player, resources) {
+    // The Rivals with something of these resources to steal, most first
+    return players.filter(other => other !== player)
+        .map(other => ({ player: other, count: resources.reduce((total, resource) => total + other[resource + "Value"] + getGuildIconCount(other, resource), 0) }))
+        .filter(holder => holder.count > 0).sort((a, b) => b.count - a.count);
+}
+
+function canMoveThenDo(player, action) {
+    // Whether it holds a card to Move with, and a way to do this after: a different card on a
+    // later turn, or the same card if it has both. A Weapon lets any card Battle
+    const hand = getUnplayedCards(player.cards);
+    return hand.some(card => card.actions.includes("move") && (card.actions.includes(action)
+        || hand.some(other => other !== card && other.actions.includes(action))
+        || (action == "battle" && player.weaponsValue > 0)));
+}
+
+function isReachQuestionPossible(ambition, action, player) {
+    // Whether it's worth asking if it can move into position. It needs ships, a card to Move
+    // with, and something to go for
+    if (player.shipsBoardValue == 0) { return false; }
+
+    const resources = ambitionTaxResources[ambition];
+    switch (action) {
+        case "reachTax": {
+            const rivals = players.filter(other => other !== player);
+            const hasCity = other => other.startingCity || (resources == null
+                ? cityCounters.some(counter => other[counter + "Value"] > 0)
+                : resources.some(resource => other["cities" + capitalise(resource) + "Value"] > 0));
+            const supply = resources == null || resources.some(resource => getResourceSupply(resource) > 0);
+            return supply && rivals.some(hasCity) && canMoveThenDo(player, "tax");
+        }
+        case "reachRaid":
+            return getRaidHolders(player, resources).length > 0 && canMoveThenDo(player, "battle");
+        default:
+            return canMoveThenDo(player, "battle");
+    }
+}
+
+function getReachQuestion(ambition, action, player) {
+    const catapult = "Count a Catapult from my starport.";
+    const reach = "this turn, or get within one space";
+    if (action == "reachTax") {
+        const word = ambitionResourceWords[ambition];
+        const city = (word == null) ? "a Rival's city" : "a Rival's " + word.replace(/relics/, "relic").replace(/psionics/, "psionic") + " city";
+        return "Can I reach " + city + " " + reach + " of it? " + catapult + " I'd need more fresh ships there than they have.";
+    }
+    if (action == "reachRaid") {
+        const holder = getRaidHolders(player, ambitionTaxResources[ambition])[0];
+        return "Can I reach a building of Player " + holder.player.number + "'s " + reach + ", to raid them? They hold " + holder.count + " " + ambitionResourceWords[ambition] + ". " + catapult;
+    }
+    return "Can I reach a Rival's ships " + reach + "? " + catapult;
+}
+
+function getReachGoal(ambition, action, player) {
+    // What a Yes means it's moving for, for the turn plan
+    if (action == "reachBattle") { return "towards a Rival's ships, to Battle them"; }
+    if (action == "reachRaid") {
+        const holder = getRaidHolders(player, ambitionTaxResources[ambition])[0];
+        return "towards Player " + holder.player.number + ", who holds " + holder.count + " " + ambitionResourceWords[ambition] + ", to raid them";
+    }
+    const word = ambitionResourceWords[ambition];
+    return "towards " + ((word == null) ? "a Rival's city" : "a Rival's " + word.replace(/relics/, "relic").replace(/psionics/, "psionic") + " city")
+        + ", with more fresh ships than they have there";
+}
+
 function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, player) {
     // Find the next question for the ambition that the player has a card
     // for, skipping any whose action isn't in their hand. 0 if there are none
@@ -143,6 +208,15 @@ function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, p
         // No need to ask about taxing for a resource that has run out
         const taxResources = ambitionTaxResources[ambition];
         if (action == "tax" && taxResources != null && !taxResources.some(resource => getResourceSupply(resource) > 0)) { continue; }
+
+        // Moving into position has its own checks
+        if (action.startsWith("reach")) {
+            if (isReachQuestionPossible(ambition, action, player)) { return questionNumber; }
+            continue;
+        }
+
+        // No need to ask about raiding for something no Rival has
+        if (action == "battle" && taxResources != null && getRaidHolders(player, taxResources).length == 0) { continue; }
 
         // With the market entered, there's no need to ask about a card that isn't there
         if (!isMarketQuestionPossible(ambition, action, player)) { continue; }
@@ -192,30 +266,8 @@ function focus_ambition(ambition, questionNumber, answerNo) {
         modal = openYesNoModal(ambition);
     }
 
-    switch (ambition) {
-        case "TYCOON":
-            focus_tycoon(questionNumber);
-            break;
-
-        case "TYRANT":
-            focus_tyrant(questionNumber);
-            break;
-
-        case "WARLORD":
-            focus_warlord(questionNumber);
-            break;
-
-        case "KEEPER":
-            focus_keeper(questionNumber);
-            break;
-
-        case "EMPATH":
-            focus_empath(questionNumber);
-            break;
-
-        default:
-            break;
-    }
+    const action = ambitionQuestionActions[ambition][questionNumber - 1];
+    updateYesNoText(action.startsWith("reach") ? getReachQuestion(ambition, action, currentPlayer) : ambitionQuestionText[ambition][action]);
 
     // Only show the modal if the previous 
     // answer was not 'No'
@@ -248,140 +300,6 @@ function updateYesNoText(text) {
 
 }
 
-function focus_tycoon(questionNumber) {
-    switch (questionNumber) {
-        case 1:
-            updateYesNoText("Can I tax a city for materials or fuel?");
-            break;
-
-        case 2:
-            updateYesNoText("Is there a materials or fuel card in the market I can secure?");
-            //updateYesNoText("Is there a materials or fuel card in the market I can secure?";
-            break;
-
-        case 3:
-            updateYesNoText("Is there a materials or fuel card in the market I can influence?");
-            break;
-
-        case 4:
-            updateYesNoText("Can I raid a city for materials or fuel?");
-            break;
-
-        default:
-            // Could not do any of the above
-            // Move to next amibition?
-            break;
-    }
-}
-
-function focus_tyrant(questionNumber) {
-    //let modal = openYesNoModal("TYRANT");
-
-    switch (questionNumber) {
-        case 1:
-            updateYesNoText("Can I tax a rival's city to capture?");
-            break;
-
-        case 2:
-            updateYesNoText("Is there a card in the market with rival agents on it that I can secure?");
-            break;
-
-        case 3:
-            updateYesNoText("Can I destory a city to ransack the court?");
-            break;
-
-        default:
-            // Could not do any of the above
-            // Move to next amibition?
-            break;
-    }
-
-    //modal.show();
-}
-
-function focus_warlord(questionNumber) {
-    //let modal = openYesNoModal("WARLORD");
-
-    switch (questionNumber) {
-        case 1:
-            updateYesNoText("Can I battle a rival?");
-            break;
-
-        case 2:
-            updateYesNoText("Is there a weapons card in the market I can secure?");
-            break;
-
-        case 3:
-            updateYesNoText("Is there a weapons card in the market I can influence?");
-            break;
-
-        default:
-            // Could not do any of the above
-            // Move to next amibition?
-            break;
-    }
-
-    //modal.show();
-}
-
-function focus_keeper(questionNumber) {
-    //let modal = openYesNoModal("KEEPER");
-
-    switch (questionNumber) {
-        case 1:
-            updateYesNoText("Can I tax a city for a relic?");
-            break;
-
-        case 2:
-            updateYesNoText("Is there a relic card in the market I can secure?");
-            break;
-
-        case 3:
-            updateYesNoText("Is there a relic card in the market I can influence?");
-            break;
-
-        case 4:
-            updateYesNoText("Can I raid a city for a relic?");
-            break;
-
-        default:
-            // Could not do any of the above
-            // Move to next amibition?
-            break;
-    }
-
-    //modal.show();
-}
-
-function focus_empath(questionNumber) {
-    //let modal = openYesNoModal("EMPATH");
-
-    switch (questionNumber) {
-        case 1:
-            updateYesNoText("Can I tax a city for a psionic?");
-            break;
-
-        case 2:
-            updateYesNoText("Is there a psionic card in the market I can secure?");
-            break;
-
-        case 3:
-            updateYesNoText("Is there a psionic card in the market I can influence?");
-            break;
-
-        case 4:
-            updateYesNoText("Can I raid a city for a psionic?");
-            break;
-
-        default:
-            // Could not do any of the above
-            // Move to next amibition?
-            break;
-    }
-
-    //modal.show();
-}
-
 function openYesNoModal(focusTitle) {
     let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("yesNo"));
     setYesNoTitle();
@@ -408,9 +326,21 @@ function answerYes() {
     currentPlayer.playReason = { type: "chase", ambition: focus.toLowerCase() };
 
     // The action the question that was just answered asks about
-    const actionToPlay = ambitionQuestionActions[focus][currentQuestionNumber - 1];
+    let actionToPlay = ambitionQuestionActions[focus][currentQuestionNumber - 1];
 
-    const cardsWithAction = getCardsWithAction(unplayedCards, actionToPlay);
+    // Moving into position: say what for, and a card that can Battle too if that's the idea
+    let cardsWithAction;
+    if (actionToPlay.startsWith("reach")) {
+        currentPlayer.moveGoal = getReachGoal(focus, actionToPlay, currentPlayer);
+        cardsWithAction = getCardsWithAction(unplayedCards, "move");
+        if (actionToPlay != "reachTax") {
+            const both = getCardsWithAction(cardsWithAction, "battle");
+            if (both.length > 0) { cardsWithAction = both; }
+        }
+        actionToPlay = "move";
+    } else {
+        cardsWithAction = getCardsWithAction(unplayedCards, actionToPlay);
+    }
     findCardToPlay(cardsWithAction, actionToPlay);
 }
 

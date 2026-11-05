@@ -114,10 +114,13 @@ function getTurnSection(label, html) {
     return "<div class=\"turnsection\"><div class=\"turnlabel\">" + label + "</div>" + html + "</div>";
 }
 
-function getSplitPlanStep(step) {
-    // "Battle (chasing Warlord)" is the step and its reason
+function getSplitPlanStep(step, player) {
+    // "Battle (chasing Warlord)" is the step and its reason. A Battle also says who and where
     const parts = /^(.*?) \((.*)\)$/.exec(step.text);
-    return parts == null ? { name: step.text, reason: "" } : { name: parts[1], reason: capitalise(parts[2]) };
+    const split = parts == null ? { name: step.text, reason: "" } : { name: parts[1], reason: capitalise(parts[2]) };
+    const target = (step.action == "battle") ? getBattleTarget(player) : null;
+    if (target == null) { return split; }
+    return { name: "Battle Player " + target.player.number, reason: [split.reason ? split.reason + "." : "", target.why, target.where].filter(text => text != "").join(" ") };
 }
 
 function getOfferRows(offers) {
@@ -157,7 +160,7 @@ function getSlotAdviceHtml() {
 }
 
 function renderTurn(player) {
-    const plan = getTurnPlan(player).map(step => ({ ...step, ...getSplitPlanStep(step) }));
+    const plan = getTurnPlan(player).map(step => ({ ...step, ...getSplitPlanStep(step, player) }));
     const prelude = (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
     const guild = (player.guildActions != null && player.guildActions.spent != null) ? player.guildActions.spent : [];
     const planned = plan.map(step => turnActionTools[step.action]).filter(name => name != null);
@@ -201,7 +204,7 @@ function renderTurn(player) {
 
 function getBarPlan(player) {
     // The plan's steps, the same step twice in a row shown once with how many
-    const steps = getTurnPlan(player).map(step => getSplitPlanStep(step).name);
+    const steps = getTurnPlan(player).map(step => getSplitPlanStep(step, player).name);
     if (steps.length == 0) { return "No actions"; }
     return steps.filter((step, index) => index == 0 || step != steps[index - 1])
         .map(step => { const count = steps.filter(other => other == step).length; return step + (count > 1 ? " &times;" + count : ""); }).join(" &rarr; ");

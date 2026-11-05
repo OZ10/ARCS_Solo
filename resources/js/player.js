@@ -56,6 +56,10 @@ class player {
     newCityWanted = null;
     // Why it chose its card this turn: { type, ambition } (see describeBuildChange)
     playReason = null;
+    // Why it's moving this turn, if the player said it could reach something (see answerYes)
+    moveGoal = null;
+    // Who it means to Battle this turn, once chosen (see getBattleTarget)
+    battleTargetNumber = null;
 }
 
 function getPlayerColour(player) {
@@ -105,6 +109,8 @@ function resetPlayedThisTurn() {
         player.noTax = [];
         player.newCityWanted = null;
         player.playReason = null;
+        player.moveGoal = null;
+        player.battleTargetNumber = null;
     })
 }
 

@@ -188,10 +188,22 @@ const turnPlanWeights = {
     repairManyShips: 1,     // - lots of ships on the board
     repairWarlord: 1,       // + Warlord is declared, as damaged ships are easy Trophies
     moveForBattle: 1.5,     // + a first Move, when it's also going to Battle
+    moveGoal: 1.5,          // + a Move with a goal: a Rival to tax or raid, or a slot for a city it wants
     repeat: 1.5,            // - for each time the action is already in the plan
     variation: 1            // + up to this much at random per action, set once a turn
 };
 const planImpossible = -100;
+
+// Who a bot would rather Battle (see getBattleTarget). These could also become part of the bot
+// personalities (#71)
+const battleTargetWeights = {
+    holding: 2,             // + each resource or Guild card they hold of what it's chasing, to raid
+    leader: 2,              // + they're ahead of everyone on Power
+    power: 0.1,             // + each Power they have
+    ship: 0.1,              // + each ship they have on the board
+    shipWarlord: 0.5,       // + each ship they have on the board instead, when chasing Warlord
+    variation: 1            // + up to this much at random per Rival, set once a turn
+};
 
 // The order to take the actions in, whichever are chosen
 const turnPlanOrder = ["move", "battle", "influence", "secure", "tax", "build", "repair"];
@@ -318,15 +330,52 @@ const resourceTokens = 5;
 // The resources each ambition's Tax question is about (Tyrant's is any Rival's city)
 const ambitionTaxResources = { TYCOON: ["materials", "fuel"], KEEPER: ["relics"], EMPATH: ["psionics"] };
 
+// The questions for each ambition, in order. reachTax, reachRaid and reachBattle ask if it can
+// move into position for that, straight after a No to doing it now (#102)
 const ambitionQuestionActions = {
     // materials and fuel: tax, secure, influence, raid
-    TYCOON: ["tax", "secure", "influence", "battle"],
+    TYCOON: ["tax", "reachTax", "secure", "influence", "battle", "reachRaid"],
     // capture: tax a rival city, secure a card with rival agents, ransack the court
-    TYRANT: ["tax", "secure", "battle"],
+    TYRANT: ["tax", "reachTax", "secure", "battle"],
     // fight: battle, secure a weapons card, influence a weapons card
-    WARLORD: ["battle", "secure", "influence"],
+    WARLORD: ["battle", "reachBattle", "secure", "influence"],
     // relics: tax, secure, influence, raid
-    KEEPER: ["tax", "secure", "influence", "battle"],
+    KEEPER: ["tax", "reachTax", "secure", "influence", "battle", "reachRaid"],
     // psionics: tax, secure, influence, raid
-    EMPATH: ["tax", "secure", "influence", "battle"]
+    EMPATH: ["tax", "reachTax", "secure", "influence", "battle", "reachRaid"]
 };
+
+// What each question says. The reach questions depend on the game (see getReachQuestion)
+const ambitionQuestionText = {
+    TYCOON: {
+        tax: "Can I tax a city for materials or fuel?",
+        secure: "Is there a materials or fuel card in the market I can secure?",
+        influence: "Is there a materials or fuel card in the market I can influence?",
+        battle: "Can I raid a city for materials or fuel?"
+    },
+    TYRANT: {
+        tax: "Can I tax a rival's city to capture?",
+        secure: "Is there a card in the market with rival agents on it that I can secure?",
+        battle: "Can I destroy a city to ransack the court?"
+    },
+    WARLORD: {
+        battle: "Can I battle a rival?",
+        secure: "Is there a weapons card in the market I can secure?",
+        influence: "Is there a weapons card in the market I can influence?"
+    },
+    KEEPER: {
+        tax: "Can I tax a city for a relic?",
+        secure: "Is there a relic card in the market I can secure?",
+        influence: "Is there a relic card in the market I can influence?",
+        battle: "Can I raid a city for a relic?"
+    },
+    EMPATH: {
+        tax: "Can I tax a city for a psionic?",
+        secure: "Is there a psionic card in the market I can secure?",
+        influence: "Is there a psionic card in the market I can influence?",
+        battle: "Can I raid a city for a psionic?"
+    }
+};
+
+// How each ambition's resources read in a sentence
+const ambitionResourceWords = { TYCOON: "materials or fuel", KEEPER: "relics", EMPATH: "psionics" };

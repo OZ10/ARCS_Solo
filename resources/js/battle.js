@@ -337,7 +337,8 @@ function showBattleModal(button) {
     header.classList.add("playerbanner" + getPlayerColour(battle.attacker));
     document.getElementById("battleTitle").innerHTML = "Player " + battle.attacker.number + " attacks";
 
-    // The defender can be any other player
+    // The defender can be any other player, starting on who a bot would rather Battle
+    const target = usesTurnWindow(battle.attacker) ? getBattleTarget(battle.attacker) : null;
     const defenders = document.getElementById("battleDefenders");
     defenders.replaceChildren();
     players.filter(player => player.number != battle.attacker.number).forEach((player, index) => {
@@ -354,7 +355,7 @@ function showBattleModal(button) {
         label.htmlFor = input.id;
         label.innerHTML = "Player " + player.number;
 
-        if (index == 0) {
+        if (target != null ? player === target.player : index == 0) {
             input.checked = true;
             battle.defender = player;
         }
@@ -474,7 +475,10 @@ function showBattleRaid() {
         return;
     }
 
-    let html = "";
+    // Why it would rather Battle this Rival, and where
+    const target = usesTurnWindow(battle.attacker) ? getBattleTarget(battle.attacker) : null;
+    let html = (target != null && target.player === battle.defender)
+        ? "<div class=\"small text-muted text-center mb-2\" id=\"battleTargetReason\">" + target.why + " " + target.where + "</div>" : "";
     if (holdsGuildCard(battle.attacker, 8)) {
         html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
             + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleInGate\" onchange=\"setInGate(this.checked)\"" + (battle.inGate ? " checked" : "") + ">"

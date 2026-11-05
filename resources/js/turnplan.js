@@ -24,6 +24,86 @@ function getCitiesToTax(player) {
     return getTaxTargets(player).filter(resource => getResourceSupply(resource) > 0 && !ruledOut.includes(resource));
 }
 
+function getMoveGoal(player) {
+    // Why it would Move, from what the app knows without asking: a Rival to tax or raid for what
+    // it's chasing, or a slot for a city it wants. It needs a way to follow it up: more actions
+    // on this card, or another card. null if nothing stands out (#102)
+    const play = getBotPlay(player);
+    const hand = getUnplayedCards(player.cards);
+    const canFollowUp = action => (play != null && play.count > 1 && play.actions.includes(action)) || hand.some(card => card.actions.includes(action));
+    const rivals = players.filter(other => other !== player);
+    const cityOn = (other, resource) => other["cities" + capitalise(resource) + "Value"] > 0;
+    const named = resource => preludeResourceNames[resource].toLowerCase();
+
+    for (const resource of preludeResources.filter(candidate => getResourceNeed(player, candidate) == 2)) {
+        if (!cityOn(player, resource) && rivals.some(other => cityOn(other, resource)) && getResourceSupply(resource) > 0 && canFollowUp("tax")) {
+            return "towards a Rival's " + named(resource) + " city, with more fresh ships than they have there";
+        }
+        const holder = getRaidHolders(player, [resource])[0];
+        if (holder != null && canFollowUp("battle")) {
+            return "towards Player " + holder.player.number + ", who holds " + holder.count + " " + named(resource) + (holder.count > 1 && resource != "fuel" ? "s" : "") + ", to raid them";
+        }
+    }
+
+    const chasing = ambition => declaredAmbitions.includes(ambition) && isChasingAmbition(player, ambition);
+    if (chasing("tyrant") && rivals.some(other => other.startingCity || cityCounters.some(counter => other[counter + "Value"] > 0)) && canFollowUp("tax")) {
+        return "towards a Rival's city, with more fresh ships than they have there, to capture";
+    }
+    if (chasing("warlord") && canFollowUp("battle")) { return "towards a Rival's ships, to Battle them"; }
+
+    const newCity = preludeResources.filter(resource => !cityOn(player, resource) && getResourceNeed(player, resource) > 0)
+        .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a))[0];
+    if (newCity != null && getUncoveredCities(player) < maxCities && canFollowUp("build")) {
+        return "towards a " + named(newCity) + " planet with an open slot, to build a city";
+    }
+    return null;
+}
+
+function getBattleTargetReason(player, rival) {
+    // Why this Rival, as { why, where }. The app can't see the map, so where is a rule of thumb:
+    // a defending fresh ship hits back on an intercept, and raid dice need a building there
+    const outnumber = "Choose a system where it outnumbers their fresh ships.";
+    const holding = preludeResources.filter(resource => getResourceNeed(player, resource) == 2)
+        .map(resource => ({ resource: resource, count: rival[resource + "Value"] + getGuildIconCount(rival, resource) }))
+        .filter(held => held.count > 0).sort((a, b) => b.count - a.count)[0];
+    if (holding != null) {
+        const name = preludeResourceNames[holding.resource].toLowerCase() + (holding.count > 1 && holding.resource != "fuel" ? "s" : "");
+        return { why: "They hold " + holding.count + " " + name + " to raid.", where: "Choose a system with a building of theirs, for raid dice." };
+    }
+
+    const others = players.filter(other => other !== rival);
+    if (declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord")) {
+        return { why: "They have " + rival.shipsBoardValue + " ship" + (rival.shipsBoardValue == 1 ? "" : "s") + " to destroy for Trophies.", where: outnumber };
+    }
+    if (others.every(other => rival.powerValue > other.powerValue)) { return { why: "They're leading on Power.", where: outnumber }; }
+    return { why: "They have " + rival.shipsBoardValue + " ship" + (rival.shipsBoardValue == 1 ? "" : "s") + " on the board.", where: outnumber };
+}
+
+function getBattleTarget(player) {
+    // Who it would rather Battle this turn, as { player, why, where }: whoever holds what it's
+    // chasing, is ahead on Power or, for Warlord, has ships to destroy. Chosen once a turn so it
+    // doesn't change as tiles are tapped, with a little variation so it isn't predictable. Only
+    // Rivals with something on the board. null if there are none
+    const weights = battleTargetWeights;
+    const rivals = players.filter(other => other !== player
+        && (other.shipsBoardValue > 0 || other.startingCity || cityCounters.some(counter => other[counter + "Value"] > 0)));
+    if (rivals.length == 0) { return null; }
+
+    let target = rivals.find(other => other.number == player.battleTargetNumber);
+    if (target == null) {
+        const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2);
+        const warlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
+        const score = rival => chased.reduce((total, resource) => total + (rival[resource + "Value"] + getGuildIconCount(rival, resource)) * weights.holding, 0)
+            + (players.filter(other => other !== rival).every(other => rival.powerValue > other.powerValue) ? weights.leader : 0)
+            + rival.powerValue * weights.power
+            + rival.shipsBoardValue * (warlord ? weights.shipWarlord : weights.ship)
+            + Math.random() * weights.variation;
+        target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
+        player.battleTargetNumber = target.number;
+    }
+    return { player: target, ...getBattleTargetReason(player, target) };
+}
+
 function getWantedCardResource(player) {
     // The resource it most wants a Court card for: the ambition it's chasing, otherwise one that
     // could still be declared. Weapons when chasing Warlord. null if nothing stands out
@@ -44,6 +124,14 @@ function getActionPlanScore(player, action, focus) {
     let reason = "";
 
     switch (action) {
+        case "move": {
+            if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
+            const goal = getMoveGoal(player);
+            if (goal != null) { score += weights.moveGoal; reason = goal; }
+            else { reason = "to guard a city with no ships with it, if one needs it"; }
+            break;
+        }
+
         case "battle":
             if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
             if (chasing("warlord")) { score += weights.battleWarlord; reason = "chasing Warlord"; }
@@ -101,7 +189,7 @@ function getActionPlanScore(player, action, focus) {
     }
 
     // What the player said it can do, in the Yes/No questions
-    if (action == focus) { score += weights.focus; reason = "you said it can"; }
+    if (action == focus) { score += weights.focus; reason = (action == "move" && player.moveGoal != null) ? player.moveGoal : "you said it can"; }
     return { score: score, reason: reason };
 }
 
@@ -161,7 +249,7 @@ function getTurnPlan(player) {
         let name = capitalise(pick.action);
         let reason = pick.reason;
 
-        if (pick.action == "move" && hasBattle && reason != "you said it can") { reason = "to set up the Battle"; }
+        if (pick.action == "move" && hasBattle && reason != "you said it can" && player.moveGoal == null) { reason = "to set up the Battle"; }
         if (pick.action == "tax" && reason != rivalTaxReason && taxTargets.length > 0) {
             // Each Tax goes to the next city it wants
             name = "Tax its " + preludeResourceNames[taxTargets.shift()].toLowerCase() + " city";
