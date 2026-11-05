@@ -408,7 +408,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v051126.02</small>
+              <small class="text-muted me-auto" id="appVersion">v051126.03</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -774,6 +774,32 @@
       </div>
     </div>
 
+    <!-- A bot's turn: what it played, its plan and the buttons for it (see turnwindow.js) -->
+    <div class="modal fade" id="turnModal" tabindex="-1" aria-labelledby="turnTitle"
+      aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header py-2">
+            <h5 class="modal-title" id="turnTitle">Turn</h5>
+          </div>
+          <div class="modal-body py-2 px-2" id="turnBody"></div>
+          <div class="modal-footer d-flex flex-nowrap gap-2 py-2 px-2">
+            <button type="button" class="btn btn-secondary flex-fill m-0" id="turnBack"
+              onclick="closeTurnWindow()"><i class="bi bi-chevron-down"></i> Back to board</button>
+            <button type="button" class="btn btn-primary flex-fill m-0" id="turnDone"
+              onclick="turnDone()">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Above the footer: where to put a resource just gained, and the bot's turn when its
+         window is closed -->
+    <div id="turnDock">
+      <div class="d-none" id="turnAdvice"></div>
+      <div class="d-none" id="turnBar"></div>
+    </div>
+
     <div class="modal fade" id="undoModal" tabindex="-1"
       aria-labelledby="Undo" aria-hidden="true">
       <div class="modal-dialog modal-sm">
@@ -904,6 +930,7 @@
     <script src="./resources/js/market.js"></script>
     <script src="./resources/js/battle.js"></script>
     <script src="./resources/js/build.js"></script>
+    <script src="./resources/js/turnwindow.js"></script>
     <script src="./resources/js/game.js"></script>
   </body>
 </html>

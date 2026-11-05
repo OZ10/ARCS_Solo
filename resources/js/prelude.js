@@ -95,6 +95,12 @@ function canBotTakeAction(player, action) {
 }
 
 function updateActionButtons(player) {
+    // A bot's are in its turn window instead
+    if (usesTurnWindow(player)) {
+        showHideElement(["battlebutton", "buildbutton", "courtbutton"].map(id => document.getElementById(id + player.number)), false);
+        return;
+    }
+
     // The Battle and Build icons only show for a bot that has played a card (or prelude)
     // that lets it battle or build, until its Done
     [["battlebutton", "battle"], ["buildbutton", "build"]].forEach(([id, action]) => {
@@ -402,7 +408,7 @@ function confirmPrelude() {
 
     // After the prelude come its Guild card actions, once this window has closed
     const preludeModal = document.getElementById("preludeModal");
-    if (step == "prelude") { preludeModal.addEventListener('hidden.bs.modal', () => startGuildActions(player), { once: true }); }
+    preludeModal.addEventListener('hidden.bs.modal', () => { if (step == "prelude") { startGuildActions(player); } else { openTurnWindow(); } }, { once: true });
     bootstrap.Modal.getOrCreateInstance(preludeModal).hide();
 
     // The turn summary lists what was done

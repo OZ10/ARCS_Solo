@@ -6,7 +6,7 @@ $playercolour3: lightgrey;
 $playercolour4: lightgrey;
 */
 body {
-  padding-bottom: calc(var(--footer-height, 100px) + 10px);
+  padding-bottom: calc(var(--footer-height, 100px) + var(--turndock-height, 0px) + 10px);
 }
 
 header {
@@ -305,6 +305,149 @@ header {
   --bs-btn-active-bg: rgb(30, 30, 30);
   --bs-btn-active-color: white;
   --bs-btn-active-border-color: rgb(30, 30, 30);
+}
+
+.turnsection {
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.turnsection:last-child {
+  margin-bottom: 0;
+}
+
+.turnlabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5b6573;
+  margin-bottom: 4px;
+}
+
+.turnstep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid #e2e4e8;
+}
+
+.turnlabel + .turnstep {
+  border-top: 0;
+}
+
+.turnmarker {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3d4a5c;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.turnsteptext {
+  flex: 1;
+  line-height: 1.2;
+}
+.turnsteptext small, .turnsteptext .small {
+  display: block;
+  color: #5b6573;
+}
+
+.turnact {
+  flex: none;
+  min-width: 84px;
+}
+
+.turntools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.turntools .btn {
+  flex: 0 1 calc((100% - 12px) / 3);
+  font-size: 0.78rem;
+  line-height: 1.15;
+  padding: 6px 2px;
+}
+.turntools .btn i {
+  display: block;
+  font-size: 1.15rem;
+}
+
+#turnDock {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--footer-height, 80px) + 8px);
+  z-index: 1029;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.28);
+}
+
+.turnbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+}
+.turnbar .btn {
+  flex: none;
+}
+
+.turnbarplan {
+  flex: 1;
+  font-size: 0.88rem;
+  line-height: 1.15;
+}
+.turnbarplan b {
+  display: block;
+}
+
+#turnAdvice {
+  background: white;
+  padding: 8px 12px;
+}
+
+.slotadvice {
+  font-size: 0.88rem;
+  color: rgb(30, 30, 30);
+}
+.slotadvice + .slotadvice {
+  margin-top: 8px;
+}
+
+.slotchips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.slotchip {
+  border: 1px solid #9aa3af;
+  border-radius: 8px;
+  background: white;
+  padding: 3px 8px;
+  text-align: center;
+  line-height: 1.1;
+}
+.slotchip b {
+  display: block;
+  font-size: 0.95rem;
+}
+.slotchip small, .slotchip .small {
+  font-size: 0.7rem;
+  color: #5b6573;
 }
 
 #actionbuttons, [id^=playcard], [id^=donebutton] {

@@ -392,6 +392,14 @@ function finishPlay(player) {
 }
 
 function showTurnDone(player) {
+    // A bot's turn has its own window, with the bar when that's closed
+    if (usesTurnWindow(player)) {
+        showHideElement([document.getElementById("playcard" + player.number).parentNode], false);
+        updateActionButtons(player);
+        renderTurn(player);
+        return;
+    }
+
     // In the order they happen: the prelude, then the card's actions and any Guild actions
     const prelude = describePrelude(player), plan = describeTurnPlan(player), guildActions = describeGuildActions(player);
     document.getElementById("turnsummary" + player.number).innerHTML = (prelude == null ? [] : [prelude])
@@ -412,6 +420,7 @@ function showTurnDone(player) {
 }
 
 function hideTurnDone(player) {
+    clearTurnDock();
     showHideElement([document.getElementById("turndone" + player.number)], false);
     showHideElement([document.getElementById("battlebutton" + player.number), document.getElementById("buildbutton" + player.number), document.getElementById("courtbutton" + player.number)], false);
     if (!player.isHuman) { showHideElement([document.getElementById("playcard" + player.number).parentNode], true); }

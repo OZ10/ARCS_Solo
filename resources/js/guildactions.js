@@ -90,7 +90,11 @@ function startGuildActions(player) {
         player.guildActions = { offers: getGuildActionOffers(player), spent: null };
         SaveAllSettings();
     }
-    if (player.guildActions.offers.length > 0 && player.guildActions.spent == null) { showPreludeModal(player, "guild"); }
+    if (player.guildActions.offers.length > 0 && player.guildActions.spent == null) {
+        showPreludeModal(player, "guild");
+    } else {
+        openTurnWindow();
+    }
 }
 
 function describeGuildActions(player) {

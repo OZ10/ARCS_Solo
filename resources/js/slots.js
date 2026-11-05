@@ -58,22 +58,34 @@ function getOverCapacityAdvice(player) {
     return used + " resources but only " + open + " slots: lose 1 " + preludeResourceNames[getResourceToLose(player)] + ", the one it needs least.";
 }
 
+function getKeepReason(player, resource) {
+    // Why it wants to keep a resource hard to steal, or null if it doesn't
+    if (!wantsToKeep(player, resource)) { return null; }
+    const ambition = (resource == "weapons") ? "warlord" : preludeAmbitions[resource];
+    return (declaredAmbitions.includes(ambition) ? "It's chasing " + capitalise(ambition) : capitalise(ambition) + " could still be declared") + ", so keep it hard to steal.";
+}
+
 function getSlotAdvice(player, resource) {
     // Where a bot should put a resource it has just gained: high keys if it wants to keep it,
-    // so it's harder to steal, otherwise low keys. null for the human player
+    // so it's harder to steal, otherwise low keys. As { player, title, why, slots }, or null for
+    // the human player
     if (player.isHuman || !hasGameStarted()) { return null; }
 
     const overCapacity = getOverCapacityAdvice(player);
-    if (overCapacity != null) { return overCapacity; }
+    if (overCapacity != null) { return { player: player, title: overCapacity }; }
 
-    const keep = wantsToKeep(player, resource);
-    const order = getOpenSlots(player).slice().sort((a, b) => keep ? b.keys - a.keys : a.keys - b.keys);
-    return (keep ? "Keep this " : "It doesn't need this ") + preludeResourceNames[resource] + ": first empty slot of "
-        + order.map(slot => slot.slot + " (" + slot.keys + " key" + (slot.keys == 1 ? "" : "s") + ")").join(" &rarr; ") + ".";
+    const reason = getKeepReason(player, resource);
+    return {
+        player: player,
+        title: "Put the " + preludeResourceNames[resource] + " in the first empty slot",
+        why: reason != null ? reason : "It doesn't need this one, so use a slot with few keys.",
+        slots: getOpenSlots(player).slice().sort((a, b) => reason != null ? b.keys - a.keys : a.keys - b.keys)
+    };
 }
 
 function showSlotAdvice(player, resources) {
-    // The advice for the resources just gained, once each
-    const advice = [...new Set(resources.map(resource => getSlotAdvice(player, resource)))].filter(line => line != null);
-    if (advice.length > 0) { showMessageToast("Player " + player.number, advice.join("<br>")); }
+    // The advice for the resources just gained, once each. It stays until closed or the turn ends
+    const advice = [...new Set(resources)].map(resource => getSlotAdvice(player, resource)).filter(line => line != null)
+        .filter((line, index, all) => all.findIndex(other => other.title == line.title) == index);
+    if (advice.length > 0) { setSlotAdvice(advice); }
 }

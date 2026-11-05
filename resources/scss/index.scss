@@ -31,7 +31,7 @@ $btn-outline-primary-hover-bg: lighten($primary, 40%);
 body {
     // Room for the fixed footer. --footer-height is its actual height, set by
     // keepClearOfFooter (ui.js) as it grows and shrinks
-    padding-bottom: calc(var(--footer-height, 100px) + 10px);
+    padding-bottom: calc(var(--footer-height, 100px) + var(--turndock-height, 0px) + 10px);
 }
 
 header {
@@ -365,6 +365,151 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     --bs-btn-active-bg: #{$mainfontcolour};
     --bs-btn-active-color: white;
     --bs-btn-active-border-color: #{$mainfontcolour};
+}
+
+// A bot's turn window (see turnwindow.js)
+.turnsection {
+    background: #f3f4f6;
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+
+    &:last-child { margin-bottom: 0; }
+}
+
+.turnlabel {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #5b6573;
+    margin-bottom: 4px;
+}
+
+.turnstep {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-top: 1px solid #e2e4e8;
+}
+
+.turnlabel + .turnstep { border-top: 0; }
+
+.turnmarker {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: $slate;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.turnsteptext {
+    flex: 1;
+    line-height: 1.2;
+
+    small {
+        display: block;
+        color: #5b6573;
+    }
+}
+
+.turnact {
+    flex: none;
+    min-width: 84px;
+}
+
+.turntools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .btn {
+        // Three to a row, the same size however many there are
+        flex: 0 1 calc((100% - 12px) / 3);
+        font-size: 0.78rem;
+        line-height: 1.15;
+        padding: 6px 2px;
+
+        i {
+            display: block;
+            font-size: 1.15rem;
+        }
+    }
+}
+
+// Above the footer when a bot's window is closed. Under any window that's open
+#turnDock {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: calc(var(--footer-height, 80px) + 8px);
+    z-index: 1029;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.28);
+}
+
+.turnbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+
+    .btn { flex: none; }
+}
+
+.turnbarplan {
+    flex: 1;
+    font-size: 0.88rem;
+    line-height: 1.15;
+
+    b { display: block; }
+}
+
+#turnAdvice {
+    background: white;
+    padding: 8px 12px;
+}
+
+.slotadvice {
+    font-size: 0.88rem;
+    color: $mainfontcolour;
+
+    & + .slotadvice { margin-top: 8px; }
+}
+
+.slotchips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.slotchip {
+    border: 1px solid #9aa3af;
+    border-radius: 8px;
+    background: white;
+    padding: 3px 8px;
+    text-align: center;
+    line-height: 1.1;
+
+    b {
+        display: block;
+        font-size: 0.95rem;
+    }
+
+    small {
+        font-size: 0.7rem;
+        color: #5b6573;
+    }
 }
 
 // When scrolled into view, keep the human player's actions and the bots' Play Card

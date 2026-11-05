@@ -791,8 +791,7 @@ function applyBattleResults() {
         + (cities.length > 0 ? "<br>Player " + attacker.number + " Provokes Outrage: " + cities.join(", ") : "")
         + (ransacked != null ? "<br>Ransacked " + ransacked.name + ". Add its replacement to the market." : (cities.length > 0 ? "<br>Ransack the Court." : ""))
         + (stolen != null ? "<br>Stole the " + stolen.name : "")
-        + [stolen != null && stolen.resource != null ? getSlotAdvice(attacker, stolen.resource) : null, cities.length > 0 ? getOverCapacityAdvice(defender) : null]
-            .filter(line => line != null).map(line => "<br>" + line).join(""));
+        + (cities.length > 0 && getOverCapacityAdvice(defender) != null ? "<br>" + getOverCapacityAdvice(defender) : ""));
 
     battle.start = null;
 
