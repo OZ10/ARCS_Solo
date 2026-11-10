@@ -236,6 +236,21 @@ function getPossibleActions(unplayedCards) {
     return possibleActions;
 }
 
+function getKnownYesReason(ambition, action, player) {
+    // A question the app can answer Yes to itself, as the reason it gives, or null to ask (#104).
+    // Its own city can be taxed anywhere, without control, if there's some left to take. With the
+    // market entered, it knows which cards it can secure or influence (getNextQuestionNumber has
+    // already skipped the questions that can't be a Yes)
+    const resources = ambitionTaxResources[ambition];
+    if (action == "tax" && resources != null && !(player.noTax || []).includes(ambition)) {
+        const own = resources.find(resource => player["cities" + capitalise(resource) + "Value"] > 0 && getResourceSupply(resource) > 0);
+        if (own != null) { return "it has one, and " + resourceLeftWords[own]; }
+    }
+    if (isMarketKnown() && action == "secure") { return "it has the most agents on it"; }
+    if (isMarketKnown() && action == "influence") { return "it's in the market"; }
+    return null;
+}
+
 function chaseAmbition(player, possibleActions, unplayedCards) {
     // TODO Need to determine which ambition is best to chase
     // - Have cards to chase?
@@ -249,7 +264,13 @@ function chaseAmbition(player, possibleActions, unplayedCards) {
         // Ask the first question for this ambition the player has a card for
         const questionNumber = getNextQuestionNumber(ambition, 0, possibleActions, player);
         if (questionNumber > 0) {
-            focus_ambition(ambition, questionNumber);
+            // No need to ask what the app already knows
+            const known = getKnownYesReason(ambition, ambitionQuestionActions[ambition][questionNumber - 1], player);
+            if (known != null) {
+                playForQuestion(player, ambition, questionNumber, known);
+            } else {
+                focus_ambition(ambition, questionNumber);
+            }
             return true;
         }
     }
@@ -320,18 +341,23 @@ function answerYes() {
     // A one-off question: Yes also closes the window, and askYesNo carries on from there
     if (yesNoCallback != null) { yesNoCallback(true); return; }
 
-    const unplayedCards = getUnplayedCards(currentPlayer.cards);
-    const focus = document.getElementById("focusMessage").innerHTML;
+    playForQuestion(currentPlayer, document.getElementById("focusMessage").innerHTML, currentQuestionNumber, null);
+}
 
-    currentPlayer.playReason = { type: "chase", ambition: focus.toLowerCase() };
+function playForQuestion(player, focus, questionNumber, knownReason) {
+    // Play a card for the action a question asks about: the player said Yes, or the app knew.
+    // knownReason is why it didn't need to ask, for the turn plan
+    const unplayedCards = getUnplayedCards(player.cards);
+    player.playReason = { type: "chase", ambition: focus.toLowerCase() };
+    player.focusReason = knownReason;
 
-    // The action the question that was just answered asks about
-    let actionToPlay = ambitionQuestionActions[focus][currentQuestionNumber - 1];
+    // The action the question asks about
+    let actionToPlay = ambitionQuestionActions[focus][questionNumber - 1];
 
     // Moving into position: say what for, and a card that can Battle too if that's the idea
     let cardsWithAction;
     if (actionToPlay.startsWith("reach")) {
-        currentPlayer.moveGoal = getReachGoal(focus, actionToPlay, currentPlayer);
+        player.moveGoal = getReachGoal(focus, actionToPlay, player);
         cardsWithAction = getCardsWithAction(unplayedCards, "move");
         if (actionToPlay != "reachTax") {
             const both = getCardsWithAction(cardsWithAction, "battle");
@@ -460,7 +486,14 @@ function answerNo() {
     // Questions whose action isn't in their hand are skipped
     const nextQuestionNumber = getNextQuestionNumber(focus, currentQuestionNumber, getPossibleActions(unplayedCards), currentPlayer);
     if (nextQuestionNumber > 0) {
-        focus_ambition(focus, nextQuestionNumber, true);
+        // The app may know the answer to the next one
+        const known = getKnownYesReason(focus, ambitionQuestionActions[focus][nextQuestionNumber - 1], currentPlayer);
+        if (known != null) {
+            modal.hide();
+            playForQuestion(currentPlayer, focus, nextQuestionNumber, known);
+        } else {
+            focus_ambition(focus, nextQuestionNumber, true);
+        }
         return;
     }
 

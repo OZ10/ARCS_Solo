@@ -408,7 +408,7 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v051126.04</small>
+              <small class="text-muted me-auto" id="appVersion">v101126.01</small>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>
@@ -733,6 +733,12 @@
                   <input class="form-check-input" type="checkbox" id="battleAttackAgain"
                     onchange="clearBattleDecision()">
                   <label class="form-check-label" for="battleAttackAgain">Can attack again this turn</label>
+                  <!-- What the switch changes, in a pop-up (set up in game.js) -->
+                  <button type="button" class="btn btn-link p-0 border-0 lh-1 text-secondary" id="battleAttackAgainInfo"
+                    aria-label="About attacking again" data-bs-toggle="popover" data-bs-trigger="focus"
+                    data-bs-placement="top"
+                    data-bs-content="Turn this on if the bot means to attack again this turn. It then damages fresh ships first, so its next attack faces fewer of them and less risk of an intercept."><i
+                      class="bi bi-info-circle"></i></button>
                 </div>
 
                 <!-- Raid dice: what the bot wants to steal and its keys (see showBattleRaid in battle.js) -->

@@ -189,7 +189,7 @@ function getActionPlanScore(player, action, focus) {
     }
 
     // What the player said it can do, in the Yes/No questions
-    if (action == focus) { score += weights.focus; reason = (action == "move" && player.moveGoal != null) ? player.moveGoal : "you said it can"; }
+    if (action == focus) { score += weights.focus; reason = (action == "move" && player.moveGoal != null) ? player.moveGoal : (player.focusReason || "you said it can"); }
     return { score: score, reason: reason };
 }
 

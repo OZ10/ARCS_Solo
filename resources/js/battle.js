@@ -13,7 +13,7 @@
 
 // What's entered in the Battle window
 let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0, start: null,
-    keys: 0, raidItem: null, noBuildings: false, raidRolled: false, buildingTypes: [] };
+    keys: 0, raidItem: null, noBuildings: false, raidRolled: false, planet: null, buildingKinds: [], destroyed: null };
 
 // The counts compared before and after the battle
 const battleCounts = ["ships", "fresh", "damaged", "freshBuildings", "damagedBuildings"];
@@ -265,29 +265,64 @@ function describeDice(option) {
     return dice.join(" + ");
 }
 
-function getBuildingOptions(defender) {
-    // What one of the defender's buildings could be, as [{ value, name }]. The resource of a
-    // starting city that was never set still matters for Outrage
-    return [{ value: "starport", name: "Starport" }].concat(
-        preludeResources.filter(resource => defender["cities" + capitalise(resource) + "Value"] > 0)
-            .map(resource => ({ value: resource, name: "City on " + preludeResourceNames[resource].toLowerCase() })),
-        defender.startingCity ? preludeResources.map(resource => ({ value: "startingCity:" + resource, name: "Starting city, on " + preludeResourceNames[resource].toLowerCase() })) : []);
+function getPlanetOptions(defender) {
+    // What planet a battle with the defender's buildings could be on, as [{ value, name }]. A
+    // battle is in one system, and only a planet has building slots, so all its buildings are on
+    // one planet type (#103). The types the defender has a city on come first, then any type its
+    // unset starting city could be on. "starport" is a planet where it has only starports
+    const hasCity = resource => defender["cities" + capitalise(resource) + "Value"] > 0;
+    const types = preludeResources.filter(hasCity).concat(defender.startingCity ? preludeResources.filter(resource => !hasCity(resource)) : []);
+    return types.map(resource => ({ value: resource, name: preludeResourceNames[resource] })).concat({ value: "starport", name: "Starports only" });
+}
+
+function getBuildingTypesOn(defender, planet, kinds) {
+    // What each building is, from the planet and whether it's a city or a starport: "starport",
+    // the resource, or "startingCity:" and the resource for a city its counts don't show yet
+    let recorded = (planet == "starport") ? 0 : defender["cities" + capitalise(planet) + "Value"];
+    let startingCity = defender.startingCity;
+    return kinds.map(kind => {
+        if (planet == "starport" || kind == "starport") { return "starport"; }
+        if (recorded > 0) { recorded--; return planet; }
+        if (startingCity) { startingCity = false; return "startingCity:" + planet; }
+        return planet;
+    });
 }
 
 function getBattleBuildingTypes() {
-    // What each defending building is, fresh ones first. A new one starts as a city if the
-    // defender has one, so the bot is careful unless told otherwise
-    const options = getBuildingOptions(battle.defender);
+    // What each defending building is, fresh ones first. They start as cities on a planet it has a
+    // city on, so the bot is careful unless told otherwise
+    const options = getPlanetOptions(battle.defender);
+    if (!options.some(option => option.value == battle.planet)) { battle.planet = options[0].value; }
     const count = battle.freshBuildings + battle.damagedBuildings;
-    const fallback = (options[1] || options[0]).value;
-    while (battle.buildingTypes.length < count) { battle.buildingTypes.push(fallback); }
-    battle.buildingTypes.length = count;
-    return battle.buildingTypes;
+    while (battle.buildingKinds.length < count) { battle.buildingKinds.push("city"); }
+    battle.buildingKinds.length = count;
+    return getBuildingTypesOn(battle.defender, battle.planet, battle.buildingKinds);
 }
 
-function setBuildingType(index, type) {
-    battle.buildingTypes[index] = type;
+function setBattlePlanet(planet) {
+    battle.planet = planet;
     updateBattleCounts();
+}
+
+function setBuildingKind(index, kind) {
+    battle.buildingKinds[index] = kind;
+    updateBattleCounts();
+}
+
+function getBuildingChoiceHtml(id, planet, kinds, label, onPlanet, onKind) {
+    // The planet once, then City or Starport for each building (none on a starports-only planet)
+    const options = getPlanetOptions(battle.defender);
+    let html = "<div class=\"boardgrouplabel mt-2\">Planet</div>"
+        + "<select class=\"form-select form-select-sm\" id=\"" + id + "Planet\" onchange=\"" + onPlanet + "(this.value)\">"
+        + options.map(option => "<option value=\"" + option.value + "\"" + (option.value == planet ? " selected" : "") + ">" + option.name + "</option>").join("") + "</select>";
+    if (planet == "starport") { return html; }
+    kinds.forEach((kind, index) => {
+        const choice = (value, name) => "<input type=\"radio\" class=\"btn-check\" name=\"" + id + index + "\" id=\"" + id + index + value + "\"" + (kind == value ? " checked" : "")
+            + " onchange=\"" + onKind + "(" + index + ", '" + value + "')\"><label class=\"btn btn-outline-secondary\" for=\"" + id + index + value + "\">" + name + "</label>";
+        html += "<div class=\"d-flex align-items-center justify-content-between mt-2\"><span class=\"small fw-semibold\">" + label(index) + "</span>"
+            + "<div class=\"btn-group btn-group-sm\" role=\"group\">" + choice("city", "City") + choice("starport", "Starport") + "</div></div>";
+    });
+    return html;
 }
 
 function getBuildingName(type) {
@@ -392,7 +427,8 @@ function resetBattleRaid() {
     battle.noBuildings = false;
     battle.raidRolled = false;
     battle.inGate = false;
-    battle.buildingTypes = [];
+    battle.planet = null;
+    battle.buildingKinds = [];
 }
 
 function setInGate(inGate) {
@@ -484,14 +520,12 @@ function showBattleRaid() {
             + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleInGate\" onchange=\"setInGate(this.checked)\"" + (battle.inGate ? " checked" : "") + ">"
             + "<label class=\"form-check-label\" for=\"battleInGate\">In a gate (Gatekeepers: 2 more dice)</label></div>";
     }
-    // What each building is, as destroying a city and a starport are very different
-    const buildingOptions = getBuildingOptions(battle.defender);
-    if (buildingOptions.length > 1) {
-        getBattleBuildingTypes().forEach((type, index) => {
-            html += "<div class=\"boardgrouplabel mt-2\">" + (index < battle.freshBuildings ? "Fresh" : "Damaged") + " building</div>"
-                + "<select class=\"form-select form-select-sm battlebuildingtype\" onchange=\"setBuildingType(" + index + ", this.value)\">"
-                + buildingOptions.map(option => "<option value=\"" + option.value + "\"" + (option.value == type ? " selected" : "") + ">" + option.name + "</option>").join("") + "</select>";
-        });
+    // What the buildings are, as destroying a city and a starport are very different. With no
+    // cities, they can only be starports
+    if (battle.freshBuildings + battle.damagedBuildings > 0 && getPlanetOptions(battle.defender).length > 1) {
+        getBattleBuildingTypes();
+        html += getBuildingChoiceHtml("battleBuilding", battle.planet, battle.buildingKinds,
+            index => (index < battle.freshBuildings ? "Fresh" : "Damaged") + " building", "setBattlePlanet", "setBuildingKind");
     }
     if (battle.freshBuildings + battle.damagedBuildings == 0) {
         html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
@@ -652,6 +686,22 @@ function getDestroyedBuildingTypes() {
     });
 }
 
+function getDestroyedHtml() {
+    const count = battle.destroyed.kinds.length;
+    return getBuildingChoiceHtml("battleDestroyed", battle.destroyed.planet, battle.destroyed.kinds,
+        index => "Destroyed building" + (count > 1 ? " " + (index + 1) : ""), "setDestroyedPlanet", "setDestroyedKind");
+}
+
+function setDestroyedPlanet(planet) {
+    battle.destroyed.planet = planet;
+    document.getElementById("battleDestroyed").innerHTML = getDestroyedHtml();
+}
+
+function setDestroyedKind(index, kind) {
+    battle.destroyed.kinds[index] = kind;
+    document.getElementById("battleDestroyed").innerHTML = getDestroyedHtml();
+}
+
 function getBattleLosses() {
     // What each side lost since the first roll, from the counts now
     const lost = (before, after) => Math.max(before - after, 0);
@@ -682,12 +732,18 @@ function showBattleResults() {
     // Each destroyed building is the attacker's Trophy (rulebook p.14). Destroying a city also
     // means Outrage for that resource and Ransacking the Court (p.16), so which was it?
     if (losses.defenderBuildings > 0) {
-        html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. Which?</div>";
+        html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. " + (losses.defenderBuildings == 1 ? "What was it?" : "What were they?") + "</div>";
+
+        // Filled in from what was said before the roll. The human player starts on starports
         const destroyed = getDestroyedBuildingTypes();
-        for (let index = 0; index < losses.defenderBuildings; index++) {
-            const options = getBuildingOptions(battle.defender).map(option => "<option value=\"" + option.value + "\"" + (option.value == destroyed[index] ? " selected" : "") + ">" + option.name + "</option>");
-            html += "<select class=\"form-select form-select-sm mt-1 battlebuilding\">" + options.join("") + "</select>";
-        }
+        const city = destroyed.find(type => type != "starport");
+        const options = getPlanetOptions(battle.defender);
+        const planet = (city != null) ? city.split(":").pop() : (battle.attacker.isHuman || battle.planet == null ? "starport" : battle.planet);
+        battle.destroyed = {
+            planet: options.some(option => option.value == planet) ? planet : "starport",
+            kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => destroyed[index] == "starport" ? "starport" : "city")
+        };
+        html += "<div id=\"battleDestroyed\">" + (options.length > 1 ? getDestroyedHtml() : "") + "</div>";
         html += "<div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Destroying a city:</b> " + attacker + " Provokes Outrage of that resource, discarding its resources and Guild cards of that type, and Ransacks the Court.</div>";
 
         // Ransack: which card? With no market entered, the player carries it out
@@ -746,11 +802,12 @@ function applyBattleResults() {
     // then Provokes Outrage of that resource and Ransacks the Court (rulebook p.16)
     let cities = [];
     adjustCounter(attacker, "trophies", losses.defenderBuildings);
-    document.querySelectorAll("#battleAdvice .battlebuilding").forEach(select => {
-        if (select.value == "starport") { return; }
+    const destroyedTypes = (losses.defenderBuildings > 0 && battle.destroyed != null) ? getBuildingTypesOn(defender, battle.destroyed.planet, battle.destroyed.kinds) : [];
+    destroyedTypes.forEach(type => {
+        if (type == "starport") { return; }
         defender.citiesAsTrophies = (defender.citiesAsTrophies || 0) + 1;
-        const startingCity = select.value.startsWith("startingCity:");
-        const resource = startingCity ? select.value.split(":")[1] : select.value;
+        const startingCity = type.startsWith("startingCity:");
+        const resource = startingCity ? type.split(":")[1] : type;
         if (startingCity) {
             defender.startingCity = false;
             document.getElementById("citiestotal" + defender.number).innerHTML = getCityCount(defender);

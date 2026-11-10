@@ -60,6 +60,8 @@ class player {
     moveGoal = null;
     // Who it means to Battle this turn, once chosen (see getBattleTarget)
     battleTargetNumber = null;
+    // Why it played for an action without asking, as the plan's reason (see getKnownYesReason)
+    focusReason = null;
 }
 
 function getPlayerColour(player) {
@@ -111,6 +113,7 @@ function resetPlayedThisTurn() {
         player.playReason = null;
         player.moveGoal = null;
         player.battleTargetNumber = null;
+        player.focusReason = null;
     })
 }
 

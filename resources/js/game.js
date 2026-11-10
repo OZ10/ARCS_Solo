@@ -48,6 +48,9 @@ document.addEventListener("DOMContentLoaded", () => {
     updateUndoButton();
     setupSavedGameButtons();
     refreshTooltips();
+
+    // Information pop-ups, such as the Battle window's (i). Tapping anywhere else closes them
+    document.querySelectorAll('[data-bs-toggle="popover"]').forEach(element => bootstrap.Popover.getOrCreateInstance(element));
 });
 
 

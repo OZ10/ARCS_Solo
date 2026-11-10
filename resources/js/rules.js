@@ -377,5 +377,8 @@ const ambitionQuestionText = {
     }
 };
 
+// "it has one, and fuel is left": why it's taxing its own city without asking (#104)
+const resourceLeftWords = { fuel: "fuel is left", materials: "materials are left", relics: "relics are left", psionics: "psionics are left", weapons: "weapons are left" };
+
 // How each ambition's resources read in a sentence
 const ambitionResourceWords = { TYCOON: "materials or fuel", KEEPER: "relics", EMPATH: "psionics" };
