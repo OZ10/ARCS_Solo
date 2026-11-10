@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <!-- The same icon for Android's home screen, which crops it to its own shape: the slate fills the
+       square, and the 4 sits within the middle 80% so nothing important is cut off -->
+  <rect width="160" height="160" fill="#3d4a5c"/>
+  <svg x="47" y="38" width="66" height="84" viewBox="0 0 100 120">
+    <path d="M25 76 L8 112" fill="none" stroke="#e0a526" stroke-opacity="0.4" stroke-width="15" stroke-linecap="round"/>
+    <path d="M58 6 L25 76" fill="none" stroke="#e0a526" stroke-width="15" stroke-linecap="round"/>
+    <path d="M62 6 L62 114" fill="none" stroke="#e0a526" stroke-width="15" stroke-linecap="round"/>
+    <path d="M24 76 L90 76" fill="none" stroke="#e0a526" stroke-width="13" stroke-linecap="round"/>
+  </svg>
+  <path transform="translate(112 42) scale(0.8)" d="M0 -10 L2 -2 L10 0 L2 2 L0 10 L-2 2 L-10 0 L-2 -2 Z" fill="#f6e7c1"/>
+</svg>

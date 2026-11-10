@@ -51,6 +51,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Information pop-ups, such as the Battle window's (i). Tapping anywhere else closes them
     document.querySelectorAll('[data-bs-toggle="popover"]').forEach(element => bootstrap.Popover.getOrCreateInstance(element));
+
+    // So it can be installed as an app, and works offline (see service-worker.js)
+    if ("serviceWorker" in navigator) { navigator.serviceWorker.register("service-worker.js").catch(() => null); }
 });
 
 
