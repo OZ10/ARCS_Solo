@@ -1,5 +1,5 @@
-// Leaders & Lore, part 2 (#88): the Leader and Lore rules for scoring, declaring an ambition,
-// securing and battles. The cards themselves are in leaders.js. Bots carry their effects out
+// Leaders & Lore (#88): the Leader and Lore rules for scoring, declaring an ambition, securing
+// and battles (part 2), and the bots playing to them (part 3). The cards themselves are in leaders.js. Bots carry their effects out
 // themselves and their turn window says what they did; the human player gets a window or a reminder.
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
@@ -300,6 +300,7 @@ function getLeaderDiceNotes(choice) {
     if (hasLore(attacker, loreNumbers.seekerTorpedoes) && choice.assaultDice > 0) {
         lines.push("<b>Seeker Torpedoes:</b> reroll up to 1 assault die per fresh attacking ship.");
     }
+    if (hasLore(attacker, 19) && declaredAmbitions.includes("empath")) { lines.push("<b>Empath's Vision:</b> reroll any number of its dice once."); }
     if (hasLore(attacker, loreNumbers.signalBreaker)) { lines.push("<b>Signal Breaker:</b> if all its ships here are fresh, ignore 1 intercept."); }
     if (hasLore(defender, loreNumbers.railgunArrays) && battle.fresh > 0) { lines.push("<b>Railgun Arrays:</b> it takes 1 hit before rolling."); }
     return lines.map(line => "<div>" + line + "</div>").join("");
@@ -356,4 +357,240 @@ function applyLeaderBattleResults(losses) {
         }
     }
     return lines;
+}
+
+// Part 3: the bots playing to their Leader and Lore. Hints under their plan steps, Lore actions
+// in place of their normal actions, Lore in their prelude, and hints in the Yes/No questions
+
+// How keen the bots are on these. These could also become part of the bot personalities (#71)
+const leaderPlanWeights = {
+    copyPivotPower: 2       // + an action its Leader improves, when it Copies or Pivots
+};
+const loreChance = {
+    summon: 50,             // Tool-Priests: a ship at any city it controls, when short of ships or keen to battle
+    rifles: 50,             // Galactic Rifles: skirmish dice at an adjacent system, when keen to battle
+    nurture: 50,            // Living Structures: tax a city for a resource it's chasing
+    prune: 30,              // Living Structures: a starport into a city, near the city bonus
+    guide: 35,              // Force Beams: move any ships, when it has somewhere to go
+    martyr: 45,             // Survival Overrides: swap a ship for a Rival's, when chasing Warlord
+    annex: 60,              // Tyrant's Authority: take over a Rival's building, while Tyrant is declared
+    clearOutrage: 70,       // discard an ambition Lore card to clear an Outrage it minds
+    terror: 50,             // Warlord's Terror: Trophies for influence, when not chasing Warlord
+    ego: 50,                // Tyrant's Ego: Captives to secure, when not chasing Tyrant
+    charm: 50,              // Tycoon's Charm: Material and Fuel for what it's chasing
+    tycoonsAmbition: 25     // Tycoon's Ambition: give up its Material and Fuel to declare another ambition
+};
+
+// What a Leader adds when it Copies or Pivots to take this action: [Leader, power, what it does]
+const copyPivotPowers = {
+    tax: [[2, "Mystic, Attuned", "gain 1 Psionic too"], [3, "Fuel-Drinker, Insatiable", "gain 1 Fuel too"], [15, "Agitator, Firebrand", "gain 1 Weapon too"]],
+    influence: [[12, "Noble, Influential", "influence twice"]],
+    secure: [[7, "Feastbringer, Charismatic", "may influence before or after securing"]],
+    battle: [[6, "Warrior, Tactical", "may move before or after the Battle"]]
+};
+
+function isCopyOrPivot(player) {
+    const card = playedCardList.find(played => played.playedByPlayerNumber == player.number && played.cardAction != "CLAIM");
+    return card != null && (card.cardAction == "COPY" || card.cardAction == "PIVOT");
+}
+
+function getCopyPivotPower(player, action) {
+    if (!leadersAndLore || !isCopyOrPivot(player)) { return null; }
+    return (copyPivotPowers[action] || []).find(power => hasLeader(player, power[0])) || null;
+}
+
+function getLeaderPlanBonus(player, action) {
+    return getCopyPivotPower(player, action) != null ? leaderPlanWeights.copyPivotPower : 0;
+}
+
+function isLoreActive(player, number, ambition) {
+    // An ambition Lore card works while that ambition is declared
+    return hasLore(player, number) && declaredAmbitions.includes(ambition);
+}
+
+function canTaxCityAgain(player) {
+    // Warlord's Cruelty
+    return isLoreActive(player, 23, "warlord");
+}
+
+function getAnarchistTaxTargets(player, ruledOut) {
+    // Anarchist (Principled) can't tax its own cities, but (Inspiring) taxes Rival cities and empty
+    // slots where its ships are, so any resource it wants could do
+    return preludeResources.filter(resource => getResourceNeed(player, resource) > 0 && getResourceSupply(resource) > 0 && !ruledOut.includes(resource))
+        .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a));
+}
+
+function getTaxStepName(player, resource) {
+    const named = preludeResourceNames[resource].toLowerCase();
+    return hasLeader(player, 13) ? "Tax a Rival's " + named + " city" : "Tax its " + named + " city";
+}
+
+function getLeaderPlanHints(player, action, details = {}) {
+    // Lines under a plan step, as [{ lore, who, text }]. details: { resource, rivalTax, ruthless }
+    if (!leadersAndLore || player.leader == null && (player.lore || []).length == 0) { return []; }
+    let hints = [];
+    const leader = (who, text) => hints.push({ lore: false, who: who, text: text });
+    const lore = (number, text) => hints.push({ lore: true, who: getLoreCard(number).name, text: text });
+    const named = resource => preludeResourceNames[resource].toLowerCase();
+
+    const power = getCopyPivotPower(player, action);
+    if (power != null) { leader(power[1], power[2]); }
+
+    switch (action) {
+        case "move":
+            if (hasLeader(player, 5)) { leader("Rebel, Disorganized", "no more than 2 ships at a time"); }
+            if (hasLeader(player, 14)) { leader("Shaper, Ancient", "Catapult from gates, not starports"); }
+            if (hasLore(player, 3)) { lore(3, "fresh ships may move one more time"); }
+            if (isLoreActive(player, 20, "empath")) { lore(20, "may Catapult with any starports, like its own"); }
+            break;
+
+        case "battle":
+            if (hasLeader(player, 5)) { leader("Rebel, Committed", "2 extra dice, already in the Battle window"); }
+            if (isLoreActive(player, 19, "empath")) { lore(19, "may reroll any number of dice once"); }
+            break;
+
+        case "tax": {
+            if (hasLeader(player, 13)) { leader("Anarchist, Inspiring", "a Rival's city, or an empty slot, in a system with its ships. Not its own cities (Principled)"); }
+            if (hasLeader(player, 4) && !details.rivalTax) { leader("Upstart, Callow", "only if it controls the city"); }
+            if (hasLeader(player, 10) && details.rivalTax && details.ruthless) { leader("Overseer, Ruthless", "once this turn, hit the city to tax it again. Only a Rival's city, never its own"); }
+            // Shaper (Mythic): turn the planet into what it's chasing, if it holds one to place
+            const mythic = hasLeader(player, 14) && details.resource != null
+                ? preludeResources.find(resource => resource != details.resource && getResourceNeed(player, resource) == 2 && player[resource + "Value"] > 0) : null;
+            if (mythic != null) { leader("Shaper, Mythic", "may place 1 " + preludeResourceNames[mythic] + " over the planet, making it a " + named(mythic) + " planet from now on"); }
+            if (isLoreActive(player, 20, "empath")) { lore(20, "may tax any city, like its own (no Captives)"); }
+            if (canTaxCityAgain(player)) { lore(23, "may tax a city it already taxed this turn"); }
+            break;
+        }
+
+        case "build":
+            if (hasLore(player, 5)) { lore(5, "ships are built fresh"); }
+            if (hasLore(player, 8)) { lore(8, "may build a starport on a gate (1 per gate)"); }
+            if (hasLore(player, 9)) { lore(9, "may build a city on a planet outside its slots, for 1 resource of that type"); }
+            if (hasLore(player, 11)) { lore(11, "may build a city on a gate (1 per gate)"); }
+            if (isLoreActive(player, 20, "empath")) { lore(20, "may build ships at any starports (damaged in Rival-controlled systems)"); }
+            break;
+
+        default:
+            break;
+    }
+    return hints;
+}
+
+function getLeaderHintsHtml(hints) {
+    return (hints || []).map(hint => "<span class=\"leaderhint\"><i class=\"bi " + (hint.lore ? "bi-book" : "bi-person-badge") + "\"></i><span><b>"
+        + hint.who + ":</b> " + hint.text + "</span></span>").join("");
+}
+
+function getLoreActionOffers(player, wants, can) {
+    // Lore actions in place of one of its normal actions, like Guild actions
+    if (!leadersAndLore || (player.lore || []).length == 0) { return []; }
+    const chasing = ambition => isAmbitionInPlay(ambition) && isChasingAmbition(player, ambition);
+    const keen = chasing("warlord") || player.shipsBoardValue >= manyShipsOnBoard;
+    let offers = [];
+    const add = (number, name, action, chance, text, extras) => {
+        if (hasLore(player, number) && can(action) && wants(chance)) {
+            offers.push(Object.assign({ label: name + " instead of " + replacedActionNames[action] + " (" + getLoreCard(number).name + ")", text: text, lore: number }, extras));
+        }
+    };
+
+    if (player.shipsBoardValue < fewShipsOnBoard || keen) { add(1, "Summon", "build", loreChance.summon, "build 1 ship at any city it controls, even a Rival's"); }
+    if (keen && player.shipsBoardValue > 0) {
+        add(2, "Fire Rifles", "battle", loreChance.rifles, "roll skirmish dice for its fresh ships in a system, at a Rival in an adjacent system (hit ships before buildings)");
+    }
+    const city = getCitiesToTax(player)[0];
+    if (city != null && !hasLeader(player, 13) && getResourceNeed(player, city) == 2 && getEmptySlots(player) > 0) {
+        add(10, "Nurture", "build", loreChance.nurture, "tax its " + preludeResourceNames[city].toLowerCase() + " city", { gains: { [city]: 1 } });
+    } else if (isNearCityBonus(player)) {
+        add(10, "Prune", "repair", loreChance.prune, "replace one of its starports with a city, towards the city bonus");
+    }
+    if (player.shipsBoardValue > 0 && getMoveGoal(player) != null) {
+        add(16, "Guide", "move", loreChance.guide, "move any ships, even Rivals', between a system with its fresh starport and an adjacent one: its own towards a target, or Rival ships away from its buildings");
+    }
+    if (chasing("warlord") && player.shipsBoardValue > 0) {
+        add(18, "Martyr", "move", loreChance.martyr, "destroy 1 of its fresh ships to destroy 1 Rival ship in that system, taking it as a Trophy (update both panels yourself)");
+    }
+    if (declaredAmbitions.includes("tyrant")) {
+        add(26, "Annex", "build", loreChance.annex, "replace a Rival's city or starport it controls with its own (their city goes back to their board)");
+    }
+    return offers;
+}
+
+function getLorePreludeOffers(player, wants, available) {
+    // Lore in the bot's prelude. available is what it has left to spend, and is updated
+    if (!leadersAndLore || (player.lore || []).length == 0) { return []; }
+    const chasing = ambition => declaredAmbitions.includes(ambition) && isChasingAmbition(player, ambition);
+    const lastCard = getUnplayedCards(player.cards).length == 0;
+    let offers = [];
+    let used = [];
+
+    // Discard an ambition Lore card to clear an Outrage it minds
+    const clears = [[19, ["psionics"]], [21, ["relics"]], [23, ["weapons"]], [25, ["weapons"]], [28, ["materials", "fuel"]]];
+    clears.forEach(([number, resources]) => {
+        if (!hasLore(player, number)) { return; }
+        const outraged = resources.filter(resource => (player.outraged || []).includes(resource) && !offers.some(offer => (offer.clearsOutrage || []).includes(resource)));
+        const minds = outraged.some(resource => resource == "weapons" ? isAmbitionInPlay("warlord") : getResourceNeed(player, resource) > 0);
+        if (minds && wants(loreChance.clearOutrage)) {
+            offers.push({ label: "Discard " + getLoreCard(number).name, text: "clear its " + outraged.map(resource => preludeResourceNames[resource]).join(" and ") + " Outrage",
+                discardsLore: number, clearsOutrage: outraged });
+            used.push(number);
+        }
+    });
+    const can = number => hasLore(player, number) && !used.includes(number);
+
+    // Warlord's Terror: Trophies for influence, when Warlord isn't one it's chasing
+    if (can(24) && declaredAmbitions.includes("warlord") && !chasing("warlord") && player.trophiesValue > 0 && !lastCard && wants(loreChance.terror)) {
+        const count = Math.min(player.trophiesValue, 2);
+        offers.push({ label: "Warlord's Terror", text: "return " + count + " Troph" + (count == 1 ? "y" : "ies") + " to influence " + (count == 1 ? "once" : "twice"), costs: { trophies: count } });
+    }
+
+    // Tyrant's Ego: Captives to secure, when Tyrant isn't one it's chasing
+    const toSecure = isMarketKnown() ? getCardsToSecure(player).length : 1;
+    if (can(25) && declaredAmbitions.includes("tyrant") && !chasing("tyrant") && player.captivesValue > 0 && toSecure > 0 && wants(loreChance.ego)) {
+        const count = Math.min(player.captivesValue, toSecure, 2);
+        offers.push({ label: "Tyrant's Ego", text: "return " + count + " Captive" + (count == 1 ? "" : "s") + " to secure " + (count == 1 ? "once" : "twice"), costs: { captives: count } });
+    }
+
+    // Tycoon's Ambition: give up its Material and Fuel to declare an ambition it does better in
+    if (can(27) && declaredAmbitions.includes("tycoon") && !chasing("tycoon") && canDeclareAmbition(player) && wants(loreChance.tycoonsAmbition)) {
+        const best = Object.keys(ambitionResources).filter(ambition => !declaredAmbitions.includes(ambition) && ambition != "tycoon")
+            .map(ambition => ({ ambition: ambition, count: ambitionResources[ambition](player) }))
+            .filter(option => option.count > 0 && getAmbitionPlacePoints(player, option.ambition, option.count) > 0)
+            .sort((a, b) => b.count - a.count)[0];
+        if (best != null) {
+            const costs = { materials: available.materials, fuel: available.fuel };
+            available.materials = 0; available.fuel = 0;
+            offers.push({ label: "Tycoon's Ambition", text: "discard all its Material and Fuel to declare " + capitalise(best.ambition), costs: costs, declares: best.ambition });
+            used.push(27);
+        }
+    }
+
+    // Tycoon's Charm: Material and Fuel for a resource it's chasing
+    const wanted = preludeResources.find(resource => resource != "materials" && resource != "fuel" && getResourceNeed(player, resource) == 2);
+    const spare = available.materials + available.fuel;
+    if (can(28) && declaredAmbitions.includes("tycoon") && !chasing("tycoon") && wanted != null && spare > 0 && wants(loreChance.charm)) {
+        const costs = { materials: available.materials, fuel: available.fuel };
+        available.materials = 0; available.fuel = 0;
+        offers.push({ label: "Tycoon's Charm", text: "discard " + spare + " Material and Fuel to gain " + spare + " " + preludeResourceNames[wanted], costs: costs, gains: { [wanted]: spare } });
+    }
+    return offers;
+}
+
+function applyLorePrelude(player, offer) {
+    // A Lore card discarded, and any Outrage it clears
+    if (offer.discardsLore != null) { player.lore = (player.lore || []).filter(number => number != offer.discardsLore); }
+    if (offer.clearsOutrage != null) { player.outraged = (player.outraged || []).filter(resource => !offer.clearsOutrage.includes(resource)); }
+}
+
+function getLeaderQuestionHint(player, action) {
+    // A line under the Tax question, when its Leader or Lore changes what it can tax
+    if (!leadersAndLore || action != "tax") { return ""; }
+    let hint = null;
+    if (hasLeader(player, 13)) { hint = ["bi-person-badge", "Anarchist: only a Rival's city, or an empty slot, in a system with its ships."]; }
+    else if (hasLeader(player, 4)) { hint = ["bi-person-badge", "Upstart: only cities it controls, its own included."]; }
+    else if (isLoreActive(player, 20, "empath")) { hint = ["bi-book", "Empath's Bond: any city counts, like its own."]; }
+    return hint == null ? "" : "<div class=\"small text-muted mt-1\"><i class=\"bi " + hint[0] + "\"></i> " + hint[1] + "</div>";
+}
+
+function hasLoreOffers(offers) {
+    return (offers || []).some(offer => offer.lore != null);
 }

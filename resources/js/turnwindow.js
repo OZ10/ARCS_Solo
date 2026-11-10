@@ -164,7 +164,7 @@ function renderTurn(player) {
         const name = turnActionTools[step.action];
         const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
         if (name != null) { offered.push(name); }
-        return getTurnRow(index + 1, step.name, step.reason, button);
+        return getTurnRow(index + 1, step.name, step.reason + getLeaderHintsHtml(step.hints), button);
     }).join("");
     const shortfall = getMarketShortfall();
 
@@ -179,7 +179,7 @@ function renderTurn(player) {
         html += getTurnSection("Farseers", getTurnRow("<i class=\"bi bi-arrow-left-right\"></i>", player.farseersSwap.title, player.farseersSwap.note));
     }
     if (planRows != "") { html += getTurnSection("Plan", planRows); }
-    if (guild.length > 0) { html += getTurnSection("Guild actions", getOfferRows(guild)); }
+    if (guild.length > 0) { html += getTurnSection(hasLoreOffers(guild) ? "Guild and Lore actions" : "Guild actions", getOfferRows(guild)); }
     if (shortfall > 0) {
         html += getTurnSection("The Court", getTurnRow("<i class=\"bi bi-exclamation-lg\"></i>", "The market is " + shortfall + " card" + (shortfall == 1 ? "" : "s") + " short", "Add " + (shortfall == 1 ? "the replacement" : "the replacements"), offered.includes("court") ? "" : getToolButton("court")));
         planned.push("court");

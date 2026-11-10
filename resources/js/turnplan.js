@@ -21,6 +21,7 @@ function getResourceSupply(resource) {
 function getCitiesToTax(player) {
     // Its cities it can gain a resource from: there's one left, and it wasn't told it can't
     const ruledOut = (player.noTax || []).flatMap(ambition => ambitionTaxResources[ambition] || []);
+    if (hasLeader(player, 13)) { return getAnarchistTaxTargets(player, ruledOut); }
     return getTaxTargets(player).filter(resource => getResourceSupply(resource) > 0 && !ruledOut.includes(resource));
 }
 
@@ -188,6 +189,9 @@ function getActionPlanScore(player, action, focus) {
             break;
     }
 
+    // A Leader that improves this action when it Copies or Pivots (leaderrules.js)
+    score += getLeaderPlanBonus(player, action);
+
     // What the player said it can do, in the Yes/No questions
     if (action == focus) { score += weights.focus; reason = (action == "move" && player.moveGoal != null) ? player.moveGoal : (player.focusReason || "you said it can"); }
     return { score: score, reason: reason };
@@ -229,7 +233,7 @@ function getTurnPlan(player) {
             - chosen.filter(pick => pick.action == action).length * turnPlanWeights.repeat
             + (action == "move" && chosen.some(pick => pick.action == "battle") && !chosen.some(pick => pick.action == "move") ? turnPlanWeights.moveForBattle : 0);
         // No more Taxes than it has cities to tax, unless it's taxing Rivals to capture
-        const canTaxAgain = scores.tax == null || scores.tax.reason == rivalTaxReason
+        const canTaxAgain = scores.tax == null || scores.tax.reason == rivalTaxReason || canTaxCityAgain(player)
             || chosen.filter(pick => pick.action == "tax").length < Math.max(getCitiesToTax(player).length + Number(player.startingCity || 0), 1);
         // No more Secures than there are cards it can secure
         const canSecureAgain = !isMarketKnown() || chosen.filter(pick => pick.action == "secure").length < Math.max(getCardsToSecure(player).length, 1);
@@ -245,14 +249,24 @@ function getTurnPlan(player) {
     let taxTargets = getCitiesToTax(player);
     let secureTargets = isMarketKnown() ? getCardsToSecure(player) : [];
     const influenceTarget = isMarketKnown() ? getCardsToInfluence(player)[0] : null;
+    let ruthlessShown = false;
     return chosen.sort((a, b) => turnPlanOrder.indexOf(a.action) - turnPlanOrder.indexOf(b.action)).map(pick => {
         let name = capitalise(pick.action);
         let reason = pick.reason;
+        let details = {};
 
         if (pick.action == "move" && hasBattle && reason != "you said it can" && player.moveGoal == null) { reason = "to set up the Battle"; }
         if (pick.action == "tax" && reason != rivalTaxReason && taxTargets.length > 0) {
-            // Each Tax goes to the next city it wants
-            name = "Tax its " + preludeResourceNames[taxTargets.shift()].toLowerCase() + " city";
+            // Each Tax goes to the next city it wants. With Warlord's Cruelty it may tax one again
+            details.resource = taxTargets.shift();
+            if (canTaxCityAgain(player) && taxTargets.length == 0) { taxTargets.push(details.resource); }
+            name = getTaxStepName(player, details.resource);
+        }
+        if (pick.action == "tax" && reason == rivalTaxReason) {
+            // Overseer (Ruthless) once a turn
+            details.rivalTax = true;
+            details.ruthless = !ruthlessShown;
+            ruthlessShown = true;
         }
         if (pick.action == "secure" || pick.action == "influence") {
             // The card itself if the market's been entered, otherwise the kind it wants
@@ -265,7 +279,7 @@ function getTurnPlan(player) {
                 name += " a " + preludeResourceNames[resource].toLowerCase() + " card";
             }
         }
-        return { action: pick.action, text: name + (reason ? " (" + reason + ")" : "") };
+        return { action: pick.action, text: name + (reason ? " (" + reason + ")" : ""), hints: getLeaderPlanHints(player, pick.action, details) };
     });
 }
 

@@ -443,6 +443,19 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     color: $slate;
 }
 
+.leaderhint {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: #5a4a1a;
+
+  i {
+    color: #a07c1c;
+  }
+}
+
 .leaderchip {
     font-family: "Spectral SC", Georgia, serif;
     font-weight: 700;

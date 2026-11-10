@@ -288,7 +288,8 @@ function getPreludeOffers(player) {
         });
     }
 
-    return offers;
+    // Lore in its prelude (leaderrules.js)
+    return offers.concat(getLorePreludeOffers(player, wants, available));
 }
 
 function startPrelude(player) {
@@ -319,7 +320,7 @@ function showPreludeModal(player, step) {
     preludeStep = step;
 
     const isGuild = (step == "guild");
-    document.getElementById("preludeTitle").innerHTML = "Player " + player.number + (isGuild ? "'s Guild actions" : "'s prelude");
+    document.getElementById("preludeTitle").innerHTML = "Player " + player.number + (isGuild ? (hasLoreOffers(player.guildActions.offers) ? "'s Guild and Lore actions" : "'s Guild actions") : "'s prelude");
     document.getElementById("preludeIntro").innerHTML = (isGuild
         ? "In place of its normal actions, the bot would like to use these." : "Before its actions, the bot would like to spend these.") + " Tick the ones worth doing.";
     document.getElementById("confirmPrelude").innerHTML = isGuild ? "Use ticked" : "Spend ticked";
@@ -362,6 +363,7 @@ function applyPrelude(player, offers) {
         Object.entries(offer.costs || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] - amount));
         Object.entries(offer.gains || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] + amount));
         if (offer.discards != null) { player.guildCards = player.guildCards.filter(number => number != offer.discards); }
+        applyLorePrelude(player, offer);
     });
 }
 

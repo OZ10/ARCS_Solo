@@ -6,7 +6,7 @@
 // they are loaded as plain scripts, in order, by index.html
 
 // How each normal action reads in the window
-const replacedActionNames = { battle: "a Battle", build: "a Build", influence: "an Influence", tax: "a Tax" };
+const replacedActionNames = { battle: "a Battle", build: "a Build", influence: "an Influence", tax: "a Tax", move: "a Move", repair: "a Repair" };
 
 function canUseGuildActionInsteadOf(player, action) {
     // The bot holds a card it could use in place of this action. Pressgang needs captives to return
@@ -80,6 +80,9 @@ function getGuildActionOffers(player) {
             text: "if it controls a Rival city, take a resource of that city's type from them and give them one they don't have (adjust the resources yourself)" });
     }
 
+    // Lore actions (leaderrules.js)
+    offers = offers.concat(getLoreActionOffers(player, wants, can));
+
     // No more than it has actions for
     return offers.slice(0, getBotActionCount(player));
 }
@@ -100,5 +103,5 @@ function startGuildActions(player) {
 function describeGuildActions(player) {
     // e.g. "Guild actions: Abduct instead of a Battle"
     if (player.guildActions == null || player.guildActions.spent == null || player.guildActions.spent.length == 0) { return null; }
-    return "Guild actions: " + player.guildActions.spent.map(offer => offer.label).join(", ");
+    return (hasLoreOffers(player.guildActions.spent) ? "Guild and Lore actions: " : "Guild actions: ") + player.guildActions.spent.map(offer => offer.label).join(", ");
 }
