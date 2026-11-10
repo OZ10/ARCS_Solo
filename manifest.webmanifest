@@ -1,0 +1,14 @@
+{
+  "name": "B4RCS: Bots for Arcs",
+  "short_name": "B4RCS",
+  "description": "Bots for Arcs",
+  "start_url": ".",
+  "display": "browser",
+  "background_color": "#3d4a5c",
+  "theme_color": "#3d4a5c",
+  "icons": [
+    { "src": "resources/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "resources/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "resources/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

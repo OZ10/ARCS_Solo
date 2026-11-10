@@ -1,9 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>ARCS Bot</title>
+    <title>B4RCS</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Bots for Arcs">
+
+    <!-- The app's icon (#83): the browser tab and a phone's home screen -->
+    <link rel="icon" href="resources/icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="resources/icons/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#3d4a5c">
+
+    <!-- The font of the name, close to the lettering on the cards -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Spectral+SC:wght@700&display=swap" rel="stylesheet">
 
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
@@ -408,7 +420,11 @@
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
-              <small class="text-muted me-auto" id="appVersion">v101126.02</small>
+              <span class="d-flex align-items-center gap-2 me-auto">
+                <img src="resources/icons/icon.svg" width="24" height="24" alt="">
+                <span class="appname">B4RCS</span>
+                <small class="text-muted" id="appVersion">v101126.03</small>
+              </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
             </div>

@@ -367,6 +367,15 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     --bs-btn-active-border-color: #{$mainfontcolour};
 }
 
+// The app's name, in a font close to the lettering on the cards (#83)
+.appname {
+    font-family: "Spectral SC", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: $slate;
+    letter-spacing: 0.03em;
+}
+
 // A bot's turn window (see turnwindow.js)
 .turnsection {
     background: #f3f4f6;

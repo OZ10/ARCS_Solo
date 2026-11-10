@@ -307,6 +307,14 @@ header {
   --bs-btn-active-border-color: rgb(30, 30, 30);
 }
 
+.appname {
+  font-family: "Spectral SC", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #3d4a5c;
+  letter-spacing: 0.03em;
+}
+
 .turnsection {
   background: #f3f4f6;
   border-radius: 10px;
