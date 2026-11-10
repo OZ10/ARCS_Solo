@@ -17,7 +17,7 @@ function getAmbitionPlacePoints(player, ambition, count) {
         counts.push({ player: neutralPlayer, count: neutralCounts[ambition] || 0 });
     }
 
-    const result = scoreAmbition(counts, [[2, 1]]).find(r => r.player === player);
+    const result = scoreAmbition(counts, [[2, 1]], ambition).find(r => r.player === player);
     return (result == null) ? 0 : result.points - result.cityBonus;
 }
 
@@ -249,7 +249,7 @@ function getPreludeOffers(player) {
     // Galactic Bards: on a Surpass or Pivot, if nothing's been declared this round, it may declare
     // the ambition on its card. The card keeps its number
     const playedCard = playedCardList.find(played => played.playedByPlayerNumber == player.number && played.cardAction != "CLAIM");
-    if (holds(25) && declaredAmbitions.length == 0 && (playedCard.cardAction == "SURPASS" || playedCard.cardAction == "PIVOT")) {
+    if (holds(25) && canDeclareAmbition(player) && declaredAmbitions.length == 0 && (playedCard.cardAction == "SURPASS" || playedCard.cardAction == "PIVOT")) {
         const ambition = (playedCard.ambition == "any") ? (getBestAmbitionToDeclare(player) || {}).ambition : playedCard.ambition;
         if (ambitionResources[ambition] != null && ambitionResources[ambition](player) > 0 && wants(preludeChance.galacticBards)) {
             offers.push({ label: "Galactic Bards", text: "declare " + capitalise(ambition) + ", the ambition on its card", declares: ambition });

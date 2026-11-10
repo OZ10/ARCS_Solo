@@ -523,6 +523,9 @@ function declareAmbition(player, playedCard) {
         ambition = ambitionSorted[0][0];
     }
 
+    // Feastbringer can't declare without a Guild card to give
+    if (!canDeclareAmbition(player)) { return; }
+
     // A bot with none of the ambition's resources doesn't declare it. This
     // includes the 1 cards, which have no ambition
     const resources = (ambitionResources[ambition] == null) ? 0 : ambitionResources[ambition](player);

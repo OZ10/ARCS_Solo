@@ -52,10 +52,11 @@ function swapCards(first, second, firstCard, secondCard) {
 }
 
 function onAmbitionDeclared(player) {
-    // Whoever holds Farseers looks at a Rival's hand after declaring
+    // Leaders first (leaderrules.js), then whoever holds Farseers looks at a Rival's hand
+    onLeaderAmbitionDeclared(player);
     if (!holdsGuildCard(player, farseersCard)) { return; }
     if (player.isHuman) {
-        whenWindowsClosed(() => showFarseersSwap(player));
+        queueLeaderWindow(() => showFarseersSwap(player));
     } else {
         botFarseersSwap(player);
     }

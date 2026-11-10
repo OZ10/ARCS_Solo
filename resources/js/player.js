@@ -70,6 +70,8 @@ class player {
     focusReason = null;
     // What Farseers' swap did this turn, as { title, note } (see botFarseersSwap)
     farseersSwap = null;
+    // What its Leader did this turn, as [{ title, note }] (see leaderrules.js)
+    leaderNotes = [];
 }
 
 function getPlayerColour(player) {
@@ -123,6 +125,7 @@ function resetPlayedThisTurn() {
         player.battleTargetNumber = null;
         player.focusReason = null;
         player.farseersSwap = null;
+        player.leaderNotes = [];
     })
 }
 

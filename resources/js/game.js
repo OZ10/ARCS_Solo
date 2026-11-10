@@ -351,7 +351,10 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
     player.hasPlayedACardThisTurn = true;
 
     if (isLeading) {
-        if (player.isHuman && cardAction == "DECLARE") {
+        if (player.isHuman && cardAction == "DECLARE" && !canDeclareAmbition(player)) {
+            // Feastbringer can't declare without a Guild card to give, so it's a lead
+            showMessageToast("Feastbringer, Generous", "You need a Guild card to give before you can declare, so this card leads without declaring.");
+        } else if (player.isHuman && cardAction == "DECLARE") {
 
             if (playedCard.ambition == "any") {
                 // Show modal

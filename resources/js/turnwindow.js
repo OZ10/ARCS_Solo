@@ -50,7 +50,7 @@ function openTurnWindow() {
 
     renderTurn(player);
     if (isTurnWindowOpen()) { return; }
-    if (isAnyWindowOpen()) {
+    if (isAnyWindowOpen() || hasLeaderWindowsWaiting()) {
         returnToTurnWindow = true;
         return;
     }
@@ -144,7 +144,7 @@ function getSlotAdviceHtml() {
     // Where to put what was just gained, the first slot to try first
     return slotAdvice.map(advice => {
         const who = (advice.player !== getTurnPlayer()) ? getPlayerTag(advice.player) + " " : "";
-        const slots = (advice.slots || []).map(slot => "<span class=\"slotchip\"><b>Slot " + slot.slot + "</b><small>" + slot.keys + " key" + (slot.keys == 1 ? "" : "s") + "</small></span>").join("<i class=\"bi bi-arrow-right\"></i>");
+        const slots = (advice.slots || []).map(slot => "<span class=\"slotchip\"><b>" + (typeof slot.slot == "number" ? "Slot " + slot.slot : slot.slot) + "</b><small>" + slot.keys + " key" + (slot.keys == 1 ? "" : "s") + "</small></span>").join("<i class=\"bi bi-arrow-right\"></i>");
         return "<div class=\"slotadvice\"><div class=\"d-flex align-items-start\"><b class=\"flex-fill\">" + who + advice.title + "</b>"
             + "<button type=\"button\" class=\"btn-close btn-sm\" aria-label=\"Close\" onclick=\"clearSlotAdvice()\"></button></div>"
             + (advice.why ? "<div class=\"small text-muted\">" + advice.why + "</div>" : "")
@@ -172,6 +172,9 @@ function renderTurn(player) {
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
     if (prelude.length > 0) { html += getTurnSection("Prelude: spend first", getOfferRows(prelude)); }
     html += getTurnSection("Card played", getCardHtml(player));
+    if ((player.leaderNotes || []).length > 0) {
+        html += getTurnSection("Leader: " + getLeaderName(player), player.leaderNotes.map(note => getTurnRow("<i class=\"bi bi-check-lg\"></i>", note.title, note.note)).join(""));
+    }
     if (player.farseersSwap != null) {
         html += getTurnSection("Farseers", getTurnRow("<i class=\"bi bi-arrow-left-right\"></i>", player.farseersSwap.title, player.farseersSwap.note));
     }

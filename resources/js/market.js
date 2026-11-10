@@ -23,7 +23,7 @@ function getRivalAgents(entry, player) {
 
 function canSecureEntry(entry, player) {
     const own = getMarketAgents(entry, player);
-    return own > 0 && own > Math.max(...getRivalAgents(entry, player));
+    return own > 0 && own > Math.max(...getRivalAgents(entry, player)) && !isParanoidBlocked(entry, player);
 }
 
 function removeFromMarket(number) {

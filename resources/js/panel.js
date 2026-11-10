@@ -277,6 +277,10 @@ function declareAmbitionClick(ambition) {
     // The declaring player's number is in the modal's title
     const title = document.getElementById("declareAmbitionModalTitle");
     const player = getPlayer(getPlayerNumberFromString(title.innerHTML));
+    if (!canDeclareAmbition(player)) {
+        showMessageToast("Feastbringer, Generous", "You need a Guild card to give before you can declare.");
+        return;
+    }
 
     showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
 
