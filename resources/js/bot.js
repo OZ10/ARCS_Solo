@@ -532,15 +532,14 @@ function declareAmbition(player, playedCard) {
     const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource, declareChanceMax);
 
     if (Math.random() * 100 < chance) {
-        // Farseers: the Rival's hand is the player's to show
-        const farseers = holdsGuildCard(player, 17) ? "<br>Farseers: it looks at a Rival's hand and may swap 1 card." : "";
-        showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition) + farseers);
+        showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = placesZeroMarker(player, ambition);
 
         addPlayedCardToList(playedCard, playedCard.playedAction, "LEAD", true, player);
 
         declaredAmbitions.push(ambition);
         updateAmbitionsDisplay();
+        onAmbitionDeclared(player);
     }
 }
 

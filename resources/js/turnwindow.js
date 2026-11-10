@@ -16,9 +16,7 @@ const turnTools = {
     battle: { name: "Battle", icon: "bi-crosshair", button: "battlebutton", run: showBattleModal },
     build: { name: "Build", icon: "bi-hammer", button: "buildbutton", run: showBuildModal },
     court: { name: "Court", icon: "bi-bank", button: "courtbutton", run: showCourtModal },
-    draw: { name: "Draw", icon: "bi-file-plus", headerIcon: true },
-    seize: { name: "Seize", icon: "bi-exclamation-circle", headerIcon: true, staysOpen: true },
-    declare: { name: "Declare", icon: "bi-hexagon-fill", headerIcon: true }
+    draw: { name: "Draw", icon: "bi-file-plus", headerIcon: true }
 };
 
 // Which button goes with an action in the plan or prelude
@@ -79,11 +77,6 @@ function useTurnTool(name) {
         }
     };
 
-    // Seizing asks in a small message that shows over the window
-    if (tool.staysOpen) {
-        run();
-        return;
-    }
     returnToTurnWindow = true;
     closeTurnWindow(run);
 }
@@ -144,7 +137,7 @@ function getCardHtml(player) {
 function getAlsoTools(player, planned) {
     // Anything else it could use: what its card allows but the plan doesn't list, and the rest
     const possible = { battle: canBotTakeAction(player, "battle"), build: canBotTakeAction(player, "build"), court: canBotTakeAction(player, "influence") || canBotTakeAction(player, "secure") };
-    return Object.keys(possible).filter(name => possible[name] && !planned.includes(name)).concat("draw", "seize", "declare");
+    return Object.keys(possible).filter(name => possible[name] && !planned.includes(name)).concat("draw");
 }
 
 function getSlotAdviceHtml() {
@@ -179,6 +172,9 @@ function renderTurn(player) {
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
     if (prelude.length > 0) { html += getTurnSection("Prelude: spend first", getOfferRows(prelude)); }
     html += getTurnSection("Card played", getCardHtml(player));
+    if (player.farseersSwap != null) {
+        html += getTurnSection("Farseers", getTurnRow("<i class=\"bi bi-arrow-left-right\"></i>", player.farseersSwap.title, player.farseersSwap.note));
+    }
     if (planRows != "") { html += getTurnSection("Plan", planRows); }
     if (guild.length > 0) { html += getTurnSection("Guild actions", getOfferRows(guild)); }
     if (shortfall > 0) {

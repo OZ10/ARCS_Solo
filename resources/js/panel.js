@@ -98,6 +98,11 @@ function clonePlayerNodeAndSetup(player) {
     buildbutton.id = "buildbutton" + playerNumber.toString();
     buildbutton.classList.add("d-none");
 
+    // Seizing and declaring are the human player's to do, as a bot does both itself (#82)
+    if (!player.isHuman) {
+        [".bi-exclamation-circle", ".bi-hexagon-fill"].forEach(icon => playertemplate.querySelector(icon).closest("button").remove());
+    }
+
     // Shown once the player has played their card: what they played, and Done to move
     // on (see finishPlay in game.js)
     const turndone = playertemplate.querySelector("#turndone");
@@ -157,6 +162,17 @@ function showGuildCard(player, card) {
     body.innerHTML = "<div class=\"small text-muted mb-2\">Player " + player.number + " &middot; " + preludeResourceNames[card.resource]
         + " &middot; " + card.keys + " key" + (card.keys == 1 ? "" : "s") + " &middot; BC " + String(card.number).padStart(2, "0") + "</div>"
         + "<p>" + card.text + "</p>";
+
+    // Farseers' prelude, for the human player. A bot's is in its prelude window
+    if (player.isHuman && card.number == farseersCard) {
+        const use = document.createElement("button");
+        use.type = "button";
+        use.id = "farseersUse";
+        use.classList.add("btn", "btn-primary", "w-100", "mb-2");
+        use.innerHTML = "Use its prelude";
+        use.onclick = () => showFarseersPrelude(player);
+        body.appendChild(use);
+    }
 
     const remove = document.createElement("button");
     remove.type = "button";
@@ -279,6 +295,7 @@ function declareAmbitionClick(ambition) {
 
     declaredAmbitions.push(ambition);
     updateAmbitionsDisplay();
+    onAmbitionDeclared(player);
 
     // Update what Done shows the player played (e.g. a 7 used to declare)
     if (awaitingDone == player.number) { showTurnDone(player); }

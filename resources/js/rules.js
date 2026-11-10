@@ -212,6 +212,16 @@ const turnPlanOrder = ["move", "battle", "influence", "secure", "tax", "build", 
 // p.19). A bot does if the average number on its cards is below this
 const mulliganBelow = 3.5;
 
+// Farseers' swap (see getCardWorth): what a card in a Rival's hand is worth to a bot. It swaps if
+// the best is worth this much more than its least useful card. These could also become part of
+// the bot personalities (#71)
+const farseersWeights = {
+    ambition: 3,            // + the ambition on it, if it's chasing that one and could still declare it
+    action: 2,              // + an action it needs (Battle for Warlord, Tax, Secure or Influence, Build)
+    number: 0.2,            // + each point of its number, which wins the initiative
+    gain: 1                 // how much better the card it takes must be
+};
+
 // Farseers: a bot swaps cards with this number or lower
 const farseersLowCard = 3;
 

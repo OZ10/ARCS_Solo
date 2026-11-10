@@ -360,6 +360,7 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
 
                 declaredAmbitions.push(playedCard.ambition);
                 updateAmbitionsDisplay();
+                onAmbitionDeclared(player);
             }
 
         } else if (player.isHuman == false) {
@@ -593,7 +594,9 @@ function drawCardIntoHand(player, card) {
 
     // The card now only exists in this player's hand, so remove it from the
     // discard pile, this turn's played cards and the hand of whoever played it
-    removePlayedCard(discardPile, cardFullName);
+    // In the pile it may never have been played: the bottom is the cards nobody was dealt
+    const pileIndex = discardPile.findIndex(pileCard => getCardFullName(pileCard) == cardFullName);
+    if (pileIndex >= 0) { discardPile.splice(pileIndex, 1); }
     removePlayedCard(playedCardList, cardFullName);
     players.forEach(p => removePlayedCard(p.cards, cardFullName));
 

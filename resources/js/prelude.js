@@ -389,6 +389,7 @@ function confirmPrelude() {
             declaredAmbitions.push(offer.declares);
             updateAmbitionsDisplay();
             showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(offer.declares));
+            onAmbitionDeclared(player);
         }
         if (offer.farseers != null) {
             // Take the cards from the bottom first, as what it discards goes on top

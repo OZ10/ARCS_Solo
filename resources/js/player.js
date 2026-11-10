@@ -62,6 +62,8 @@ class player {
     battleTargetNumber = null;
     // Why it played for an action without asking, as the plan's reason (see getKnownYesReason)
     focusReason = null;
+    // What Farseers' swap did this turn, as { title, note } (see botFarseersSwap)
+    farseersSwap = null;
 }
 
 function getPlayerColour(player) {
@@ -114,6 +116,7 @@ function resetPlayedThisTurn() {
         player.moveGoal = null;
         player.battleTargetNumber = null;
         player.focusReason = null;
+        player.farseersSwap = null;
     })
 }
 
