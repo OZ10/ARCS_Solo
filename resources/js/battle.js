@@ -283,7 +283,7 @@ function getBuildingTypesOn(defender, planet, kinds) {
     return kinds.map(kind => {
         if (planet == "starport" || kind == "starport") { return "starport"; }
         if (recorded > 0) { recorded--; return planet; }
-        if (startingCity) { startingCity = false; return "startingCity:" + planet; }
+        if (startingCity) { startingCity = Number(startingCity) - 1; return "startingCity:" + planet; }
         return planet;
     });
 }
@@ -809,7 +809,7 @@ function applyBattleResults() {
         const startingCity = type.startsWith("startingCity:");
         const resource = startingCity ? type.split(":")[1] : type;
         if (startingCity) {
-            defender.startingCity = false;
+            defender.startingCity = Number(defender.startingCity) - 1;
             document.getElementById("citiestotal" + defender.number).innerHTML = getCityCount(defender);
         } else {
             adjustCounter(defender, "cities" + capitalise(resource), -1);

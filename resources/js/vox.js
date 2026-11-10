@@ -164,7 +164,7 @@ function showVoxCard(player, card) {
                         { label: "Don't", run: close },
                         { label: "Done", run: () => {
                             if (city == "startingCity") {
-                                player.startingCity = false;
+                                player.startingCity = Number(player.startingCity) - 1;
                                 document.getElementById("citiestotal" + player.number).innerHTML = getCityCount(player);
                             } else {
                                 adjustCounter(player, "cities" + capitalise(city), -1);

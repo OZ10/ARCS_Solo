@@ -68,7 +68,7 @@ function undoLastCard() {
                 player[change.counter + "Value"] = Math.max((player[change.counter + "Value"] || 0) + change.amount, 0);
                 break;
             case "startingCity":
-                player.startingCity = false;
+                player.startingCity = Math.max(Number(player.startingCity) - 1, 0);
                 break;
             case "guildAdd":
                 if (!(player.guildCards || []).includes(change.number)) { player.guildCards = (player.guildCards || []).concat(change.number); }

@@ -27,8 +27,14 @@ class player {
     citiesRelicsValue = 0;
     citiesPsionicsValue = 0;
     // Everyone starts with one city on the map, but the app doesn't know which resource it's on
-    // until a city tile is set during setup. It still counts towards the player's cities
+    // until a city tile is set during setup. It still counts towards the player's cities. With
+    // Leaders it's how many such cities (0, 1 or 2), and true counts as 1
     startingCity = true;
+    // Leaders & Lore (leaders.js): its Leader's number, its Lore cards' numbers, and cities
+    // scrapped in setup, which open slots as if built but can't be built (the Anarchist)
+    leader = null;
+    lore = [];
+    scrappedCities = 0;
     // Cities a Rival has destroyed and holds as Trophies. They don't go back on the player board
     // until those Trophies are returned, so the slots they uncovered stay open
     citiesAsTrophies = 0;
@@ -83,13 +89,13 @@ const cityCounters = ["citiesFuel", "citiesMaterials", "citiesWeapons", "citiesR
 const playerCounters = resourceCounters.concat(boardCounters);
 
 function getCityCount(player) {
-    return cityCounters.reduce((total, counter) => total + player[counter + "Value"], 0) + (player.startingCity ? 1 : 0);
+    return cityCounters.reduce((total, counter) => total + player[counter + "Value"], 0) + Number(player.startingCity || 0);
 }
 
 function getUncoveredCities(player) {
     // How many city slots are open on a player's board: their cities on the map, and any held
     // as a Rival's Trophies
-    return getCityCount(player) + (player.citiesAsTrophies || 0);
+    return getCityCount(player) + (player.citiesAsTrophies || 0) + (player.scrappedCities || 0);
 }
 
 function hasPlayerGotCardsToPlay(player) {

@@ -69,6 +69,8 @@ function setupGame(numberOfPlayers) {
     declaredAmbitions = [];
     neutralCounts = {};
     courtMarket = [];
+    leadersAndLore = document.getElementById("leadersAndLoreSwitch").checked;
+    leaderDraft = null;
 
     removeChildElements("playerslots");
     removeChildElements("playedcards");
@@ -80,6 +82,7 @@ function setupGame(numberOfPlayers) {
     dealCards();
 
     SaveAllSettings();
+    saveSettingObject("leadersAndLore", leadersAndLore);
 
     // localStorage was cleared above, so there's nothing to undo
     updateUndoButton();
@@ -92,6 +95,7 @@ function showChosenColour() {
     // The next new game starts on the colour the human player has now
     if (players.length == 0) { return; }
     document.getElementById("humanColour" + getPlayerColour(players[0])).checked = true;
+    document.getElementById("leadersAndLoreSwitch").checked = leadersAndLore;
 }
 
 function addExtraCards(numberOfPlayers) {
@@ -110,23 +114,22 @@ function addExtraCards(numberOfPlayers) {
 function createPlayers(numberOfPlayers) {
     // The human player takes the colour they chose, and whoever had it takes theirs
     const humanColour = parseInt(document.querySelector("input[name=humanColour]:checked").value);
+    // A random player starts with the initiative (rulebook p.4)
+    const starter = chooseStartingPlayer(numberOfPlayers);
 
     for (let playerNumber = 1; playerNumber < numberOfPlayers + 1; playerNumber++) {
         let p = new player(playerNumber, (playerNumber == 1) ? true : false);
         p.shipsBoardValue = startingShips[numberOfPlayers];
         p.colour = (playerNumber == 1) ? humanColour : (playerNumber == humanColour ? 1 : playerNumber);
 
-        if (playerNumber == 1) {
-            // Game is being setup, human player is player 1 and has
-            // initiative and is set to be the current player
-            p.hasInitiative = true;
-            currentPlayer = p;
-        };
-
         players.push(p);
 
         clonePlayerNodeAndSetup(p);
     }
+
+    // Whoever starts has the initiative and plays first
+    changeInitiative(getPlayer(starter));
+    currentPlayer = getPlayer(starter);
 }
 
 function resetHandsAndPlayedCardsDisplay() {

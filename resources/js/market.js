@@ -104,7 +104,7 @@ function askOpeningCourt() {
     const modal = document.getElementById("courtModal");
     modal.querySelector(".modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     document.getElementById("courtTitle").innerHTML = "The Court";
-    modal.addEventListener('hidden.bs.modal', () => { courtSetup = false; showSetUpPlayers(); }, { once: true });
+    modal.addEventListener('hidden.bs.modal', () => { courtSetup = false; if (leadersAndLore) { startLeaderDraft(); } else { showSetUpPlayers(); } }, { once: true });
 
     showCourtWindow();
     bootstrap.Modal.getOrCreateInstance(modal).show();
@@ -114,10 +114,9 @@ function showSetUpPlayers() {
     // A new game, once the Court has been entered: what each player starts with (rulebook p.5).
     // The app can't see the setup card, so the player enters it
     document.getElementById("guildTitle").innerHTML = "Set up the players";
+    document.querySelector("#guildModal .modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     const body = document.getElementById("guildBody");
-    body.innerHTML = "<p class=\"mb-2\">On each player's panel, bots included:</p>"
-        + "<ol class=\"ps-3 mb-3\"><li class=\"mb-1\">Add the 2 resources they start with.</li>"
-        + "<li>Tap + on the type of planet their starting city is on.</li></ol>";
+    body.innerHTML = getSetupPlayersHtml();
 
     const done = document.createElement("button");
     done.type = "button";

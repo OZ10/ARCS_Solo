@@ -230,7 +230,7 @@ function getTurnPlan(player) {
             + (action == "move" && chosen.some(pick => pick.action == "battle") && !chosen.some(pick => pick.action == "move") ? turnPlanWeights.moveForBattle : 0);
         // No more Taxes than it has cities to tax, unless it's taxing Rivals to capture
         const canTaxAgain = scores.tax == null || scores.tax.reason == rivalTaxReason
-            || chosen.filter(pick => pick.action == "tax").length < Math.max(getCitiesToTax(player).length + (player.startingCity ? 1 : 0), 1);
+            || chosen.filter(pick => pick.action == "tax").length < Math.max(getCitiesToTax(player).length + Number(player.startingCity || 0), 1);
         // No more Secures than there are cards it can secure
         const canSecureAgain = !isMarketKnown() || chosen.filter(pick => pick.action == "secure").length < Math.max(getCardsToSecure(player).length, 1);
         const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain))
