@@ -342,7 +342,7 @@ function showPreludeModal(player, step) {
         const label = document.createElement("label");
         label.classList.add("form-check-label");
         label.htmlFor = input.id;
-        label.innerHTML = "<b>" + offer.label + ":</b> " + offer.text;
+        label.innerHTML = tagPlayerNames("<b>" + offer.label + ":</b> " + offer.text);
 
         row.append(input, label);
         list.appendChild(row);

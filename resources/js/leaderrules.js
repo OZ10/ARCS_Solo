@@ -59,7 +59,7 @@ function showLeaderWindow(player, title, html) {
     const header = document.querySelector("#guildModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     header.classList.add("playerbanner" + getPlayerColour(player));
-    document.getElementById("guildBody").innerHTML = html;
+    document.getElementById("guildBody").innerHTML = tagPlayerNames(html);
     bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
 }
 

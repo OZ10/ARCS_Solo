@@ -48,6 +48,13 @@ function openTurnWindow() {
     const player = getTurnPlayer();
     if (player == null) { return; }
 
+    // The plan is set now, after its prelude and Guild actions. Securing a card or winning a
+    // Battle can change what it's chasing, but the plan shouldn't reshuffle part way through (#105)
+    if (player.turnPlan == null) {
+        player.turnPlan = getTurnPlan(player);
+        SaveAllSettings();
+    }
+
     renderTurn(player);
     if (isTurnWindowOpen()) { return; }
     if (isAnyWindowOpen() || hasLeaderWindowsWaiting()) {

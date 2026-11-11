@@ -311,7 +311,8 @@ function updateYesNoText(text) {
     setYesNoTitle();
 
     const element = document.getElementById("yesNoMessage");
-    element.innerHTML = text
+    // Any player it names, on their colour (#106)
+    element.innerHTML = tagPlayerNames(text);
     element.classList.add("flash");
 
     // Remove the class after the animation ends

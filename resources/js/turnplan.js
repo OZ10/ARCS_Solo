@@ -201,6 +201,8 @@ function getTurnPlan(player) {
     // The actions it should take this turn in the order to take them, as
     // [{ action, text }]. [] for the human player, or if its card gives no actions
     if (player.isHuman) { return []; }
+    // Once its turn window has opened, the plan stays as it was (#105)
+    if (player.turnPlan != null) { return player.turnPlan; }
     const play = getBotPlay(player);
     if (play == null) { return []; }
 

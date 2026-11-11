@@ -114,7 +114,8 @@ function showScoringModal() {
             label.classList.add("me-2");
             label.style.width = "80px";
             label.htmlFor = "scoreCount_" + id;
-            label.innerHTML = player.isNeutral ? "Neutral" : "Player " + player.number;
+            // On the player's colour (#107)
+            label.innerHTML = player.isNeutral ? "Neutral" : getPlayerTag(player);
 
             // Filled in from the resources being tracked, but can be changed
             const input = document.createElement("input");

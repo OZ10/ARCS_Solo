@@ -189,7 +189,7 @@ function getDraftCardText(kind, card) {
 
 function showLeaderDraft() {
     const human = players[0];
-    const order = leaderDraft.order.map(number => number == human.number ? "you" : "Player " + number);
+    const order = leaderDraft.order.map(number => number == human.number ? "you" : getPlayerTag(getPlayer(number)));
     const initiative = getPlayerWithInitiative();
     const roundPicks = leaderDraft.picks.filter(pick => pick.round == leaderDraft.round);
 

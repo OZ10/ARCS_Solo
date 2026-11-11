@@ -52,6 +52,9 @@ class player {
     guildActions = null;
     // A little variation in a bot's turn plan, set once a turn (turnplan.js)
     planVariation = null;
+    // A bot's plan, set when its turn window first opens so it doesn't change as its steps are
+    // carried out (#105, turnwindow.js)
+    turnPlan = null;
     // Union cards placed this turn: [{ guild, card }], drawn when the turn ends (prelude.js)
     unionDraws = [];
     // A bot's answer this turn to "Can I build or repair anything?" (null until asked, see bot.js)
@@ -117,6 +120,7 @@ function resetPlayedThisTurn() {
         player.prelude = null;
         player.guildActions = null;
         player.planVariation = null;
+        player.turnPlan = null;
         player.canBuild = null;
         player.noTax = [];
         player.newCityWanted = null;
