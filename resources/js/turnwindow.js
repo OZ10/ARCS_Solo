@@ -48,9 +48,16 @@ function openTurnWindow() {
     const player = getTurnPlayer();
     if (player == null) { return; }
 
+    // The plan is set now, after its prelude and Guild actions. Securing a card or winning a
+    // Battle can change what it's chasing, but the plan shouldn't reshuffle part way through (#105)
+    if (player.turnPlan == null) {
+        player.turnPlan = getTurnPlan(player);
+        SaveAllSettings();
+    }
+
     renderTurn(player);
     if (isTurnWindowOpen()) { return; }
-    if (isAnyWindowOpen()) {
+    if (isAnyWindowOpen() || hasLeaderWindowsWaiting()) {
         returnToTurnWindow = true;
         return;
     }
@@ -144,7 +151,7 @@ function getSlotAdviceHtml() {
     // Where to put what was just gained, the first slot to try first
     return slotAdvice.map(advice => {
         const who = (advice.player !== getTurnPlayer()) ? getPlayerTag(advice.player) + " " : "";
-        const slots = (advice.slots || []).map(slot => "<span class=\"slotchip\"><b>Slot " + slot.slot + "</b><small>" + slot.keys + " key" + (slot.keys == 1 ? "" : "s") + "</small></span>").join("<i class=\"bi bi-arrow-right\"></i>");
+        const slots = (advice.slots || []).map(slot => "<span class=\"slotchip\"><b>" + (typeof slot.slot == "number" ? "Slot " + slot.slot : slot.slot) + "</b><small>" + slot.keys + " key" + (slot.keys == 1 ? "" : "s") + "</small></span>").join("<i class=\"bi bi-arrow-right\"></i>");
         return "<div class=\"slotadvice\"><div class=\"d-flex align-items-start\"><b class=\"flex-fill\">" + who + advice.title + "</b>"
             + "<button type=\"button\" class=\"btn-close btn-sm\" aria-label=\"Close\" onclick=\"clearSlotAdvice()\"></button></div>"
             + (advice.why ? "<div class=\"small text-muted\">" + advice.why + "</div>" : "")
@@ -164,7 +171,7 @@ function renderTurn(player) {
         const name = turnActionTools[step.action];
         const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
         if (name != null) { offered.push(name); }
-        return getTurnRow(index + 1, step.name, step.reason, button);
+        return getTurnRow(index + 1, step.name, step.reason + getLeaderHintsHtml(step.hints), button);
     }).join("");
     const shortfall = getMarketShortfall();
 
@@ -172,11 +179,14 @@ function renderTurn(player) {
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
     if (prelude.length > 0) { html += getTurnSection("Prelude: spend first", getOfferRows(prelude)); }
     html += getTurnSection("Card played", getCardHtml(player));
+    if ((player.leaderNotes || []).length > 0) {
+        html += getTurnSection("Leader: " + getLeaderName(player), player.leaderNotes.map(note => getTurnRow("<i class=\"bi bi-check-lg\"></i>", note.title, note.note)).join(""));
+    }
     if (player.farseersSwap != null) {
         html += getTurnSection("Farseers", getTurnRow("<i class=\"bi bi-arrow-left-right\"></i>", player.farseersSwap.title, player.farseersSwap.note));
     }
     if (planRows != "") { html += getTurnSection("Plan", planRows); }
-    if (guild.length > 0) { html += getTurnSection("Guild actions", getOfferRows(guild)); }
+    if (guild.length > 0) { html += getTurnSection(hasLoreOffers(guild) ? "Guild and Lore actions" : "Guild actions", getOfferRows(guild)); }
     if (shortfall > 0) {
         html += getTurnSection("The Court", getTurnRow("<i class=\"bi bi-exclamation-lg\"></i>", "The market is " + shortfall + " card" + (shortfall == 1 ? "" : "s") + " short", "Add " + (shortfall == 1 ? "the replacement" : "the replacements"), offered.includes("court") ? "" : getToolButton("court")));
         planned.push("court");

@@ -295,7 +295,7 @@ function getRoundMarkers(round) {
     return ambitionMarkerValues[round].slice().sort((a, b) => b[0] - a[0]);
 }
 
-function scoreAmbition(counts, markers) {
+function scoreAmbition(counts, markers, ambition) {
     // counts is [{ player, count }]. Returns [{ player, points, cityBonus }] for each player who scores
     // - A player needs at least one matching resource to score
     // - Most scores first place, second most scores second place
@@ -314,22 +314,23 @@ function scoreAmbition(counts, markers) {
     const first = eligible.filter(c => c.count == highest);
 
     if (first.length > 1) {
-        return first.map(c => ({ player: c.player, points: secondPlacePoints, cityBonus: 0 }));
+        return applyLeaderScoring(first.map(c => ({ player: c.player, points: secondPlacePoints, cityBonus: 0, place: 2 })), ambition, secondPlacePoints);
     }
 
     const bonus = first[0].player.isNeutral ? 0 : getCityBonus(first[0].player);
-    let results = [{ player: first[0].player, points: firstPlacePoints + bonus, cityBonus: bonus }];
+    let results = [{ player: first[0].player, points: firstPlacePoints + bonus, cityBonus: bonus, place: 1 }];
 
     const rest = eligible.filter(c => c.count < highest);
     if (rest.length > 0) {
         const secondHighest = Math.max(...rest.map(c => c.count));
         const second = rest.filter(c => c.count == secondHighest);
         if (second.length == 1) {
-            results.push({ player: second[0].player, points: secondPlacePoints, cityBonus: 0 });
+            results.push({ player: second[0].player, points: secondPlacePoints, cityBonus: 0, place: 2 });
         }
     }
 
-    return results;
+    // Some Leaders change what they score (leaderrules.js)
+    return applyLeaderScoring(results, ambition, secondPlacePoints);
 }
 
 // The action each Yes/No question asks about, in the order the questions are asked.

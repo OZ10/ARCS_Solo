@@ -6,7 +6,8 @@
 
 function getOpenSlots(player) {
     const cities = getUncoveredCities(player);
-    return resourceSlots.filter(slot => cities >= slot.cities);
+    // Ancient Holdings (Lore) has one more slot, with 4 keys
+    return resourceSlots.filter(slot => cities >= slot.cities).concat(hasLore(player, loreNumbers.ancientHoldings) ? [{ slot: "Ancient Holdings", keys: 4, cities: 0 }] : []);
 }
 
 function getUsedSlots(player) {

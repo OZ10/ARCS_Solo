@@ -17,7 +17,7 @@ function getAmbitionPlacePoints(player, ambition, count) {
         counts.push({ player: neutralPlayer, count: neutralCounts[ambition] || 0 });
     }
 
-    const result = scoreAmbition(counts, [[2, 1]]).find(r => r.player === player);
+    const result = scoreAmbition(counts, [[2, 1]], ambition).find(r => r.player === player);
     return (result == null) ? 0 : result.points - result.cityBonus;
 }
 
@@ -249,7 +249,7 @@ function getPreludeOffers(player) {
     // Galactic Bards: on a Surpass or Pivot, if nothing's been declared this round, it may declare
     // the ambition on its card. The card keeps its number
     const playedCard = playedCardList.find(played => played.playedByPlayerNumber == player.number && played.cardAction != "CLAIM");
-    if (holds(25) && declaredAmbitions.length == 0 && (playedCard.cardAction == "SURPASS" || playedCard.cardAction == "PIVOT")) {
+    if (holds(25) && canDeclareAmbition(player) && declaredAmbitions.length == 0 && (playedCard.cardAction == "SURPASS" || playedCard.cardAction == "PIVOT")) {
         const ambition = (playedCard.ambition == "any") ? (getBestAmbitionToDeclare(player) || {}).ambition : playedCard.ambition;
         if (ambitionResources[ambition] != null && ambitionResources[ambition](player) > 0 && wants(preludeChance.galacticBards)) {
             offers.push({ label: "Galactic Bards", text: "declare " + capitalise(ambition) + ", the ambition on its card", declares: ambition });
@@ -288,7 +288,8 @@ function getPreludeOffers(player) {
         });
     }
 
-    return offers;
+    // Lore in its prelude (leaderrules.js)
+    return offers.concat(getLorePreludeOffers(player, wants, available));
 }
 
 function startPrelude(player) {
@@ -319,7 +320,7 @@ function showPreludeModal(player, step) {
     preludeStep = step;
 
     const isGuild = (step == "guild");
-    document.getElementById("preludeTitle").innerHTML = "Player " + player.number + (isGuild ? "'s Guild actions" : "'s prelude");
+    document.getElementById("preludeTitle").innerHTML = "Player " + player.number + (isGuild ? (hasLoreOffers(player.guildActions.offers) ? "'s Guild and Lore actions" : "'s Guild actions") : "'s prelude");
     document.getElementById("preludeIntro").innerHTML = (isGuild
         ? "In place of its normal actions, the bot would like to use these." : "Before its actions, the bot would like to spend these.") + " Tick the ones worth doing.";
     document.getElementById("confirmPrelude").innerHTML = isGuild ? "Use ticked" : "Spend ticked";
@@ -341,7 +342,7 @@ function showPreludeModal(player, step) {
         const label = document.createElement("label");
         label.classList.add("form-check-label");
         label.htmlFor = input.id;
-        label.innerHTML = "<b>" + offer.label + ":</b> " + offer.text;
+        label.innerHTML = tagPlayerNames("<b>" + offer.label + ":</b> " + offer.text);
 
         row.append(input, label);
         list.appendChild(row);
@@ -362,6 +363,7 @@ function applyPrelude(player, offers) {
         Object.entries(offer.costs || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] - amount));
         Object.entries(offer.gains || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] + amount));
         if (offer.discards != null) { player.guildCards = player.guildCards.filter(number => number != offer.discards); }
+        applyLorePrelude(player, offer);
     });
 }
 

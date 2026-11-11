@@ -52,7 +52,6 @@ function clonePlayerNodeAndSetup(player) {
 
     if (playerNumber == 1) {
         playcardbutton.classList.add("d-none");
-        playerinitiative.classList.remove("d-none");
 
         const actiondiv = document.createElement("div");
         actiondiv.classList.add("mt-1", "sectionlabel", "text-center");
@@ -129,6 +128,7 @@ function clonePlayerNodeAndSetup(player) {
 // and remove one. Guild icons count towards ambitions (see ambitionResources in rules.js)
 
 function showGuildCardsRow(player) {
+    showLeaderRow(player);
     const row = document.getElementById("guildcards" + player.number);
     row.replaceChildren();
 
@@ -277,6 +277,10 @@ function declareAmbitionClick(ambition) {
     // The declaring player's number is in the modal's title
     const title = document.getElementById("declareAmbitionModalTitle");
     const player = getPlayer(getPlayerNumberFromString(title.innerHTML));
+    if (!canDeclareAmbition(player)) {
+        showMessageToast("Feastbringer, Generous", "You need a Guild card to give before you can declare.");
+        return;
+    }
 
     showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
 
@@ -485,7 +489,8 @@ function plusMinusClicked(id, action, automatic = false) {
     // whenever it's tapped. Building one through the Build window is a new city. Removing a
     // city when the tile is already at 0 means the starting city
     if (player.startingCity && cityCounters.includes(resourceName) && ((action == 'plus' && !automatic) || (action == 'minus' && player[resourceName + "Value"] == 0))) {
-        player.startingCity = false;
+        // Some Leaders start with 2 cities
+        player.startingCity = Number(player.startingCity) - 1;
         if (!automatic) { logManualChange({ type: "startingCity", player: player.number }); }
     }
 

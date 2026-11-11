@@ -288,7 +288,7 @@ function focus_ambition(ambition, questionNumber, answerNo) {
     }
 
     const action = ambitionQuestionActions[ambition][questionNumber - 1];
-    updateYesNoText(action.startsWith("reach") ? getReachQuestion(ambition, action, currentPlayer) : ambitionQuestionText[ambition][action]);
+    updateYesNoText(action.startsWith("reach") ? getReachQuestion(ambition, action, currentPlayer) : ambitionQuestionText[ambition][action] + getLeaderQuestionHint(currentPlayer, action));
 
     // Only show the modal if the previous 
     // answer was not 'No'
@@ -311,7 +311,8 @@ function updateYesNoText(text) {
     setYesNoTitle();
 
     const element = document.getElementById("yesNoMessage");
-    element.innerHTML = text
+    // Any player it names, on their colour (#106)
+    element.innerHTML = tagPlayerNames(text);
     element.classList.add("flash");
 
     // Remove the class after the animation ends
@@ -522,6 +523,9 @@ function declareAmbition(player, playedCard) {
         const ambitionSorted = prioritiseAndSortAmbitions();
         ambition = ambitionSorted[0][0];
     }
+
+    // Feastbringer can't declare without a Guild card to give
+    if (!canDeclareAmbition(player)) { return; }
 
     // A bot with none of the ambition's resources doesn't declare it. This
     // includes the 1 cards, which have no ambition

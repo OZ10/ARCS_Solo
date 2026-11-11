@@ -68,8 +68,8 @@ function showVoxDecision(player, card, headline, reason, buttons) {
     document.getElementById("guildTitle").innerHTML = card.name;
     const body = document.getElementById("guildBody");
     body.innerHTML = "<div class=\"small text-muted mb-2\">" + card.text + "</div>"
-        + "<div class=\"battleroll\">" + headline + "</div>"
-        + (reason ? "<div class=\"fst-italic mb-2\">" + reason + "</div>" : "");
+        + "<div class=\"battleroll\">" + tagPlayerNames(headline) + "</div>"
+        + (reason ? "<div class=\"fst-italic mb-2\">" + tagPlayerNames(reason) + "</div>" : "");
 
     const row = document.createElement("div");
     row.classList.add("d-flex", "gap-2", "mt-3");
@@ -164,7 +164,7 @@ function showVoxCard(player, card) {
                         { label: "Don't", run: close },
                         { label: "Done", run: () => {
                             if (city == "startingCity") {
-                                player.startingCity = false;
+                                player.startingCity = Number(player.startingCity) - 1;
                                 document.getElementById("citiestotal" + player.number).innerHTML = getCityCount(player);
                             } else {
                                 adjustCounter(player, "cities" + capitalise(city), -1);

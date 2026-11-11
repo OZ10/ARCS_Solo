@@ -114,7 +114,8 @@ function showScoringModal() {
             label.classList.add("me-2");
             label.style.width = "80px";
             label.htmlFor = "scoreCount_" + id;
-            label.innerHTML = player.isNeutral ? "Neutral" : "Player " + player.number;
+            // On the player's colour (#107)
+            label.innerHTML = player.isNeutral ? "Neutral" : getPlayerTag(player);
 
             // Filled in from the resources being tracked, but can be changed
             const input = document.createElement("input");
@@ -153,8 +154,8 @@ function getScoringResults() {
             count: parseInt(input.value) || 0
         }));
 
-        scoreAmbition(counts, JSON.parse(section.dataset.markers)).forEach(result => {
-            results.push({ ambition: section.dataset.ambition, player: result.player, points: result.points, cityBonus: result.cityBonus });
+        scoreAmbition(counts, JSON.parse(section.dataset.markers), section.dataset.ambition).forEach(result => {
+            results.push({ ambition: section.dataset.ambition, player: result.player, points: result.points, cityBonus: result.cityBonus, note: result.note });
         });
     });
 
@@ -169,7 +170,8 @@ function updateScoringPreview() {
         const bonus = (result.cityBonus > 0) ? " <span class=\"fw-light\">(incl. " + result.cityBonus + " city bonus)</span>" : "";
         const span = document.getElementById("scorePoints_" + result.ambition + "_" + result.player.number);
         // The neutral takes a place from the players but gains no power
-        span.innerHTML = result.player.isNeutral ? "<span class=\"fw-light\">places (no power)</span>" : "+" + result.points + bonus;
+        const note = (result.note != null) ? " <span class=\"fw-light small\">(" + result.note + ")</span>" : "";
+        span.innerHTML = result.player.isNeutral ? "<span class=\"fw-light\">places (no power)</span>" : (result.points > 0 ? "+" + result.points : "0") + bonus + note;
     });
 }
 
@@ -224,6 +226,9 @@ function confirmScoring() {
         });
         returned.push("Rivals of Player " + holder.number + " discard all " + preludeResourceNames[card.holdsSupply].toLowerCase() + " (" + card.name + ")");
     });
+
+    // Fuel-Drinker (Lavish)
+    returned = returned.concat(applyLeaderAfterScoring(scored));
 
     // The ambitions have been scored, so clear them to stop them being scored again
     declaredAmbitions = [];

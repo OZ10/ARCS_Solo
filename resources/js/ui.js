@@ -19,6 +19,17 @@ function getPlayerTag(player) {
     return "<span class=\"playertag playertag" + getPlayerColour(player) + "\">Player " + player.number + "</span>";
 }
 
+function tagPlayerNames(html) {
+    // Every "Player N" in a window's text on that player's colour (#106), with any "'s" inside
+    // the tag so it doesn't leave a gap. Leaves alone any already tagged, and any number that
+    // isn't a player in this game
+    return String(html).replace(/(<span class="playertag[^>]*>)?Player ([1-4])(?!\d)('s)?/g, (match, tagged, number, possessive) => {
+        const player = players.find(candidate => candidate.number == Number(number));
+        if (tagged || player == null) { return match; }
+        return getPlayerTag(player).replace(/<\/span>$/, (possessive || "") + "</span>");
+    });
+}
+
 function hideIconTooltip(button, modalId) {
     // An icon that opens a window: hide its tooltip and let go of focus, or the tooltip is
     // still showing when the window closes and covers the icon, blocking the next tap.
