@@ -12,14 +12,16 @@ The app can't see the board. When a bot needs to know something only the board s
 
 It's made for a phone in portrait, works in landscape too, and can be installed so it opens like an app and works offline.
 
-> B4RCS covers the base game. It isn't an official Leder Games product, and you'll need your own copy of Arcs to play.
+> B4RCS covers the base game and the Leaders & Lore mini expansion. It isn't an official Leder Games product, and you'll need your own copy of Arcs to play.
 
 ## Contents
 - [Getting started](#getting-started)
 - [Starting a game](#starting-a-game)
+- [Leaders & Lore](#leaders--lore)
 - [The screen](#the-screen)
 - [Your turn](#your-turn)
 - [A bot's turn](#a-bots-turn)
+- [What you handle for the bots](#what-you-handle-for-the-bots)
 - [Battles](#battles)
 - [Building](#building)
 - [The Court](#the-court)
@@ -41,21 +43,42 @@ Your game is saved on your phone as you play, so you can close the app and carry
 Tap **Options**, then **New Game**.
 
 1. **Your colour:** you're always Player 1, but you can choose your colour. Whichever bot had that colour takes yours.
-2. **How many players:** 2, 3 or 4, counting you. The app deals everyone's hands and, in a 2-player game, offers the mulligan.
+2. **Leaders & Lore:** turn on **Play with Leaders & Lore** to play with the mini expansion (see [Leaders & Lore](#leaders--lore)).
+3. **How many players:** 2, 3 or 4, counting you. The app deals everyone's hands and, in a 2-player game, offers the mulligan. A random player starts with the initiative, as the rulebook says, and the ★ shows who.
 
 <br clear="right">
 
 <img src="docs/screenshots/court-setup.png" width="300" align="right" alt="Entering the Court">
 
-3. **The Court:** add the cards dealt to the Court market (4, or 3 with 2 players). Bots use this to choose what to secure and influence. You can skip it, but their advice will be more general.
+4. **The Court:** add the cards dealt to the Court market (4, or 3 with 2 players). Bots use this to choose what to secure and influence. You can skip it, but their advice will be more general.
 
 <br clear="right">
 
 <img src="docs/screenshots/setup-players.png" width="300" align="right" alt="Setting up the players">
 
-4. **Set up the players:** on each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on.
+5. **Set up the players:** the setup list says where each player places their pieces, in turn order from whoever has the initiative. On each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on. With Leaders & Lore, the resources are filled in from each Leader, and the list says which pieces go in systems A, B and C.
 
 <br clear="right">
+
+## Leaders & Lore
+<img src="docs/screenshots/leaders-draft.png" width="300" align="right" alt="The Leaders & Lore draft">
+
+**The draft:** after the Court, everyone drafts as the rulebook says. There's a row of Leaders and a row of Lore cards, one more of each than there are players, and players pick in reverse turn order. You take one kind in the first round and the other kind in the second. Tap a card to read it, then **Take** it. The bots pick at random.
+
+**Setting up:** the app sets each player up from their Leader: their starting resources, and what to place in systems A, B and C. An Archivist also chooses 2 extra Lore cards. Each player's Leader and Lore are shown above their Guild row. Tap one to read it.
+
+<br clear="right">
+
+**What the app does for you:**
+- **Scoring:** the Elder, Warrior, Archivist and Noble score as their cards say, and the scoring window says why. The Fuel-Drinker discards its Fuel when Tycoon is scored.
+- **Declaring:** when someone declares an ambition, the app carries out Ambitious (Upstart), Generous (Feastbringer), Bold (Demagogue) and Connected (Noble). When it's you, a window asks what you'd like to do. Bots do it themselves, and their turn window says what they did.
+- **Securing:** a Demagogue can't secure a Guild card with only 1 of its agents on it.
+- **Battles:** extra dice and dice limits (Rebel, Corsair, Raider Exosuits), raid limits (Hidden Harbors, Keeper's Trust, Keeper's Solidarity), intercepts (Agitator, Mirror Plating, Railgun Arrays) and no Ransack against the Elder. The results list anything else to do, such as repairs.
+- **Ancient Holdings:** its extra resource slot is included when the app says which slot to put a resource in.
+
+**How the bots use them:** a bot's plan has a short line under any step its Leader or Lore changes, such as *Rebel, Disorganized: no more than 2 ships at a time*. Bots lean towards the action their Leader improves when they Copy or Pivot, offer Lore actions in place of normal ones in a **Guild and Lore actions** window, and use Lore in their prelude, such as discarding a card to clear an Outrage.
+
+**What's left to you:** anything that depends on the board, such as where Force Beams moves ships or which planet Mythic changes. The hints say what the bot may do. You decide where it makes sense.
 
 ## The screen
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options**.
@@ -98,7 +121,7 @@ Tap the bot's **Play Card** button.
 
 - **Prelude:** what it spent first.
 - **Card played:** what it played, and the actions it gives.
-- **Plan:** numbered steps with the reason for each, including who and where to battle and where to move. Steps that need a window have a button beside them, such as **Battle**, **Build** or **Court**.
+- **Plan:** numbered steps with the reason for each, including who and where to battle and where to move. Steps that need a window have a button beside them, such as **Battle**, **Build** or **Court**. The plan is advice: see [The plan is advice](#the-plan-is-advice).
 - **Also:** anything else it may use this turn.
 
 Carry out the steps on the table, then tap **Done** to move on to the next player.
@@ -112,6 +135,20 @@ Carry out the steps on the table, then tap **Done** to move on to the next playe
 When a bot gains a resource, a box above the bar says **which resource slot to put it in**, high keys first if it wants to keep it safe from raids. It stays until you close it or the turn ends.
 
 <br clear="right">
+
+## What you handle for the bots
+The app plays each bot's cards and makes its choices, but it can't see or touch the table. You're its eyes and hands:
+
+- **Its pieces:** move its ships, and place or remove its buildings, agents and resources on the table. When the plan says something like *"a Rival's relic city"*, you choose which one.
+- **Its panel:** keep its tiles matching the table. The app fills them in when it knows what happened, such as after a prelude, a battle, a build, the Court or scoring. For anything it can't see, such as a tax, you update the tiles.
+- **Its answers:** answer its Yes/No questions from what you see on the table.
+- **Its dice:** roll the dice it chooses, then enter what's left.
+- **The Court:** when a card leaves the market, add its replacement. Do anything a window asks you to update yourself.
+
+### The plan is advice
+A bot plans its turn from what the app knows, and the app can't see the whole board. If a step doesn't make sense on the table, such as a battle it can't reach or a card that's no longer worth securing, skip it or use that action for something better. Play the bot the way a sensible player would.
+
+The plan is set when the turn window opens and doesn't change as you work through it, so you can follow it step by step.
 
 ## Battles
 <img src="docs/screenshots/battle.png" width="300" align="right" alt="The Battle window">
