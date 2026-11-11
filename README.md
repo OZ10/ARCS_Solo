@@ -12,7 +12,7 @@ The app can't see the board. When a bot needs to know something only the board s
 
 It's made for a phone in portrait, works in landscape too, and can be installed so it opens like an app and works offline.
 
-> B4RCS covers the base game and the Leaders & Lore mini expansion. It isn't an official Leder Games product, and you'll need your own copy of Arcs to play.
+> B4RCS covers the base game. It isn't an official Leder Games product, and you'll need your own copy of Arcs to play.
 
 ## Contents
 - [Getting started](#getting-started)
