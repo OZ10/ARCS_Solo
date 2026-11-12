@@ -209,11 +209,13 @@ function getDiceOptions(ships, fresh, damaged, buildingHits, personality, raid =
     // them apart and guesses), but clearly worse ones quickly become rare.
     // personality.randomness sets how far from the best counts as "close"
     let options = [];
+    // limits.raidOnly: stealing from buildings it doesn't want destroyed, with no ships to hit, so
+    // assault and skirmish dice could only destroy them (#113)
     const mostRaidDice = (raid != null) ? Math.min(ships, maxDicePerType, limits.maxRaidDice != null ? limits.maxRaidDice : Infinity) : 0;
-    for (let raidDice = 0; raidDice <= mostRaidDice; raidDice++) {
-        for (let assaultDice = 0; assaultDice <= Math.min(ships - raidDice, maxDicePerType); assaultDice++) {
-            const mostSkirmishDice = Math.min(ships - raidDice - assaultDice, maxDicePerType);
-            const fewestSkirmishDice = (buildingHits > 0) ? (assaultDice + raidDice == 0 ? 1 : 0) : mostSkirmishDice;
+    for (let raidDice = limits.raidOnly ? 1 : 0; raidDice <= mostRaidDice; raidDice++) {
+        for (let assaultDice = 0; assaultDice <= (limits.raidOnly ? 0 : Math.min(ships - raidDice, maxDicePerType)); assaultDice++) {
+            const mostSkirmishDice = limits.raidOnly ? 0 : Math.min(ships - raidDice - assaultDice, maxDicePerType);
+            const fewestSkirmishDice = limits.raidOnly ? 0 : (buildingHits > 0) ? (assaultDice + raidDice == 0 ? 1 : 0) : mostSkirmishDice;
             for (let skirmishDice = fewestSkirmishDice; skirmishDice <= mostSkirmishDice; skirmishDice++) {
                 // Corsair (Wary): no more assault dice than skirmish dice
                 if (limits.wary && assaultDice > skirmishDice) { continue; }
@@ -619,10 +621,21 @@ function chooseBattleDice() {
         return;
     }
     const raidItem = getBattleRaidItem();
-    const limits = getBattleLimits();
+    const buildingScores = getBuildingScores(buildings);
+    // With no ships to hit and no building it wants destroyed, only raid dice are any use (#113)
+    const raidOnly = !hasShips && !onPurpose && raid != null && Math.max(...buildingScores) <= 0;
+    const limits = { ...getBattleLimits(), raidOnly: raidOnly };
     const options = onPurpose
         ? getDiceOptions(getBattleDiceLimit(), 0, buildingHits, 0, mood, raid, getBattleRerolls(), [], limits)
-        : getDiceOptions(getBattleDiceLimit(), battle.fresh, battle.damaged, buildingHits, mood, raid, getBattleRerolls(), getBuildingScores(buildings), limits);
+        : getDiceOptions(getBattleDiceLimit(), battle.fresh, battle.damaged, buildingHits, mood, raid, getBattleRerolls(), buildingScores, limits);
+
+    // With no ships to hit, attacking at all can cost more than it gains: a raid that would
+    // almost certainly destroy a city it doesn't want destroyed (#113)
+    if (!hasShips && Math.max(...options.map(option => option.score)) < 0) {
+        advice.innerHTML = "<div class=\"battleroll\">Don't attack</div><div class=\"fst-italic\">Raiding here would probably destroy "
+            + buildings.map(building => getBuildingName(building.type)).join(" or ") + ", which would cost it more than it would steal.</div>";
+        return;
+    }
     const interceptHits = (limits.interceptHits != null) ? limits.interceptHits : battle.fresh;
     const choice = pickDiceOption(options);
     const canAttackAgain = document.getElementById("battleAttackAgain").checked;
