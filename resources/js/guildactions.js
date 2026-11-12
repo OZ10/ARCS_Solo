@@ -35,7 +35,15 @@ function getGuildActionOffers(player) {
     // needs at least 2. The most use when chasing Tyrant. The Court isn't tracked, so the player
     // checks there's such a card and adds the captives
     const weaponIcons = player.weaponsValue + getGuildIconCount(player, "weapons");
-    if (holds("Abduct") && can("battle") && weaponIcons >= 2) {
+    if (holds("Abduct") && can("battle") && weaponIcons >= 2 && isMarketKnown()) {
+        // With the market entered it knows which card it could abduct from, so decides
+        const rivalsOn = entry => getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
+        const entry = courtMarket.filter(candidate => rivalsOn(candidate) > 0 && rivalsOn(candidate) < weaponIcons).sort((a, b) => rivalsOn(b) - rivalsOn(a))[0];
+        if (entry != null) {
+            offers.push({ label: labelFor("Abduct", "battle"), text: "capture the " + rivalsOn(entry) + " Rival agent" + (rivalsOn(entry) == 1 ? "" : "s") + " on " + getCourtCard(entry.number).name + " (add the captives yourself)",
+                decided: true, why: "It has " + weaponIcons + " Weapon icons, more than the Rival agents on that card." });
+        }
+    } else if (holds("Abduct") && can("battle") && weaponIcons >= 2) {
         const chasingTyrant = isAmbitionInPlay("tyrant") && isChasingAmbition(player, "tyrant");
         if (wants(guildActionChance.abduct + (chasingTyrant ? guildActionChance.abductTyrant : 0))) {
             offers.push({ label: labelFor("Abduct", "battle"),
@@ -48,9 +56,9 @@ function getGuildActionOffers(player) {
     const captives = player.captivesValue;
     if (captives > 0 && !(isAmbitionInPlay("tyrant") && isChasingAmbition(player, "tyrant"))) {
         const wantsTrophies = isAmbitionInPlay("warlord") && isChasingAmbition(player, "warlord");
-        if (holds("Execute") && can("influence") && wants(guildActionChance.execute + (wantsTrophies ? guildActionChance.executeWarlord : 0))) {
+        if (holds("Execute") && can("influence") && (wantsTrophies || wants(guildActionChance.execute))) {
             offers.push({ label: labelFor("Execute", "influence"), text: "move " + captives + " Captive" + (captives == 1 ? "" : "s") + " to its Trophies",
-                costs: { captives: captives }, gains: { trophies: captives } });
+                costs: { captives: captives }, gains: { trophies: captives }, decided: wantsTrophies, why: wantsTrophies ? "It's chasing Warlord, and isn't chasing Tyrant with them." : null });
         } else if (holds("Pressgang") && can("build") && !wantsTrophies && getEmptySlots(player) > 0 && wants(guildActionChance.pressgang)) {
             // The resource it most needs. Equally good ones are picked at random, as a person might
             const best = Math.max(...preludeResources.map(resource => getResourceNeed(player, resource)));
@@ -60,7 +68,7 @@ function getGuildActionOffers(player) {
             const amount = Math.min(captives, getEmptySlots(player));
             offers.push({ label: labelFor("Pressgang", "build"),
                 text: "return " + amount + " Captive" + (amount == 1 ? "" : "s") + " to gain " + amount + " " + preludeResourceNames[resource],
-                costs: { captives: amount }, gains: { [resource]: amount } });
+                costs: { captives: amount }, gains: { [resource]: amount }, decided: true, why: "It isn't chasing Tyrant, and has " + getEmptySlots(player) + " empty resource slot" + (getEmptySlots(player) == 1 ? "" : "s") + "." });
         }
     }
 
@@ -68,8 +76,9 @@ function getGuildActionOffers(player) {
     [["Manufacture", "materials"], ["Synthesize", "fuel"]].forEach(([name, resource]) => {
         if (holds(name) && can("build") && getEmptySlots(player) > 0) {
             const chasingTycoon = isAmbitionInPlay("tycoon") && isChasingAmbition(player, "tycoon");
-            if (wants(guildActionChance.gainResource + (chasingTycoon ? guildActionChance.gainResourceTycoon : 0))) {
-                offers.push({ label: labelFor(name, "build"), text: "gain 1 " + preludeResourceNames[resource], gains: { [resource]: 1 } });
+            if (chasingTycoon || wants(guildActionChance.gainResource)) {
+                offers.push({ label: labelFor(name, "build"), text: "gain 1 " + preludeResourceNames[resource], gains: { [resource]: 1 },
+                    decided: chasingTycoon, why: chasingTycoon ? "It's chasing Tycoon." : null });
             }
         }
     });

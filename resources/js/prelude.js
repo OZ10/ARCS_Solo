@@ -1,6 +1,8 @@
 // Prelude (#72): after a bot plays its card, before its actions, it may spend resources for
-// extra actions (with a Loyal card, any resource as that card's type) and use its Guild cards. The bot can't see the board, so it offers what it would like to spend in the
-// Prelude window and the player ticks the ones that are worth doing. The settings are in rules.js.
+// extra actions (with a Loyal card, any resource as that card's type) and use its Guild cards.
+// Where the app knows enough (the Court, its hand, Rivals' resources, the player's answers this
+// turn) the bot decides itself, and its decisions are ticked with the reason. The rest depend on
+// the board, so the player ticks the ones that are worth doing. The settings are in rules.js.
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
@@ -51,6 +53,87 @@ function canSpareResource(player, resource) {
     const ambition = preludeAmbitions[resource];
     if (ambition == null || !isAmbitionInPlay(ambition)) { return true; }
     return !isAmbitionInReach(player, ambition);
+}
+
+function getResourceWord(resource) {
+    // e.g. "relics", "fuel"
+    return preludeResourceNames[resource].toLowerCase() + (resource == "fuel" ? "" : "s");
+}
+
+function holdsAmbitionCard(player, ambition) {
+    // A card in its hand it could declare this ambition with, while there's a marker left
+    return !declaredAmbitions.includes(ambition) && declaredAmbitions.length < 3
+        && getUnplayedCards(player.cards).some(card => card.ambition == ambition);
+}
+
+function couldScoreFromHand(player, resource) {
+    // It could declare the ambition this resource counts for from its hand, and would place in it,
+    // so it keeps the resource
+    const ambition = preludeAmbitions[resource];
+    if (ambition == null || !holdsAmbitionCard(player, ambition)) { return false; }
+    return getAmbitionPlacePoints(player, ambition, ambitionResources[ambition](player)) > 0;
+}
+
+function getPlannedCount(player, action) {
+    // How many of this action its plan already has, before any prelude
+    return getTurnPlan(player).filter(step => step.action == action).length;
+}
+
+function getSecureReason(player, entry) {
+    // e.g. "Securing Loyal Engineers captures 2 Rival agents, and Tyrant is declared"
+    const card = getCourtCard(entry.number);
+    const captured = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
+    const reason = getMarketReason(player, entry);
+    let text = "Securing " + card.name + (captured > 0 ? " captures " + captured + " Rival agent" + (captured == 1 ? "" : "s") : "") + (reason ? " (" + reason + ")" : "");
+    if (captured > 0) {
+        const captives = players.filter(other => other !== player && other.captivesValue >= preludeDecision.rivalCaptives).sort((a, b) => b.captivesValue - a.captivesValue)[0];
+        if (declaredAmbitions.includes("tyrant")) { text += ", and Tyrant is declared"; }
+        else if (holdsAmbitionCard(player, "tyrant")) { text += ", and it holds a card to declare Tyrant"; }
+        else if (captives != null) { text += ", and Player " + captives.number + " has " + captives.captivesValue + " Captives"; }
+    }
+    return text + ".";
+}
+
+function getRelicDecision(player, spend = "relics") {
+    // A Relic (or the resource spent) to Secure a Court card its plan doesn't already secure, if the
+    // card is worth more than the resource. Captured agents count for more when Tyrant is declared or
+    // could be. null if not
+    const entry = getCardsToSecure(player).slice(getPlannedCount(player, "secure"))[0];
+    if (entry == null) { return null; }
+    const captured = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
+    const tyrantLikely = declaredAmbitions.includes("tyrant") || holdsAmbitionCard(player, "tyrant")
+        || players.some(other => other !== player && other.captivesValue >= preludeDecision.rivalCaptives);
+    const chasingTyrant = declaredAmbitions.includes("tyrant") && isChasingAmbition(player, "tyrant");
+    const value = getMarketCardValue(player, entry) + ((tyrantLikely && !chasingTyrant) ? captured * (marketValues.captiveTyrant - marketValues.captive) : 0);
+    const need = getResourceNeed(player, spend);
+    if (value <= preludeDecision.relicCost[need]) { return null; }
+    const keeper = declaredAmbitions.includes("keeper") ? "It isn't chasing Keeper. " : (need == 0 ? "Keeper isn't in play. " : "Keeper isn't declared, and it can spare a relic. ");
+    return { entry: entry, why: keeper + getSecureReason(player, entry) };
+}
+
+function getLeadActionDecision(player, lead) {
+    // A Psionic for an action from the lead card, when it knows that action is worth it: a card
+    // to Secure or Influence, or a city to Tax for a resource it needs. null if not
+    const actions = lead.actions.split(",");
+    if (actions.includes("secure") && isMarketKnown()) {
+        const relic = getRelicDecision(player, "psionics");
+        if (relic != null) { return { text: "Secure " + getCourtCard(relic.entry.number).name + ", from the lead card", why: getSecureReason(player, relic.entry) }; }
+    }
+    if (actions.includes("tax")) {
+        const city = getCitiesToTax(player).slice(getPlannedCount(player, "tax"))[0];
+        if (city != null && getResourceNeed(player, city) > 0) {
+            const ambition = preludeAmbitions[city];
+            return { text: getTaxStepName(player, city) + ", from the lead card", why: "It needs " + getResourceWord(city) + " for " + capitalise(ambition) + "." };
+        }
+    }
+    if (actions.includes("influence") && isMarketKnown() && getPlannedCount(player, "influence") == 0) {
+        const entry = getCardsToInfluence(player)[0];
+        if (entry != null && getMarketCardValue(player, entry) > marketValues.base) {
+            const reason = getMarketReason(player, entry);
+            return { text: "Influence " + getCourtCard(entry.number).name + ", from the lead card", why: "It's worth getting ahead on " + getCourtCard(entry.number).name + (reason ? " (" + reason + ")" : "") + "." };
+        }
+    }
+    return null;
 }
 
 function getResourceNeed(player, resource) {
@@ -148,16 +231,19 @@ function getPreludeOffers(player) {
         // it says to ignore that (rulebook p.16)
         const hasLoyal = guild.some(card => card.spendAnyAs == resource);
         const outraged = (player.outraged || []).includes(resource);
-        if (available[resource] > 0 && canSpareResource(player, resource) && (!outraged || hasLoyal)) { return resource; }
+        const spare = other => canSpareResource(player, other) && !couldScoreFromHand(player, other);
+        if (available[resource] > 0 && spare(resource) && (!outraged || hasLoyal)) { return resource; }
         if (!hasLoyal) { return null; }
-        return preludeResources.filter(other => other != resource && available[other] > 0 && canSpareResource(player, other))
+        return preludeResources.filter(other => other != resource && available[other] > 0 && spare(other))
             .sort((a, b) => available[b] - available[a])[0] || null;
     };
 
     let offers = [];
     // action is what it gives: "build", "move", "secure", "battle" or "lead" (an action from
     // the lead card), so the Build icon can show when the bot can build (see canBotBuild)
-    const offerAction = (resource, text, action, converts) => {
+    // why: the bot has decided this itself, and why (ticked in the window). Without it, it's the
+    // player's call
+    const offerAction = (resource, text, action, converts, why) => {
         const pay = payFor(resource);
         if (pay == null) { return; }
         const amount = Math.min(available[pay], maxPreludePerResource);
@@ -166,16 +252,32 @@ function getPreludeOffers(player) {
         const loyal = guild.find(card => card.spendAnyAs == resource);
         const label = (pay == resource) ? amount + " " + preludeResourceNames[resource]
             : amount + " " + preludeResourceNames[pay] + " as " + preludeResourceNames[resource] + " (" + loyal.name + ")";
-        offers.push({ label: label, text: text, costs: { [pay]: amount }, action: action, converts: converts });
+        offers.push({ label: label, text: text, costs: { [pay]: amount }, action: action, converts: converts, decided: why != null, why: why });
     };
 
     const usefulIf = { materials: "Build or Repair, if there's a good spot", fuel: "Move, if there's a useful move", relics: "Secure, if there's a card worth securing" };
     const gives = { materials: "build", fuel: "move", relics: "secure" };
-    ["materials", "fuel", "relics"].forEach(resource => {
-        // With the market entered, it knows whether there's anything for a Relic to secure
-        if (resource == "relics" && isMarketKnown() && getCardsToSecure(player).length == 0) { return; }
-        if (wants(preludeChance.spare)) { offerAction(resource, usefulIf[resource], gives[resource]); }
-    });
+    // Material: decided if the player said it can build or repair and its card doesn't. Not if
+    // they said it can't
+    if (player.canBuild === true && !play.actions.includes("build")) {
+        offerAction("materials", "Build or Repair", "build", false, "You said it can build or repair this turn, and its card doesn't build.");
+    } else if (player.canBuild !== false && wants(preludeChance.spare)) {
+        offerAction("materials", usefulIf.materials, "build");
+    }
+    // Fuel: decided if the player said it can reach something and its card doesn't move
+    if (player.moveGoal != null && !play.actions.includes("move")) {
+        offerAction("fuel", "Move " + player.moveGoal, "move", false, "You said it can reach that this turn, and its card doesn't move.");
+    } else if (wants(preludeChance.spare)) {
+        offerAction("fuel", usefulIf.fuel, "move");
+    }
+    // Relic: with the market entered it knows what it could secure, so decides. Otherwise the
+    // player's call
+    if (isMarketKnown()) {
+        const relic = getRelicDecision(player);
+        if (relic != null) { offerAction("relics", "Secure " + getCourtCard(relic.entry.number).name, "secure", false, relic.why); }
+    } else if (wants(preludeChance.spare)) {
+        offerAction("relics", usefulIf.relics, "secure");
+    }
 
     // A Weapon lets any of the card's actions Battle this turn (it doesn't give extra actions),
     // so only when the card has actions and doesn't battle already (rulebook p.17)
@@ -196,16 +298,23 @@ function getPreludeOffers(player) {
         const chance = (chasingWarlord ? preludeChance.psionicsWarlord : 0) + (manyShips ? preludeChance.psionicsManyShips : 0);
         if (play.actions.includes("battle") && chance > 0 && wants(chance)) { offerAction("psionics", "One more Battle than the card allows", "battle"); }
     } else {
+        // Decided when it knows the lead card's action is worth it
+        const decision = getLeadActionDecision(player, lead);
         const chance = preludeChance.psionicsFollowing + ((keenToBattle && lead.actions.includes("battle")) ? preludeChance.psionicsBattle : 0);
-        if (wants(chance)) { offerAction("psionics", "An action from the lead card (" + lead.actions.split(",").join(", ") + ")", "lead"); }
+        if (decision != null) { offerAction("psionics", decision.text, "lead", false, decision.why); }
+        else if (wants(chance)) { offerAction("psionics", "An action from the lead card (" + lead.actions.split(",").join(", ") + ")", "lead"); }
     }
 
     // The bot's own Guild cards
     const discard = (card, text, extras) => offers.push(Object.assign({ label: "Discard " + card.name, text: text, discards: card.number }, extras));
 
-    // Lattice Spies: seize the initiative, unless it has it or it's been seized this turn
-    if (holds(16) && !player.hasInitiative && !hasInitiativeBeenClaimedThisTurn && wants(preludeChance.seize)) {
-        discard(getCourtCard(16), "seize the initiative", { seize: true });
+    // Lattice Spies: seize the initiative, unless it has it or it's been seized this turn. Decided
+    // if leading next turn lets it declare an ambition from its hand that it would win
+    if (holds(16) && !player.hasInitiative && !hasInitiativeBeenClaimedThisTurn) {
+        const toDeclare = ["tycoon", "tyrant", "warlord", "keeper", "empath"].find(ambition => holdsAmbitionCard(player, ambition)
+            && getAmbitionPlacePoints(player, ambition, ambitionResources[ambition](player)) == 2);
+        if (toDeclare != null) { discard(getCourtCard(16), "seize the initiative", { seize: true, decided: true, why: "Leading next turn lets it declare " + capitalise(toDeclare) + " from its hand, where it would come first." }); }
+        else if (wants(preludeChance.seize)) { discard(getCourtCard(16), "seize the initiative", { seize: true }); }
     }
 
     // Ships: a ship in each gate, or 3 ships in a system it controls, when keen to battle.
@@ -221,29 +330,44 @@ function getPreludeOffers(player) {
 
     // Mining or Shipping Interest: fill its empty resource slots, when chasing Tycoon
     const interest = guild.find(card => card.number == 2 || card.number == 9);
-    if (interest != null && getEmptySlots(player) > 0 && isAmbitionInPlay("tycoon") && isChasingAmbition(player, "tycoon") && wants(preludeChance.gainSupply)) {
+    if (interest != null && getEmptySlots(player) > 0 && isAmbitionInPlay("tycoon") && isChasingAmbition(player, "tycoon")) {
         const emptySlots = getEmptySlots(player);
-        discard(interest, "gain " + emptySlots + " " + preludeResourceNames[interest.resource] + ", filling its empty resource slots", { gains: { [interest.resource]: emptySlots } });
+        discard(interest, "gain " + emptySlots + " " + preludeResourceNames[interest.resource] + ", filling its empty resource slots", { gains: { [interest.resource]: emptySlots },
+            decided: true, why: "It's chasing Tycoon, and has " + emptySlots + " empty resource slot" + (emptySlots == 1 ? "" : "s") + "." });
     }
 
     // Elder Broker: a material, fuel and weapon, when it can spare the card's relic icon
-    if (holds(23) && canSpareResource(player, "relics") && wants(preludeChance.elderBroker)) {
+    if (holds(23) && canSpareResource(player, "relics") && getEmptySlots(player) >= 2) {
+        discard(getCourtCard(23), "gain 1 Material, 1 Fuel and 1 Weapon", { gains: { materials: 1, fuel: 1, weapons: 1 },
+            decided: true, why: "It can spare the card's Relic, and has " + getEmptySlots(player) + " empty resource slots." });
+    } else if (holds(23) && canSpareResource(player, "relics") && wants(preludeChance.elderBroker)) {
+        // Little room for what it gains: the player's call
         discard(getCourtCard(23), "gain 1 Material, 1 Fuel and 1 Weapon", { gains: { materials: 1, fuel: 1, weapons: 1 } });
     }
 
     // Relic Fence (kept): swap a spare resource for a relic, when chasing Keeper
-    if (holds(24) && isAmbitionInPlay("keeper") && isChasingAmbition(player, "keeper") && wants(preludeChance.relicFence)) {
+    if (holds(24) && isAmbitionInPlay("keeper") && isChasingAmbition(player, "keeper")) {
         const pay = preludeResources.filter(resource => resource != "relics" && available[resource] > 0 && canSpareResource(player, resource))
             .sort((a, b) => available[b] - available[a])[0];
         if (pay != null) {
             available[pay] -= 1;
-            offers.push({ label: "Relic Fence", text: "discard 1 " + preludeResourceNames[pay] + " to gain 1 Relic", costs: { [pay]: 1 }, gains: { relics: 1 } });
+            offers.push({ label: "Relic Fence", text: "discard 1 " + preludeResourceNames[pay] + " to gain 1 Relic", costs: { [pay]: 1 }, gains: { relics: 1 },
+                decided: true, why: "It's chasing Keeper, and can spare " + preludeResourceNames[pay].toLowerCase() + "." });
         }
     }
 
-    // Silver-Tongues: steal a Guild card or resource
-    if (holds(20) && wants(preludeChance.steal)) {
-        discard(getCourtCard(20), "steal a Guild card or a resource it's chasing an ambition with");
+    // Silver-Tongues: steal a Guild card or resource. Decided when a Rival holds a resource it's
+    // chasing an ambition with
+    if (holds(20)) {
+        const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2);
+        const target = players.filter(other => other !== player).flatMap(other => chased.map(resource => ({ other: other, resource: resource, count: other[resource + "Value"] })))
+            .filter(option => option.count > 0).sort((a, b) => b.count - a.count)[0];
+        if (target != null) {
+            discard(getCourtCard(20), "steal 1 " + preludeResourceNames[target.resource] + " from Player " + target.other.number + " (take it off their panel)", { gains: { [target.resource]: 1 },
+                decided: true, why: "Player " + target.other.number + " holds " + target.count + " " + getResourceWord(target.resource) + ", which it needs for " + capitalise(preludeAmbitions[target.resource]) + "." });
+        } else if (wants(preludeChance.steal)) {
+            discard(getCourtCard(20), "steal a Guild card or a resource it's chasing an ambition with");
+        }
     }
 
     // Galactic Bards: on a Surpass or Pivot, if nothing's been declared this round, it may declare
@@ -251,8 +375,9 @@ function getPreludeOffers(player) {
     const playedCard = playedCardList.find(played => played.playedByPlayerNumber == player.number && played.cardAction != "CLAIM");
     if (holds(25) && canDeclareAmbition(player) && declaredAmbitions.length == 0 && (playedCard.cardAction == "SURPASS" || playedCard.cardAction == "PIVOT")) {
         const ambition = (playedCard.ambition == "any") ? (getBestAmbitionToDeclare(player) || {}).ambition : playedCard.ambition;
-        if (ambitionResources[ambition] != null && ambitionResources[ambition](player) > 0 && wants(preludeChance.galacticBards)) {
-            offers.push({ label: "Galactic Bards", text: "declare " + capitalise(ambition) + ", the ambition on its card", declares: ambition });
+        if (ambitionResources[ambition] != null && ambitionResources[ambition](player) > 0 && getAmbitionPlacePoints(player, ambition, ambitionResources[ambition](player)) > 0) {
+            offers.push({ label: "Galactic Bards", text: "declare " + capitalise(ambition) + ", the ambition on its card", declares: ambition,
+                decided: true, why: "It would place in " + capitalise(ambition) + "." });
         }
     }
 
@@ -281,15 +406,15 @@ function getPreludeOffers(player) {
         guild.filter(card => card.drawsPlayed != null).forEach(card => {
             const target = playedCardList.filter(played => played.name == card.drawsPlayed && played.cardAction != "COPY" && played.cardAction != "CLAIM")
                 .sort((a, b) => b.number - a.number)[0];
-            if (target != null && wants(preludeChance.union)) {
+            if (target != null) {
                 offers.push({ label: card.name, text: "place it next to " + getCardFullName(target) + " and draw that card when the turn ends",
-                    union: { guild: card.number, card: getCardFullName(target) } });
+                    union: { guild: card.number, card: getCardFullName(target) }, decided: true, why: "A card back in its hand, for nothing." });
             }
         });
     }
 
     // Lore in its prelude (leaderrules.js)
-    return offers.concat(getLorePreludeOffers(player, wants, available));
+    return offers.concat(getLorePreludeOffers(player, () => true, available));
 }
 
 function startPrelude(player) {
@@ -321,8 +446,11 @@ function showPreludeModal(player, step) {
 
     const isGuild = (step == "guild");
     document.getElementById("preludeTitle").innerHTML = "Player " + player.number + (isGuild ? (hasLoreOffers(player.guildActions.offers) ? "'s Guild and Lore actions" : "'s Guild actions") : "'s prelude");
+    const offers = (isGuild ? player.guildActions : player.prelude).offers;
+    const anyDecided = offers.some(offer => offer.decided);
     document.getElementById("preludeIntro").innerHTML = (isGuild
-        ? "In place of its normal actions, the bot would like to use these." : "Before its actions, the bot would like to spend these.") + " Tick the ones worth doing.";
+        ? "In place of its normal actions, the bot would like to use these." : "Before its actions, the bot would like to spend these.")
+        + (anyDecided ? " It has decided the ticked ones itself: untick any that don't make sense on the table." : " Tick the ones worth doing.");
     document.getElementById("confirmPrelude").innerHTML = isGuild ? "Use ticked" : "Spend ticked";
 
     // What it played and what it means to do without these, so the offers can be judged (#111)
@@ -341,7 +469,9 @@ function showPreludeModal(player, step) {
 
     const list = document.getElementById("preludeList");
     list.replaceChildren();
-    (isGuild ? player.guildActions : player.prelude).offers.forEach((offer, index) => {
+    // Its own decisions first, ticked, then the player's call. Each keeps its place in the
+    // offers for confirmPrelude
+    const addRow = (offer, index) => {
         const row = document.createElement("div");
         row.classList.add("form-check", "mb-2");
 
@@ -349,15 +479,28 @@ function showPreludeModal(player, step) {
         input.type = "checkbox";
         input.classList.add("form-check-input");
         input.id = "preludeOffer" + index;
+        input.checked = offer.decided == true;
 
         const label = document.createElement("label");
         label.classList.add("form-check-label");
         label.htmlFor = input.id;
-        label.innerHTML = tagPlayerNames("<b>" + offer.label + ":</b> " + offer.text);
+        const why = offer.decided ? offer.why : (anyDecided ? "Depends on the board." : null);
+        label.innerHTML = tagPlayerNames("<b>" + offer.label + ":</b> " + offer.text) + (why ? "<div class=\"small text-muted\">" + tagPlayerNames(why) + "</div>" : "");
 
         row.append(input, label);
         list.appendChild(row);
-    });
+    };
+    const addLabel = (text, first) => {
+        const label = document.createElement("div");
+        label.classList.add("turnlabel");
+        if (!first) { label.classList.add("mt-3"); }
+        label.innerHTML = text;
+        list.appendChild(label);
+    };
+    if (anyDecided) { addLabel("Its decisions", true); }
+    offers.forEach((offer, index) => { if (offer.decided) { addRow(offer, index); } });
+    if (anyDecided && offers.some(offer => !offer.decided)) { addLabel("Your call", false); }
+    offers.forEach((offer, index) => { if (!offer.decided) { addRow(offer, index); } });
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("preludeModal")).show();
 }

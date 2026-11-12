@@ -499,7 +499,7 @@ function getLoreActionOffers(player, wants, can) {
     }
     const city = getCitiesToTax(player)[0];
     if (city != null && !hasLeader(player, 13) && getResourceNeed(player, city) == 2 && getEmptySlots(player) > 0) {
-        add(10, "Nurture", "build", loreChance.nurture, "tax its " + preludeResourceNames[city].toLowerCase() + " city", { gains: { [city]: 1 } });
+        add(10, "Nurture", "build", loreChance.nurture, "tax its " + preludeResourceNames[city].toLowerCase() + " city", { gains: { [city]: 1 }, decided: true, why: "It's chasing " + capitalise(preludeAmbitions[city]) + ", and has that city." });
     } else if (isNearCityBonus(player)) {
         add(10, "Prune", "repair", loreChance.prune, "replace one of its starports with a city, towards the city bonus");
     }
@@ -531,7 +531,7 @@ function getLorePreludeOffers(player, wants, available) {
         const minds = outraged.some(resource => resource == "weapons" ? isAmbitionInPlay("warlord") : getResourceNeed(player, resource) > 0);
         if (minds && wants(loreChance.clearOutrage)) {
             offers.push({ label: "Discard " + getLoreCard(number).name, text: "clear its " + outraged.map(resource => preludeResourceNames[resource]).join(" and ") + " Outrage",
-                discardsLore: number, clearsOutrage: outraged });
+                discardsLore: number, clearsOutrage: outraged, decided: true, why: "It's Outraged in a resource it needs." });
             used.push(number);
         }
     });
@@ -540,14 +540,14 @@ function getLorePreludeOffers(player, wants, available) {
     // Warlord's Terror: Trophies for influence, when Warlord isn't one it's chasing
     if (can(24) && declaredAmbitions.includes("warlord") && !chasing("warlord") && player.trophiesValue > 0 && !lastCard && wants(loreChance.terror)) {
         const count = Math.min(player.trophiesValue, 2);
-        offers.push({ label: "Warlord's Terror", text: "return " + count + " Troph" + (count == 1 ? "y" : "ies") + " to influence " + (count == 1 ? "once" : "twice"), costs: { trophies: count } });
+        offers.push({ label: "Warlord's Terror", text: "return " + count + " Troph" + (count == 1 ? "y" : "ies") + " to influence " + (count == 1 ? "once" : "twice"), costs: { trophies: count }, decided: true, why: "Warlord is declared, and it isn't chasing it." });
     }
 
     // Tyrant's Ego: Captives to secure, when Tyrant isn't one it's chasing
     const toSecure = isMarketKnown() ? getCardsToSecure(player).length : 1;
     if (can(25) && declaredAmbitions.includes("tyrant") && !chasing("tyrant") && player.captivesValue > 0 && toSecure > 0 && wants(loreChance.ego)) {
         const count = Math.min(player.captivesValue, toSecure, 2);
-        offers.push({ label: "Tyrant's Ego", text: "return " + count + " Captive" + (count == 1 ? "" : "s") + " to secure " + (count == 1 ? "once" : "twice"), costs: { captives: count } });
+        offers.push({ label: "Tyrant's Ego", text: "return " + count + " Captive" + (count == 1 ? "" : "s") + " to secure " + (count == 1 ? "once" : "twice"), costs: { captives: count }, decided: true, why: "Tyrant is declared, and it isn't chasing it." });
     }
 
     // Tycoon's Ambition: give up its Material and Fuel to declare an ambition it does better in
@@ -559,7 +559,7 @@ function getLorePreludeOffers(player, wants, available) {
         if (best != null) {
             const costs = { materials: available.materials, fuel: available.fuel };
             available.materials = 0; available.fuel = 0;
-            offers.push({ label: "Tycoon's Ambition", text: "discard all its Material and Fuel to declare " + capitalise(best.ambition), costs: costs, declares: best.ambition });
+            offers.push({ label: "Tycoon's Ambition", text: "discard all its Material and Fuel to declare " + capitalise(best.ambition), costs: costs, declares: best.ambition, decided: true, why: "It isn't chasing Tycoon, and would place in " + capitalise(best.ambition) + "." });
             used.push(27);
         }
     }
@@ -570,7 +570,7 @@ function getLorePreludeOffers(player, wants, available) {
     if (can(28) && declaredAmbitions.includes("tycoon") && !chasing("tycoon") && wanted != null && spare > 0 && wants(loreChance.charm)) {
         const costs = { materials: available.materials, fuel: available.fuel };
         available.materials = 0; available.fuel = 0;
-        offers.push({ label: "Tycoon's Charm", text: "discard " + spare + " Material and Fuel to gain " + spare + " " + preludeResourceNames[wanted], costs: costs, gains: { [wanted]: spare } });
+        offers.push({ label: "Tycoon's Charm", text: "discard " + spare + " Material and Fuel to gain " + spare + " " + preludeResourceNames[wanted], costs: costs, gains: { [wanted]: spare }, decided: true, why: "It isn't chasing Tycoon, and needs " + getResourceWord(wanted) + " for " + capitalise(preludeAmbitions[wanted]) + "." });
     }
     return offers;
 }

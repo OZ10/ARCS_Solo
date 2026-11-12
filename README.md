@@ -111,7 +111,7 @@ Tap the bot's **Play Card** button.
 
 <img src="docs/screenshots/prelude.png" width="300" align="right" alt="A bot's prelude">
 
-**Its prelude:** before its actions, a bot may offer to spend resources or use Guild cards. Tick the ones that make sense on the board. The app updates its resources for you.
+**Its prelude:** before its actions, a bot may offer to spend resources or use Guild cards. The window shows the card it played and its plan without them. Where the app knows enough, such as a Court card it can secure or what you've told it this turn, the bot decides for itself: those are already ticked under **Its decisions**, each with its reason. Untick any that don't make sense on the table. The rest are under **Your call**: tick the ones that make sense on the board. The app updates its resources for you.
 
 <br clear="right">
 

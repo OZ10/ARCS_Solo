@@ -142,6 +142,12 @@ const fewShipsOnBoard = 5;
 
 // The chance (%) of a bot offering each prelude action. These could become part of the bot
 // personalities (#71)
+// When a bot decides a prelude spend itself, rather than leaving it to the player (see prelude.js)
+const preludeDecision = {
+    relicCost: [0.5, 1.5, 3],   // what spending a Relic to Secure costs it, by how much it needs relics (getResourceNeed)
+    rivalCaptives: 3            // a Rival with this many Captives makes Tyrant worth thinking about
+};
+
 const preludeChance = {
     spare: 60,              // a material, fuel or relic it can spare
     weaponsHavoc: 10,       // a weapon, just to cause some havoc
