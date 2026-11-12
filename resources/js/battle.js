@@ -379,7 +379,7 @@ function showBattleModal(button) {
     document.getElementById("battleTitle").innerHTML = "Player " + battle.attacker.number + " attacks";
 
     // The defender can be any other player, starting on who a bot would rather Battle
-    const target = usesTurnWindow(battle.attacker) ? getBattleTarget(battle.attacker) : null;
+    const target = !battle.attacker.isHuman ? getBattleTarget(battle.attacker) : null;
     const defenders = document.getElementById("battleDefenders");
     defenders.replaceChildren();
     players.filter(player => player.number != battle.attacker.number).forEach((player, index) => {
@@ -518,7 +518,7 @@ function showBattleRaid() {
     }
 
     // Why it would rather Battle this Rival, and where
-    const target = usesTurnWindow(battle.attacker) ? getBattleTarget(battle.attacker) : null;
+    const target = !battle.attacker.isHuman ? getBattleTarget(battle.attacker) : null;
     let html = (target != null && target.player === battle.defender)
         ? "<div class=\"small text-muted text-center mb-2\" id=\"battleTargetReason\">" + target.why + " " + target.where + "</div>" : "";
     if (holdsGuildCard(battle.attacker, 8)) {

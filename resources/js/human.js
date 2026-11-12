@@ -150,7 +150,7 @@ function showCardModal(player, cards, title, prompt, action) {
     let modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("cardsModal"));
 
     const cardsModalPrompt = document.querySelector("#cardsModalPrompt");
-    cardsModalPrompt.innerHTML = prompt;
+    cardsModalPrompt.innerHTML = tagPlayerNames(prompt);
 
     const cardsModalTitle = document.querySelector("#cardsModalTitle");
     cardsModalTitle.innerHTML = title;

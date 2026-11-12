@@ -273,9 +273,9 @@ function showGameOverModal() {
     const reachedTarget = standings.filter(player => player.powerValue >= target);
 
     document.getElementById("gameOverReason").innerHTML = ((reachedTarget.length > 0)
-        ? reachedTarget.map(player => "Player " + player.number).join(" and ") + " reached " + target + " power"
+        ? reachedTarget.map(getPlayerTag).join(" and ") + " reached " + target + " power"
         : "The end of round 5")
-        + "<br><b>Player " + winner.number + " wins</b>"
+        + "<br><b>" + getPlayerTag(winner) + " wins</b>"
         + (tied.length > 1 ? "<br><small class=\"text-muted\">Tied on power: the earliest in turn order wins</small>" : "");
 
     const list = document.getElementById("gameOverList");
@@ -285,7 +285,7 @@ function showGameOverModal() {
         const row = document.createElement("div");
         row.classList.add("fs-5");
         if (player === winner) { row.classList.add("fw-bold"); }
-        row.innerHTML = "Player " + player.number + ": " + player.powerValue + " power";
+        row.innerHTML = getPlayerTag(player) + ": " + player.powerValue + " power";
         list.appendChild(row);
     });
 

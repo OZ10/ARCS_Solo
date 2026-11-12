@@ -400,8 +400,8 @@ function finishPlay(player) {
     showTurnDone(player);
     SaveAllSettings();
 
-    // A bot may spend resources before its actions
-    if (!player.isHuman) { startPrelude(player); }
+    // A bot may spend resources before its actions. The human player's turn window opens now (#112)
+    if (!player.isHuman) { startPrelude(player); } else { openTurnWindow(); }
 }
 
 function showTurnDone(player) {

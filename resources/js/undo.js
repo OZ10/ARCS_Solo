@@ -46,7 +46,7 @@ function showUndoModal() {
     const undo = getUndoPoint();
     if (undo == null) { return; }
 
-    document.getElementById("undoMessage").innerHTML = "Undo Player " + undo.playerNumber + "'s card in round " + undo.round + ", turn " + undo.turn + "?"
+    document.getElementById("undoMessage").innerHTML = "Undo " + tagPlayerNames("Player " + undo.playerNumber + "'s") + " card in round " + undo.round + ", turn " + undo.turn + "?"
         + "<br><small class=\"text-muted\">Everything the app did since is reversed. What you've changed by hand stays.</small>";
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("undoModal")).show();

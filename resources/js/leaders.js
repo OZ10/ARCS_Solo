@@ -393,7 +393,7 @@ function showLeaderCard(playerNumber, kind, number) {
     const header = document.querySelector("#guildModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     header.classList.add("playerbanner" + getPlayerColour(player));
-    document.getElementById("guildBody").innerHTML = "<div class=\"small text-muted mb-2\">Player " + player.number + " &middot; " + draftKinds[kind] + "</div>"
+    document.getElementById("guildBody").innerHTML = "<div class=\"small text-muted mb-2\">" + getPlayerTag(player) + " &middot; " + draftKinds[kind] + "</div>"
         + (kind == "leader"
             ? card.powers.map(([name, text]) => "<p><i>" + name + ".</i> " + text + "</p>").join("")
                 + "<div class=\"small text-muted\">Started with " + card.resources.map(resource => preludeResourceNames[resource]).join(" and ") + "; " + getStartingPiecesText(card) + ".</div>"

@@ -89,7 +89,7 @@ function showBuildModal(button) {
 
 function showBuildSlotQuestion() {
     document.getElementById("buildBody").innerHTML =
-        "<p>Is there an empty building slot in a system where Player " + build.player.number + " has a piece?</p>"
+        "<p>Is there an empty building slot in a system where " + getPlayerTag(build.player) + " has a piece?</p>"
         + "<div class=\"d-flex gap-2\">"
         + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"buildSlotYes\" onclick=\"showBuildResourceQuestion()\">Yes</button>"
         + "<button type=\"button\" class=\"btn btn-secondary flex-fill\" id=\"buildSlotNo\" onclick=\"showBuildDecision()\">No</button>"

@@ -159,7 +159,7 @@ function showGuildCard(player, card) {
     // A card's text, with Remove (when it's lost, discarded or stolen)
     document.getElementById("guildTitle").innerHTML = card.name;
     const body = document.getElementById("guildBody");
-    body.innerHTML = "<div class=\"small text-muted mb-2\">Player " + player.number + " &middot; " + preludeResourceNames[card.resource]
+    body.innerHTML = "<div class=\"small text-muted mb-2\">" + getPlayerTag(player) + " &middot; " + preludeResourceNames[card.resource]
         + " &middot; " + card.keys + " key" + (card.keys == 1 ? "" : "s") + " &middot; BC " + String(card.number).padStart(2, "0") + "</div>"
         + "<p>" + card.text + "</p>";
 

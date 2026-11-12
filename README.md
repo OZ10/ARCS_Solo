@@ -96,7 +96,7 @@ Your hand is listed on your panel. Tap a card to see its pips, ambition and acti
 - **Following:** **SURPASS**, **COPY** or **PIVOT**.
 - **CLAIM:** turn this on to also seize the initiative with a card played face down.
 
-Then carry out your actions on the table and tap **Done**. While it's your turn, the **Battle** and **Court** icons on your panel help you keep track of a battle or the market (see below).
+**Your turn window** then opens, like a bot's. It lists the actions your card gives you. Battle has a **Battle** button and Secure or Influence a **Court** button, to keep track of a battle or the market (see below). The others are reminders. Your prelude can add actions the app doesn't know about, so anything your card doesn't have is under **Also**, with **Draw**. Carry out your actions on the table and tap **Done**. **Back to board** shrinks the window to a bar, as on a bot's turn.
 
 <br clear="right">
 
@@ -153,7 +153,7 @@ The plan is set when the turn window opens and doesn't change as you work throug
 ## Battles
 <img src="docs/screenshots/battle.png" width="300" align="right" alt="The Battle window">
 
-Tap **Battle** in the turn window, or the Battle icon on your own panel.
+Tap **Battle** in the turn window, yours or a bot's.
 
 For a bot:
 1. **Defender:** it starts on the Rival it wants to fight, and says why.
@@ -184,7 +184,7 @@ Tap **Build** in a bot's turn window. Say whether there's an empty building slot
 ## The Court
 <img src="docs/screenshots/court.png" width="300" align="right" alt="The Court window">
 
-Tap **Court** in the turn window, or the Court icon on your own panel. It lists the cards in the market with everyone's agents on each in their colours. Use **−** and **+** to keep the agents up to date, **×** to remove a card, and the list at the bottom to add its replacement.
+Tap **Court** in the turn window, yours or a bot's. It lists the cards in the market with everyone's agents on each in their colours. Use **−** and **+** to keep the agents up to date, **×** to remove a card, and the list at the bottom to add its replacement.
 
 For a bot, the top line says what it would secure or influence. **Secure** takes a card the player can secure, captures any Rival agents on it, and moves it to their Guild row. When a bot secures a Vox card, the app tells you what it does with it.
 

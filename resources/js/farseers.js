@@ -149,7 +149,7 @@ function lookAtFarseersRival() {
     const theirs = getUnplayedCards(farseersRival.cards);
     const yours = getUnplayedCards(farseersPlayer.cards);
     document.getElementById("guildBody").innerHTML =
-        "<div class=\"boardgrouplabel text-start\">Player " + farseersRival.number + "'s hand: take</div>"
+        "<div class=\"boardgrouplabel text-start\">" + tagPlayerNames("Player " + farseersRival.number + "'s") + " hand: take</div>"
         + getCardChoices(theirs, "radio", "farseersTake", "updateFarseersSwap()")
         + "<div class=\"boardgrouplabel text-start\">Your hand: give</div>"
         + (yours.length > 0 ? getCardChoices(yours, "radio", "farseersGive", "updateFarseersSwap()") : "<div class=\"small text-muted text-center mb-2\">You have no cards left to give.</div>")

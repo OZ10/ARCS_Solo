@@ -1,7 +1,7 @@
-// The turn window (#99): once a bot has played, everything about its turn in one place, with
+// The turn window (#99): once a player has played, everything about their turn in one place, with
 // the buttons beside the steps they're for. Back to board shrinks it to a bar above the footer so
 // the tiles can be tapped, and slot advice (#96) stays above the bar until it's closed or the
-// turn ends. The human player chooses their own actions, so keeps the panel (see showTurnDone).
+// turn ends. A bot's has its plan. The human player's lists their card's actions (#112).
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
@@ -22,8 +22,14 @@ const turnTools = {
 // Which button goes with an action in the plan or prelude
 const turnActionTools = { battle: "battle", build: "build", secure: "court", influence: "court" };
 
+// The human player's actions: an icon, a reminder for those with no window, and the window
+const humanActionIcons = { move: "bi-arrows-move", battle: "bi-crosshair", secure: "bi-bank", influence: "bi-bank", tax: "bi-coin", build: "bi-hammer", repair: "bi-wrench" };
+const humanActionNotes = { move: "Move your ships on the table", tax: "Tax a city you control", build: "Build on the table", repair: "Repair a damaged ship or building" };
+const humanActionTools = { battle: "battle", secure: "court", influence: "court" };
+
 function usesTurnWindow(player) {
-    return !player.isHuman;
+    // Everyone's turn has the window (#112)
+    return player != null;
 }
 
 function getTurnPlayer() {
@@ -106,7 +112,7 @@ function getToolButton(name) {
 
 function getTurnRow(marker, text, note, buttons) {
     return "<div class=\"turnstep\"><span class=\"turnmarker\">" + marker + "</span>"
-        + "<div class=\"turnsteptext\">" + text + (note ? "<small>" + note + "</small>" : "") + "</div>"
+        + "<div class=\"turnsteptext\">" + tagPlayerNames(text) + (note ? "<small>" + tagPlayerNames(note) + "</small>" : "") + "</div>"
         + (buttons || "") + "</div>";
 }
 
@@ -159,7 +165,57 @@ function getSlotAdviceHtml() {
     }).join("");
 }
 
+function getAlsoButton(name) {
+    const tool = turnTools[name];
+    return "<button type=\"button\" class=\"btn btn-outline-secondary\" id=\"turnTool_" + name + "\" onclick=\"useTurnTool('" + name + "')\"><i class=\"bi " + tool.icon + "\"></i>" + tool.name + "</button>";
+}
+
+function getMarketShortfallSection(offered) {
+    // A card has left the market: add its replacement
+    const shortfall = getMarketShortfall();
+    if (shortfall <= 0) { return ""; }
+    return getTurnSection("The Court", getTurnRow("<i class=\"bi bi-exclamation-lg\"></i>", "The market is " + shortfall + " card" + (shortfall == 1 ? "" : "s") + " short", "Add " + (shortfall == 1 ? "the replacement" : "the replacements"), offered.includes("court") ? "" : getToolButton("court")));
+}
+
+function showTurnHtml(player, title, html) {
+    const header = document.querySelector("#turnModal .modal-header");
+    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    header.classList.add("playerbanner" + getPlayerColour(player));
+    document.getElementById("turnTitle").innerHTML = title;
+    document.getElementById("turnBody").innerHTML = html;
+
+    const next = getNextPlayerToPlay(player);
+    document.getElementById("turnDone").innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;
+
+    updateTurnDock();
+}
+
+function renderHumanTurn(player) {
+    // The actions their card gives them, with the button beside those that have a window. Their
+    // prelude can add actions the app doesn't know about, so Battle and Court are always somewhere
+    const play = getBotPlay(player);
+    const actions = (play == null) ? [] : play.actions.split(",");
+    const offered = [];
+    const rows = actions.map(action => {
+        const name = humanActionTools[action];
+        const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
+        if (name != null) { offered.push(name); }
+        return getTurnRow("<i class=\"bi " + (humanActionIcons[action] || "bi-dot") + "\"></i>", capitalise(action), humanActionNotes[action] || "", button);
+    }).join("");
+
+    let html = "";
+    if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
+    html += getTurnSection("Card played", getCardHtml(player));
+    html += getTurnSection("Your actions", rows != "" ? rows : "<div class=\"small text-muted\">No actions this turn.</div>");
+    const shortfall = getMarketShortfallSection(offered);
+    if (shortfall != "") { html += shortfall; offered.push("court"); }
+    html += getTurnSection("Also", "<div class=\"small text-muted mb-2\">Your prelude can add actions, such as a Weapon to battle.</div>"
+        + "<div class=\"turntools\">" + ["battle", "court"].filter(name => !offered.includes(name)).concat("draw").map(getAlsoButton).join("") + "</div>");
+    showTurnHtml(player, "Your turn", html);
+}
+
 function renderTurn(player) {
+    if (player.isHuman) { renderHumanTurn(player); return; }
     const plan = getTurnPlan(player).map(step => ({ ...step, ...getSplitPlanStep(step, player) }));
     const prelude = (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
     const guild = (player.guildActions != null && player.guildActions.spent != null) ? player.guildActions.spent : [];
@@ -173,7 +229,6 @@ function renderTurn(player) {
         if (name != null) { offered.push(name); }
         return getTurnRow(index + 1, step.name, step.reason + getLeaderHintsHtml(step.hints), button);
     }).join("");
-    const shortfall = getMarketShortfall();
 
     let html = "";
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
@@ -187,25 +242,11 @@ function renderTurn(player) {
     }
     if (planRows != "") { html += getTurnSection("Plan", planRows); }
     if (guild.length > 0) { html += getTurnSection(hasLoreOffers(guild) ? "Guild and Lore actions" : "Guild actions", getOfferRows(guild)); }
-    if (shortfall > 0) {
-        html += getTurnSection("The Court", getTurnRow("<i class=\"bi bi-exclamation-lg\"></i>", "The market is " + shortfall + " card" + (shortfall == 1 ? "" : "s") + " short", "Add " + (shortfall == 1 ? "the replacement" : "the replacements"), offered.includes("court") ? "" : getToolButton("court")));
-        planned.push("court");
-    }
-    html += getTurnSection("Also", "<div class=\"turntools\">" + getAlsoTools(player, planned).map(name => {
-        const tool = turnTools[name];
-        return "<button type=\"button\" class=\"btn btn-outline-secondary\" id=\"turnTool_" + name + "\" onclick=\"useTurnTool('" + name + "')\"><i class=\"bi " + tool.icon + "\"></i>" + tool.name + "</button>";
-    }).join("") + "</div>");
+    const shortfall = getMarketShortfallSection(offered);
+    if (shortfall != "") { html += shortfall; planned.push("court"); }
+    html += getTurnSection("Also", "<div class=\"turntools\">" + getAlsoTools(player, planned).map(getAlsoButton).join("") + "</div>");
 
-    const header = document.querySelector("#turnModal .modal-header");
-    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
-    header.classList.add("playerbanner" + getPlayerColour(player));
-    document.getElementById("turnTitle").innerHTML = "Player " + player.number + "'s turn";
-    document.getElementById("turnBody").innerHTML = html;
-
-    const next = getNextPlayerToPlay(player);
-    document.getElementById("turnDone").innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;
-
-    updateTurnDock();
+    showTurnHtml(player, "Player " + player.number + "'s turn", html);
 }
 
 function getBarPlan(player) {
@@ -222,7 +263,11 @@ function updateTurnDock() {
     const bar = document.getElementById("turnBar");
     if (player != null) {
         bar.className = "turnbar playerbanner" + getPlayerColour(player);
-        bar.innerHTML = "<div class=\"turnbarplan\"><b>Player " + player.number + "'s turn</b>" + getBarPlan(player) + "</div>"
+        // The human player's bar has the actions their card gives them
+        const play = player.isHuman ? getBotPlay(player) : null;
+        const summary = !player.isHuman ? getBarPlan(player)
+            : (play == null ? "No actions" : play.count + " action" + (play.count == 1 ? "" : "s") + ": " + play.actions.split(",").join(", "));
+        bar.innerHTML = "<div class=\"turnbarplan\"><b>" + (player.isHuman ? "Your turn" : "Player " + player.number + "'s turn") + "</b>" + summary + "</div>"
             + "<button type=\"button\" class=\"btn btn-light btn-sm\" id=\"turnBarOpen\" onclick=\"openTurnWindow()\"><i class=\"bi bi-chevron-up\"></i> Open</button>";
     }
     showHideElement([bar], player != null);

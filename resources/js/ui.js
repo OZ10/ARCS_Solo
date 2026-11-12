@@ -66,11 +66,12 @@ function showMessageToast(headerValue, bodyValue) {
 function showToast(id, headerId, headerValue, bodyId, bodyValue) {
     const toast = document.getElementById(id);
     const header = toast.querySelector("#" + headerId);
-    header.innerHTML = headerValue;
+    // Any player named, on their colour (#110)
+    header.innerHTML = tagPlayerNames(headerValue);
 
     if (bodyId != "") {
         const body = toast.querySelector("#" + bodyId);
-        body.innerHTML = bodyValue;
+        body.innerHTML = tagPlayerNames(bodyValue);
     }
 
     const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toast);

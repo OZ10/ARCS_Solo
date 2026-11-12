@@ -324,6 +324,17 @@ function showPreludeModal(player, step) {
     document.getElementById("preludeIntro").innerHTML = (isGuild
         ? "In place of its normal actions, the bot would like to use these." : "Before its actions, the bot would like to spend these.") + " Tick the ones worth doing.";
     document.getElementById("confirmPrelude").innerHTML = isGuild ? "Use ticked" : "Spend ticked";
+
+    // What it played and what it means to do without these, so the offers can be judged (#111)
+    let summary = document.getElementById("preludeSummary");
+    if (summary == null) {
+        summary = document.createElement("div");
+        summary.id = "preludeSummary";
+        summary.classList.add("turnsection", "mb-3");
+        document.getElementById("preludeIntro").before(summary);
+    }
+    summary.innerHTML = "<div class=\"turnlabel\">Card played</div>" + getCardHtml(player)
+        + "<div class=\"turnlabel mt-2\">Its plan without these</div><div>" + tagPlayerNames(getBarPlan(player)) + "</div>";
     const header = document.querySelector("#preludeModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     header.classList.add("playerbanner" + getPlayerColour(player));
