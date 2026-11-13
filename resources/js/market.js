@@ -123,7 +123,11 @@ function showSetUpPlayers() {
     done.id = "setUpPlayersDone";
     done.classList.add("btn", "btn-primary", "w-100");
     done.innerHTML = "OK";
-    done.onclick = () => bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
+    done.onclick = () => {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
+        lastAnnouncedLeader = null;
+        announceTurn(true);
+    };
     body.appendChild(done);
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();

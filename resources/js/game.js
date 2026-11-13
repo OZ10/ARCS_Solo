@@ -176,6 +176,7 @@ function nextTurn() {
     enableDisablePlayerPanels(currentPlayer.number);
 
     SaveAllSettings();
+    announceTurn(false);
 }
 
 function haveAllCardsBeenPlayed() {
@@ -220,6 +221,7 @@ function startNextRound() {
     dealCards();
 
     SaveAllSettings();
+    announceTurn(true);
 }
 
 

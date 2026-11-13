@@ -30,6 +30,45 @@ function tagPlayerNames(html) {
     });
 }
 
+// Round and turn announcements (#116): a card in the leading player's colour that closes by
+// itself, or when tapped. The leader of the last turn announced, to tell when it was seized
+const announceSeconds = 3;
+let lastAnnouncedLeader = null;
+let announceTimer = null;
+
+function announceTurn(isRoundStart) {
+    const leader = getPlayerWithInitiative();
+    if (leader == null) { return; }
+    const seized = !isRoundStart && lastAnnouncedLeader != null && lastAnnouncedLeader != leader.number;
+    lastAnnouncedLeader = leader.number;
+
+    const title = isRoundStart ? "Round " + roundNumber : "Turn " + turnNumber;
+    const sub = isRoundStart ? "Turn " + turnNumber : "Round " + roundNumber;
+    const who = leader.isHuman ? "<b>You</b> " + (seized ? "seized the initiative and lead" : "lead")
+        : getPlayerTag(leader) + (seized ? " seized the initiative and leads" : " has the initiative and leads");
+    const note = (isRoundStart && roundNumber > 1 ? "New hands are dealt. " : "") + "Tap anywhere to carry on.";
+
+    closeAnnouncement();
+    const dim = document.createElement("div");
+    dim.className = "announcedim";
+    dim.id = "announceDim";
+    const card = document.createElement("div");
+    card.className = "announce";
+    card.id = "announce";
+    card.setAttribute("role", "status");
+    card.innerHTML = "<div class=\"announcehead playerbanner" + getPlayerColour(leader) + "\"><div class=\"announcetitle\">" + title + "</div>"
+        + "<div class=\"announceline\"></div><div class=\"announcesub\">" + sub + "</div></div>"
+        + "<div class=\"announcebody\">" + who + "<div class=\"sub\">" + note + "</div></div>"
+        + "<div class=\"announcebar\"><div style=\"animation-duration: " + announceSeconds + "s\"></div></div>";
+    [dim, card].forEach(element => { element.onclick = closeAnnouncement; document.body.appendChild(element); });
+    announceTimer = setTimeout(closeAnnouncement, (announceSeconds + 0.4) * 1000);
+}
+
+function closeAnnouncement() {
+    clearTimeout(announceTimer);
+    ["announce", "announceDim"].forEach(id => { const element = document.getElementById(id); if (element != null) { element.remove(); } });
+}
+
 function hideIconTooltip(button, modalId) {
     // An icon that opens a window: hide its tooltip and let go of focus, or the tooltip is
     // still showing when the window closes and covers the icon, blocking the next tap.

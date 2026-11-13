@@ -443,6 +443,116 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     color: $slate;
 }
 
+// Round and turn announcements (#116): taller than a toast, in the leader's colour. The label
+// sweeps in large and blurred, then a line draws out beneath it. The bar counts down
+.announcedim {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.3);
+  animation: announcefade 0.3s both;
+}
+
+.announce {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  top: 22%;
+  z-index: 2001;
+  max-width: 480px;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 14px 50px rgba(0, 0, 0, 0.4);
+  text-align: center;
+  cursor: pointer;
+  animation: announcein 0.35s ease-out both;
+
+  .announcehead {
+    padding: 34px 16px 26px;
+    font-family: 'Spectral SC', serif;
+  }
+
+  .announcetitle {
+    display: inline-block;
+    font-size: 3rem;
+    line-height: 1;
+    animation: announcetitle 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both;
+  }
+
+  .announceline {
+    height: 2px;
+    width: 55%;
+    margin: 12px auto 8px;
+    background: currentColor;
+    opacity: 0.5;
+    animation: announceline 0.7s ease-out 0.55s both;
+  }
+
+  .announcesub {
+    font-size: 1.1rem;
+    opacity: 0.85;
+    animation: announcefade 0.5s ease-out 0.8s both;
+  }
+
+  .announcebody {
+    padding: 22px 18px 24px;
+    font-size: 1.15rem;
+
+    .sub {
+      margin-top: 8px;
+      font-size: 0.95rem;
+      color: #6c757d;
+    }
+  }
+
+  .announcebar {
+    height: 5px;
+    background: rgba(0, 0, 0, 0.12);
+
+    div {
+      height: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      transform-origin: left;
+      animation: announcecountdown 3s linear 0.4s both;
+    }
+  }
+}
+
+@keyframes announcein {
+  from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes announcetitle {
+  0% { opacity: 0; transform: scale(1.7); letter-spacing: 0.35em; filter: blur(6px); }
+  60% { opacity: 1; filter: blur(0); }
+  100% { transform: scale(1); letter-spacing: 0; }
+}
+
+@keyframes announceline {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes announcefade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes announcecountdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+// With reduce motion on, it just appears
+@media (prefers-reduced-motion: reduce) {
+  .announce, .announce *, .announcedim {
+    animation: none !important;
+  }
+}
+
 // The setup screen: each system on the setup card with its pieces (#115)
 .setupplaces {
   display: grid;
