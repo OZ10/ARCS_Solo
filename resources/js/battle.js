@@ -273,14 +273,16 @@ function describeDice(option) {
     return dice.join(" + ");
 }
 
-function getPlanetOptions(defender) {
+function getPlanetOptions(defender, withGate = false) {
     // What planet a battle with the defender's buildings could be on, as [{ value, name }]. A
     // battle is in one system, and only a planet has building slots, so all its buildings are on
     // one planet type (#103). The types the defender has a city on come first, then any type its
     // unset starting city could be on. "starport" is a planet where it has only starports
     const hasCity = resource => defender["cities" + capitalise(resource) + "Value"] > 0;
     const types = preludeResources.filter(hasCity).concat(defender.startingCity ? preludeResources.filter(resource => !hasCity(resource)) : []);
-    return types.map(resource => ({ value: resource, name: preludeResourceNames[resource] })).concat({ value: "starport", name: "Starports only" });
+    // Gate Stations (Lore): its holder can have a city on a gate, of every type in its cluster (#120)
+    const gate = (withGate && hasLore(defender, 11)) ? [{ value: "gate", name: "A gate (Gate Stations)" }] : [];
+    return types.map(resource => ({ value: resource, name: preludeResourceNames[resource] })).concat(gate, { value: "starport", name: "Starports only" });
 }
 
 function getBuildingTypesOn(defender, planet, kinds) {
@@ -290,6 +292,7 @@ function getBuildingTypesOn(defender, planet, kinds) {
     let startingCity = defender.startingCity;
     return kinds.map(kind => {
         if (planet == "starport" || kind == "starport") { return "starport"; }
+        if (planet == "gate") { return "gate"; }
         if (recorded > 0) { recorded--; return planet; }
         if (startingCity) { startingCity = Number(startingCity) - 1; return "startingCity:" + planet; }
         return planet;
@@ -319,11 +322,19 @@ function setBuildingKind(index, kind) {
 
 function getBuildingChoiceHtml(id, planet, kinds, label, onPlanet, onKind) {
     // The planet once, then City or Starport for each building (none on a starports-only planet)
-    const options = getPlanetOptions(battle.defender);
+    const options = getPlanetOptions(battle.defender, id == "battleDestroyed");
     let html = "<div class=\"boardgrouplabel mt-2\">Planet</div>"
         + "<select class=\"form-select form-select-sm\" id=\"" + id + "Planet\" onchange=\"" + onPlanet + "(this.value)\">"
         + options.map(option => "<option value=\"" + option.value + "\"" + (option.value == planet ? " selected" : "") + ">" + option.name + "</option>").join("") + "</select>";
     if (planet == "starport") { return html; }
+    if (planet == "gate") {
+        // The gate city's types: each city type in its cluster
+        const ticked = battle.destroyed.gateTypes || [];
+        html += "<div class=\"small fw-semibold mt-2\">The gate city's types: tick each city type in its cluster</div><div class=\"gatetypes\">"
+            + preludeResources.map(resource => "<input type=\"checkbox\" class=\"btn-check\" id=\"gateType_" + resource + "\"" + (ticked.includes(resource) ? " checked" : "")
+                + " onchange=\"toggleGateType('" + resource + "', this.checked)\"><label class=\"btn btn-outline-secondary btn-sm\" for=\"gateType_" + resource + "\">" + preludeResourceNames[resource] + "</label>").join("") + "</div>"
+            + "<div class=\"small text-muted mt-1\">Destroying a gate city Provokes Outrage of every one of its types.</div>";
+    }
     kinds.forEach((kind, index) => {
         const choice = (value, name) => "<input type=\"radio\" class=\"btn-check\" name=\"" + id + index + "\" id=\"" + id + index + value + "\"" + (kind == value ? " checked" : "")
             + " onchange=\"" + onKind + "(" + index + ", '" + value + "')\"><label class=\"btn btn-outline-secondary\" for=\"" + id + index + value + "\">" + name + "</label>";
@@ -653,8 +664,11 @@ function chooseBattleDice() {
 
     // Only what a human opponent would say is shown. The numbers behind the decision are
     // in Details, closed to start with
+    // The dice line gives a shake when the choice is new
+    const rollShake = battle.lastRoll != describeDice(choice);
+    battle.lastRoll = describeDice(choice);
     advice.innerHTML = getLeaderBattleSetupNote()
-        + "<div class=\"battleroll\">Roll " + describeDice(choice) + "</div>"
+        + "<div class=\"battleroll" + (rollShake ? " diceshake" : "") + "\">Roll " + describeDice(choice) + "</div>"
         + "<div class=\"fst-italic\">" + ((raid != null && choice.raidDice > 0) ? "Going after their " + raidItem.name + "." : getBattleAttitude(choice, getBattleDiceLimit())
             + (raid != null ? " Their " + raidItem.name + " isn't worth the risk." : "")
             + (hasShips && wantedBuilding != null && choice.expectedBuildingHits > 0 ? " Happy to hit " + getBuildingName(wantedBuilding.type) + "." : "")) + "</div>"
@@ -719,6 +733,11 @@ function setDestroyedPlanet(planet) {
     document.getElementById("battleDestroyed").innerHTML = getDestroyedHtml();
 }
 
+function toggleGateType(resource, ticked) {
+    const types = (battle.destroyed.gateTypes || []).filter(type => type != resource);
+    battle.destroyed.gateTypes = ticked ? types.concat(resource) : types;
+}
+
 function setDestroyedKind(index, kind) {
     battle.destroyed.kinds[index] = kind;
     document.getElementById("battleDestroyed").innerHTML = getDestroyedHtml();
@@ -763,7 +782,8 @@ function showBattleResults() {
         const planet = (city != null) ? city.split(":").pop() : (battle.attacker.isHuman || battle.planet == null ? "starport" : battle.planet);
         battle.destroyed = {
             planet: options.some(option => option.value == planet) ? planet : "starport",
-            kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => destroyed[index] == "starport" ? "starport" : "city")
+            kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => destroyed[index] == "starport" ? "starport" : "city"),
+            gateTypes: []
         };
         html += "<div id=\"battleDestroyed\">" + (options.length > 1 ? getDestroyedHtml() : "") + "</div>";
         const canRansack = canRansackAgainst(battle.defender);
@@ -831,6 +851,17 @@ function applyBattleResults() {
     const destroyedTypes = (losses.defenderBuildings > 0 && battle.destroyed != null) ? getBuildingTypesOn(defender, battle.destroyed.planet, battle.destroyed.kinds) : [];
     destroyedTypes.forEach(type => {
         if (type == "starport") { return; }
+        if (type == "gate") {
+            // A gate city (Gate Stations): Outrage of each of its types (#120). It's counted on the
+            // defender's panel as one of them
+            defender.citiesAsTrophies = (defender.citiesAsTrophies || 0) + 1;
+            const gateTypes = battle.destroyed.gateTypes || [];
+            const counted = gateTypes.find(resource => defender["cities" + capitalise(resource) + "Value"] > 0);
+            if (counted != null) { adjustCounter(defender, "cities" + capitalise(counted), -1); }
+            gateTypes.forEach(resource => provokeOutrage(attacker, resource));
+            cities.push("the gate city" + (gateTypes.length > 0 ? " (" + gateTypes.map(resource => preludeResourceNames[resource].toLowerCase()).join(", ") + ")" : ""));
+            return;
+        }
         defender.citiesAsTrophies = (defender.citiesAsTrophies || 0) + 1;
         const startingCity = type.startsWith("startingCity:");
         const resource = startingCity ? type.split(":")[1] : type;

@@ -579,12 +579,15 @@ function checkInitiative(claimingPlayer, playedCard, hasClaimed) {
 }
 
 function changeInitiative(player) {
+    // The star pops in on its new holder
+    const moved = !player.hasInitiative;
     players.forEach(p => {
         p.hasInitiative = (p.number == player.number) ? true : false;
 
         const element = document.querySelectorAll("#playerinitiative" + p.number);
         showHideElement(element, (p.number == player.number) ? true : false);
     })
+    if (moved) { replayAnimation(document.getElementById("playerinitiative" + player.number), "starpop"); }
 
     SaveAllSettings();
 }

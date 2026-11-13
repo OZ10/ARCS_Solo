@@ -219,6 +219,13 @@
 
             <!-- The player's pieces on the board (see boardCounters in player.js). Shaded, with
                  shorter tiles, so they aren't mistaken for the resource tiles above -->
+            <!-- Outrage (#119): which resources this player is Outraged in. Tap one to mark or clear it -->
+            <div class="outragerow">
+              <div class="sectionlabel">Outrage</div>
+              <div class="outragechips"></div>
+              <div class="outragehint">Tap a resource to mark or clear its Outrage</div>
+            </div>
+
             <div class="boardsection mx-3 mb-2">
             <div class="sectionlabel text-center">Board</div>
 
@@ -428,7 +435,7 @@
               <span class="d-flex align-items-center gap-2 me-auto">
                 <img src="resources/icons/icon.svg" width="24" height="24" alt="">
                 <span class="appname">B4RCS</span>
-                <small class="text-muted" id="appVersion">v131126.03</small>
+                <small class="text-muted" id="appVersion">v131126.04</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -644,11 +651,9 @@
             </h5>
           </div>
           <div class="modal-body">
-            <p>Check how many of each ambition's resources every player has.
-              Counts are filled in from the resources being tracked.</p>
-            <p class="small"><i class="bi bi-info-circle"></i> <b>Guild card icons</b> are
-              included for the cards listed on each player's panel. Add a Cartel's supply
-              (Material or Fuel kept on the card) to Tycoon by hand.</p>
+            <p class="scoreintro">Check each count against the table. They're filled in from the
+              panels, Guild card icons included. Add a Cartel's supply (Material or Fuel kept on
+              the card) to Tycoon by hand.</p>
             <p class="small d-none" id="scoringNeutralNote"><i class="bi bi-info-circle"></i>
               <b>Neutral:</b> with 2 players, the resources on each ambition box count as a third
               player. They can take a place but gain no power. Counts are remembered for next round.</p>

@@ -381,6 +381,471 @@ header {
   color: #3d4a5c;
 }
 
+.outragerow {
+  margin: 2px 12px 10px;
+  text-align: center;
+}
+.outragerow .outragechips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.outragerow .outragehint {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.outragechip {
+  border: 1px dashed rgba(0, 0, 0, 0.3);
+  background: transparent;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.8rem;
+  color: inherit;
+  opacity: 0.75;
+}
+.outragechip.outraged {
+  border: 1px solid #9b1c1c;
+  background: #b42318;
+  color: #fff;
+  opacity: 1;
+  font-weight: 600;
+  animation: outragein 0.4s ease-out;
+}
+.outragechip.outraged i {
+  margin-right: 3px;
+}
+
+.gatetypes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+#scoringModal .modal-header {
+  justify-content: center;
+  background: #2b3442;
+  color: #fff;
+  border-bottom: 0;
+  padding: 18px 16px 14px;
+}
+#scoringModal .modal-title {
+  font-family: "Spectral SC", serif;
+  font-size: 1.9rem;
+  line-height: 1;
+  text-align: center;
+}
+#scoringModal .modal-title small, #scoringModal .modal-title .small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.95rem;
+  opacity: 0.75;
+}
+
+.scoreintro {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 12px;
+}
+
+.scorecard {
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  background: #fff;
+}
+
+.scorehead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f3f1ec;
+  border-bottom: 1px solid #e6e1d6;
+}
+.scorehead .scorename {
+  font-family: "Spectral SC", serif;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.scorehead .scorecond {
+  font-size: 0.78rem;
+  color: #6c757d;
+}
+.scorehead .medals {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.medal {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+}
+.medal small, .medal .small {
+  font-size: 0.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.medal.gold {
+  background: linear-gradient(#f6d77a, #d8a93a);
+  color: #4a3606;
+}
+.medal.silver {
+  background: linear-gradient(#eef0f3, #b9bfc8);
+  color: #333a44;
+}
+
+.scorerow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-top: 1px solid #f1f1f1;
+  animation: scorerowin 0.35s ease-out both;
+}
+.scorerow.winner {
+  background: linear-gradient(90deg, rgba(246, 215, 122, 0.3), transparent);
+}
+.scorerow .scorewho {
+  min-width: 76px;
+  text-align: center;
+}
+
+.scorehead + .scorerow {
+  border-top: 0;
+}
+
+.scorestep {
+  display: flex;
+  align-items: center;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.scorestep button {
+  border: 0;
+  background: #f8f9fa;
+  width: 30px;
+  height: 30px;
+}
+.scorestep input {
+  width: 38px;
+  border: 0;
+  text-align: center;
+  font-weight: 600;
+  -moz-appearance: textfield;
+}
+.scorestep input::-webkit-inner-spin-button, .scorestep input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.scoreplace {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0;
+}
+.scoreplace.first, .scoreplace.second {
+  padding: 2px 8px;
+  animation: scorestamp 0.4s ease-out both;
+}
+.scoreplace.first {
+  background: #f6d77a;
+  color: #4a3606;
+}
+.scoreplace.second {
+  background: #dfe3e8;
+  color: #333a44;
+}
+
+.scorepoints {
+  min-width: 44px;
+  text-align: right;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.scorepoints.zero {
+  color: #adb5bd;
+  font-weight: 400;
+}
+
+.scorebonus {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: #6c757d;
+}
+
+.powersummary {
+  border-radius: 12px;
+  background: #f8f9fa;
+  padding: 10px 12px;
+}
+.powersummary .sectionlabel {
+  text-align: left;
+  margin-bottom: 6px;
+}
+
+.powerline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+.powerline .playertag {
+  min-width: 76px;
+  text-align: center;
+}
+
+.powerbar {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: #e9ecef;
+  position: relative;
+  overflow: hidden;
+}
+.powerbar .now {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 5px;
+}
+.powerbar .gain {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  opacity: 0.55;
+  background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.18) 0 4px, transparent 4px 8px);
+  transform-origin: left;
+  animation: powergrow 0.8s ease-out 0.4s both;
+}
+
+.powernum {
+  width: 62px;
+  text-align: right;
+  font-size: 0.85rem;
+}
+.powernum b {
+  font-size: 1rem;
+}
+
+.powertarget {
+  font-size: 0.72rem;
+  color: #6c757d;
+  text-align: right;
+}
+
+.gameoverwinner {
+  position: relative;
+  overflow: hidden;
+  margin: -4px 0 12px;
+  padding: 18px 10px;
+  border-radius: 12px;
+  text-align: center;
+}
+.gameoverwinner .gameovertitle {
+  display: inline-block;
+  font-family: "Spectral SC", serif;
+  font-size: 2.2rem;
+  line-height: 1;
+  animation: announcetitle 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both;
+}
+.gameoverwinner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 223, 128, 0.65) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: goldshimmer 2.4s ease-in-out 0.9s infinite;
+}
+
+.starpop {
+  display: inline-block;
+  animation: starpop 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.powerglow {
+  animation: powerglow 1.4s ease-out;
+}
+
+.ambitionflip {
+  animation: ambitionflip 0.8s ease-out;
+}
+
+.turnopening .turnstep {
+  animation: turnstepin 0.35s ease-out both;
+}
+.turnopening .turnstep:nth-child(2) {
+  animation-delay: 0.07s;
+}
+.turnopening .turnstep:nth-child(3) {
+  animation-delay: 0.14s;
+}
+.turnopening .turnstep:nth-child(4) {
+  animation-delay: 0.21s;
+}
+.turnopening .turnstep:nth-child(5) {
+  animation-delay: 0.28s;
+}
+.turnopening .turnstep:nth-child(6) {
+  animation-delay: 0.35s;
+}
+.turnopening .turnstep:nth-child(7) {
+  animation-delay: 0.42s;
+}
+.turnopening .turnstep:nth-child(8) {
+  animation-delay: 0.49s;
+}
+.turnopening .turnstep:nth-child(9) {
+  animation-delay: 0.56s;
+}
+
+.diceshake {
+  animation: diceshake 0.5s ease-in-out;
+}
+
+@keyframes outragein {
+  0% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes scorerowin {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes scorestamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.8) rotate(-8deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes powergrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes goldshimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  45%, 100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes starpop {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.6) rotate(15deg);
+    opacity: 1;
+    text-shadow: 0 0 12px rgba(255, 215, 90, 0.9);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+@keyframes powerglow {
+  0%, 60% {
+    text-shadow: 0 0 10px rgba(255, 215, 90, 0.95);
+  }
+  100% {
+    text-shadow: none;
+  }
+}
+@keyframes ambitionflip {
+  0% {
+    transform: perspective(300px) rotateY(90deg);
+  }
+  60% {
+    transform: perspective(300px) rotateY(-12deg);
+    box-shadow: 0 0 10px rgba(255, 215, 90, 0.8);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes turnstepin {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes diceshake {
+  0%, 100% {
+    transform: none;
+  }
+  20% {
+    transform: translateX(-4px) rotate(-2deg);
+  }
+  40% {
+    transform: translateX(4px) rotate(2deg);
+  }
+  60% {
+    transform: translateX(-3px) rotate(-1deg);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+.powerbar .now.playerbanner3 {
+  background: #e9a74f;
+}
+
+.powerbar .gain.playerbanner3 {
+  background-color: #e9a74f;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outragechip, .scorerow, .scoreplace, .powerbar .gain, .gameoverwinner .gameovertitle, .gameoverwinner::after,
+  .starpop, .powerglow, .ambitionflip, .turnopening .turnstep, .diceshake {
+    animation: none !important;
+  }
+}
 .announcedim {
   position: fixed;
   inset: 0;

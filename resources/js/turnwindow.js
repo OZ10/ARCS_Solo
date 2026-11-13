@@ -69,6 +69,10 @@ function openTurnWindow() {
     }
 
     returnToTurnWindow = false;
+    // Its steps slide in one after another as it opens
+    const body = document.getElementById("turnBody");
+    replayAnimation(body, "turnopening");
+    setTimeout(() => body.classList.remove("turnopening"), 1500);
     bootstrap.Modal.getOrCreateInstance(document.getElementById("turnModal")).show();
 }
 

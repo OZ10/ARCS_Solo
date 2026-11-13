@@ -24,6 +24,10 @@ function getDeclaredAmbitionMarkers() {
     return grouped;
 }
 
+// How many markers each ambition had when the top bar was last shown, so a newly declared one
+// can flip over (null until first shown, so nothing flips on loading)
+let shownAmbitionMarkers = null;
+
 function updateAmbitionsDisplay() {
     // Show every ambition in the top bar, with the markers on any that have been
     // declared, followed by the marker the next declared ambition will take
@@ -32,6 +36,9 @@ function updateAmbitionsDisplay() {
     track.replaceChildren();
 
     const declared = getDeclaredAmbitionMarkers();
+    const before = shownAmbitionMarkers;
+    shownAmbitionMarkers = {};
+    declared.forEach(group => { shownAmbitionMarkers[group.ambition] = group.markers.length; });
 
     ambitions.forEach(ambition => {
         const group = declared.find(g => g.ambition == ambition);
@@ -45,7 +52,10 @@ function updateAmbitionsDisplay() {
             info += "<br>1st: " + first + " &middot; 2nd: " + second;
         }
 
-        track.appendChild(createAmbitionChip(ambition.toUpperCase(), points, (group == null) ? "" : "ambitiondeclared", info));
+        const chip = createAmbitionChip(ambition.toUpperCase(), points, (group == null) ? "" : "ambitiondeclared", info);
+        // Just declared: it flips over, like turning over the marker
+        if (before != null && group != null && group.markers.length > (before[ambition] || 0)) { chip.classList.add("ambitionflip"); }
+        track.appendChild(chip);
     });
 
     const markers = getRoundMarkers(roundNumber);
@@ -83,62 +93,93 @@ function createAmbitionChip(name, points, style, info) {
 }
 
 function showScoringModal() {
+    // Each declared ambition as a card with its 1st and 2nd place Power, a row for each player with
+    // their count, place and Power, then everyone's Power after scoring
     const list = document.getElementById("scoringList");
     list.replaceChildren();
 
-    document.getElementById("scoringModalTitle").innerHTML = "Round " + roundNumber + " Scoring";
+    document.getElementById("scoringModalTitle").innerHTML = "Round " + roundNumber + "<small>Scoring</small>";
     document.getElementById("scoringNeutralNote").classList.toggle("d-none", players.length != 2);
 
     getDeclaredAmbitionMarkers().forEach(group => {
         const section = document.createElement("div");
-        section.classList.add("mb-3", "scoringambition");
+        section.classList.add("scoringambition", "scorecard");
         section.dataset.ambition = group.ambition;
         section.dataset.markers = JSON.stringify(group.markers);
 
+        const first = group.markers.reduce((sum, marker) => sum + marker[0], 0);
+        const second = group.markers.reduce((sum, marker) => sum + marker[1], 0);
         const header = document.createElement("div");
-        header.classList.add("fw-bold");
-        header.innerHTML = group.ambition.toUpperCase() + ' <span class="fw-light">' + group.markers.map(m => m[0] + "/" + m[1]).join(" + ") + " (" + ambitionConditions[group.ambition] + ")</span>";
+        header.classList.add("scorehead");
+        header.innerHTML = "<div><div class=\"scorename\">" + capitalise(group.ambition) + "</div><div class=\"scorecond\">" + ambitionConditions[group.ambition] + "</div></div>"
+            + "<div class=\"medals\"><span class=\"medal gold\">" + first + "<small>1st</small></span><span class=\"medal silver\">" + second + "<small>2nd</small></span></div>";
         section.appendChild(header);
 
         // With 2 players the neutral resources on the ambition box score like a third player
         let scorers = players.slice();
         if (players.length == 2 && neutralAmbitions.includes(group.ambition)) { scorers.push(neutralPlayer); }
 
-        scorers.forEach(player => {
+        scorers.forEach((player, index) => {
             const row = document.createElement("div");
-            row.classList.add("d-flex", "align-items-center", "mt-1");
-
+            row.classList.add("scorerow");
             const id = group.ambition + "_" + player.number;
+            row.id = "scoreRow_" + id;
+            // The rows appear one after another
+            row.style.animationDelay = (index * 0.08) + "s";
 
             const label = document.createElement("label");
-            label.classList.add("me-2");
-            label.style.width = "80px";
+            label.classList.add("scorewho");
             label.htmlFor = "scoreCount_" + id;
             // On the player's colour (#107)
             label.innerHTML = player.isNeutral ? "Neutral" : getPlayerTag(player);
 
             // Filled in from the resources being tracked, but can be changed
+            const step = document.createElement("div");
+            step.classList.add("scorestep");
+            const stepButton = (change, icon) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.innerHTML = "<i class=\"bi " + icon + "\"></i>";
+                button.setAttribute("aria-label", (change > 0 ? "One more for " : "One fewer for ") + (player.isNeutral ? "Neutral" : "Player " + player.number));
+                button.onclick = () => { input.value = Math.max((parseInt(input.value) || 0) + change, 0); updateScoringPreview(); };
+                return button;
+            };
             const input = document.createElement("input");
             input.type = "number";
             input.min = "0";
-            input.classList.add("form-control", "form-control-sm");
-            input.style.width = "80px";
             input.id = "scoreCount_" + id;
             input.dataset.player = player.number;
             // The neutral count is remembered from the last time it was scored
             input.value = player.isNeutral ? (neutralCounts[group.ambition] || 0) : ambitionResources[group.ambition](player);
             input.oninput = updateScoringPreview;
 
+            step.append(stepButton(-1, "bi-dash"), input, stepButton(1, "bi-plus"));
+
+            const place = document.createElement("span");
+            place.classList.add("scoreplace");
+            place.id = "scorePlace_" + id;
+
             const points = document.createElement("span");
-            points.classList.add("ms-2", "fw-bold");
+            points.classList.add("scorepoints");
             points.id = "scorePoints_" + id;
 
-            row.append(label, input, points);
+            row.append(label, step, place, points);
             section.appendChild(row);
         });
 
         list.appendChild(section);
     });
+
+    // Everyone's Power after scoring, against the Power that wins
+    const power = document.createElement("div");
+    power.classList.add("powersummary");
+    power.id = "scoringPower";
+    power.innerHTML = "<div class=\"sectionlabel\">Power after scoring</div>" + players.map(player =>
+        "<div class=\"powerline\">" + getPlayerTag(player) + "<div class=\"powerbar\"><div class=\"now playerbanner" + getPlayerColour(player) + "\" id=\"powerNow_" + player.number + "\"></div>"
+        + "<div class=\"gain playerbanner" + getPlayerColour(player) + "\" id=\"powerGain_" + player.number + "\"></div></div>"
+        + "<span class=\"powernum\" id=\"powerNum_" + player.number + "\"></span></div>").join("")
+        + "<div class=\"powertarget\">" + powerToWin[players.length] + " Power wins</div>";
+    list.appendChild(power);
 
     updateScoringPreview();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("scoringModal")).show();
@@ -155,7 +196,7 @@ function getScoringResults() {
         }));
 
         scoreAmbition(counts, JSON.parse(section.dataset.markers), section.dataset.ambition).forEach(result => {
-            results.push({ ambition: section.dataset.ambition, player: result.player, points: result.points, cityBonus: result.cityBonus, note: result.note });
+            results.push({ ambition: section.dataset.ambition, player: result.player, points: result.points, cityBonus: result.cityBonus, note: result.note, place: result.place });
         });
     });
 
@@ -163,20 +204,44 @@ function getScoringResults() {
 }
 
 function updateScoringPreview() {
-    document.querySelectorAll("#scoringList span[id^=scorePoints_]").forEach(span => { span.innerHTML = ""; });
+    document.querySelectorAll("#scoringList .scorepoints").forEach(span => { span.innerHTML = "&ndash;"; span.classList.add("zero"); });
+    document.querySelectorAll("#scoringList .scoreplace").forEach(span => { span.innerHTML = ""; span.classList.remove("first", "second"); });
+    document.querySelectorAll("#scoringList .scorerow").forEach(row => row.classList.remove("winner"));
 
-    getScoringResults().forEach(result => {
-        // The points include any city bonus, which is shown alongside
-        const bonus = (result.cityBonus > 0) ? " <span class=\"fw-light\">(incl. " + result.cityBonus + " city bonus)</span>" : "";
-        const span = document.getElementById("scorePoints_" + result.ambition + "_" + result.player.number);
+    const results = getScoringResults();
+    results.forEach(result => {
+        const id = result.ambition + "_" + result.player.number;
+        // The points include any city bonus, which is shown underneath, with any Leader's note
+        const bonus = (result.cityBonus > 0) ? "<span class=\"scorebonus\">incl. " + result.cityBonus + " city bonus</span>" : "";
+        const note = (result.note != null) ? "<span class=\"scorebonus\">" + result.note + "</span>" : "";
+        const span = document.getElementById("scorePoints_" + id);
+        span.classList.toggle("zero", !(result.points > 0) && !result.player.isNeutral);
         // The neutral takes a place from the players but gains no power
-        const note = (result.note != null) ? " <span class=\"fw-light small\">(" + result.note + ")</span>" : "";
-        span.innerHTML = result.player.isNeutral ? "<span class=\"fw-light\">places (no power)</span>" : (result.points > 0 ? "+" + result.points : "0") + bonus + note;
+        span.innerHTML = result.player.isNeutral ? "<span class=\"scorebonus\">places (no power)</span>" : (result.points > 0 ? "+" + result.points : "0") + bonus + note;
+        const place = document.getElementById("scorePlace_" + id);
+        if (result.place == 1) { place.innerHTML = "1st"; place.classList.add("first"); document.getElementById("scoreRow_" + id).classList.add("winner"); }
+        else if (result.place == 2) { place.innerHTML = "2nd"; place.classList.add("second"); }
+    });
+
+    // Power after scoring: now, and striped, what this round adds
+    const target = powerToWin[players.length];
+    const width = value => Math.min(value / target * 100, 100) + "%";
+    players.forEach(player => {
+        const gain = results.filter(result => result.player === player).reduce((total, result) => total + result.points, 0);
+        const now = document.getElementById("powerNow_" + player.number);
+        if (now == null) { return; }
+        now.style.width = width(player.powerValue);
+        const bar = document.getElementById("powerGain_" + player.number);
+        bar.style.left = width(player.powerValue);
+        bar.style.width = width(Math.min(gain, Math.max(target - player.powerValue, 0)));
+        document.getElementById("powerNum_" + player.number).innerHTML = "<b>" + (player.powerValue + gain) + "</b>" + (gain > 0 ? " <span class=\"text-success\">+" + gain + "</span>" : "");
     });
 }
 
 function confirmScoring() {
     let summary = [];
+    const powerBefore = {};
+    players.forEach(player => { powerBefore[player.number] = player.powerValue; });
 
     getScoringResults().filter(result => !result.player.isNeutral).forEach(result => {
         setPlayerPower(result.player, result.player.powerValue + result.points);
@@ -236,6 +301,7 @@ function confirmScoring() {
     SaveAllSettings();
 
     showMessageToast("Round " + roundNumber + " Scores", (summary.length > 0 ? summary : ["Nobody scored"]).concat(returned).join("<br>"));
+    players.forEach(player => { if (player.powerValue > powerBefore[player.number]) { animatePower(player, powerBefore[player.number]); } });
 
     // Carry on once the scoring modal has closed, as the game over
     // modal can't open while another modal is still closing
@@ -272,10 +338,10 @@ function showGameOverModal() {
     const target = powerToWin[players.length];
     const reachedTarget = standings.filter(player => player.powerValue >= target);
 
-    document.getElementById("gameOverReason").innerHTML = ((reachedTarget.length > 0)
+    document.getElementById("gameOverReason").innerHTML = "<div class=\"gameoverwinner playerbanner" + getPlayerColour(winner) + "\"><div class=\"gameovertitle\">Player " + winner.number + " wins</div></div>"
+        + ((reachedTarget.length > 0)
         ? reachedTarget.map(getPlayerTag).join(" and ") + " reached " + target + " power"
         : "The end of round 5")
-        + "<br><b>" + getPlayerTag(winner) + " wins</b>"
         + (tied.length > 1 ? "<br><small class=\"text-muted\">Tied on power: the earliest in turn order wins</small>" : "");
 
     const list = document.getElementById("gameOverList");

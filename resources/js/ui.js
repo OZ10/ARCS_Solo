@@ -30,6 +30,31 @@ function tagPlayerNames(html) {
     });
 }
 
+function replayAnimation(element, className) {
+    // Play a CSS animation again on an element that may already have it
+    if (element == null) { return; }
+    element.classList.remove(className);
+    void element.offsetWidth;
+    element.classList.add(className);
+}
+
+function animatePower(player, from) {
+    // A panel's Power counts up to its new value, with a glow
+    const header = document.getElementById("playerpower" + player.number);
+    if (header == null) { return; }
+    const to = player.powerValue;
+    replayAnimation(header, "powerglow");
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { header.innerHTML = "Power " + to; return; }
+    let value = from;
+    const step = () => {
+        value += 1;
+        header.innerHTML = "Power " + Math.min(value, to);
+        if (value < to && player.powerValue == to) { setTimeout(step, Math.max(60, 700 / (to - from))); }
+    };
+    header.innerHTML = "Power " + from;
+    setTimeout(step, 250);
+}
+
 // Round and turn announcements (#116): a card in the leading player's colour that closes by
 // itself, or when tapped. The leader of the last turn announced, to tell when it was seized
 const announceSeconds = 5;

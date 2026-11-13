@@ -84,6 +84,7 @@ Tap **Options**, then **New Game**.
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options**.
 - **Player panels:** one per player in their colour. Tap a player's name to open or close their panel. The ★ shows who has the initiative.
 - **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships on the board and cities on each planet type. Keep these matching the table. Bots use them to make their choices, and they're filled in for you when the app knows what happened, such as after a battle.
+- **Outrage:** under the tiles, the resources that player is Outraged in are marked red. It's filled in when a city is destroyed or Outrage Spreads is played, and you can tap one to mark or clear it. A bot won't spend an Outraged resource in its prelude.
 - **Guild row:** the Guild cards each player holds. Tap **+** to add one, or tap a card to read it or remove it.
 - **Footer:** **Undo**, **Next Turn** and **Next Round**, with the cards played this turn listed above them.
 
@@ -219,7 +220,7 @@ When everyone has played, tap **Next Turn**. When nobody has cards left, tap **N
 
 <img src="docs/screenshots/scoring.png" width="300" align="right" alt="Round scoring">
 
-**Scoring** lists each declared ambition with every player's count, filled in from their panels, and the Power each would gain. Check the counts against the table and tap **Confirm Scores**. Trophies and Captives go back to their owners after Warlord and Tyrant are scored.
+**Scoring** shows each declared ambition as a card with the Power for 1st and 2nd place, and every player's count, filled in from their panels, with their place and the Power they'd gain. Underneath, everyone's Power after scoring is shown against the Power that wins. Check the counts against the table, using **−** and **+** to correct them, and tap **Confirm Scores**. Trophies and Captives go back to their owners after Warlord and Tyrant are scored.
 
 The game ends when someone reaches the Power target, or at the end of round 5, and the app shows who won.
 

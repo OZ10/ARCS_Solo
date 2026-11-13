@@ -324,6 +324,10 @@ function secureMarketCard(number) {
         player.guildCards.push(number);
         showGuildCardsRow(player);
         showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Add its replacement to the market.");
+    } else if (player.isHuman && card.number == 28) {
+        // Outrage Spreads: choose the type, and the app carries it out for everyone (#119)
+        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Add its replacement to the market.");
+        modalElement.addEventListener('hidden.bs.modal', () => showOutrageSpreads(player), { once: true });
     } else if (player.isHuman) {
         showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Carry out the card, and add its replacement to the market.");
     } else {

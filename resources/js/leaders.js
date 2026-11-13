@@ -279,6 +279,7 @@ function applyLeaderSetup(player) {
     player.startingCity = card.pieces.filter(([building]) => building == "city").length;
     player.scrappedCities = card.scrappedCities || 0;
     player.outraged = (card.outraged || []).slice();
+    showOutrageRow(player);
     const total = document.getElementById("citiestotal" + player.number);
     if (total != null) { total.innerHTML = getCityCount(player); }
     showGuildCardsRow(player);

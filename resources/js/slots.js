@@ -43,6 +43,7 @@ function provokeOutrage(player, resource) {
     player.guildCards = player.guildCards.filter(number => !lost.includes(number));
     showGuildCardsRow(player);
     if (!(player.outraged || []).includes(resource)) { player.outraged = (player.outraged || []).concat(resource); }
+    showOutrageRow(player);
 }
 
 function hasGameStarted() {

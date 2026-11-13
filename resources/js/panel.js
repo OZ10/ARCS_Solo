@@ -127,8 +127,29 @@ function clonePlayerNodeAndSetup(player) {
 // A player's Guild cards: one line on their panel, with a window to add a card or to read
 // and remove one. Guild icons count towards ambitions (see ambitionResources in rules.js)
 
+function showOutrageRow(player) {
+    // The resources this player is Outraged in (#119). Tapping one marks or clears it
+    const row = document.querySelector("#player" + player.number + " .outragechips");
+    if (row == null) { return; }
+    row.innerHTML = preludeResources.map(resource => {
+        const outraged = (player.outraged || []).includes(resource);
+        return "<button type=\"button\" class=\"outragechip" + (outraged ? " outraged" : "") + "\" id=\"outrage_" + resource + "_" + player.number + "\" aria-pressed=\"" + outraged + "\""
+            + " onclick=\"toggleOutrage(" + player.number + ", '" + resource + "')\">" + (outraged ? "<i class=\"bi bi-exclamation-octagon-fill\"></i>" : "") + preludeResourceNames[resource] + "</button>";
+    }).join("");
+}
+
+function toggleOutrage(playerNumber, resource) {
+    const player = getPlayer(playerNumber);
+    const outraged = !(player.outraged || []).includes(resource);
+    player.outraged = outraged ? (player.outraged || []).concat(resource) : player.outraged.filter(held => held != resource);
+    logManualChange({ type: "outrage", player: playerNumber, resource: resource, outraged: outraged });
+    showOutrageRow(player);
+    SaveAllSettings();
+}
+
 function showGuildCardsRow(player) {
     showLeaderRow(player);
+    showOutrageRow(player);
     const row = document.getElementById("guildcards" + player.number);
     row.replaceChildren();
 

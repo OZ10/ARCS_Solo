@@ -33,6 +33,57 @@ function getBestOutrageType(player) {
     return (options[0].net > 0) ? options[0] : null;
 }
 
+// Your Outrage Spreads (#119): the type you choose
+let outrageSpreadsChoice = null;
+
+function getOutrageLossText(resource) {
+    // e.g. "Player 2 loses 2 and Loyal Engineers, you lose nothing". You last
+    return players.slice().sort((a, b) => Number(a.isHuman) - Number(b.isHuman)).map(player => {
+        const cards = getPlayerGuildCards(player).filter(card => card.resource == resource && !card.keepOnOutrage).map(card => card.name);
+        const count = player[resource + "Value"];
+        const losses = (count > 0 ? [String(count)] : []).concat(cards);
+        const who = player.isHuman ? "you" : "Player " + player.number;
+        return who + (losses.length == 0 ? (player.isHuman ? " lose nothing" : " loses nothing") : (player.isHuman ? " lose " : " loses ") + losses.join(" and "));
+    }).join(", ");
+}
+
+function showOutrageSpreads(player) {
+    outrageSpreadsChoice = null;
+    const card = getCourtCard(28);
+    document.getElementById("guildTitle").innerHTML = card.name;
+    const header = document.querySelector("#guildModal .modal-header");
+    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    header.classList.add("playerbanner" + getPlayerColour(player));
+    document.getElementById("guildBody").innerHTML = "<div class=\"small text-muted mb-2\">" + card.text + "</div>"
+        + "<div class=\"battleroll\">Which type?</div><div class=\"fst-italic mb-2\">Everyone Provokes Outrage of it: they discard their resources and Guild cards of that type, and can't spend it for its Prelude action.</div>"
+        + "<div class=\"d-flex flex-wrap gap-2 mb-3\">" + preludeResources.map(resource =>
+            "<button type=\"button\" class=\"btn btn-outline-secondary flex-fill\" id=\"spreads_" + resource + "\" onclick=\"chooseOutrageSpreads('" + resource + "')\">" + preludeResourceNames[resource] + "</button>").join("") + "</div>"
+        + "<div class=\"small mb-3\" id=\"spreadsLoss\">Choose a type to see what each player loses.</div>"
+        + "<div class=\"d-flex gap-2\"><button type=\"button\" class=\"btn btn-secondary flex-fill\" onclick=\"bootstrap.Modal.getOrCreateInstance(document.getElementById('guildModal')).hide()\">Cancel</button>"
+        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"spreadsConfirm\" disabled onclick=\"confirmOutrageSpreads()\">Provoke Outrage</button></div>";
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
+}
+
+function chooseOutrageSpreads(resource) {
+    outrageSpreadsChoice = resource;
+    preludeResources.forEach(other => {
+        const button = document.getElementById("spreads_" + other);
+        button.classList.toggle("btn-secondary", other == resource);
+        button.classList.toggle("btn-outline-secondary", other != resource);
+    });
+    document.getElementById("spreadsLoss").innerHTML = tagPlayerNames("<b>" + preludeResourceNames[resource] + ":</b> " + getOutrageLossText(resource) + ".");
+    document.getElementById("spreadsConfirm").disabled = false;
+}
+
+function confirmOutrageSpreads() {
+    const resource = outrageSpreadsChoice;
+    if (resource == null) { return; }
+    players.forEach(other => provokeOutrage(other, resource));
+    SaveAllSettings();
+    showMessageToast("Outrage Spreads", "Everyone Provokes " + preludeResourceNames[resource] + " Outrage");
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
+}
+
 function getBestGuildCardToSteal(player) {
     // Guild Struggle: the Rival's Guild card it most needs, then the one with the most keys.
     // A Rival's Sworn Guardians has to be stolen before their other cards

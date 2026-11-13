@@ -26,9 +26,24 @@ function getCitiesToTax(player) {
 }
 
 function getMoveGoal(player) {
+    // Its best reason to Move, or null if nothing stands out (#102)
+    return getMoveGoals(player)[0] || null;
+}
+
+function getMoveReasons(player) {
+    // Every reason it has to Move, best first (#118): its goals, then a planet to build on later if
+    // it has cities left to place, then guarding one of its cities
+    let reasons = getMoveGoals(player);
+    if (getUncoveredCities(player) < maxCities) { reasons.push("towards a planet with an open building slot that no one controls, to build there later"); }
+    reasons.push("to guard one of its cities with no ships");
+    return reasons.filter((reason, index) => reasons.indexOf(reason) == index);
+}
+
+function getMoveGoals(player) {
     // Why it would Move, from what the app knows without asking: a Rival to tax or raid for what
     // it's chasing, or a slot for a city it wants. It needs a way to follow it up: more actions
-    // on this card, or another card. null if nothing stands out (#102)
+    // on this card, or another card. Best first
+    let goals = [];
     const play = getBotPlay(player);
     const hand = getUnplayedCards(player.cards);
     const canFollowUp = action => (play != null && play.count > 1 && play.actions.includes(action)) || hand.some(card => card.actions.includes(action));
@@ -38,26 +53,26 @@ function getMoveGoal(player) {
 
     for (const resource of preludeResources.filter(candidate => getResourceNeed(player, candidate) == 2)) {
         if (!cityOn(player, resource) && rivals.some(other => cityOn(other, resource)) && getResourceSupply(resource) > 0 && canFollowUp("tax")) {
-            return "towards a Rival's " + named(resource) + " city, with more fresh ships than they have there";
+            goals.push("towards a Rival's " + named(resource) + " city, with more fresh ships than they have there");
         }
         const holder = getRaidHolders(player, [resource])[0];
         if (holder != null && canFollowUp("battle")) {
-            return "towards Player " + holder.player.number + ", who holds " + holder.count + " " + named(resource) + (holder.count > 1 && resource != "fuel" ? "s" : "") + ", to raid them";
+            goals.push("towards Player " + holder.player.number + ", who holds " + holder.count + " " + named(resource) + (holder.count > 1 && resource != "fuel" ? "s" : "") + ", to raid them");
         }
     }
 
     const chasing = ambition => declaredAmbitions.includes(ambition) && isChasingAmbition(player, ambition);
     if (chasing("tyrant") && rivals.some(other => other.startingCity || cityCounters.some(counter => other[counter + "Value"] > 0)) && canFollowUp("tax")) {
-        return "towards a Rival's city, with more fresh ships than they have there, to capture";
+        goals.push("towards a Rival's city, with more fresh ships than they have there, to capture");
     }
-    if (chasing("warlord") && canFollowUp("battle")) { return "towards a Rival's ships, to Battle them"; }
+    if (chasing("warlord") && canFollowUp("battle")) { goals.push("towards a Rival's ships, to Battle them"); }
 
     const newCity = preludeResources.filter(resource => !cityOn(player, resource) && getResourceNeed(player, resource) > 0)
         .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a))[0];
     if (newCity != null && getUncoveredCities(player) < maxCities && canFollowUp("build")) {
-        return "towards a " + named(newCity) + " planet with an open slot, to build a city";
+        goals.push("towards a " + named(newCity) + " planet with an open slot, to build a city");
     }
-    return null;
+    return goals;
 }
 
 function getBattleTargetReason(player, rival) {
@@ -129,7 +144,7 @@ function getActionPlanScore(player, action, focus) {
             if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
             const goal = getMoveGoal(player);
             if (goal != null) { score += weights.moveGoal; reason = goal; }
-            else { reason = "to guard a city with no ships with it, if one needs it"; }
+            else { reason = getMoveReasons(player)[0]; }
             break;
         }
 
@@ -252,12 +267,27 @@ function getTurnPlan(player) {
     let secureTargets = isMarketKnown() ? getCardsToSecure(player) : [];
     const influenceTarget = isMarketKnown() ? getCardsToInfluence(player)[0] : null;
     let ruthlessShown = false;
+    // Each Move takes the next reason, and the last also says what to do otherwise (#118)
+    const moveReasons = getMoveReasons(player);
+    const moveCount = chosen.filter(pick => pick.action == "move").length;
+    let movesSeen = 0, reasonIndex = 0;
     return chosen.sort((a, b) => turnPlanOrder.indexOf(a.action) - turnPlanOrder.indexOf(b.action)).map(pick => {
         let name = capitalise(pick.action);
         let reason = pick.reason;
         let details = {};
 
-        if (pick.action == "move" && hasBattle && reason != "you said it can" && player.moveGoal == null) { reason = "to set up the Battle"; }
+        if (pick.action == "move") {
+            const first = movesSeen == 0;
+            movesSeen += 1;
+            if (first && hasBattle && reason != "you said it can" && player.moveGoal == null) {
+                reason = "to set up the Battle";
+            } else if (!first || focus != "move") {
+                const last = movesSeen == moveCount;
+                const index = Math.min(reasonIndex, moveReasons.length - 1);
+                reason = moveReasons[index] + (last && index + 1 < moveReasons.length ? ", otherwise " + moveReasons[index + 1] : "");
+                reasonIndex += 1;
+            }
+        }
         if (pick.action == "tax" && reason != rivalTaxReason && taxTargets.length > 0) {
             // Each Tax goes to the next city it wants. With Warlord's Cruelty it may tax one again
             details.resource = taxTargets.shift();

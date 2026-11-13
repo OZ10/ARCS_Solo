@@ -93,7 +93,8 @@ const maxDicePerType = 6;
 //             matters (see buildingValues). They take any hits left over once every defending
 //             ship is destroyed (1 = as buildingValues says, 0 = doesn't mind)
 // raidWeight: how much stealing something it wants matters, in hits on ships
-const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.6, buildingWeight: 1, raidWeight: 3 };
+// (randomness was 0.6, which made it nearly random between raids that scored about the same, #113)
+const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.3, buildingWeight: 1, raidWeight: 3 };
 
 // What destroying a building is worth to the attacker, in hits on ships (see getBuildingValue).
 // resourceLost and guildCardLost are for each one Outrage discards, by how much it needs that

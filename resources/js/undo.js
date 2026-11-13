@@ -76,6 +76,9 @@ function undoLastCard() {
             case "guildRemove":
                 player.guildCards = (player.guildCards || []).filter(number => number != change.number);
                 break;
+            case "outrage":
+                player.outraged = (player.outraged || []).filter(resource => resource != change.resource).concat(change.outraged ? [change.resource] : []);
+                break;
             case "marketAdd":
                 if (!market.some(entry => entry.number == change.number)) { market.push({ number: change.number, agents: {} }); }
                 break;
