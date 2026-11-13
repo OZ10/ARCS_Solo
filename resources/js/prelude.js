@@ -462,7 +462,7 @@ function showPreludeModal(player, step) {
         document.getElementById("preludeIntro").before(summary);
     }
     summary.innerHTML = "<div class=\"turnlabel\">Card played</div>" + getCardHtml(player)
-        + "<div class=\"turnlabel mt-2\">Its plan without these</div><div>" + tagPlayerNames(getBarPlan(player)) + "</div>";
+        + "<div class=\"turnlabel mt-2\">Its plan</div><div>" + tagPlayerNames(getBarPlan(player)) + "</div>";
     const header = document.querySelector("#preludeModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     header.classList.add("playerbanner" + getPlayerColour(player));

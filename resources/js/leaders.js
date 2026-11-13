@@ -247,6 +247,8 @@ function finishLeaderDraft() {
         if (pick.kind == "leader") { player.leader = pick.number; } else { player.lore = (player.lore || []).concat(pick.number); }
     });
     players.forEach(player => applyLeaderSetup(player));
+    // The Archivist's extra Lore are all new: none from the draft rows (#114)
+    const draftLore = leaderDraft.rows.lore.slice();
     leaderDraft = null;
     RemoveSettingByKey("leaderDraft");
     SaveAllSettings();
@@ -254,7 +256,7 @@ function finishLeaderDraft() {
     // The Archivist gains 2 extra Lore cards
     const archivist = players.find(player => getLeaderCard(player.leader).extraLore);
     const modal = document.getElementById("guildModal");
-    const next = () => (archivist != null) ? offerArchivistLore(archivist) : showSetUpPlayers();
+    const next = () => (archivist != null) ? offerArchivistLore(archivist, draftLore) : showSetUpPlayers();
     if (modal.classList.contains("show")) {
         modal.addEventListener('hidden.bs.modal', next, { once: true });
         bootstrap.Modal.getOrCreateInstance(modal).hide();
@@ -272,7 +274,8 @@ function applyLeaderSetup(player) {
         if (input != null) { input.value = value; }
     };
     preludeResources.forEach(resource => setValue(resource, card.resources.filter(held => held == resource).length));
-    setValue("shipsBoard", card.pieces.reduce((total, [, ships]) => total + ships, 0));
+    // With 2 players the setup card has two C sectors, each with the C ships (#115)
+    setValue("shipsBoard", card.pieces.reduce((total, [, ships]) => total + ships, 0) + (players.length == 2 ? card.pieces[2][1] : 0));
     player.startingCity = card.pieces.filter(([building]) => building == "city").length;
     player.scrappedCities = card.scrappedCities || 0;
     player.outraged = (card.outraged || []).slice();
@@ -285,8 +288,9 @@ function applyLeaderSetup(player) {
 
 let archivistChoice = null;
 
-function offerArchivistLore(player) {
-    const held = players.flatMap(other => other.lore || []);
+function offerArchivistLore(player, draftLore = []) {
+    // 5 Lore cards nobody holds and that weren't in the draft rows (#114)
+    const held = players.flatMap(other => other.lore || []).concat(draftLore);
     const drawn = shuffledNumbers(loreCards.filter(card => !held.includes(card.number))).slice(0, 5);
     if (!player.isHuman) {
         player.lore = player.lore.concat(shuffleCards(drawn).slice(0, 2));
@@ -341,17 +345,12 @@ function keepArchivistLore() {
 // Setup: where each player's buildings go (rulebook p.5, step N)
 
 function getSetupPlacesText(player, position) {
-    // e.g. "City in 1A, starport in 1B". The usual pieces without Leaders
+    // A line for each system on the setup card with its building and ships (#115), e.g.
+    // "1A City + 3 ships". The usual pieces without Leaders. With 2 players there are two C sectors
     const pieces = (leadersAndLore && player.leader != null) ? getLeaderCard(player.leader).pieces : [["city", 3], ["starport", 3], [null, 2]];
-    const places = ["A", "B", "C"].map(box => position + box);
-    const cities = places.filter((place, index) => pieces[index][0] == "city");
-    const starports = places.filter((place, index) => pieces[index][0] == "starport");
-    const list = items => items.length == 2 ? items[0] + "</b> and <b>" + items[1] : items[0];
-    let parts = [];
-    if (cities.length > 0) { parts.push((cities.length == 1 ? "City" : "Cities") + " in <b>" + list(cities) + "</b>"); }
-    if (starports.length > 0) { parts.push((parts.length == 0 ? "Starport" : "starport") + " in <b>" + list(starports) + "</b>"); }
-    if (cities.length == 0) { parts.unshift(starports.length == 0 ? "No buildings" : "No city."); }
-    return parts.join(cities.length == 0 && starports.length > 0 ? " " : ", ");
+    const line = (box, [building, ships], note) => "<b>" + position + box + "</b><span>" + (building ? capitalise(building) + " + " : "") + ships + " ships" + (note || "") + "</span>";
+    return "<div class=\"setupplaces\">" + line("A", pieces[0]) + line("B", pieces[1])
+        + line("C", pieces[2], players.length == 2 ? " in <i>each</i> of its two C sectors" : "") + "</div>";
 }
 
 function getSetupPlayersHtml() {

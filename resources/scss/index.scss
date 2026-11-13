@@ -443,6 +443,15 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     color: $slate;
 }
 
+// The setup screen: each system on the setup card with its pieces (#115)
+.setupplaces {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.6rem;
+  row-gap: 0.1rem;
+  margin-top: 0.2rem;
+}
+
 .leaderhint {
   display: flex;
   gap: 0.35rem;

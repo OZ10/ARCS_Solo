@@ -381,6 +381,14 @@ header {
   color: #3d4a5c;
 }
 
+.setupplaces {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.6rem;
+  row-gap: 0.1rem;
+  margin-top: 0.2rem;
+}
+
 .leaderhint {
   display: flex;
   gap: 0.35rem;
