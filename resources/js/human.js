@@ -176,7 +176,9 @@ function showCardModal(player, cards, title, prompt, action) {
 
             case "DRAW":
                 btn.onclick = function () {
-                    drawCardIntoHand(player, getCardByNameAndNumber(cards, btn.innerHTML, true));
+                    // The card shown, played or not: the bottom of the discard pile can be a
+                    // card nobody was dealt (#117)
+                    drawCardIntoHand(player, cards.find(card => getCardFullName(card) == btn.innerHTML));
                 };
                 break;
 

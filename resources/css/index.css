@@ -445,7 +445,7 @@ header {
   height: 100%;
   background: rgba(0, 0, 0, 0.35);
   transform-origin: left;
-  animation: announcecountdown 3s linear 0.4s both;
+  animation: announcecountdown 5s linear 0.4s both;
 }
 
 @keyframes announcein {

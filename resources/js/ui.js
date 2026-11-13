@@ -32,7 +32,7 @@ function tagPlayerNames(html) {
 
 // Round and turn announcements (#116): a card in the leading player's colour that closes by
 // itself, or when tapped. The leader of the last turn announced, to tell when it was seized
-const announceSeconds = 3;
+const announceSeconds = 5;
 let lastAnnouncedLeader = null;
 let announceTimer = null;
 
