@@ -68,11 +68,87 @@ header {
     white-space: nowrap;
 }
 
+// Round and Turn: the same style (#121)
 .topbarlabel {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    color: #666;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6c757d;
     margin-right: 4px;
+}
+
+// The turn number, in a black pill the height of the Options button (#121)
+.turnpill,
+.optionspill {
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+}
+
+.turnpill {
+    background: #212529;
+    color: #fff;
+    font-weight: 700;
+    padding: 0 11px;
+}
+
+.btn.optionspill {
+    padding: 0 14px;
+    gap: 4px;
+    border-radius: 999px;
+}
+
+// The ambitions are all the same width (#121), and share what's left of the line so the top bar
+// stays on one line when it's wide enough
+#ambitionTrack {
+    flex-basis: 0;
+    min-width: 0;
+}
+
+#ambitionTrack .ambitionchip {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+// On a phone: Round and Turn centred, Options on the same line at the end, the ambitions below in
+// six equal columns (#121)
+@media (max-width: 575.98px) {
+    // More specific than Bootstrap's d-flex, which is also !important
+    header .topbar.d-flex {
+        display: grid !important;
+        grid-template-columns: 1fr auto 1fr;
+        grid-template-areas: ". counters options" "ambitions ambitions ambitions";
+        align-items: center;
+        row-gap: 4px;
+    }
+
+    .topcounters {
+        grid-area: counters;
+        justify-self: center;
+    }
+
+    #optionsButton {
+        grid-area: options;
+        justify-self: end;
+    }
+
+    .optionstext {
+        display: none;
+    }
+
+    #ambitionTrack {
+        grid-area: ambitions;
+        display: grid !important;
+        // minmax(0, ...) so the ambitions don't widen the middle column and push Round and Turn aside
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 4px !important;
+        min-width: 0;
+    }
+
+    #ambitionTrack .ambitionchip {
+        width: 100%;
+        margin: 0;
+    }
 }
 
 .topbarvalue {
@@ -368,6 +444,144 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
 }
 
 // The app's name, in a font close to the lettering on the cards (#83)
+// The options window (#121): the app's name, then tiles, then the New Game card
+.optheader {
+    flex-direction: column;
+    align-items: center;
+    background: #2b3442;
+    color: #fff;
+    border-bottom: 0;
+    padding: 18px 16px 14px;
+}
+
+.optlogo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.opttitle {
+    font-family: "Spectral SC", Georgia, serif;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.optsub {
+    font-size: 0.85rem;
+    opacity: 0.75;
+    margin-top: 4px;
+}
+
+.opttiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.opttile {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    background: #fff;
+    padding: 12px 6px 10px;
+    text-align: center;
+    font-weight: 600;
+    color: #2b3442;
+
+    i {
+        display: block;
+        font-size: 1.6rem;
+        margin-bottom: 4px;
+    }
+
+    &.primary {
+        background: #2b3442;
+        color: #fff;
+        border-color: #2b3442;
+    }
+}
+
+.optcard {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 14px;
+}
+
+.optcardhead {
+    background: #f3f1ec;
+    border-bottom: 1px solid #e6e1d6;
+    padding: 8px 12px;
+    font-family: "Spectral SC", Georgia, serif;
+    font-size: 1.2rem;
+}
+
+.optrow {
+    padding: 10px 12px;
+    border-top: 1px solid #f1f1f1;
+}
+
+.optcardhead + .optrow {
+    border-top: 0;
+}
+
+.optlabel {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+.swatches {
+    display: flex;
+    gap: 8px;
+
+    .playerchoice {
+        flex: 1;
+        border-radius: 10px;
+    }
+}
+
+.optswitch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    small {
+        display: block;
+        color: #6c757d;
+    }
+
+    .form-check-input {
+        width: 2.6em;
+        height: 1.4em;
+    }
+}
+
+.playercount {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+
+    button {
+        font-family: "Spectral SC", Georgia, serif;
+        font-size: 1.6rem;
+        line-height: 1.1;
+        border-radius: 12px;
+        padding: 6px 0;
+
+        // A label under the number that isn't part of the button's text
+        &::after {
+            content: "players";
+            display: block;
+            font-size: 0.7rem;
+            opacity: 0.75;
+        }
+    }
+}
+
 .appname {
     font-family: "Spectral SC", Georgia, serif;
     font-weight: 700;

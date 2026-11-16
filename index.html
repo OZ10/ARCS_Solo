@@ -34,7 +34,9 @@
       <!-- Compact top bar so it fits a phone in landscape. Stays at the top when scrolling -->
       <header class="row sticky-top">
         <!-- px-3 lines the bar up with the player rows below -->
-        <div class="d-flex flex-wrap align-items-center gap-2 px-3 py-1">
+        <div class="d-flex flex-wrap align-items-center gap-2 px-3 py-1 topbar">
+          <!-- Round and Turn. On a phone they're centred on their own line with Options (#121) -->
+          <div class="d-flex align-items-center gap-3 topcounters">
           <div class="d-flex align-items-center">
             <span class="topbarlabel">Round</span>
             <!-- updateRoundNumber marks the current round and the ones already played -->
@@ -48,17 +50,17 @@
           </div>
           <div class="d-flex align-items-center">
             <span class="topbarlabel">Turn</span>
-            <span class="topbarvalue" id="turnNumber">1</span>
+            <span class="turnpill" id="turnNumber">1</span>
+          </div>
           </div>
 
           <!-- Filled in by updateAmbitionsDisplay -->
           <div class="d-flex flex-wrap gap-1 flex-grow-1 justify-content-center"
             id="ambitionTrack"></div>
 
-          <button type="button" class="btn btn-primary btn-sm"
-            id="optionsButton" data-bs-toggle="modal"
-            data-bs-target="#numberOfPlayersModal"><i class="bi bi-gear"></i>
-            Options</button>
+          <button type="button" class="btn btn-primary btn-sm optionspill"
+            id="optionsButton" data-bs-toggle="modal" aria-label="Options"
+            data-bs-target="#numberOfPlayersModal"><i class="bi bi-gear"></i><span class="optionstext"> Options</span></button>
         </div>
       </header>
 
@@ -373,34 +375,39 @@
       aria-labelledby="Options" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              Options
+          <!-- The app's name, as on the box (#121) -->
+          <div class="modal-header optheader">
+            <h5 class="modal-title optlogo">
+              <img src="resources/icons/icon.svg" width="40" height="40" alt="">
+              <span class="opttitle">B4RCS</span>
             </h5>
+            <div class="optsub">Bots for Arcs</div>
           </div>
           <div class="modal-body">
 
-            <div class="d-flex gap-2 justify-content-center">
-              <button type="button" class="btn btn-primary" id="newGameButton"
+            <div class="opttiles">
+              <button type="button" class="opttile primary" id="newGameButton"
                 data-bs-toggle="collapse" data-bs-target="#newGamePlayers"
                 aria-expanded="false" aria-controls="newGamePlayers"><i
-                  class="bi bi-plus-circle"></i> New Game</button>
+                  class="bi bi-plus-circle"></i>New Game</button>
               <!-- Save the current game to a file, or load one (see storage.js) -->
-              <button type="button" class="btn btn-outline-secondary"
+              <button type="button" class="opttile"
                 id="saveGame" onclick="saveGameToFile()"><i
-                  class="bi bi-download"></i> Save</button>
-              <button type="button" class="btn btn-outline-secondary"
+                  class="bi bi-download"></i>Save</button>
+              <button type="button" class="opttile"
                 id="loadGame" onclick="chooseGameFile()"><i
-                  class="bi bi-upload"></i> Load</button>
+                  class="bi bi-upload"></i>Load</button>
             </div>
             <input type="file" class="d-none" id="loadGameFile"
               accept=".json,application/json" onchange="loadGameFile(this)">
 
             <!-- Opened by the New Game button -->
             <div class="collapse" id="newGamePlayers">
-              <div class="border-top mt-3 pt-2">
-                <div class="sectionlabel text-center mb-2">Your colour</div>
-                <div class="d-flex justify-content-evenly mb-3">
+              <div class="optcard">
+                <div class="optcardhead">New Game</div>
+                <div class="optrow">
+                <div class="optlabel">Your colour</div>
+                <div class="swatches">
                   <input type="radio" class="btn-check" name="humanColour" id="humanColour1" value="1" checked>
                   <label class="btn btn-sm playerchoice playerchoice1" for="humanColour1">Yellow</label>
                   <input type="radio" class="btn-check" name="humanColour" id="humanColour2" value="2">
@@ -410,13 +417,15 @@
                   <input type="radio" class="btn-check" name="humanColour" id="humanColour4" value="4">
                   <label class="btn btn-sm playerchoice playerchoice4" for="humanColour4">Blue</label>
                 </div>
-                <!-- Leaders & Lore (see leaders.js) -->
-                <div class="form-check form-switch d-flex justify-content-center gap-2 mb-3">
-                  <input class="form-check-input" type="checkbox" id="leadersAndLoreSwitch">
-                  <label class="form-check-label" for="leadersAndLoreSwitch">Play with Leaders &amp; Lore</label>
                 </div>
-                <div class="sectionlabel text-center mb-2">How many players?</div>
-                <div class="d-flex justify-content-evenly">
+                <!-- Leaders & Lore (see leaders.js) -->
+                <div class="optrow optswitch">
+                  <label class="form-check-label" for="leadersAndLoreSwitch"><b>Leaders &amp; Lore</b><small>Draft a Leader and a Lore card each</small></label>
+                  <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" id="leadersAndLoreSwitch"></div>
+                </div>
+                <div class="optrow">
+                <div class="optlabel">How many players? (including you)</div>
+                <div class="playercount">
                   <button type="button" class="btn btn-secondary"
                     data-bs-dismiss="modal" onclick="setupGame(2)">2</button>
 
@@ -426,6 +435,7 @@
                   <button type="button" class="btn btn-secondary"
                     data-bs-dismiss="modal" onclick="setupGame(4)">4</button>
                 </div>
+                </div>
               </div>
             </div>
 
@@ -433,9 +443,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <img src="resources/icons/icon.svg" width="24" height="24" alt="">
-                <span class="appname">B4RCS</span>
-                <small class="text-muted" id="appVersion">v161126.01</small>
+                <small class="text-muted" id="appVersion">v161126.02</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
