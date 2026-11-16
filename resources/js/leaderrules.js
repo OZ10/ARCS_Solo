@@ -205,7 +205,9 @@ function botBold(player) {
         addLeaderNote(player, "Bold: influence each Court card it wants, once", "The market isn't entered, so place them on the table yourself.");
         return;
     }
-    const wanted = courtMarket.filter(entry => getMarketCardValue(player, entry) > marketValues.base);
+    // No more than it has agents (#123)
+    const left = getAgentsLeft(player);
+    const wanted = courtMarket.filter(entry => getMarketCardValue(player, entry) > marketValues.base).slice(0, left == null ? undefined : left);
     if (wanted.length == 0) { addLeaderNote(player, "Bold: nothing in the Court it wants"); return; }
     wanted.forEach(entry => { entry.agents[player.number] = (entry.agents[player.number] || 0) + 1; });
     addLeaderNote(player, "Bold: placed 1 agent on " + wanted.map(entry => getCourtCard(entry.number).name).join(" and "), "Already added in the Court window. Place them on the table.");

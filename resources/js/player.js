@@ -23,6 +23,9 @@ class player {
     shipsBoardValue = 0;
     // Starports on the board (#130)
     starportsValue = 0;
+    // This player's agents held by Rivals, as Captives and as Trophies (#123)
+    agentsCaptive = 0;
+    agentsTrophy = 0;
     citiesFuelValue = 0;
     citiesMaterialsValue = 0;
     citiesWeaponsValue = 0;
@@ -81,6 +84,8 @@ class player {
     buildIntent = null;
     // A bot's answer this turn to "Have I run out of ships to build?" (#129)
     outOfShips = null;
+    // A bot's answer this turn to "Do I have any agents left in my supply?", as true for none (#123)
+    agentsOut = null;
 }
 
 function getPlayerColour(player) {
@@ -137,6 +142,7 @@ function resetPlayedThisTurn() {
         player.farseersSwap = null;
         player.buildIntent = null;
         player.outOfShips = null;
+        player.agentsOut = null;
         player.leaderNotes = [];
     })
 }

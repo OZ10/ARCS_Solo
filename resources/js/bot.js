@@ -20,6 +20,15 @@ function askThenPlay(player) {
         });
         return;
     }
+    // Agents: with the Court not entered it can't count them, so it asks when they may be gone (#123)
+    if (shouldAskAgents(player)) {
+        askYesNo("INFLUENCE", "Do I have any agents left in my supply?", agentsLeft => {
+            player.agentsOut = !agentsLeft;
+            SaveAllSettings();
+            askThenPlay(player);
+        });
+        return;
+    }
     // Construction only builds and repairs, so first check what it would build is possible (#62, #126)
     if (shouldAskCanBuild(player)) {
         const intent = getBuildIntent(player);
@@ -32,6 +41,15 @@ function askThenPlay(player) {
         return;
     }
     determineCardToPlay(player);
+}
+
+function shouldAskAgents(player) {
+    // The Court isn't entered, it has a card that can Influence, and enough of its agents are known
+    // to be in use that it may have none left (#123)
+    if (player.agentsOut != null || isMarketKnown()) { return false; }
+    if (!getUnplayedCards(player.cards).some(card => card.actions.includes("influence"))) { return false; }
+    const inUse = (player.outraged || []).length + (player.agentsCaptive || 0) + (player.agentsTrophy || 0);
+    return inUse >= agentsAskAt;
 }
 
 function shouldAskOutOfShips(player) {

@@ -64,11 +64,31 @@ function getCardsToSecure(player) {
         .sort((a, b) => getMarketCardValue(player, b) - getMarketCardValue(player, a));
 }
 
+function getAgentsLeft(player) {
+    // Its 10 agents, less those on Court cards, on its Outrage slots, and held by Rivals (#123).
+    // null if the Court hasn't been entered, so it can't tell
+    if (!isMarketKnown()) { return null; }
+    const onCourt = courtMarket.reduce((total, entry) => total + getMarketAgents(entry, player), 0);
+    return Math.max(agentsPerPlayer - onCourt - (player.outraged || []).length - (player.agentsCaptive || 0) - (player.agentsTrophy || 0), 0);
+}
+
+function hasNoAgents(player) {
+    // Out of agents, by the count or by your answer (#123)
+    return getAgentsLeft(player) === 0 || player.agentsOut === true;
+}
+
+function recordCapturedAgents(entry, player, kind) {
+    // The Rival agents on a card it took are now held by it, as Captives or Trophies (#123)
+    players.filter(other => other !== player).forEach(other => {
+        other[kind] = (other[kind] || 0) + getMarketAgents(entry, other);
+    });
+}
+
 function getCardsToInfluence(player) {
     // The cards worth an agent, best first: what it's worth for the agents it takes to get ahead.
     // None on its last card, as there's no later turn to secure one. It leaves alone a card it's
-    // already ahead on
-    if (getUnplayedCards(player.cards).length == 0) { return []; }
+    // already ahead on. None with no agents left (#123)
+    if (getUnplayedCards(player.cards).length == 0 || hasNoAgents(player)) { return []; }
 
     const agentsNeeded = entry => Math.max(...getRivalAgents(entry, player)) + 1 - getMarketAgents(entry, player);
     return courtMarket.filter(entry => agentsNeeded(entry) > 0)
@@ -299,6 +319,7 @@ function ransackMarketCard(player, number) {
     // Like securing it, except the Rival agents are taken as Trophies. Returns the card
     const entry = courtMarket.find(card => card.number == number);
     const card = getCourtCard(number);
+    recordCapturedAgents(entry, player, "agentsTrophy");
     adjustCounter(player, "trophies", getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0));
     removeFromMarket(number);
     if (card.type == "guild") {
@@ -314,6 +335,7 @@ function secureMarketCard(number) {
     const entry = courtMarket.find(card => card.number == number);
     const card = getCourtCard(number);
     const captured = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
+    recordCapturedAgents(entry, player, "agentsCaptive");
 
     removeFromMarket(number);
     adjustCounter(player, "captives", captured);

@@ -187,6 +187,8 @@ function getActionPlanScore(player, action, focus) {
             // No later turn to secure the card
             if (isLastCard) { return { score: planImpossible }; }
             if (isMarketKnown() && getCardsToInfluence(player).length == 0 && action != focus) { return { score: planImpossible }; }
+            // No agents left (#123)
+            if (hasNoAgents(player) && action != focus) { return { score: planImpossible }; }
             if (getWantedCardResource(player) != null) { score += weights.influenceWanted; }
             break;
 
@@ -275,7 +277,10 @@ function getTurnPlan(player) {
             || chosen.filter(pick => pick.action == "tax").length < Math.max(getCitiesToTax(player).length + Number(player.startingCity || 0), 1);
         // No more Secures than there are cards it can secure
         const canSecureAgain = !isMarketKnown() || chosen.filter(pick => pick.action == "secure").length < Math.max(getCardsToSecure(player).length, 1);
-        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain))
+        // No more Influences than it has agents (#123)
+        const agentsLeft = getAgentsLeft(player);
+        const canInfluenceAgain = agentsLeft == null || chosen.filter(pick => pick.action == "influence").length < agentsLeft;
+        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain))
             .sort((a, b) => value(b) - value(a))[0];
         if (best == null) { break; }
         chosen.push({ action: best, reason: scores[best].reason });

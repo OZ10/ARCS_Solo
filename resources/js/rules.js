@@ -304,6 +304,13 @@ function getCityBonus(player) {
 // After scoring, everyone returns these when that ambition was scored (rulebook p.19)
 const scoredAmbitionReturns = { warlord: "trophies", tyrant: "captives" };
 
+// Each player has this many agents (#123)
+const agentsPerPlayer = 10;
+
+// With this many of a bot's agents known to be in use and the Court not entered, it asks whether
+// it has any left before Influencing (#123)
+const agentsAskAt = 7;
+
 // 2 players: the 6 resources from the out-of-play planets sit on the matching ambition boxes
 // (fuel and material on Tycoon, weapons on Warlord as trophies, relics on Keeper, psionics
 // on Empath) and are scored as a third player who gains no power (rulebook p.4, p.19)

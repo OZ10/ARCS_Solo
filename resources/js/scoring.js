@@ -268,6 +268,8 @@ function confirmScoring() {
             if (input != null) { input.value = 0; }
         });
         returned.push("All " + resource + " returned");
+        // Agents held as Captives or Trophies go back to their owners (#123)
+        players.forEach(player => { player[resource == "captives" ? "agentsCaptive" : "agentsTrophy"] = 0; });
 
         // Cities held as Trophies go back on their owners' boards, which can cover slots again
         if (resource == "trophies") {
