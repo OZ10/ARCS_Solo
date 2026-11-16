@@ -62,6 +62,8 @@ class player {
     turnPlan = null;
     // Union cards placed this turn: [{ guild, card }], drawn when the turn ends (prelude.js)
     unionDraws = [];
+    // Your prelude this turn, spent from your turn window (#127, prelude.js)
+    preludeSpent = [];
     // A bot's answer this turn to "Can I build or repair anything?" (null until asked, see bot.js)
     canBuild = null;
     // The ambitions it was told it can't Tax for this turn (see answerNo in bot.js)
@@ -129,6 +131,7 @@ function resetPlayedThisTurn() {
     players.forEach(player => {
         player.hasPlayedACardThisTurn = false;
         player.prelude = null;
+        player.preludeSpent = [];
         player.guildActions = null;
         player.planVariation = null;
         player.turnPlan = null;

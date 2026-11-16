@@ -58,7 +58,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-function setupGame(numberOfPlayers) {
+function chooseNewGame(numberOfPlayers) {
+    // A number tapped under New Game. While a game is being played, ask first: Undo can't bring
+    // it back (#133). The question waits for the Options window to close
+    if (!isGameInProgress()) { setupGame(numberOfPlayers); return; }
+    document.getElementById("numberOfPlayersModal").addEventListener('hidden.bs.modal', () => {
+        askYesNo("", "Start a new " + numberOfPlayers + "-player game?<br><br>The game you're playing (round " + roundNumber + ", turn " + turnNumber + ") will end, and Undo can't bring it back."
+            + " To keep it, tap <b>No</b> and save it first from the Options window.", yes => { if (yes) { setupGame(numberOfPlayers, true); } }, players[0]);
+        // It's about the app, not a player
+        document.getElementById("yesNoTitle").innerHTML = "New Game";
+        document.querySelector("#yesNo .modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    }, { once: true });
+}
+
+function isGameInProgress() {
+    // A game has been set up and hasn't finished: the last round's cards all played and scored
+    return players.length > 0 && !(isGameOver() && haveAllCardsBeenPlayed() && declaredAmbitions.length == 0);
+}
+
+function setupGame(numberOfPlayers, optionsClosed = false) {
 
     localStorage.clear();
 
@@ -87,7 +105,9 @@ function setupGame(numberOfPlayers) {
     // localStorage was cleared above, so there's nothing to undo
     updateUndoButton();
 
-    // The Options window is still closing, and one window can't open until another has closed
+    // The Options window is still closing, and one window can't open until another has closed.
+    // After the New Game question it already has
+    if (optionsClosed) { askOpeningCourt(); return; }
     document.getElementById("numberOfPlayersModal").addEventListener('hidden.bs.modal', () => askOpeningCourt(), { once: true });
 }
 
@@ -223,7 +243,7 @@ function startNextRound() {
     dealCards();
 
     SaveAllSettings();
-    announceTurn(true);
+    startRoundAfterMulligan();
 }
 
 
@@ -309,7 +329,7 @@ function dealCards() {
 
     createCardButtonsForHumanPlayer();
 
-    offerMulligan();
+    // The mulligan is offered once the windows before it have closed (see offerMulligan)
 }
 
 function shuffleCards(cards) {
@@ -329,9 +349,11 @@ function takeMulligan(player) {
     SaveAllSettings();
 }
 
-function offerMulligan() {
-    // 2 players: the player without the initiative may swap their hand (rulebook p.19)
-    if (players.length != 2) { return; }
+function offerMulligan(then) {
+    // 2 players: the player without the initiative may swap their hand (rulebook p.19). Offered
+    // once the hands are dealt and the windows before it have closed (the Court and setup, or
+    // scoring), then then() carries on: the round's announcement (#122)
+    if (players.length != 2) { then(); return; }
 
     const player = players.find(other => !other.hasInitiative);
     if (player.isHuman) {
@@ -339,10 +361,26 @@ function offerMulligan() {
         const hand = "<div class=\"mullhand\">" + getUnplayedCards(player.cards).map(card => "<div class=\"mullcard\"><b>" + card.number + "</b>" + card.name
             + "<br><small>" + (card.ambition == "null" ? "&nbsp;" : card.ambition) + "</small></div>").join("") + "</div>";
         askYesNo("", "The other player has the initiative. Below is your hand of cards. Do you want to discard them and draw 6 new cards? You must keep the new hand." + hand, yes => { if (yes) { takeMulligan(player); } }, player);
-    } else if (player.cards.reduce((total, card) => total + card.number, 0) / player.cards.length < mulliganBelow) {
+        // Carry on once it has closed, answered or not (after askYesNo's own handler)
+        document.getElementById("yesNo").addEventListener('hidden.bs.modal', () => then(), { once: true });
+        return;
+    }
+    if (player.cards.reduce((total, card) => total + card.number, 0) / player.cards.length < mulliganBelow) {
         takeMulligan(player);
         showMessageToast("Player " + player.number, "Discarded its hand and drew 6 new cards");
     }
+    then();
+}
+
+function whenWindowsClosed(then) {
+    // Once no window is open or closing. One can't open until another has fully closed
+    if (!isAnyWindowOpen()) { then(); return; }
+    document.addEventListener('hidden.bs.modal', () => whenWindowsClosed(then), { once: true });
+}
+
+function startRoundAfterMulligan() {
+    // The new hands are dealt: the mulligan, then the round's announcement
+    whenWindowsClosed(() => offerMulligan(() => announceTurn(true)));
 }
 
 function playCard(player, playedCard, actionToPlay, cardAction) {

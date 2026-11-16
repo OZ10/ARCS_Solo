@@ -146,7 +146,8 @@ function showSetUpPlayers() {
     done.onclick = () => {
         bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
         lastAnnouncedLeader = null;
-        announceTurn(true);
+        // Then the mulligan (2 players), then Round 1 (#122)
+        startRoundAfterMulligan();
     };
     body.appendChild(done);
 

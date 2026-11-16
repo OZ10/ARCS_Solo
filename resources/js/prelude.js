@@ -580,6 +580,177 @@ function describePrelude(player) {
     return "Prelude: " + player.prelude.spent.map(offer => offer.label + " (" + offer.text.replace(/, if .*$/, "") + ")").join(", ");
 }
 
+// Your own prelude (#127): in your turn window, what your resources and Guild cards can do before
+// your actions. Spending one takes it off your panel and adds its action to Your actions. Each
+// can be put back until the turn ends. player.preludeSpent lists them, as
+// { resource } or { guild, gains, kept, seize, union }
+
+const humanPreludeActions = {
+    materials: { text: "Build or Repair", action: "build", note: "Build or repair on the table" },
+    fuel: { text: "Move", action: "move", note: "Move your ships on the table" },
+    weapons: { text: "Your card's actions can Battle", action: "battle", note: "Any of your card's actions can Battle this turn" },
+    relics: { text: "Secure", action: "secure", note: "Secure a card in the Court" },
+    psionics: { text: "An action from the lead card", action: "lead", note: "" }
+};
+
+function getPreludeSpent(player) {
+    return player.preludeSpent || [];
+}
+
+function canSpendForPrelude(player, resource) {
+    // You hold one, it isn't Outraged (unless your Loyal card for it says to ignore that), and it
+    // would do something. One Weapon lets all your card's actions Battle, so one is enough
+    if (player[resource + "Value"] <= 0) { return false; }
+    const loyal = getPlayerGuildCards(player).some(card => card.spendAnyAs == resource);
+    if ((player.outraged || []).includes(resource) && !loyal) { return false; }
+    const play = getBotPlay(player);
+    if (play == null) { return false; }
+    if (resource == "weapons") { return play.count > 0 && !play.actions.includes("battle") && !getPreludeSpent(player).some(spent => spent.resource == "weapons"); }
+    return true;
+}
+
+function getLeadActionsText() {
+    return playedCardList.length > 0 ? " (" + playedCardList[0].actions.split(",").join(", ") + ")" : "";
+}
+
+function getUnionTarget(card) {
+    // The face-up played card of its suit to place it next to: the highest, as for the bots
+    return playedCardList.filter(played => played.name == card.drawsPlayed && played.cardAction != "COPY" && played.cardAction != "CLAIM")
+        .sort((a, b) => b.number - a.number)[0];
+}
+
+function getGuildPreludeOptions(player) {
+    // Your Guild cards with a Prelude ability you could use now: { card, text, note, use }.
+    // use is null when it's done by hand. Each once a turn
+    const used = getPreludeSpent(player).map(spent => spent.guild);
+    return getPlayerGuildCards(player).filter(card => card.prelude && !used.includes(card.number)).map(card => {
+        const text = card.text.replace(/^.*Prelude: /, "").replace(/^You may /, "").replace(/^Before any other actions, you may /, "");
+        const option = { card: card, text: capitalise(text.replace(/\.$/, "")), note: "Discards the card. Do the rest on the table", use: {} };
+        if (card.number == 16) {
+            if (player.hasInitiative || hasInitiativeBeenClaimedThisTurn) { return null; }
+            option.note = "Discards the card. You lead the next turn";
+            option.use = { seize: true };
+        } else if (card.number == 23) {
+            option.note = "Discards the card, and adds them to your panel";
+            option.use = { gains: { materials: 1, fuel: 1, weapons: 1 } };
+        } else if (card.number == 24) {
+            option.note = "Keeps the card. Swap the resource for a Relic on your panel";
+            option.use = { kept: true };
+        } else if (card.drawsPlayed != null) {
+            const target = getUnionTarget(card);
+            if (target == null || getUnplayedCards(player.cards).length == 0) { return null; }
+            option.text = "Place it next to " + getCardFullName(target).replace(/([A-Za-z])(\d)/, "$1 $2");
+            option.note = "You draw that card when the turn ends";
+            option.use = { kept: true, union: { guild: card.number, card: getCardFullName(target) } };
+        } else if (card.number == 17) {
+            // Its own window, as from the Guild row (farseers.js)
+            if (getDiscardedCards().length == 0) { return null; }
+            option.note = "Choose the cards to swap";
+            option.use = { farseers: true };
+        } else if (card.number == 2 || card.number == 9) {
+            option.note = "Discards the card. Add what you gain on your panel";
+        }
+        return option;
+    }).filter(option => option != null);
+}
+
+function getPreludeHtml(player) {
+    // The Prelude section: what's been spent, with Undo, then what could be
+    const button = (label, onclick, style) => "<button type=\"button\" class=\"btn " + style + " btn-sm turnact\" onclick=\"" + onclick + "\">" + label + "</button>";
+    const spentRows = getPreludeSpent(player).map((spent, index) => {
+        const undo = spent.seize ? "" : button("Undo", "undoPrelude(" + index + ")", "btn-outline-secondary");
+        if (spent.resource != null) {
+            const offer = humanPreludeActions[spent.resource];
+            return getSpentTurnRow(getGameIcon(spent.resource), "1 " + preludeResourceNames[spent.resource] + ": " + offer.text, "Spent" + (undo ? ". Tap Undo to put it back" : ""), undo);
+        }
+        return getSpentTurnRow("<i class=\"bi bi-person-vcard\"></i>", getCourtCard(spent.guild).name, "Used" + (undo ? ". Tap Undo to put it back" : ""), undo);
+    });
+    const resourceRows = preludeResources.filter(resource => canSpendForPrelude(player, resource)).map(resource => {
+        const offer = humanPreludeActions[resource];
+        return getTurnRow(getGameIcon(resource), "1 " + preludeResourceNames[resource] + ": " + offer.text + (resource == "psionics" ? getLeadActionsText() : ""),
+            "You have " + player[resource + "Value"], button("Spend", "spendPrelude('" + resource + "')", "btn-outline-primary"));
+    });
+    const guildRows = getGuildPreludeOptions(player).map(option => getTurnRow("<i class=\"bi bi-person-vcard\"></i>", option.card.name + ": " + option.text, option.note,
+        option.use != null ? button("Use", "useGuildPrelude(" + option.card.number + ")", "btn-outline-primary") : ""));
+    return spentRows.concat(resourceRows, guildRows).join("");
+}
+
+function getSpentTurnRow(marker, text, note, buttons) {
+    return getTurnRow(marker, text, note, buttons).replace("class=\"turnstep\"", "class=\"turnstep preludespent\"");
+}
+
+function getPreludeActionRows(player, offered) {
+    // What your spent resources add to Your actions. A window's button once, as for your card
+    return getPreludeSpent(player).filter(spent => spent.resource != null).map(spent => {
+        const offer = humanPreludeActions[spent.resource];
+        const actions = (offer.action == "lead") ? (playedCardList.length > 0 ? playedCardList[0].actions.split(",") : []) : [offer.action];
+        const buttons = actions.map(action => humanActionTools[action]).filter(name => name != null && !offered.includes(name))
+            .filter((name, index, names) => names.indexOf(name) == index).map(name => { offered.push(name); return getToolButton(name); }).join("");
+        const name = (offer.action == "lead") ? "An action from the lead card" + getLeadActionsText() : (offer.action == "battle" ? "Battle" : offer.text);
+        return getTurnRow("<i class=\"bi " + (humanActionIcons[offer.action] || "bi-dot") + "\"></i>", name,
+            "From your " + preludeResourceNames[spent.resource] + (offer.note ? ". " + offer.note : ""), buttons);
+    }).join("");
+}
+
+function spendPrelude(resource) {
+    const player = getTurnPlayer();
+    if (player == null || !canSpendForPrelude(player, resource)) { return; }
+    setPlayerResource(player, resource, player[resource + "Value"] - 1);
+    player.preludeSpent = getPreludeSpent(player).concat({ resource: resource });
+    SaveAllSettings();
+    renderTurn(player);
+}
+
+function useGuildPrelude(number) {
+    const player = getTurnPlayer();
+    if (player == null) { return; }
+    const option = getGuildPreludeOptions(player).find(other => other.card.number == number);
+    if (option == null || option.use == null) { return; }
+    if (option.use.farseers) {
+        // Its window takes the card and swaps the cards. This window comes back after
+        returnToTurnWindow = true;
+        closeTurnWindow(() => {
+            showFarseersPrelude(player);
+            bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
+        });
+        return;
+    }
+    const use = Object.assign({ guild: number }, option.use);
+
+    if (!use.kept) { player.guildCards = player.guildCards.filter(held => held != number); }
+    Object.entries(use.gains || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] + amount));
+    if (use.union != null) { player.unionDraws = (player.unionDraws || []).concat(use.union); }
+    if (use.seize) {
+        hasInitiativeBeenClaimedThisTurn = true;
+        changeInitiative(player);
+    }
+    showGuildCardsRow(player);
+    player.preludeSpent = getPreludeSpent(player).concat(use);
+    if (use.gains != null) { showSlotAdvice(player, Object.keys(use.gains)); }
+    SaveAllSettings();
+    renderTurn(player);
+}
+
+function undoPrelude(index) {
+    // Put back what was spent or used (not seizing the initiative)
+    const player = getTurnPlayer();
+    if (player == null) { return; }
+    const spent = getPreludeSpent(player)[index];
+    if (spent == null || spent.seize) { return; }
+
+    if (spent.resource != null) {
+        setPlayerResource(player, spent.resource, player[spent.resource + "Value"] + 1);
+    } else {
+        if (!spent.kept && !player.guildCards.includes(spent.guild)) { player.guildCards = player.guildCards.concat(spent.guild); }
+        Object.entries(spent.gains || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] - amount));
+        if (spent.union != null) { player.unionDraws = (player.unionDraws || []).filter(draw => draw.guild != spent.union.guild); }
+        showGuildCardsRow(player);
+    }
+    player.preludeSpent = getPreludeSpent(player).filter((other, at) => at != index);
+    SaveAllSettings();
+    renderTurn(player);
+}
+
 function drawUnionCards() {
     // The turn has ended: each Union card placed this turn draws its card into its holder's
     // hand, then is discarded

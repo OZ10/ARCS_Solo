@@ -136,7 +136,7 @@ function showOutrageRow(player) {
     row.innerHTML = preludeResources.map(resource => {
         const outraged = (player.outraged || []).includes(resource);
         return "<button type=\"button\" class=\"outragechip" + (outraged ? " outraged" : "") + "\" id=\"outrage_" + resource + "_" + player.number + "\" aria-pressed=\"" + outraged + "\""
-            + " onclick=\"toggleOutrage(" + player.number + ", '" + resource + "')\">" + (outraged ? "<i class=\"bi bi-exclamation-octagon-fill\"></i>" : "") + preludeResourceNames[resource] + "</button>";
+            + " onclick=\"toggleOutrage(" + player.number + ", '" + resource + "')\">" + (outraged ? "<i class=\"bi bi-exclamation-octagon-fill\"></i>" : "<span class=\"chipicon\">" + getGameIcon(resource) + "</span>") + preludeResourceNames[resource] + "</button>";
     }).join("");
 }
 

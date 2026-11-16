@@ -44,7 +44,7 @@ Tap **Options**, then **New Game**.
 
 1. **Your colour:** you're always Player 1, but you can choose your colour. Whichever bot had that colour takes yours.
 2. **Leaders & Lore:** turn on **Play with Leaders & Lore** to play with the mini expansion (see [Leaders & Lore](#leaders--lore)).
-3. **How many players:** 2, 3 or 4, counting you. The app deals everyone's hands and, in a 2-player game, offers the mulligan. A random player starts with the initiative, as the rulebook says, and the ★ shows who.
+3. **How many players:** 2, 3 or 4, counting you. The app deals everyone's hands. A random player starts with the initiative, as the rulebook says, and the ★ shows who. If a game is being played, it asks first, as Undo can't bring it back. To keep it, save it first.
 
 <br clear="right">
 
@@ -57,6 +57,7 @@ Tap **Options**, then **New Game**.
 <img src="docs/screenshots/setup-players.png" width="300" align="right" alt="Setting up the players">
 
 5. **Set up the players:** the setup list says where each player places their pieces, in turn order from whoever has the initiative. On each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on. With Leaders & Lore, the resources are filled in from each Leader, and the list says which pieces go in systems A, B and C.
+6. **The mulligan (2 players):** the player without the initiative may discard their hand and draw 6 new cards. If that's you, the app shows your hand and asks. Then Round 1 begins. In later rounds it asks once the new hands are dealt, before the round begins.
 
 <br clear="right">
 
@@ -83,7 +84,7 @@ Tap **Options**, then **New Game**.
 ## The screen
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options**.
 - **Player panels:** one per player in their colour. Tap a player's name to open or close their panel. The ★ shows who has the initiative.
-- **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships and starports on the board, and cities on each planet type. Keep these matching the table. Bots use them to make their choices, and they're filled in for you when the app knows what happened, such as after a battle.
+- **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships and starports on the board, and cities on each planet type. Each resource has an icon, after its token in the game, and the ambitions in the top bar use the same ones. Keep these matching the table. Bots use them to make their choices, and they're filled in for you when the app knows what happened, such as after a battle.
 - **Outrage:** under the tiles, the resources that player is Outraged in are marked red. It's filled in when a city is destroyed or Outrage Spreads is played, and you can tap one to mark or clear it. A bot won't spend an Outraged resource in its prelude.
 - **Guild row:** the Guild cards each player holds. Tap **+** to add one, or tap a card to read it or remove it.
 - **Footer:** **Undo**, **Next Turn** and **Next Round**, with the cards played this turn listed above them.
@@ -97,7 +98,7 @@ Your hand is listed on your panel. Tap a card to see its pips, ambition and acti
 - **Following:** **SURPASS**, **COPY** or **PIVOT**.
 - **CLAIM:** turn this on to also seize the initiative with a card played face down.
 
-**Your turn window** then opens, like a bot's. It lists the actions your card gives you. Battle has a **Battle** button and Secure or Influence a **Court** button, to keep track of a battle or the market (see below). The others are reminders. Your prelude can add actions the app doesn't know about, so anything your card doesn't have is under **Also**, with **Draw**. Carry out your actions on the table and tap **Done**. **Back to board** shrinks the window to a bar, as on a bot's turn.
+**Your turn window** then opens, like a bot's. It lists the actions your card gives you. Battle has a **Battle** button and Secure or Influence a **Court** button, to keep track of a battle or the market (see below). The others are reminders. **Prelude** lists what your resources and Guild cards can do before your actions. **Spend** takes the resource off your panel and adds its action to your list, such as a Move for a Fuel. **Use** does the same for a Guild card. Each has **Undo** until the turn ends. Anything your card doesn't have is under **Also**, with **Draw**. Carry out your actions on the table and tap **Done**. **Back to board** shrinks the window to a bar, as on a bot's turn.
 
 <br clear="right">
 

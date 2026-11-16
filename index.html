@@ -131,7 +131,7 @@
 
             <div class="d-flex flex-wrap justify-content-center gap-1 mx-3 mb-2">
               <div class="resourcetile">
-                <div class="resourcelabel">Fuel</div>
+                <div class="resourcelabel" data-icon="fuel">Fuel</div>
                 <input type="text" class="resourcevalue" id="fuelValue" value="0" disabled>
                 <div class="d-flex gap-1">
                   <button class="btn resourcebutton resourceminus" id="minusButton_fuel" type="button"
@@ -142,7 +142,7 @@
               </div>
 
               <div class="resourcetile">
-                <div class="resourcelabel">Materials</div>
+                <div class="resourcelabel" data-icon="materials">Materials</div>
                 <input type="text" class="resourcevalue" id="materialsValue" value="0" disabled>
                 <div class="d-flex gap-1">
                   <button class="btn resourcebutton resourceminus" id="minusButton_materials" type="button"
@@ -153,7 +153,7 @@
               </div>
 
               <div class="resourcetile">
-                <div class="resourcelabel">Weapons</div>
+                <div class="resourcelabel" data-icon="weapons">Weapons</div>
                 <input type="text" class="resourcevalue" id="weaponsValue" value="0" disabled>
                 <div class="d-flex gap-1">
                   <button class="btn resourcebutton resourceminus" id="minusButton_weapons" type="button"
@@ -164,7 +164,7 @@
               </div>
 
               <div class="resourcetile">
-                <div class="resourcelabel">Relics</div>
+                <div class="resourcelabel" data-icon="relics">Relics</div>
                 <input type="text" class="resourcevalue" id="relicsValue" value="0" disabled>
                 <div class="d-flex gap-1">
                   <button class="btn resourcebutton resourceminus" id="minusButton_relics" type="button"
@@ -175,7 +175,7 @@
               </div>
 
               <div class="resourcetile">
-                <div class="resourcelabel">Psionics</div>
+                <div class="resourcelabel" data-icon="psionics">Psionics</div>
                 <input type="text" class="resourcevalue" id="psionicsValue" value="0" disabled>
                 <div class="d-flex gap-1">
                   <button class="btn resourcebutton resourceminus" id="minusButton_psionics" type="button"
@@ -186,7 +186,7 @@
               </div>
 
               <div class="resourcetile">
-                <div class="resourcelabel">Captives</div>
+                <div class="resourcelabel" data-icon="captives">Captives</div>
                 <input type="text" class="resourcevalue" id="captivesValue" value="0" disabled>
                 <div class="d-flex gap-1">
                   <button class="btn resourcebutton resourceminus" id="minusButton_captives" type="button"
@@ -197,7 +197,7 @@
               </div>
 
               <div class="resourcetile">
-                <div class="resourcelabel">Trophies</div>
+                <div class="resourcelabel" data-icon="trophies">Trophies</div>
                 <input type="text" class="resourcevalue" id="trophiesValue" value="0" disabled>
                 <div class="d-flex gap-1">
                   <button class="btn resourcebutton resourceminus" id="minusButton_trophies" type="button"
@@ -208,7 +208,7 @@
               </div>
 
               <div class="resourcetile">
-                <div class="resourcelabel">Power</div>
+                <div class="resourcelabel" data-icon="power">Power</div>
                 <input type="text" class="resourcevalue" id="powerValue" value="0" disabled>
                 <div class="d-flex gap-1">
                   <button class="btn resourcebutton resourceminus" id="minusButton_power" type="button"
@@ -272,7 +272,7 @@
                 <!-- Wraps onto more rows on a narrow (portrait) screen -->
                 <div class="d-flex flex-wrap justify-content-center gap-1">
                   <div class="resourcetile">
-                    <div class="resourcelabel">Fuel</div>
+                    <div class="resourcelabel" data-icon="fuel">Fuel</div>
                     <input type="text" class="resourcevalue" id="citiesFuelValue" value="0" disabled>
                     <div class="d-flex gap-1">
                       <button class="btn resourcebutton resourceminus" id="minusButton_citiesFuel" type="button"
@@ -283,7 +283,7 @@
                   </div>
 
                   <div class="resourcetile">
-                    <div class="resourcelabel">Material</div>
+                    <div class="resourcelabel" data-icon="materials">Material</div>
                     <input type="text" class="resourcevalue" id="citiesMaterialsValue" value="0" disabled>
                     <div class="d-flex gap-1">
                       <button class="btn resourcebutton resourceminus" id="minusButton_citiesMaterials" type="button"
@@ -294,7 +294,7 @@
                   </div>
 
                   <div class="resourcetile">
-                    <div class="resourcelabel">Weapon</div>
+                    <div class="resourcelabel" data-icon="weapons">Weapon</div>
                     <input type="text" class="resourcevalue" id="citiesWeaponsValue" value="0" disabled>
                     <div class="d-flex gap-1">
                       <button class="btn resourcebutton resourceminus" id="minusButton_citiesWeapons" type="button"
@@ -305,7 +305,7 @@
                   </div>
 
                   <div class="resourcetile">
-                    <div class="resourcelabel">Relic</div>
+                    <div class="resourcelabel" data-icon="relics">Relic</div>
                     <input type="text" class="resourcevalue" id="citiesRelicsValue" value="0" disabled>
                     <div class="d-flex gap-1">
                       <button class="btn resourcebutton resourceminus" id="minusButton_citiesRelics" type="button"
@@ -316,7 +316,7 @@
                   </div>
 
                   <div class="resourcetile">
-                    <div class="resourcelabel">Psionic</div>
+                    <div class="resourcelabel" data-icon="psionics">Psionic</div>
                     <input type="text" class="resourcevalue" id="citiesPsionicsValue" value="0" disabled>
                     <div class="d-flex gap-1">
                       <button class="btn resourcebutton resourceminus" id="minusButton_citiesPsionics" type="button"
@@ -444,13 +444,13 @@
                 <div class="optlabel">How many players? (including you)</div>
                 <div class="playercount">
                   <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="setupGame(2)">2</button>
+                    data-bs-dismiss="modal" onclick="chooseNewGame(2)">2</button>
 
                   <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="setupGame(3)">3</button>
+                    data-bs-dismiss="modal" onclick="chooseNewGame(3)">3</button>
 
                   <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="setupGame(4)">4</button>
+                    data-bs-dismiss="modal" onclick="chooseNewGame(4)">4</button>
                 </div>
                 </div>
               </div>
@@ -460,7 +460,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v161126.04</small>
+                <small class="text-muted" id="appVersion">v161126.05</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -968,6 +968,7 @@
          and the order matters: state.js needs cards.js, and game.js (which starts the
          app when the page loads) goes last -->
     <script src="./resources/js/ui.js"></script>
+    <script src="./resources/js/icons.js"></script>
     <script src="./resources/js/cards.js"></script>
     <script src="./resources/js/court.js"></script>
     <script src="./resources/js/player.js"></script>

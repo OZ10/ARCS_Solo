@@ -204,6 +204,27 @@ header {
 .ambitionname {
     font-size: 0.6rem;
     letter-spacing: 0.03em;
+
+    // The ambition's icon above its name (#132)
+    .chipicon {
+        display: block;
+        font-size: 0.95rem;
+        line-height: 1;
+        margin-top: 3px;
+    }
+}
+
+// Our own icons (icons.js), sitting on the text like the Bootstrap icons
+.gameicon {
+    vertical-align: -0.125em;
+}
+
+// Where their masks are defined. Hidden, but not display: none, or the masks don't work
+.iconmasks {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
 }
 
 .ambitionpoints {
@@ -345,6 +366,14 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+
+    // The resource's icon above its word (#132)
+    .tileicon {
+        display: block;
+        font-size: 1.15rem;
+        line-height: 1;
+        margin-bottom: 2px;
+    }
 }
 
 .resourcevalue {
@@ -686,6 +715,11 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
   color: inherit;
   opacity: 0.75;
 
+  // The resource's icon before its word (#132)
+  .chipicon {
+    margin-right: 4px;
+  }
+
   &.outraged {
     border: 1px solid #9b1c1c;
     background: #b42318;
@@ -713,10 +747,11 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
   }
 }
 
-// The mulligan question: your hand, in three equal columns (#122)
+// The mulligan question: your hand, in three equal columns (#122). minmax(0, 1fr) keeps them
+// equal, so a long name like Administration can't push the last column off the window
 .mullhand {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   margin: 10px 0 4px;
 }
@@ -725,10 +760,12 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
   background: #212529;
   color: #fff;
   border-radius: 8px;
-  padding: 6px 4px;
+  padding: 6px 2px;
   text-align: center;
   line-height: 1.1;
-  font-size: 0.9rem;
+  // Smaller on narrow phones, so the longest name still fits on one line
+  font-size: min(0.9rem, 3.3vw);
+  overflow-wrap: anywhere;
 
   b {
     display: block;
@@ -1318,6 +1355,18 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
 .turnact {
     flex: none;
     min-width: 84px;
+}
+
+// A prelude spent from your turn window (#127): crossed out, with Undo to put it back
+.preludespent {
+    .turnmarker,
+    .turnsteptext {
+        opacity: 0.65;
+    }
+
+    .turnsteptext {
+        text-decoration: line-through;
+    }
 }
 
 .turntools {

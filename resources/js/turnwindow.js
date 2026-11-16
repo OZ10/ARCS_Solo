@@ -201,16 +201,18 @@ function renderHumanTurn(player) {
         const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
         if (name != null) { offered.push(name); }
         return getTurnRow("<i class=\"bi " + (humanActionIcons[action] || "bi-dot") + "\"></i>", capitalise(action), humanActionNotes[action] || "", button);
-    }).join("");
+    }).join("") + getPreludeActionRows(player, offered);
 
     let html = "";
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
+    // What your resources and Guild cards can do first (#127)
+    const prelude = getPreludeHtml(player);
+    if (prelude != "") { html += getTurnSection("Prelude: before your actions", prelude); }
     html += getTurnSection("Card played", getCardHtml(player));
     html += getTurnSection("Your actions", rows != "" ? rows : "<div class=\"small text-muted\">No actions this turn.</div>");
     const shortfall = getMarketShortfallSection(offered);
     if (shortfall != "") { html += shortfall; offered.push("court"); }
-    html += getTurnSection("Also", "<div class=\"small text-muted mb-2\">Your prelude can add actions, such as a Weapon to battle.</div>"
-        + "<div class=\"turntools\">" + ["battle", "court"].filter(name => !offered.includes(name)).concat("draw").map(getAlsoButton).join("") + "</div>");
+    html += getTurnSection("Also", "<div class=\"turntools\">" + ["battle", "court"].filter(name => !offered.includes(name)).concat("draw").map(getAlsoButton).join("") + "</div>");
     showTurnHtml(player, "Your turn", html);
 }
 

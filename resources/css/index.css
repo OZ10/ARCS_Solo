@@ -154,6 +154,23 @@ header {
   font-size: 0.6rem;
   letter-spacing: 0.03em;
 }
+.ambitionname .chipicon {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1;
+  margin-top: 3px;
+}
+
+.gameicon {
+  vertical-align: -0.125em;
+}
+
+.iconmasks {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
 
 .ambitionpoints {
   font-size: 0.85rem;
@@ -286,6 +303,12 @@ header {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+.resourcelabel .tileicon {
+  display: block;
+  font-size: 1.15rem;
+  line-height: 1;
+  margin-bottom: 2px;
 }
 
 .resourcevalue {
@@ -598,6 +621,9 @@ header {
   color: inherit;
   opacity: 0.75;
 }
+.outragechip .chipicon {
+  margin-right: 4px;
+}
 .outragechip.outraged {
   border: 1px solid #9b1c1c;
   background: #b42318;
@@ -621,7 +647,7 @@ header {
 
 .mullhand {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   margin: 10px 0 4px;
 }
@@ -630,10 +656,11 @@ header {
   background: #212529;
   color: #fff;
   border-radius: 8px;
-  padding: 6px 4px;
+  padding: 6px 2px;
   text-align: center;
   line-height: 1.1;
-  font-size: 0.9rem;
+  font-size: min(0.9rem, 3.3vw);
+  overflow-wrap: anywhere;
 }
 .mullcard b {
   display: block;
@@ -1243,6 +1270,14 @@ header {
 .turnact {
   flex: none;
   min-width: 84px;
+}
+
+.preludespent .turnmarker,
+.preludespent .turnsteptext {
+  opacity: 0.65;
+}
+.preludespent .turnsteptext {
+  text-decoration: line-through;
 }
 
 .turntools {

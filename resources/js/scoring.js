@@ -82,7 +82,9 @@ function createAmbitionChip(name, points, style, info) {
 
     const nameDiv = document.createElement("div");
     nameDiv.classList.add("ambitionname");
-    nameDiv.innerHTML = name;
+    // Its icon above the word (#132)
+    const icon = getGameIcon(name);
+    nameDiv.innerHTML = (icon != "" ? "<span class=\"chipicon\">" + icon + "</span>" : "") + name;
 
     const pointsDiv = document.createElement("div");
     pointsDiv.classList.add("ambitionpoints");
