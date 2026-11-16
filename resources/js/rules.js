@@ -141,6 +141,16 @@ const manyShipsOnBoard = 10;
 // starport to build them at) rather than a building it doesn't need
 const fewShipsOnBoard = 5;
 
+// A bot aims for about this many ships per building, cities and starports (#125)
+const shipsPerBuilding = 3;
+
+// With this many ships, and more than a Rival, a bot battles just because it can (#125)
+const aggressiveFleet = 4;
+
+// With fewer ships than this on the board, a bot that could declare Warlord asks whether it has
+// run out of ships to build (#129)
+const outOfShipsBelow = 6;
+
 // The chance (%) of a bot offering each prelude action. These could become part of the bot
 // personalities (#71)
 // When a bot decides a prelude spend itself, rather than leaving it to the player (see prelude.js)
@@ -184,12 +194,14 @@ const turnPlanWeights = {
     battleWarlord: 3,       // + chasing Warlord
     battleTyrant: 2,        // + chasing Tyrant
     battleManyShips: 1.5,   // + lots of ships on the board
+    battleFleet: 1.5,       // + more ships than a Rival, and at least aggressiveFleet (#125)
+    battleLastCard: 1,      // + its last card this round (#125)
     secureLastCard: 1,      // + its last card, so its last chance this round
     secureWanted: 1,        // + there's a resource it wants a card for
     influenceWanted: 0.5,   // + there's a resource it wants a card for
     taxTyrant: 2,           // + chasing Tyrant, as taxing a Rival's city captures
     taxPerNeed: 1.5,        // + for each level of need for the resource it would tax (getResourceNeed)
-    buildFewShips: 1.5,     // + short of ships
+    buildFewShips: 1.5,     // + short of ships, by shipsPerBuilding
     buildNearBonus: 1,      // + 1 or 2 cities short of a city bonus
     repairFewShips: 1,      // + short of ships
     repairManyShips: 1,     // - lots of ships on the board
@@ -206,6 +218,7 @@ const planImpossible = -100;
 const battleTargetWeights = {
     holding: 2,             // + each resource or Guild card they hold of what it's chasing, to raid
     leader: 2,              // + they're ahead of everyone on Power
+    outnumbered: 0.6,       // + each ship fewer than the bot has, when its fleet is big enough (#125)
     power: 0.1,             // + each Power they have
     ship: 0.1,              // + each ship they have on the board
     shipWarlord: 0.5,       // + each ship they have on the board instead, when chasing Warlord

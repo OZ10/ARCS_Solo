@@ -21,6 +21,8 @@ class player {
     powerValue = 0;
     // Pieces on the board (see boardCounters)
     shipsBoardValue = 0;
+    // Starports on the board (#130)
+    starportsValue = 0;
     citiesFuelValue = 0;
     citiesMaterialsValue = 0;
     citiesWeaponsValue = 0;
@@ -75,6 +77,10 @@ class player {
     farseersSwap = null;
     // What its Leader did this turn, as [{ title, note }] (see leaderrules.js)
     leaderNotes = [];
+    // What a bot would build this turn, worked out before asking (#126, see getBuildIntent)
+    buildIntent = null;
+    // A bot's answer this turn to "Have I run out of ships to build?" (#129)
+    outOfShips = null;
 }
 
 function getPlayerColour(player) {
@@ -88,7 +94,7 @@ const resourceCounters = ["fuel", "materials", "weapons", "relics", "psionics", 
 
 // The player's pieces on the board: their ships, and how many
 // of their cities are on each resource type
-const boardCounters = ["shipsBoard", "citiesFuel", "citiesMaterials", "citiesWeapons", "citiesRelics", "citiesPsionics"];
+const boardCounters = ["shipsBoard", "starports", "citiesFuel", "citiesMaterials", "citiesWeapons", "citiesRelics", "citiesPsionics"];
 const cityCounters = ["citiesFuel", "citiesMaterials", "citiesWeapons", "citiesRelics", "citiesPsionics"];
 
 const playerCounters = resourceCounters.concat(boardCounters);
@@ -129,6 +135,8 @@ function resetPlayedThisTurn() {
         player.battleTargetNumber = null;
         player.focusReason = null;
         player.farseersSwap = null;
+        player.buildIntent = null;
+        player.outOfShips = null;
         player.leaderNotes = [];
     })
 }

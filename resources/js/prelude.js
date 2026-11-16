@@ -214,7 +214,8 @@ function getPreludeOffers(player) {
 
     const wants = chance => Math.random() * 100 < Math.min(chance, preludeChance.max);
     const chasingWarlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
-    const manyShips = player.shipsBoardValue >= manyShipsOnBoard;
+    // Lots of ships, or more than a Rival (#125)
+    const manyShips = player.shipsBoardValue >= manyShipsOnBoard || getOutnumberedRival(player) != null;
     const keenToBattle = chasingWarlord || manyShips;
     const guild = getPlayerGuildCards(player);
     const holds = number => guild.some(card => card.number == number);

@@ -10,6 +10,43 @@ const maxCities = 5;
 // The Build window: the bot building, and the resources ticked for planets with an open slot
 let build = { player: null, slots: [] };
 
+function getShipTarget(player) {
+    // About shipsPerBuilding ships for each city and starport it has on the board (#125)
+    return shipsPerBuilding * (getCityCount(player) + (player.starportsValue || 0));
+}
+
+function getShipRatioReason(player) {
+    const buildings = getCityCount(player) + (player.starportsValue || 0);
+    return "It wants about " + shipsPerBuilding + " ships per building: it has " + player.shipsBoardValue + " ship" + (player.shipsBoardValue == 1 ? "" : "s")
+        + " and " + buildings + " building" + (buildings == 1 ? "" : "s") + ".";
+}
+
+function getBuildIntent(player) {
+    // What it would build, worked out before seeing the board (#126), as { build, resources } or
+    // null if it doesn't need anything. A city on a resource it has none on comes first, then
+    // ships while it's below its ratio (a starport first if it has none), then a city towards the bonus
+    const citiesLeft = getUncoveredCities(player) < maxCities;
+    if (citiesLeft && wantsNewCityType(player)) {
+        const missing = preludeResources.filter(resource => player["cities" + capitalise(resource) + "Value"] == 0);
+        const wanted = missing.filter(resource => getResourceNeed(player, resource) > 0 || (resource == "weapons" && declaredAmbitions.includes("warlord")));
+        return { build: "city", resources: wanted.length > 0 ? wanted : missing };
+    }
+    if (player.shipsBoardValue < getShipTarget(player)) { return { build: (player.starportsValue || 0) > 0 ? "ship" : "starport" }; }
+    if (citiesLeft && isNearCityBonus(player)) { return { build: "city", resources: null }; }
+    return null;
+}
+
+function getBuildQuestion(intent) {
+    // The question for what it means to build (#126)
+    const list = resources => resources.map(resource => preludeResourceNames[resource].toLowerCase()).join(" or ");
+    if (intent.build == "ship") { return "Can I build a ship at one of my starports?"; }
+    if (intent.build == "starport") { return "Is there an empty building slot in a system where I have a piece, for a starport?"; }
+    if (intent.resources == null) { return "Is there an empty building slot in a system where I have a piece?"; }
+    // Most types: shorter to say which it hasn't got
+    if (intent.resources.length >= 4) { return "Is there an empty building slot, on a planet type I have no city on, in a system where I have a piece?"; }
+    return "Is there an empty building slot on a " + list(intent.resources) + " planet in a system where I have a piece?";
+}
+
 function getBuildChoice(player, slotResources) {
     // What the bot builds, from the resources of planets with an empty building slot in
     // systems where it has a piece ([] if there are none). Returns { build, resource, reason }
@@ -29,9 +66,10 @@ function getBuildChoice(player, slotResources) {
             + (best == 2 ? ", and it's chasing " + capitalise(preludeAmbitions[resource]) : "") + "." };
     }
 
-    // Short of ships: a ship, or a starport to build them at. The player decides
-    if (player.shipsBoardValue < fewShipsOnBoard) {
-        return { build: "shipOrStarport", reason: "Only " + player.shipsBoardValue + " ship" + (player.shipsBoardValue == 1 ? "" : "s") + " on the board." };
+    // Below its ratio of ships to buildings: a ship, or a starport to build them at if it has none (#125)
+    if (player.shipsBoardValue < getShipTarget(player)) {
+        if ((player.starportsValue || 0) > 0 || slotResources.length == 0) { return { build: "ship", reason: getShipRatioReason(player) }; }
+        return { build: "starport", reason: "It wants more ships, and needs a starport to build them at." };
     }
 
     // Only planets it already has a city on. Another one means one more Tax each turn (the limit
@@ -83,7 +121,16 @@ function showBuildModal(button) {
     header.classList.add("playerbanner" + getPlayerColour(build.player));
     document.getElementById("buildTitle").innerHTML = "Player " + build.player.number + " builds";
 
-    showBuildSlotQuestion();
+    // What it said it would build, and you said it can (#126): straight to it, without asking again
+    const intent = (build.player.canBuild === true) ? build.player.buildIntent : null;
+    if (intent != null && intent.build == "city" && intent.resources != null) {
+        if (intent.resources.length == 1) { build.slots = intent.resources.slice(); showBuildDecision(); }
+        else { showBuildResourceQuestion(intent.resources); }
+    } else if (intent != null && intent.build != "city") {
+        showBuildDecision(intent.build);
+    } else {
+        showBuildSlotQuestion();
+    }
     bootstrap.Modal.getOrCreateInstance(document.getElementById("buildModal")).show();
 }
 
@@ -96,20 +143,21 @@ function showBuildSlotQuestion() {
         + "</div>";
 }
 
-function showBuildResourceQuestion() {
-    // Which resources the planets with an open slot have. More than one can be ticked
+function showBuildResourceQuestion(only = preludeResources) {
+    // Which resources the planets with an open slot have. More than one can be ticked. only: the
+    // resources it said it wants a city on (#126)
     const body = document.getElementById("buildBody");
     body.innerHTML = "<p>Which resources are on the planets with an empty slot? Tick all that apply.</p>";
 
     const group = document.createElement("div");
     group.classList.add("d-flex", "flex-wrap", "gap-1", "mb-3");
-    preludeResources.forEach(resource => {
+    only.forEach(resource => {
         const input = document.createElement("input");
         input.type = "checkbox";
         input.classList.add("btn-check");
         input.id = "buildSlot_" + resource;
         input.onchange = () => {
-            build.slots = preludeResources.filter(r => document.getElementById("buildSlot_" + r).checked);
+            build.slots = only.filter(r => document.getElementById("buildSlot_" + r).checked);
             document.getElementById("buildDecide").disabled = build.slots.length == 0;
         };
 
@@ -132,8 +180,11 @@ function showBuildResourceQuestion() {
     body.appendChild(decide);
 }
 
-function showBuildDecision() {
-    const choice = getBuildChoice(build.player, build.slots);
+function showBuildDecision(forced = null) {
+    // forced: a ship or starport it already said it would build (#126)
+    const choice = (forced == "ship") ? { build: "ship", reason: getShipRatioReason(build.player) }
+        : (forced == "starport") ? { build: "starport", reason: "It wants more ships, and needs a starport to build them at." }
+        : getBuildChoice(build.player, build.slots);
     const body = document.getElementById("buildBody");
 
     const builtButton = (text, onclick) => "<button type=\"button\" class=\"btn btn-primary flex-fill\" onclick=\"" + onclick + "\">" + text + "</button>";
@@ -146,7 +197,7 @@ function showBuildDecision() {
             break;
         case "starport":
             headline = "Build a starport";
-            buttons = builtButton("Built it", "builtNothingCounted('a starport')");
+            buttons = builtButton("Built it", "builtStarport()");
             break;
         case "ship":
             headline = "Build a ship";
@@ -156,7 +207,7 @@ function showBuildDecision() {
             // shipOrStarport: the player decides
             headline = "A ship or a starport: your call";
             buttons = builtButton("Built a ship", "builtShip()")
-                + (build.slots.length > 0 ? builtButton("Built a starport", "builtNothingCounted('a starport')") : "");
+                + (build.slots.length > 0 ? builtButton("Built a starport", "builtStarport()") : "");
             break;
     }
 
@@ -179,9 +230,10 @@ function builtShip() {
     finishBuild("a ship");
 }
 
-function builtNothingCounted(what) {
-    // Starports aren't counted
-    finishBuild(what);
+function builtStarport() {
+    // One more starport on the board (#130)
+    plusMinusClicked("plusButton_starports_" + build.player.number, "plus", true);
+    finishBuild("a starport");
 }
 
 function finishBuild(what) {

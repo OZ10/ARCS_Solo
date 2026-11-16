@@ -75,6 +75,13 @@ function getMoveGoals(player) {
     return goals;
 }
 
+function getOutnumberedRival(player) {
+    // A Rival with fewer ships on the board, when its own fleet is big enough (#125). The fewest first
+    if (player.shipsBoardValue < aggressiveFleet) { return null; }
+    return players.filter(other => other !== player && other.shipsBoardValue > 0 && other.shipsBoardValue < player.shipsBoardValue)
+        .sort((a, b) => a.shipsBoardValue - b.shipsBoardValue)[0] || null;
+}
+
 function getBattleTargetReason(player, rival) {
     // Why this Rival, as { why, where }. The app can't see the map, so where is a rule of thumb:
     // a defending fresh ship hits back on an intercept, and raid dice need a building there
@@ -84,7 +91,11 @@ function getBattleTargetReason(player, rival) {
         .filter(held => held.count > 0).sort((a, b) => b.count - a.count)[0];
     if (holding != null) {
         const name = preludeResourceNames[holding.resource].toLowerCase() + (holding.count > 1 && holding.resource != "fuel" ? "s" : "");
-        return { why: "They hold " + holding.count + " " + name + " to raid.", where: "Choose a system with a building of theirs, for raid dice." };
+        // A starport: raid dice there can't lead to Outrage (#130)
+        const where = (getCityCount(rival) == 0 && (rival.starportsValue || 0) == 0) ? "They have no buildings on the board, so raid dice work in any system with their ships."
+            : (rival.starportsValue || 0) > 0 ? "Choose a system with one of their starports: raid dice there don't risk Outrage."
+            : "Choose a system with a building of theirs, for raid dice.";
+        return { why: "They hold " + holding.count + " " + name + " to raid.", where: where };
     }
 
     const others = players.filter(other => other !== rival);
@@ -92,6 +103,8 @@ function getBattleTargetReason(player, rival) {
         return { why: "They have " + rival.shipsBoardValue + " ship" + (rival.shipsBoardValue == 1 ? "" : "s") + " to destroy for Trophies.", where: outnumber };
     }
     if (others.every(other => rival.powerValue > other.powerValue)) { return { why: "They're leading on Power.", where: outnumber }; }
+    // It outnumbers them: the plan step already says so (#125)
+    if (player.shipsBoardValue >= aggressiveFleet && rival.shipsBoardValue < player.shipsBoardValue) { return { why: "", where: outnumber }; }
     return { why: "They have " + rival.shipsBoardValue + " ship" + (rival.shipsBoardValue == 1 ? "" : "s") + " on the board.", where: outnumber };
 }
 
@@ -112,6 +125,7 @@ function getBattleTarget(player) {
         const score = rival => chased.reduce((total, resource) => total + (rival[resource + "Value"] + getGuildIconCount(rival, resource)) * weights.holding, 0)
             + (players.filter(other => other !== rival).every(other => rival.powerValue > other.powerValue) ? weights.leader : 0)
             + rival.powerValue * weights.power
+            + ((player.shipsBoardValue >= aggressiveFleet && rival.shipsBoardValue < player.shipsBoardValue) ? (player.shipsBoardValue - rival.shipsBoardValue) * weights.outnumbered : 0)
             + rival.shipsBoardValue * (warlord ? weights.shipWarlord : weights.ship)
             + Math.random() * weights.variation;
         target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
@@ -153,6 +167,13 @@ function getActionPlanScore(player, action, focus) {
             if (chasing("warlord")) { score += weights.battleWarlord; reason = "chasing Warlord"; }
             else if (chasing("tyrant")) { score += weights.battleTyrant; reason = "chasing Tyrant"; }
             if (player.shipsBoardValue >= manyShipsOnBoard) { score += weights.battleManyShips; if (reason == "") { reason = "lots of ships on the board"; } }
+            // Because it can: a bigger fleet than its target's, or its last card (#125)
+            if (getOutnumberedRival(player) != null) {
+                score += weights.battleFleet;
+                const target = getBattleTarget(player);
+                if (reason == "" && target != null && target.player.shipsBoardValue < player.shipsBoardValue) { reason = "its " + player.shipsBoardValue + " ships outnumber their " + target.player.shipsBoardValue; }
+            }
+            if (isLastCard) { score += weights.battleLastCard; if (reason == "") { reason = "its last card this round"; } }
             break;
 
         case "secure":
@@ -179,7 +200,7 @@ function getActionPlanScore(player, action, focus) {
 
         case "build":
             if (player.canBuild === false && !canUseGuildActionInsteadOf(player, "build")) { return { score: planImpossible }; }
-            if (player.shipsBoardValue < fewShipsOnBoard) { score += weights.buildFewShips; reason = "short of ships, or repair a damaged one"; }
+            if (player.shipsBoardValue < getShipTarget(player)) { score += weights.buildFewShips; reason = "more ships: it wants about " + shipsPerBuilding + " per building, or repair a damaged one"; }
             else if (isNearCityBonus(player)) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
             break;
 

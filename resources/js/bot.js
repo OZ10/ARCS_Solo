@@ -6,18 +6,39 @@ function playcardclick() {
     // This is the AI playing a card. Save the game first so the card can be undone
     if (currentPlayer.hasPlayedACardThisTurn == false) { saveUndoPoint(currentPlayer.number); }
 
-    // Construction only builds and repairs, so first check it's worth playing one (#62)
-    const player = currentPlayer;
-    if (shouldAskCanBuild(player)) {
-        askYesNo("BUILD", "Can I build or repair anything this turn? An empty building slot where I have a piece, a starport to build a ship at, or a damaged piece.", canBuild => {
-            player.canBuild = canBuild;
+    askThenPlay(currentPlayer);
+}
+
+function askThenPlay(player) {
+    // The questions a bot asks before choosing its card, one after another, then its card
+    // Out of ships: declaring Warlord gets them back from Rivals' Trophies (#129)
+    if (shouldAskOutOfShips(player)) {
+        askYesNo("WARLORD", "Have I run out of ships to build? (Some of mine may be Rivals' Trophies.)", outOfShips => {
+            player.outOfShips = outOfShips;
             SaveAllSettings();
-            determineCardToPlay(player);
+            askThenPlay(player);
         });
         return;
     }
-
+    // Construction only builds and repairs, so first check what it would build is possible (#62, #126)
+    if (shouldAskCanBuild(player)) {
+        const intent = getBuildIntent(player);
+        askYesNo("BUILD", getBuildQuestion(intent), canBuild => {
+            player.canBuild = canBuild;
+            player.buildIntent = intent;
+            SaveAllSettings();
+            askThenPlay(player);
+        });
+        return;
+    }
     determineCardToPlay(player);
+}
+
+function shouldAskOutOfShips(player) {
+    // It's leading, could declare Warlord with a card in its hand, and has few ships on the board
+    if (player.outOfShips != null || !isLeadingThisTurn() || player.shipsBoardValue >= outOfShipsBelow) { return false; }
+    if (declaredAmbitions.includes("warlord") || declaredAmbitions.length >= 3 || !canDeclareAmbition(player)) { return false; }
+    return getUnplayedCards(player.cards).some(card => card.ambition == "warlord");
 }
 
 function shouldAskCanBuild(player) {
@@ -48,8 +69,8 @@ function wantsNewCityType(player) {
 }
 
 function wantsToBuild(player) {
-    // It's short of ships, a city away from a bonus, or wants a city on a new resource
-    return player.shipsBoardValue < fewShipsOnBoard || isNearCityBonus(player) || wantsNewCityType(player);
+    // It has something it would build (#126)
+    return getBuildIntent(player) != null;
 }
 
 function avoidsConstruction(player) {
@@ -394,8 +415,13 @@ function findCardToPlay(cards, actionToPlay) {
         const ambitionSorted = prioritiseAndSortAmbitions();
 
         let cardsWithAmbition = findCardsWithAmbition(ambitionSorted, withoutUselessConstruction(currentPlayer, cards));
+        // Out of ships: it leads a Warlord card to declare it (#129)
+        const warlordCards = currentPlayer.outOfShips ? cards.filter(card => card.ambition == "warlord") : [];
 
-        if (cardsWithAmbition.length > 0) {
+        if (warlordCards.length > 0) {
+            cardToPlay = getHighestCard(warlordCards);
+            currentPlayer.playReason = { type: "lead", ambition: "warlord" };
+        } else if (cardsWithAmbition.length > 0) {
             cardToPlay = getHighestCard(cardsWithAmbition);
             currentPlayer.playReason = { type: "lead", ambition: cardToPlay.ambition };
          }else{
@@ -536,15 +562,18 @@ function declareAmbition(player, playedCard) {
     // Feastbringer can't declare without a Guild card to give
     if (!canDeclareAmbition(player)) { return; }
 
+    // Out of ships: it declares Warlord to get them back from Rivals' Trophies (#129)
+    const forShips = ambition == "warlord" && player.outOfShips === true;
+
     // A bot with none of the ambition's resources doesn't declare it. This
     // includes the 1 cards, which have no ambition
     const resources = (ambitionResources[ambition] == null) ? 0 : ambitionResources[ambition](player);
-    if (resources == 0) { return; }
+    if (resources == 0 && !forShips) { return; }
 
     // See declareChanceByRound at the top of the file
     const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource, declareChanceMax);
 
-    if (Math.random() * 100 < chance) {
+    if (forShips || Math.random() * 100 < chance) {
         showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = placesZeroMarker(player, ambition);
 

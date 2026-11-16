@@ -83,7 +83,7 @@ Tap **Options**, then **New Game**.
 ## The screen
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options**.
 - **Player panels:** one per player in their colour. Tap a player's name to open or close their panel. The ★ shows who has the initiative.
-- **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships on the board and cities on each planet type. Keep these matching the table. Bots use them to make their choices, and they're filled in for you when the app knows what happened, such as after a battle.
+- **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships and starports on the board, and cities on each planet type. Keep these matching the table. Bots use them to make their choices, and they're filled in for you when the app knows what happened, such as after a battle.
 - **Outrage:** under the tiles, the resources that player is Outraged in are marked red. It's filled in when a city is destroyed or Outrage Spreads is played, and you can tap one to mark or clear it. A bot won't spend an Outraged resource in its prelude.
 - **Guild row:** the Guild cards each player holds. Tap **+** to add one, or tap a card to read it or remove it.
 - **Footer:** **Undo**, **Next Turn** and **Next Round**, with the cards played this turn listed above them.

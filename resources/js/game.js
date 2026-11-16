@@ -120,6 +120,8 @@ function createPlayers(numberOfPlayers) {
     for (let playerNumber = 1; playerNumber < numberOfPlayers + 1; playerNumber++) {
         let p = new player(playerNumber, (playerNumber == 1) ? true : false);
         p.shipsBoardValue = startingShips[numberOfPlayers];
+        // One starport each to start, in their B system (#130)
+        p.starportsValue = 1;
         p.colour = (playerNumber == 1) ? humanColour : (playerNumber == humanColour ? 1 : playerNumber);
 
         players.push(p);

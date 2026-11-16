@@ -277,6 +277,7 @@ function applyLeaderSetup(player) {
     // With 2 players the setup card has two C sectors, each with the C ships (#115)
     setValue("shipsBoard", card.pieces.reduce((total, [, ships]) => total + ships, 0) + (players.length == 2 ? card.pieces[2][1] : 0));
     player.startingCity = card.pieces.filter(([building]) => building == "city").length;
+    setValue("starports", card.pieces.filter(([building]) => building == "starport").length);
     player.scrappedCities = card.scrappedCities || 0;
     player.outraged = (card.outraged || []).slice();
     showOutrageRow(player);

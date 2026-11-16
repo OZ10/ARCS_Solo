@@ -416,6 +416,7 @@ function showBattleModal(button) {
         defenders.append(input, label);
     });
 
+    battle.noBuildings = hasNoBuildings(battle.defender);
     updateBattleCounts();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).show();
 }
@@ -440,10 +441,15 @@ function updateBattleCounts() {
 
 // Raid dice: stealing from the defender
 
+function hasNoBuildings(player) {
+    return getCityCount(player) == 0 && (player.starportsValue || 0) == 0;
+}
+
 function resetBattleRaid() {
     battle.keys = 0;
     battle.raidItem = null;
-    battle.noBuildings = false;
+    // A defender with no cities or starports has no buildings on the board (#130)
+    battle.noBuildings = battle.defender != null && hasNoBuildings(battle.defender);
     battle.raidRolled = false;
     battle.inGate = false;
     battle.planet = null;
@@ -853,7 +859,11 @@ function applyBattleResults() {
     adjustCounter(attacker, "trophies", losses.defenderBuildings);
     const destroyedTypes = (losses.defenderBuildings > 0 && battle.destroyed != null) ? getBuildingTypesOn(defender, battle.destroyed.planet, battle.destroyed.kinds) : [];
     destroyedTypes.forEach(type => {
-        if (type == "starport") { return; }
+        if (type == "starport") {
+            // One starport fewer on the board (#130)
+            if ((defender.starportsValue || 0) > 0) { adjustCounter(defender, "starports", -1); }
+            return;
+        }
         if (type == "gate") {
             // A gate city (Gate Stations): Outrage of each of its types (#120). It's counted on the
             // defender's panel as one of them
