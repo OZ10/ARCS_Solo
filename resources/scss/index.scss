@@ -486,6 +486,54 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
   }
 }
 
+// The red player's Outrage marks are white, so they don't blend into the panel (#121)
+.outragered {
+  .outragechip {
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+
+  .outragechip.outraged {
+    background: #fff;
+    color: #b42318;
+    border: 1px solid #fff;
+  }
+}
+
+// The mulligan question: your hand, in three equal columns (#122)
+.mullhand {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.mullcard {
+  background: #212529;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+  line-height: 1.1;
+  font-size: 0.9rem;
+
+  b {
+    display: block;
+    font-size: 1.3rem;
+  }
+
+  small {
+    font-size: 0.7rem;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+}
+
+// What you stole: a tick list (#128)
+.stealist .form-check {
+  margin-bottom: 4px;
+}
+
 // A gate city's types (#120)
 .gatetypes {
   display: flex;
@@ -792,16 +840,6 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
   animation: ambitionflip 0.8s ease-out;
 }
 
-.turnopening .turnstep {
-  animation: turnstepin 0.35s ease-out both;
-
-  @for $i from 1 through 8 {
-    &:nth-child(#{$i + 1}) {
-      animation-delay: #{$i * 0.07}s;
-    }
-  }
-}
-
 .diceshake {
   animation: diceshake 0.5s ease-in-out;
 }
@@ -849,11 +887,6 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
   100% { transform: none; }
 }
 
-@keyframes turnstepin {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: none; }
-}
-
 @keyframes diceshake {
   0%, 100% { transform: none; }
   20% { transform: translateX(-4px) rotate(-2deg); }
@@ -873,7 +906,7 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
 
 @media (prefers-reduced-motion: reduce) {
   .outragechip, .scorerow, .scoreplace, .powerbar .gain, .gameoverwinner .gameovertitle, .gameoverwinner::after,
-  .starpop, .powerglow, .ambitionflip, .turnopening .turnstep, .diceshake {
+  .starpop, .powerglow, .ambitionflip, .diceshake {
     animation: none !important;
   }
 }

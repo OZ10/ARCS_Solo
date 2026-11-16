@@ -800,13 +800,16 @@ function showBattleResults() {
 
     html += getLeaderBattleResultsHtml(losses);
 
-    // The human player says what they stole, if anything. With no attacking ships left, no one
-    // can spend the keys (rulebook p.16)
-    if (battle.attacker.isHuman && battle.ships > 0) {
+    // The human player says what they stole, if anything: only when a raid was possible, a
+    // building here or the defender with none on the board (#128). With no attacking ships left, no
+    // one can spend the keys (rulebook p.16)
+    const startBuildings = (battle.start != null) ? battle.start.freshBuildings + battle.start.damagedBuildings : 0;
+    if (battle.attacker.isHuman && battle.ships > 0 && isLeaderRaidAllowed(startBuildings > 0 || battle.noBuildings)) {
         const wants = getRaidWants(battle.attacker, battle.defender);
         if (wants.length > 0) {
-            html += "<div class=\"mt-2\">What did you steal?</div><select class=\"form-select form-select-sm mt-1\" id=\"battleStolenItem\"><option value=\"none\">Nothing</option>"
-                + wants.map(want => "<option value=\"" + want.id + "\">" + want.name + "</option>").join("") + "</select>";
+            html += "<div class=\"mt-2\">What did you steal? Tick each one.</div><div class=\"stealist mt-1\" id=\"battleStolenItems\">"
+                + wants.map((want, index) => "<div class=\"form-check\"><input class=\"form-check-input\" type=\"checkbox\" id=\"battleStolen" + index + "\" value=\"" + want.id + "\">"
+                    + "<label class=\"form-check-label\" for=\"battleStolen" + index + "\">" + want.name + "</label></div>").join("") + "</div>";
         }
     }
 
@@ -886,11 +889,12 @@ function applyBattleResults() {
 
     // What it stole moves across. Sworn Guardians is buried instead, so it leaves the game
     const stoleBox = document.getElementById("battleStole");
-    const stolenList = document.getElementById("battleStolenItem");
-    const stolen = (stolenList != null)
-        ? (getRaidWants(attacker, defender).find(want => want.id == stolenList.value) || null)
-        : ((stoleBox != null && stoleBox.checked) ? getBattleRaidItem() : null);
-    if (stolen != null) {
+    const stolenList = document.getElementById("battleStolenItems");
+    const wants = getRaidWants(attacker, defender);
+    const stolenItems = (stolenList != null)
+        ? [...stolenList.querySelectorAll("input:checked")].map(input => wants.find(want => want.id == input.value)).filter(want => want != null)
+        : ((stoleBox != null && stoleBox.checked && getBattleRaidItem() != null) ? [getBattleRaidItem()] : []);
+    stolenItems.forEach(stolen => {
         if (stolen.resource != null) {
             adjustCounter(defender, stolen.resource, -1);
             adjustCounter(attacker, stolen.resource, 1);
@@ -901,7 +905,7 @@ function applyBattleResults() {
             showGuildCardsRow(defender);
             showGuildCardsRow(attacker);
         }
-    }
+    });
 
     SaveAllSettings();
     refreshTurnSummary();
@@ -911,7 +915,7 @@ function applyBattleResults() {
         + (cities.length > 0 ? "<br>Player " + attacker.number + " Provokes Outrage: " + cities.join(", ") : "")
         + (ransacked != null ? "<br>Ransacked " + ransacked.name + ". Add its replacement to the market." : (cities.length > 0 && canRansackAgainst(defender) ? "<br>Ransack the Court." : ""))
         + leaderLines.map(line => "<br>" + line).join("")
-        + (stolen != null ? "<br>Stole the " + stolen.name : "")
+        + (stolenItems.length > 0 ? "<br>Stole " + stolenItems.map(stolen => "the " + stolen.name).join(" and ") : "")
         + (cities.length > 0 && getOverCapacityAdvice(defender) != null ? "<br>" + getOverCapacityAdvice(defender) : ""));
 
     battle.start = null;

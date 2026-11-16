@@ -340,5 +340,10 @@ function secureMarketCard(number) {
 
     SaveAllSettings();
     refreshTurnSummary();
-    bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+    // The window stays open to add the replacement (#124), unless a Vox card's window follows
+    if (card.type == "vox" && (!player.isHuman || card.number == 28)) {
+        bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+    } else {
+        showCourtWindow();
+    }
 }

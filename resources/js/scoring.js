@@ -331,6 +331,8 @@ function getTurnOrderPosition(player) {
 }
 
 function showGameOverModal() {
+    // Any message still showing (such as the scores) would cover who won (#121)
+    document.querySelectorAll(".toast.show").forEach(toast => bootstrap.Toast.getOrCreateInstance(toast).hide());
     // Most power wins. A tie goes to whoever is earliest in turn order (rulebook p.19)
     const standings = players.slice().sort((a, b) => (b.powerValue - a.powerValue) || (getTurnOrderPosition(a) - getTurnOrderPosition(b)));
     const winner = standings[0];

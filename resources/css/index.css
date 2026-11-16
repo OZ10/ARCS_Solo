@@ -419,6 +419,46 @@ header {
   margin-right: 3px;
 }
 
+.outragered .outragechip {
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.outragered .outragechip.outraged {
+  background: #fff;
+  color: #b42318;
+  border: 1px solid #fff;
+}
+
+.mullhand {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.mullcard {
+  background: #212529;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+  line-height: 1.1;
+  font-size: 0.9rem;
+}
+.mullcard b {
+  display: block;
+  font-size: 1.3rem;
+}
+.mullcard small, .mullcard .small {
+  font-size: 0.7rem;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stealist .form-check {
+  margin-bottom: 4px;
+}
+
 .gatetypes {
   display: flex;
   flex-wrap: wrap;
@@ -692,34 +732,6 @@ header {
   animation: ambitionflip 0.8s ease-out;
 }
 
-.turnopening .turnstep {
-  animation: turnstepin 0.35s ease-out both;
-}
-.turnopening .turnstep:nth-child(2) {
-  animation-delay: 0.07s;
-}
-.turnopening .turnstep:nth-child(3) {
-  animation-delay: 0.14s;
-}
-.turnopening .turnstep:nth-child(4) {
-  animation-delay: 0.21s;
-}
-.turnopening .turnstep:nth-child(5) {
-  animation-delay: 0.28s;
-}
-.turnopening .turnstep:nth-child(6) {
-  animation-delay: 0.35s;
-}
-.turnopening .turnstep:nth-child(7) {
-  animation-delay: 0.42s;
-}
-.turnopening .turnstep:nth-child(8) {
-  animation-delay: 0.49s;
-}
-.turnopening .turnstep:nth-child(9) {
-  animation-delay: 0.56s;
-}
-
 .diceshake {
   animation: diceshake 0.5s ease-in-out;
 }
@@ -805,16 +817,6 @@ header {
     transform: none;
   }
 }
-@keyframes turnstepin {
-  from {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 @keyframes diceshake {
   0%, 100% {
     transform: none;
@@ -842,7 +844,7 @@ header {
 
 @media (prefers-reduced-motion: reduce) {
   .outragechip, .scorerow, .scoreplace, .powerbar .gain, .gameoverwinner .gameovertitle, .gameoverwinner::after,
-  .starpop, .powerglow, .ambitionflip, .turnopening .turnstep, .diceshake {
+  .starpop, .powerglow, .ambitionflip, .diceshake {
     animation: none !important;
   }
 }

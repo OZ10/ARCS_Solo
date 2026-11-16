@@ -80,13 +80,16 @@ function withoutConstruction(cards) {
 // A one-off Yes/No question that isn't about an ambition (see askYesNo)
 let yesNoCallback = null;
 
-function askYesNo(focus, question, onAnswer) {
+function askYesNo(focus, question, onAnswer, player = null) {
     // Ask in the Yes/No window, then call onAnswer(true or false) once it has closed. Closed
-    // with its X, nothing happens (tapping Play Card asks again)
+    // with its X, nothing happens (tapping Play Card asks again). player: who it's for, if not
+    // the current player
     let answer = null;
     yesNoCallback = value => { answer = value; };
+    yesNoPlayer = player;
     document.getElementById("yesNo").addEventListener('hidden.bs.modal', () => {
         yesNoCallback = null;
+        yesNoPlayer = null;
         if (answer != null) { onAnswer(answer); }
     }, { once: true });
 
@@ -297,13 +300,17 @@ function focus_ambition(ambition, questionNumber, answerNo) {
     }
 }
 
+// Who a one-off question is for, when it isn't the current player (the mulligan, #122)
+let yesNoPlayer = null;
+
 function setYesNoTitle() {
     // The title names the player answering, and the title bar is in their colour
-    document.getElementById("yesNoTitle").innerHTML = "Player " + currentPlayer.number;
+    const player = yesNoPlayer || currentPlayer;
+    document.getElementById("yesNoTitle").innerHTML = "Player " + player.number;
 
     const header = document.querySelector("#yesNo .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
-    header.classList.add("playerbanner" + getPlayerColour(currentPlayer));
+    header.classList.add("playerbanner" + getPlayerColour(player));
 }
 
 function updateYesNoText(text) {
@@ -334,6 +341,8 @@ function openYesNoModal(focusTitle) {
         setTimeout(() => { focusMessage.classList.remove("flash"); }, 1000);
     }
     focusMessage.innerHTML = focusTitle;
+    // A question with no ambition or action to name has no label (the mulligan, #122)
+    focusMessage.classList.toggle("d-none", focusTitle == "");
 
     return modal;
 }

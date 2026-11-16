@@ -333,7 +333,10 @@ function offerMulligan() {
 
     const player = players.find(other => !other.hasInitiative);
     if (player.isHuman) {
-        askYesNo("MULLIGAN", "Discard your hand and draw 6 new cards? You must keep the new hand.", yes => { if (yes) { takeMulligan(player); } });
+        // Your hand in the question, so you can decide (#122)
+        const hand = "<div class=\"mullhand\">" + getUnplayedCards(player.cards).map(card => "<div class=\"mullcard\"><b>" + card.number + "</b>" + card.name
+            + "<br><small>" + (card.ambition == "null" ? "&nbsp;" : card.ambition) + "</small></div>").join("") + "</div>";
+        askYesNo("", "The other player has the initiative. Below is your hand of cards. Do you want to discard them and draw 6 new cards? You must keep the new hand." + hand, yes => { if (yes) { takeMulligan(player); } }, player);
     } else if (player.cards.reduce((total, card) => total + card.number, 0) / player.cards.length < mulliganBelow) {
         takeMulligan(player);
         showMessageToast("Player " + player.number, "Discarded its hand and drew 6 new cards");

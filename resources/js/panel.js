@@ -131,6 +131,8 @@ function showOutrageRow(player) {
     // The resources this player is Outraged in (#119). Tapping one marks or clears it
     const row = document.querySelector("#player" + player.number + " .outragechips");
     if (row == null) { return; }
+    // On the red panel the marks are white, so they don't blend in (#121)
+    row.closest(".outragerow").classList.toggle("outragered", getPlayerColour(player) == 2);
     row.innerHTML = preludeResources.map(resource => {
         const outraged = (player.outraged || []).includes(resource);
         return "<button type=\"button\" class=\"outragechip" + (outraged ? " outraged" : "") + "\" id=\"outrage_" + resource + "_" + player.number + "\" aria-pressed=\"" + outraged + "\""
