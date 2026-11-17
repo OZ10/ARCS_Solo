@@ -94,6 +94,24 @@ function closeAnnouncement() {
     ["announce", "announceDim"].forEach(id => { const element = document.getElementById(id); if (element != null) { element.remove(); } });
 }
 
+// A window that has to be finished, such as the Leaders & Lore draft or setting up the players
+// (#135): no X, and tapping outside it or Escape doesn't close it. Back to normal once it's closed
+
+function setModalLocked(modal, locked) {
+    // Only while it's closed: the settings are read when the window is set up
+    const instance = bootstrap.Modal.getInstance(modal);
+    if (instance != null) { instance.dispose(); }
+    bootstrap.Modal.getOrCreateInstance(modal, locked ? { backdrop: "static", keyboard: false } : {});
+    const close = modal.querySelector(".modal-header .btn-close");
+    if (close != null) { close.classList.toggle("d-none", locked); }
+}
+
+function showLockedModal(modal) {
+    setModalLocked(modal, true);
+    modal.addEventListener('hidden.bs.modal', () => setModalLocked(modal, false), { once: true });
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
 function hideIconTooltip(button, modalId) {
     // An icon that opens a window: hide its tooltip and let go of focus, or the tooltip is
     // still showing when the window closes and covers the icon, blocking the next tap.

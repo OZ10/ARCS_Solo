@@ -15,6 +15,20 @@ function getShipTarget(player) {
     return shipsPerBuilding * (getCityCount(player) + (player.starportsValue || 0));
 }
 
+function getStarportTarget() {
+    // How many starports a bot wants: 2, then 3 later in the game (#142)
+    return roundNumber >= starportsLaterFrom ? starportsWanted.later : starportsWanted.early;
+}
+
+function wantsStarport(player) {
+    return (player.starportsValue || 0) < getStarportTarget();
+}
+
+function getStarportReason(player) {
+    const has = player.starportsValue || 0;
+    return "It has " + has + " starport" + (has == 1 ? "" : "s") + " and wants " + getStarportTarget() + ", to build more ships each turn.";
+}
+
 function getShipRatioReason(player) {
     const buildings = getCityCount(player) + (player.starportsValue || 0);
     return "It wants about " + shipsPerBuilding + " ships per building: it has " + player.shipsBoardValue + " ship" + (player.shipsBoardValue == 1 ? "" : "s")
@@ -24,13 +38,14 @@ function getShipRatioReason(player) {
 function getBuildIntent(player) {
     // What it would build, worked out before seeing the board (#126), as { build, resources } or
     // null if it doesn't need anything. A city on a resource it has none on comes first, then
-    // ships while it's below its ratio (a starport first if it has none), then a city towards the bonus
+    // starports up to 2 or 3 (#142), then ships while it's below its ratio, then a city towards the bonus
     const citiesLeft = getUncoveredCities(player) < maxCities;
     if (citiesLeft && wantsNewCityType(player)) {
         const missing = preludeResources.filter(resource => player["cities" + capitalise(resource) + "Value"] == 0);
         const wanted = missing.filter(resource => getResourceNeed(player, resource) > 0 || (resource == "weapons" && declaredAmbitions.includes("warlord")));
         return { build: "city", resources: wanted.length > 0 ? wanted : missing };
     }
+    if (wantsStarport(player)) { return { build: "starport" }; }
     if (player.shipsBoardValue < getShipTarget(player)) { return { build: (player.starportsValue || 0) > 0 ? "ship" : "starport" }; }
     if (citiesLeft && isNearCityBonus(player)) { return { build: "city", resources: null }; }
     return null;
@@ -64,6 +79,12 @@ function getBuildChoice(player, slotResources) {
         const resource = choices[Math.floor(Math.random() * choices.length)];
         return { build: "city", resource: resource, reason: "It has no city on a " + preludeResourceNames[resource].toLowerCase() + " planet yet"
             + (best == 2 ? ", and it's chasing " + capitalise(preludeAmbitions[resource]) : "") + "." };
+    }
+
+    // Fewer starports than it wants (#142), unless it can add a city for an ambition it's chasing
+    const chasedCity = citiesLeft ? slotResources.find(resource => getResourceNeed(player, resource) == 2) : null;
+    if (slotResources.length > 0 && wantsStarport(player) && chasedCity == null) {
+        return { build: "starport", reason: getStarportReason(player) };
     }
 
     // Below its ratio of ships to buildings: a ship, or a starport to build them at if it has none (#125)

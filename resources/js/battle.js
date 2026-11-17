@@ -277,12 +277,19 @@ function getPlanetOptions(defender, withGate = false) {
     // What planet a battle with the defender's buildings could be on, as [{ value, name }]. A
     // battle is in one system, and only a planet has building slots, so all its buildings are on
     // one planet type (#103). The types the defender has a city on come first, then any type its
-    // unset starting city could be on. "starport" is a planet where it has only starports
+    // unset starting city could be on. None: it has no cities, so its buildings are starports.
+    // Each building is set to a city or a starport, so there's no "starports only" planet (#139)
     const hasCity = resource => defender["cities" + capitalise(resource) + "Value"] > 0;
     const types = preludeResources.filter(hasCity).concat(defender.startingCity ? preludeResources.filter(resource => !hasCity(resource)) : []);
     // Gate Stations (Lore): its holder can have a city on a gate, of every type in its cluster (#120)
     const gate = (withGate && hasLore(defender, 11)) ? [{ value: "gate", name: "A gate (Gate Stations)" }] : [];
-    return types.map(resource => ({ value: resource, name: preludeResourceNames[resource] })).concat(gate, { value: "starport", name: "Starports only" });
+    return types.map(resource => ({ value: resource, name: preludeResourceNames[resource] })).concat(gate);
+}
+
+function getFirstPlanet(defender) {
+    // The planet a city would be on, to start with. "starport" when it can't have a city here
+    const options = getPlanetOptions(defender);
+    return options.length > 0 ? options[0].value : "starport";
 }
 
 function getBuildingTypesOn(defender, planet, kinds) {
@@ -303,9 +310,9 @@ function getBattleBuildingTypes() {
     // What each defending building is, fresh ones first. They start as cities on a planet it has a
     // city on, so the bot is careful unless told otherwise
     const options = getPlanetOptions(battle.defender);
-    if (!options.some(option => option.value == battle.planet)) { battle.planet = options[0].value; }
+    if (!options.some(option => option.value == battle.planet)) { battle.planet = getFirstPlanet(battle.defender); }
     const count = battle.freshBuildings + battle.damagedBuildings;
-    while (battle.buildingKinds.length < count) { battle.buildingKinds.push("city"); }
+    while (battle.buildingKinds.length < count) { battle.buildingKinds.push(options.length > 0 ? "city" : "starport"); }
     battle.buildingKinds.length = count;
     return getBuildingTypesOn(battle.defender, battle.planet, battle.buildingKinds);
 }
@@ -321,12 +328,21 @@ function setBuildingKind(index, kind) {
 }
 
 function getBuildingChoiceHtml(id, planet, kinds, label, onPlanet, onKind) {
-    // The planet once, then City or Starport for each building (none on a starports-only planet)
+    // City or Starport for each building, then the planet, only when one is a city (#139)
     const options = getPlanetOptions(battle.defender, id == "battleDestroyed");
-    let html = "<div class=\"boardgrouplabel mt-2\">Planet</div>"
+    let html = "";
+    kinds.forEach((kind, index) => {
+        const choice = (value, name) => "<input type=\"radio\" class=\"btn-check\" name=\"" + id + index + "\" id=\"" + id + index + value + "\"" + (kind == value ? " checked" : "")
+            + " onchange=\"" + onKind + "(" + index + ", '" + value + "')\"><label class=\"btn btn-outline-secondary\" for=\"" + id + index + value + "\">" + name + "</label>";
+        html += "<div class=\"d-flex align-items-center justify-content-between mt-2\"><span class=\"small fw-semibold\">" + label(index) + "</span>"
+            + "<div class=\"btn-group btn-group-sm\" role=\"group\">" + choice("city", "City") + choice("starport", "Starport") + "</div></div>";
+    });
+    const cities = kinds.filter(kind => kind == "city").length;
+    if (cities == 0 || options.length == 0) { return html; }
+
+    html += "<div class=\"boardgrouplabel mt-3\">Planet (for the " + (cities == 1 ? "city" : "cities") + ")</div>"
         + "<select class=\"form-select form-select-sm\" id=\"" + id + "Planet\" onchange=\"" + onPlanet + "(this.value)\">"
         + options.map(option => "<option value=\"" + option.value + "\"" + (option.value == planet ? " selected" : "") + ">" + option.name + "</option>").join("") + "</select>";
-    if (planet == "starport") { return html; }
     if (planet == "gate") {
         // The gate city's types: each city type in its cluster
         const ticked = battle.destroyed.gateTypes || [];
@@ -335,12 +351,6 @@ function getBuildingChoiceHtml(id, planet, kinds, label, onPlanet, onKind) {
                 + " onchange=\"toggleGateType('" + resource + "', this.checked)\"><label class=\"btn btn-outline-secondary btn-sm\" for=\"gateType_" + resource + "\">" + preludeResourceNames[resource] + "</label>").join("") + "</div>"
             + "<div class=\"small text-muted mt-1\">Destroying a gate city Provokes Outrage of every one of its types.</div>";
     }
-    kinds.forEach((kind, index) => {
-        const choice = (value, name) => "<input type=\"radio\" class=\"btn-check\" name=\"" + id + index + "\" id=\"" + id + index + value + "\"" + (kind == value ? " checked" : "")
-            + " onchange=\"" + onKind + "(" + index + ", '" + value + "')\"><label class=\"btn btn-outline-secondary\" for=\"" + id + index + value + "\">" + name + "</label>";
-        html += "<div class=\"d-flex align-items-center justify-content-between mt-2\"><span class=\"small fw-semibold\">" + label(index) + "</span>"
-            + "<div class=\"btn-group btn-group-sm\" role=\"group\">" + choice("city", "City") + choice("starport", "Starport") + "</div></div>";
-    });
     return html;
 }
 
@@ -547,15 +557,14 @@ function showBattleRaid() {
     }
     // What the buildings are, as destroying a city and a starport are very different. With no
     // cities, they can only be starports
-    if (battle.freshBuildings + battle.damagedBuildings > 0 && getPlanetOptions(battle.defender).length > 1) {
+    if (battle.freshBuildings + battle.damagedBuildings > 0 && getPlanetOptions(battle.defender).length > 0) {
         getBattleBuildingTypes();
         html += getBuildingChoiceHtml("battleBuilding", battle.planet, battle.buildingKinds,
             index => (index < battle.freshBuildings ? "Fresh" : "Damaged") + " building", "setBattlePlanet", "setBuildingKind");
     }
-    if (battle.freshBuildings + battle.damagedBuildings == 0) {
-        html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
-            + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleNoBuildings\" onchange=\"setNoBuildings(this.checked)\"" + (battle.noBuildings ? " checked" : "") + ">"
-            + "<label class=\"form-check-label\" for=\"battleNoBuildings\">" + defender + " has no buildings on the board</label></div>";
+    // The app knows from its counters when the defender has no buildings, so it says so (#137)
+    if (battle.freshBuildings + battle.damagedBuildings == 0 && battle.noBuildings) {
+        html += "<div class=\"nobuildingsnote\" id=\"battleNoBuildingsNote\"><i class=\"bi bi-info-circle\"></i> " + defender + " has no buildings on the board, so raid dice are available.</div>";
     }
 
     if (!isRaidAllowed()) {
@@ -781,17 +790,18 @@ function showBattleResults() {
     if (losses.defenderBuildings > 0) {
         html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. " + (losses.defenderBuildings == 1 ? "What was it?" : "What were they?") + "</div>";
 
-        // Filled in from what was said before the roll. The human player starts on starports
+        // Filled in from what was said before the roll. The human player starts on starports, so
+        // nothing Provokes Outrage by mistake. With no cities, they can only be starports
         const destroyed = getDestroyedBuildingTypes();
         const city = destroyed.find(type => type != "starport");
         const options = getPlanetOptions(battle.defender);
-        const planet = (city != null) ? city.split(":").pop() : (battle.attacker.isHuman || battle.planet == null ? "starport" : battle.planet);
+        const planet = (city != null) ? city.split(":").pop() : battle.planet;
         battle.destroyed = {
-            planet: options.some(option => option.value == planet) ? planet : "starport",
-            kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => destroyed[index] == "starport" ? "starport" : "city"),
+            planet: options.some(option => option.value == planet) ? planet : getFirstPlanet(battle.defender),
+            kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => (battle.attacker.isHuman || options.length == 0 || destroyed[index] == "starport") ? "starport" : "city"),
             gateTypes: []
         };
-        html += "<div id=\"battleDestroyed\">" + (options.length > 1 ? getDestroyedHtml() : "") + "</div>";
+        html += "<div id=\"battleDestroyed\">" + (options.length > 0 ? getDestroyedHtml() : "") + "</div>";
         const canRansack = canRansackAgainst(battle.defender);
         html += "<div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Destroying a city:</b> " + attacker + " Provokes Outrage of that resource, discarding its resources and Guild cards of that type"
             + (canRansack ? ", and Ransacks the Court.</div>" : ". " + defender + " is the Elder, so there's no Ransack (Beloved).</div>");
@@ -813,9 +823,19 @@ function showBattleResults() {
     if (battle.attacker.isHuman && battle.ships > 0 && isLeaderRaidAllowed(startBuildings > 0 || battle.noBuildings)) {
         const wants = getRaidWants(battle.attacker, battle.defender);
         if (wants.length > 0) {
-            html += "<div class=\"mt-2\">What did you steal? Tick each one.</div><div class=\"stealist mt-1\" id=\"battleStolenItems\">"
-                + wants.map((want, index) => "<div class=\"form-check\"><input class=\"form-check-input\" type=\"checkbox\" id=\"battleStolen" + index + "\" value=\"" + want.id + "\">"
-                    + "<label class=\"form-check-label\" for=\"battleStolen" + index + "\">" + want.name + "</label></div>").join("") + "</div>";
+            // A resource can be stolen more than once, up to how many they hold (#144). A Guild card is ticked
+            html += "<div class=\"mt-2\">What did you steal?</div><div class=\"stealist mt-1\" id=\"battleStolenItems\">"
+                + wants.map((want, index) => {
+                    if (want.resource != null) {
+                        const held = battle.defender[want.resource + "Value"];
+                        return "<div class=\"stealrow\"><div>" + getGameIcon(want.resource) + " " + want.name + " <small>(they have " + held + ")</small></div>"
+                            + "<div class=\"stealstep\" data-id=\"" + want.id + "\" data-max=\"" + held + "\" data-count=\"0\">"
+                            + "<button type=\"button\" class=\"btn btn-outline-secondary\" aria-label=\"One fewer " + want.name + "\" onclick=\"stepStolen(this, -1)\"><i class=\"bi bi-dash-lg\"></i></button>"
+                            + "<b>0</b><button type=\"button\" class=\"btn btn-outline-secondary\" aria-label=\"One more " + want.name + "\" onclick=\"stepStolen(this, 1)\"><i class=\"bi bi-plus-lg\"></i></button></div></div>";
+                    }
+                    return "<div class=\"stealrow\"><label class=\"flex-fill\" for=\"battleStolen" + index + "\">" + want.name + " <small>(Guild card)</small></label>"
+                        + "<input class=\"form-check-input m-0\" type=\"checkbox\" id=\"battleStolen" + index + "\" value=\"" + want.id + "\"></div>";
+                }).join("") + "</div>";
         }
     }
 
@@ -833,6 +853,25 @@ function showBattleResults() {
 
     document.getElementById("battleAdvice").innerHTML = html;
     showHideElement([document.getElementById("chooseBattleDice"), document.getElementById("battleDone")], false);
+}
+
+function stepStolen(button, change) {
+    // One more or fewer of a resource you stole, from 0 to how many they hold (#144)
+    const step = button.closest(".stealstep");
+    const count = Math.min(Math.max(parseInt(step.dataset.count) + change, 0), parseInt(step.dataset.max));
+    step.dataset.count = count;
+    step.querySelector("b").textContent = count;
+}
+
+function getStolenText(stolenItems) {
+    // e.g. "2 psionics and the Skirmishers"
+    const parts = [];
+    stolenItems.forEach(stolen => {
+        if (parts.some(part => part.id == stolen.id)) { parts.find(part => part.id == stolen.id).count++; return; }
+        parts.push({ id: stolen.id, resource: stolen.resource, name: stolen.name, count: 1 });
+    });
+    return parts.map(part => part.resource == null ? "the " + part.name
+        : (part.count == 1 ? "1 " + preludeResourceNames[part.resource].toLowerCase() : part.count + " " + getResourceWord(part.resource))).join(" and ");
 }
 
 function adjustCounter(player, counter, change) {
@@ -901,8 +940,11 @@ function applyBattleResults() {
     const stoleBox = document.getElementById("battleStole");
     const stolenList = document.getElementById("battleStolenItems");
     const wants = getRaidWants(attacker, defender);
+    // Each resource once for each one stolen (#144), and each Guild card ticked
     const stolenItems = (stolenList != null)
-        ? [...stolenList.querySelectorAll("input:checked")].map(input => wants.find(want => want.id == input.value)).filter(want => want != null)
+        ? [...stolenList.querySelectorAll(".stealstep")].flatMap(step => Array(parseInt(step.dataset.count)).fill(step.dataset.id))
+            .concat([...stolenList.querySelectorAll("input:checked")].map(input => input.value))
+            .map(id => wants.find(want => want.id == id)).filter(want => want != null)
         : ((stoleBox != null && stoleBox.checked && getBattleRaidItem() != null) ? [getBattleRaidItem()] : []);
     stolenItems.forEach(stolen => {
         if (stolen.resource != null) {
@@ -925,7 +967,7 @@ function applyBattleResults() {
         + (cities.length > 0 ? "<br>Player " + attacker.number + " Provokes Outrage: " + cities.join(", ") : "")
         + (ransacked != null ? "<br>Ransacked " + ransacked.name + ". Add its replacement to the market." : (cities.length > 0 && canRansackAgainst(defender) ? "<br>Ransack the Court." : ""))
         + leaderLines.map(line => "<br>" + line).join("")
-        + (stolenItems.length > 0 ? "<br>Stole " + stolenItems.map(stolen => "the " + stolen.name).join(" and ") : "")
+        + (stolenItems.length > 0 ? "<br>Stole " + getStolenText(stolenItems) : "")
         + (cities.length > 0 && getOverCapacityAdvice(defender) != null ? "<br>" + getOverCapacityAdvice(defender) : ""));
 
     battle.start = null;

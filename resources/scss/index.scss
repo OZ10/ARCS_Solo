@@ -751,7 +751,8 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
 // equal, so a long name like Administration can't push the last column off the window
 .mullhand {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  // Three to a row, or two when three would make the names too small to read. Never more than three
+  grid-template-columns: repeat(auto-fill, minmax(max(112px, calc((100% - 12px) / 3)), 1fr));
   gap: 6px;
   margin: 10px 0 4px;
 }
@@ -763,16 +764,24 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
   padding: 6px 2px;
   text-align: center;
   line-height: 1.1;
-  // Smaller on narrow phones, so the longest name still fits on one line
-  font-size: min(0.9rem, 3.3vw);
-  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  // The name is sized to the card's width, so the longest (Administration) fits on one line
+  // whatever the phone and its font (#122)
+  container-type: inline-size;
 
   b {
     display: block;
     font-size: 1.3rem;
   }
 
+  .mullname {
+    display: block;
+    white-space: nowrap;
+    font-size: min(0.9rem, 10.5cqi);
+  }
+
   small {
+    display: block;
     font-size: 0.7rem;
     opacity: 0.75;
     text-transform: uppercase;
@@ -781,8 +790,71 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
 }
 
 // What you stole: a tick list (#128)
-.stealist .form-check {
-  margin-bottom: 4px;
+// What you stole: a stepper for each resource, a tick for each Guild card (#144)
+.stealrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid #e2e4e8;
+
+  &:first-child {
+    border-top: 0;
+  }
+
+  small {
+    color: #5b6573;
+  }
+
+  .form-check-input {
+    width: 1.4em;
+    height: 1.4em;
+    flex: none;
+  }
+}
+
+.stealstep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 8px;
+  }
+
+  b {
+    min-width: 18px;
+    text-align: center;
+  }
+}
+
+// The Court at setup: the app can deal the cards (#136)
+.courtdeal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #eef1f5;
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 12px;
+
+  .btn {
+    white-space: nowrap;
+  }
+}
+
+// The defender has no buildings on the board, so raid dice are available (#137)
+.nobuildingsnote {
+  font-size: 0.85rem;
+  text-align: center;
+  background: #eef1f5;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 6px;
 }
 
 // A gate city's types (#120)

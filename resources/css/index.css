@@ -647,7 +647,7 @@ header {
 
 .mullhand {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(max(112px, (100% - 12px) / 3), 1fr));
   gap: 6px;
   margin: 10px 0 4px;
 }
@@ -659,22 +659,82 @@ header {
   padding: 6px 2px;
   text-align: center;
   line-height: 1.1;
-  font-size: min(0.9rem, 3.3vw);
-  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  container-type: inline-size;
 }
 .mullcard b {
   display: block;
   font-size: 1.3rem;
 }
+.mullcard .mullname {
+  display: block;
+  white-space: nowrap;
+  font-size: min(0.9rem, 10.5cqi);
+}
 .mullcard small, .mullcard .small {
+  display: block;
   font-size: 0.7rem;
   opacity: 0.75;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
-.stealist .form-check {
-  margin-bottom: 4px;
+.stealrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid #e2e4e8;
+}
+.stealrow:first-child {
+  border-top: 0;
+}
+.stealrow small, .stealrow .small {
+  color: #5b6573;
+}
+.stealrow .form-check-input {
+  width: 1.4em;
+  height: 1.4em;
+  flex: none;
+}
+
+.stealstep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stealstep .btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+}
+.stealstep b {
+  min-width: 18px;
+  text-align: center;
+}
+
+.courtdeal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #eef1f5;
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 12px;
+}
+.courtdeal .btn {
+  white-space: nowrap;
+}
+
+.nobuildingsnote {
+  font-size: 0.85rem;
+  text-align: center;
+  background: #eef1f5;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 6px;
 }
 
 .gatetypes {

@@ -144,6 +144,10 @@ const fewShipsOnBoard = 5;
 // A bot aims for about this many ships per building, cities and starports (#125)
 const shipsPerBuilding = 3;
 
+// How many starports a bot wants, more from this round on (#142)
+const starportsWanted = { early: 2, later: 3 };
+const starportsLaterFrom = 3;
+
 // With this many ships, and more than a Rival, a bot battles just because it can (#125)
 const aggressiveFleet = 4;
 
@@ -383,13 +387,15 @@ const ambitionQuestionActions = {
     EMPATH: ["tax", "reachTax", "secure", "influence", "battle", "reachRaid"]
 };
 
-// What each question says. The reach questions depend on the game (see getReachQuestion)
+// What each question says. The reach questions depend on the game (see getReachQuestion). A raid can be at a
+// city or a starport, or at ships when the rival has no buildings (#141). A battle worth fighting is one the bot
+// outnumbers (#143)
 const ambitionQuestionText = {
     TYCOON: {
         tax: "Can I tax a city for materials or fuel?",
         secure: "Is there a materials or fuel card in the market I can secure?",
         influence: "Is there a materials or fuel card in the market I can influence?",
-        battle: "Can I raid a city for materials or fuel?"
+        battle: "Can I raid a rival for materials or fuel? (at their city or starport, or their ships if they have no buildings)"
     },
     TYRANT: {
         tax: "Can I tax a rival's city to capture?",
@@ -397,7 +403,7 @@ const ambitionQuestionText = {
         battle: "Can I destroy a city to ransack the court?"
     },
     WARLORD: {
-        battle: "Can I battle a rival?",
+        battle: "Is there a system where my ships outnumber a rival's?",
         secure: "Is there a weapons card in the market I can secure?",
         influence: "Is there a weapons card in the market I can influence?"
     },
@@ -405,13 +411,13 @@ const ambitionQuestionText = {
         tax: "Can I tax a city for a relic?",
         secure: "Is there a relic card in the market I can secure?",
         influence: "Is there a relic card in the market I can influence?",
-        battle: "Can I raid a city for a relic?"
+        battle: "Can I raid a rival for a relic? (at their city or starport, or their ships if they have no buildings)"
     },
     EMPATH: {
         tax: "Can I tax a city for a psionic?",
         secure: "Is there a psionic card in the market I can secure?",
         influence: "Is there a psionic card in the market I can influence?",
-        battle: "Can I raid a city for a psionic?"
+        battle: "Can I raid a rival for a psionic? (at their city or starport, or their ships if they have no buildings)"
     }
 };
 

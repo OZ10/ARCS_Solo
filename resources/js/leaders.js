@@ -226,7 +226,7 @@ function showLeaderDraft() {
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     header.classList.add("playerbanner" + getPlayerColour(human));
     document.getElementById("guildBody").innerHTML = html;
-    if (!modal.classList.contains("show")) { bootstrap.Modal.getOrCreateInstance(modal).show(); }
+    if (!modal.classList.contains("show")) { showLockedModal(modal); }
 }
 
 function openDraftCard(id) {
@@ -323,7 +323,7 @@ function showArchivistChoice() {
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     header.classList.add("playerbanner" + getPlayerColour(player));
     document.getElementById("guildBody").innerHTML = html;
-    if (!modal.classList.contains("show")) { bootstrap.Modal.getOrCreateInstance(modal).show(); }
+    if (!modal.classList.contains("show")) { showLockedModal(modal); }
 }
 
 function toggleArchivistLore(number) {

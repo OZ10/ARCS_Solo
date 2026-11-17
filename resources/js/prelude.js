@@ -217,6 +217,11 @@ function getPreludeOffers(player) {
     // Lots of ships, or more than a Rival (#125)
     const manyShips = player.shipsBoardValue >= manyShipsOnBoard || getOutnumberedRival(player) != null;
     const keenToBattle = chasingWarlord || manyShips;
+    // A battle in mind: a Rival it outnumbers, or Warlord to chase. Then it decides on spending
+    // what helps it battle, rather than leaving it to chance (#140)
+    const rival = getOutnumberedRival(player);
+    const battleWhy = (rival != null) ? "Its " + player.shipsBoardValue + " ships outnumber Player " + rival.number + "'s " + rival.shipsBoardValue
+        : (chasingWarlord ? "It's chasing Warlord" : null);
     const guild = getPlayerGuildCards(player);
     const holds = number => guild.some(card => card.number == number);
 
@@ -266,8 +271,12 @@ function getPreludeOffers(player) {
         offerAction("materials", usefulIf.materials, "build");
     }
     // Fuel: decided if the player said it can reach something and its card doesn't move
+    // Or, with a battle in mind and a way to battle, to bring more ships to it (#140)
+    const canBattle = play.actions.includes("battle") || (play.count > 0 && player.weaponsValue > 0);
     if (player.moveGoal != null && !play.actions.includes("move")) {
         offerAction("fuel", "Move " + player.moveGoal, "move", false, "You said it can reach that this turn, and its card doesn't move.");
+    } else if (battleWhy != null && canBattle && !play.actions.includes("move")) {
+        offerAction("fuel", "Move more ships into its battle", "move", false, battleWhy + ", and more ships make the battle safer.");
     } else if (wants(preludeChance.spare)) {
         offerAction("fuel", usefulIf.fuel, "move");
     }
@@ -282,7 +291,9 @@ function getPreludeOffers(player) {
 
     // A Weapon lets any of the card's actions Battle this turn (it doesn't give extra actions),
     // so only when the card has actions and doesn't battle already (rulebook p.17)
-    if (play.count > 0 && !play.actions.includes("battle")) {
+    if (play.count > 0 && !play.actions.includes("battle") && battleWhy != null) {
+        offerAction("weapons", "Its card's actions can Battle this turn", "battle", true, battleWhy + ", and its card can't Battle.");
+    } else if (play.count > 0 && !play.actions.includes("battle")) {
         let chance = preludeChance.weaponsHavoc;
         if (chasingWarlord) { chance += preludeChance.weaponsWarlord; }
         if (manyShips) {
@@ -297,12 +308,15 @@ function getPreludeOffers(player) {
     const lead = playedCardList[0];
     if (play.leading) {
         const chance = (chasingWarlord ? preludeChance.psionicsWarlord : 0) + (manyShips ? preludeChance.psionicsManyShips : 0);
-        if (play.actions.includes("battle") && chance > 0 && wants(chance)) { offerAction("psionics", "One more Battle than the card allows", "battle"); }
+        if (play.actions.includes("battle") && battleWhy != null) { offerAction("psionics", "One more Battle than the card allows", "battle", false, battleWhy + "."); }
+        else if (play.actions.includes("battle") && chance > 0 && wants(chance)) { offerAction("psionics", "One more Battle than the card allows", "battle"); }
     } else {
-        // Decided when it knows the lead card's action is worth it
+        // Decided when it knows the lead card's action is worth it, or it has a battle in mind and
+        // the lead card can Battle (#140)
         const decision = getLeadActionDecision(player, lead);
         const chance = preludeChance.psionicsFollowing + ((keenToBattle && lead.actions.includes("battle")) ? preludeChance.psionicsBattle : 0);
         if (decision != null) { offerAction("psionics", decision.text, "lead", false, decision.why); }
+        else if (battleWhy != null && lead.actions.includes("battle")) { offerAction("psionics", "A Battle, from the lead card", "lead", false, battleWhy + ", and the lead card can Battle."); }
         else if (wants(chance)) { offerAction("psionics", "An action from the lead card (" + lead.actions.split(",").join(", ") + ")", "lead"); }
     }
 

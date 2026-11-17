@@ -151,7 +151,8 @@ function showSetUpPlayers() {
     };
     body.appendChild(done);
 
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
+    // It has to be finished: the mulligan and Round 1 follow its OK (#135)
+    showLockedModal(document.getElementById("guildModal"));
 }
 
 function getMarketShortfall() {
@@ -196,6 +197,14 @@ function addToMarket(number) {
     refreshTurnSummary();
 }
 
+function dealCourtForMe() {
+    // At setup: the app deals the Court at random from the cards not yet in it, and the player
+    // takes the same cards from their Court deck (#136)
+    const target = openingCourtCards[players.length];
+    const available = courtCards.filter(card => !courtMarket.some(entry => entry.number == card.number) && getGuildCardHolder(card.number) == null);
+    shuffleCards(available).slice(0, Math.max(target - courtMarket.length, 0)).forEach(card => addToMarket(card.number));
+}
+
 function removeMarketCard(number) {
     removeFromMarket(number);
     logManualChange({ type: "marketRemove", number: number });
@@ -230,6 +239,7 @@ function getCourtAdviceHtml(player) {
 function showCourtWindow() {
     const body = document.getElementById("courtBody");
     body.innerHTML = getCourtAdviceHtml(courtPlayer);
+
 
     const shortfall = getMarketShortfall();
     const hintText = courtSetup
@@ -297,6 +307,12 @@ function showCourtWindow() {
     add.onchange = () => { if (add.value != "") { addToMarket(add.value); } };
     const isFull = courtMarket.length >= openingCourtCards[players.length];
     if (!isFull) { body.appendChild(add); }
+
+    // At setup, until it's full: or the app can deal the cards (#136)
+    if (courtSetup && !isFull) {
+        body.insertAdjacentHTML("beforeend", "<div class=\"courtdeal\"><div class=\"small flex-fill\">Or let the app deal them, then take the same cards from your Court deck.</div>"
+            + "<button type=\"button\" class=\"btn btn-primary btn-sm\" id=\"courtDealForMe\" onclick=\"dealCourtForMe()\"><i class=\"bi bi-shuffle\"></i> Deal for me</button></div>");
+    }
 
     if (courtSetup) {
         const done = document.createElement("button");

@@ -50,7 +50,7 @@ Tap **Options**, then **New Game**.
 
 <img src="docs/screenshots/court-setup.png" width="300" align="right" alt="Entering the Court">
 
-4. **The Court:** add the cards dealt to the Court market (4, or 3 with 2 players). Bots use this to choose what to secure and influence. You can skip it, but their advice will be more general.
+4. **The Court:** add the cards dealt to the Court market (4, or 3 with 2 players), or tap **Deal for me** and take the same cards from your Court deck. Bots use this to choose what to secure and influence. You can skip it, but their advice will be more general.
 
 <br clear="right">
 
@@ -159,8 +159,8 @@ Tap **Battle** in the turn window, yours or a bot's.
 
 For a bot:
 1. **Defender:** it starts on the Rival it wants to fight, and says why.
-2. **Counts:** enter the ships and buildings in the system, the planet type, and whether each building is a city or a starport.
-3. **Raid:** if the bot can raid, choose what it's after and enter the keys shown on that slot of the defender's board.
+2. **Counts:** enter the ships and buildings in the system, whether each building is a city or a starport, and, for a city, the planet type.
+3. **Raid:** if the bot can raid, choose what it's after and enter the keys shown on that slot of the defender's board. Raid dice need a building in the system, or a defender with no buildings on the board at all. The app knows that from the panels and says so.
 4. **Choose dice:** tells you which dice to roll and how to assign the hits. It weighs up the risk to its ships, what destroying a city would cost in Outrage, and any Ransack. **Details** shows the odds.
 5. **After rolling:** set the counts to what's left. Attack again, or tap **Done battling**.
 
@@ -172,14 +172,14 @@ The **(i)** beside *Can attack again this turn* explains when to use that switch
 
 **Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. Check them and tap **Update values** to update both players' panels.
 
-For your own battles, the window doesn't choose dice. It keeps count while you roll, then updates the panels in the same way.
+For your own battles, the window doesn't choose dice. It keeps count while you roll, then updates the panels in the same way. For what you stole, use **−** and **+** for each resource, as you can take more than one of a kind, and tick any Guild card.
 
 <br clear="right">
 
 ## Building
 <img src="docs/screenshots/build.png" width="300" align="right" alt="The Build window">
 
-Tap **Build** in a bot's turn window. Say whether there's an empty building slot where it has a piece and which planet types those slots are on. The app tells you what it builds and why: a city, a starport or a ship. Tap **Built it** to update its panel.
+Tap **Build** in a bot's turn window. Say whether there's an empty building slot where it has a piece and which planet types those slots are on. The app tells you what it builds and why: a city, a starport or a ship. Bots like 2 starports, and 3 from round 3, so they can build more ships each turn. Tap **Built it** to update its panel.
 
 <br clear="right">
 
