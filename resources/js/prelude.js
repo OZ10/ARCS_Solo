@@ -263,16 +263,19 @@ function getPreludeOffers(player) {
 
     const usefulIf = { materials: "Build or Repair, if there's a good spot", fuel: "Move, if there's a useful move", relics: "Secure, if there's a card worth securing" };
     const gives = { materials: "build", fuel: "move", relics: "secure" };
+    // With a battle in mind, whether it has a way to battle this turn: its card, or a Weapon (#140)
+    const canBattle = play.actions.includes("battle") || (play.count > 0 && player.weaponsValue > 0);
     // Material: decided if the player said it can build or repair and its card doesn't. Not if
-    // they said it can't
+    // they said it can't. Or, with a battle in mind and a starport, a ship built or repaired for it
     if (player.canBuild === true && !play.actions.includes("build")) {
         offerAction("materials", "Build or Repair", "build", false, "You said it can build or repair this turn, and its card doesn't build.");
+    } else if (battleWhy != null && canBattle && player.canBuild !== false && (player.starportsValue || 0) > 0 && !play.actions.includes("build")) {
+        offerAction("materials", "Build a ship at a starport, or repair a damaged ship, ready for its battle", "build", false, battleWhy + ": one more ship, or a repaired one, makes the battle safer.");
     } else if (player.canBuild !== false && wants(preludeChance.spare)) {
         offerAction("materials", usefulIf.materials, "build");
     }
     // Fuel: decided if the player said it can reach something and its card doesn't move
     // Or, with a battle in mind and a way to battle, to bring more ships to it (#140)
-    const canBattle = play.actions.includes("battle") || (play.count > 0 && player.weaponsValue > 0);
     if (player.moveGoal != null && !play.actions.includes("move")) {
         offerAction("fuel", "Move " + player.moveGoal, "move", false, "You said it can reach that this turn, and its card doesn't move.");
     } else if (battleWhy != null && canBattle && !play.actions.includes("move")) {
