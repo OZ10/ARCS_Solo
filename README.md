@@ -57,6 +57,10 @@ Tap **Options**, then **New Game**.
 <img src="docs/screenshots/setup-players.png" width="300" align="right" alt="Setting up the players">
 
 5. **Set up the players:** the setup list says where each player places their pieces, in turn order from whoever has the initiative. On each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on. With Leaders & Lore, the resources are filled in from each Leader, and the list says which pieces go in systems A, B and C.
+<br clear="right">
+
+<img src="docs/screenshots/mulligan.png" width="300" align="right" alt="The mulligan">
+
 6. **The mulligan (2 players):** the player without the initiative may discard their hand and draw 6 new cards. If that's you, the app shows your hand and asks. Then Round 1 begins. In later rounds it asks once the new hands are dealt, before the round begins.
 
 <br clear="right">
@@ -82,7 +86,8 @@ Tap **Options**, then **New Game**.
 **What's left to you:** anything that depends on the board, such as where Force Beams moves ships or which planet Mythic changes. The hints say what the bot may do. You decide where it makes sense.
 
 ## The screen
-- **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options**.
+- **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options** (the gear). Tap an ambition to see how it's won and what it's worth.
+- **Announcements:** at the start of each round and turn, a card says who leads. It closes by itself, or when tapped.
 - **Player panels:** one per player in their colour. Tap a player's name to open or close their panel. The ★ shows who has the initiative.
 - **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships and starports on the board, and cities on each planet type. Each resource has an icon, after its token in the game, and the ambitions in the top bar use the same ones. Keep these matching the table. Bots use them to make their choices, and they're filled in for you when the app knows what happened, such as after a battle.
 - **Outrage:** under the tiles, the resources that player is Outraged in are marked red. It's filled in when a city is destroyed or Outrage Spreads is played, and you can tap one to mark or clear it. A bot won't spend an Outraged resource in its prelude.
@@ -97,6 +102,10 @@ Your hand is listed on your panel. Tap a card to see its pips, ambition and acti
 - **Leading:** **LEAD**, or **DECLARE** to declare the ambition on it.
 - **Following:** **SURPASS**, **COPY** or **PIVOT**.
 - **CLAIM:** turn this on to also seize the initiative with a card played face down.
+
+<br clear="right">
+
+<img src="docs/screenshots/your-turn-window.png" width="300" align="right" alt="Your turn window">
 
 **Your turn window** then opens, like a bot's. It lists the actions your card gives you. Battle has a **Battle** button and Secure or Influence a **Court** button, to keep track of a battle or the market (see below). The others are reminders. **Prelude** lists what your resources and Guild cards can do before your actions. **Spend** takes the resource off your panel and adds its action to your list, such as a Move for a Fuel. **Use** does the same for a Guild card. Each has **Undo** until the turn ends. Anything your card doesn't have is under **Also**, with **Draw**. Carry out your actions on the table and tap **Done**. **Back to board** shrinks the window to a bar, as on a bot's turn.
 
@@ -161,7 +170,7 @@ For a bot:
 1. **Defender:** it starts on the Rival it wants to fight, and says why.
 2. **Counts:** enter the ships and buildings in the system, whether each building is a city or a starport, and, for a city, the planet type.
 3. **Raid:** if the bot can raid, choose what it's after and enter the keys shown on that slot of the defender's board. Raid dice need a building in the system, or a defender with no buildings on the board at all. The app knows that from the panels and says so.
-4. **Choose dice:** tells you which dice to roll and how to assign the hits. It weighs up the risk to its ships, what destroying a city would cost in Outrage, and any Ransack. **Details** shows the odds.
+4. **Choose dice:** tells you which dice to roll and how to assign the hits, including which building to hit first and why. The attacker chooses where its hits go. It weighs up the risk to its ships, what destroying a city would cost in Outrage, any Ransack, and what the defender loses, such as their last starport. **Details** shows the odds.
 5. **After rolling:** set the counts to what's left. Attack again, or tap **Done battling**.
 
 The **(i)** beside *Can attack again this turn* explains when to use that switch.

@@ -116,6 +116,14 @@ function getBuildingValue(attacker, defender, type) {
     let gain = (declaredAmbitions.includes("warlord") && isChasingAmbition(attacker, "warlord")) ? weights.trophyWarlord : weights.trophy;
     let cost = 0;
 
+    // What the defender loses (#138): a starport they build ships at and Catapult from, most of all
+    // their last one; a city they tax, which goes back on their board over a resource slot
+    if (type == "starport") {
+        gain += weights.starportDenied + ((defender.starportsValue || 0) <= 1 ? weights.lastStarport : 0);
+    } else {
+        gain += weights.cityDenied;
+    }
+
     if (type != "starport") {
         const ransack = isMarketKnown() ? getRansackOptions(attacker, defender) : [];
         if (!isMarketKnown()) { gain += weights.ransackUnknown; }
@@ -352,6 +360,25 @@ function getBuildingChoiceHtml(id, planet, kinds, label, onPlanet, onKind) {
             + "<div class=\"small text-muted mt-1\">Destroying a gate city Provokes Outrage of every one of its types.</div>";
     }
     return html;
+}
+
+function getBuildingReason(attacker, defender, type) {
+    // Why it hits this building first (#138), e.g. "no Outrage, and it's their last starport"
+    if (type == "starport") {
+        return "no Outrage, and " + ((defender.starportsValue || 0) <= 1 ? "it's their last starport" : "they can't build ships there");
+    }
+    const resource = type.split(":").pop();
+    const word = getResourceWord(resource);
+    const reasons = [];
+    const ransack = isMarketKnown() ? getRansackOptions(attacker, defender) : [];
+    if (ransack.length > 0) { reasons.push("it Ransacks " + getCourtCard(ransack[0].number).name); }
+    else if (!isMarketKnown()) { reasons.push("it Ransacks the Court"); }
+    const cards = getPlayerGuildCards(attacker).filter(card => card.resource == resource && !card.keepOnOutrage);
+    if ((attacker.outraged || []).includes(resource)) { reasons.push("it's already Outraged in " + word); }
+    else if (attacker[resource + "Value"] == 0 && cards.length == 0) { reasons.push("it has no " + word + " to lose to Outrage"); }
+    else if (getOutrageNeed(attacker, resource) == 0) { reasons.push("it doesn't need its " + word); }
+    if (reasons.length == 0) { reasons.push("they lose a city they tax"); }
+    return reasons.join(", and ");
 }
 
 function getBuildingName(type) {
@@ -667,8 +694,10 @@ function chooseBattleDice() {
     const canAttackAgain = document.getElementById("battleAttackAgain").checked;
     const usefulHits = onPurpose ? buildingHits : getHitsToDestroy(battle.fresh, battle.damaged);
     const wantedBuilding = buildings.find(building => building.value > 0);
+    // Which building first, and why (#138). The attacker chooses where its hits go (rulebook p.14)
     const buildingOrder = (buildings.length > 1 && new Set(buildings.map(building => building.value)).size > 1)
-        ? ": " + buildings.map(building => getBuildingName(building.type)).join(", then ") : "";
+        ? ": " + buildings.map(building => getBuildingName(building.type)).join(", then ") + ". "
+            + capitalise(getBuildingName(buildings[0].type)) + " first: " + getBuildingReason(battle.attacker, battle.defender, buildings[0].type) : "";
 
     // The other options and how likely each was, so the weighting can be checked
     const others = options.filter(option => option !== choice && option.pickChance >= 0.01)

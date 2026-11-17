@@ -106,7 +106,10 @@ const buildingValues = {
     ransackUnknown: 1,      // + instead, when the market hasn't been entered, so there might be one
     resourceLost: [0.5, 1, 2],
     guildCardLost: [1, 2, 3],
-    preludeLost: 1.5        // - no longer being able to spend that resource for its Prelude action
+    preludeLost: 1.5,       // - no longer being able to spend that resource for its Prelude action
+    starportDenied: 0.5,    // + a starport: the defender can't build ships there or Catapult from it (#138)
+    lastStarport: 0.5,      // + more, when it's their last one
+    cityDenied: 0.25        // + a city: one fewer for them to tax, and it covers a resource slot (#138)
 };
 
 // How much more or less it values stealing something, by how much it needs it (getResourceNeed):
