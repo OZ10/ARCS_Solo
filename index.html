@@ -456,11 +456,33 @@
               </div>
             </div>
 
+            <!-- Bot difficulty (#71, see difficulty.js): for every bot, at any time -->
+            <div class="optcard diffcard mt-3">
+              <div class="optcardhead">Bot difficulty</div>
+              <div class="optrow">
+                <div class="diffname" id="botDifficultyName">3 &middot; Normal</div>
+                <div class="diffdesc" id="botDifficultyText"></div>
+                <div class="diffseg">
+                  <input type="radio" class="btn-check" name="botDifficulty" id="botDifficulty1" onchange="setBotDifficulty(1)">
+                  <label class="btn btn-outline-secondary" for="botDifficulty1">1<small>Easy</small></label>
+                  <input type="radio" class="btn-check" name="botDifficulty" id="botDifficulty2" onchange="setBotDifficulty(2)">
+                  <label class="btn btn-outline-secondary" for="botDifficulty2">2<small>Relaxed</small></label>
+                  <input type="radio" class="btn-check" name="botDifficulty" id="botDifficulty3" onchange="setBotDifficulty(3)" checked>
+                  <label class="btn btn-outline-secondary" for="botDifficulty3">3<small>Normal</small></label>
+                  <input type="radio" class="btn-check" name="botDifficulty" id="botDifficulty4" onchange="setBotDifficulty(4)">
+                  <label class="btn btn-outline-secondary" for="botDifficulty4">4<small>Tough</small></label>
+                  <input type="radio" class="btn-check" name="botDifficulty" id="botDifficulty5" onchange="setBotDifficulty(5)">
+                  <label class="btn btn-outline-secondary" for="botDifficulty5">5<small>Hard</small></label>
+                </div>
+                <div class="diffnote">Applies to every bot, from its next decision. You can change it during a game.</div>
+              </div>
+            </div>
+
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v171126.03</small>
+                <small class="text-muted" id="appVersion">v181126.01</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -973,6 +995,7 @@
     <script src="./resources/js/court.js"></script>
     <script src="./resources/js/player.js"></script>
     <script src="./resources/js/rules.js"></script>
+    <script src="./resources/js/difficulty.js"></script>
     <script src="./resources/js/state.js"></script>
     <script src="./resources/js/storage.js"></script>
     <script src="./resources/js/scoring.js"></script>

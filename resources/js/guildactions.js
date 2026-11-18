@@ -25,7 +25,8 @@ function getBotActionCount(player) {
 
 function getGuildActionOffers(player) {
     // What the bot would like to do this turn, in the same form as its prelude offers
-    const wants = chance => Math.random() * 100 < Math.min(chance, preludeChance.max);
+    // On a whim: less often on the easier difficulties, never on the hardest (#71)
+    const wants = chance => Math.random() * 100 < Math.min(getWhimChance(chance), preludeChance.max);
     const holds = name => getPlayerGuildCards(player).some(card => (card.replacesActions || []).some(guildAction => guildAction.name == name));
     const can = action => canBotTakeAction(player, action);
     const labelFor = (name, action) => name + " instead of " + replacedActionNames[action];
@@ -93,7 +94,7 @@ function getGuildActionOffers(player) {
     offers = offers.concat(getLoreActionOffers(player, wants, can));
 
     // No more than it has actions for
-    return offers.slice(0, getBotActionCount(player));
+    return applyOfferDifficulty(offers.slice(0, getBotActionCount(player)));
 }
 
 function startGuildActions(player) {

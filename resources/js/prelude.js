@@ -212,7 +212,8 @@ function getPreludeOffers(player) {
     const play = getBotPlay(player);
     if (play == null) { return []; }
 
-    const wants = chance => Math.random() * 100 < Math.min(chance, preludeChance.max);
+    // On a whim: less often on the easier difficulties, never on the hardest (#71)
+    const wants = chance => Math.random() * 100 < Math.min(getWhimChance(chance), preludeChance.max);
     const chasingWarlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
     // Lots of ships, or more than a Rival (#125)
     const manyShips = player.shipsBoardValue >= manyShipsOnBoard || getOutnumberedRival(player) != null;
@@ -432,7 +433,7 @@ function getPreludeOffers(player) {
     }
 
     // Lore in its prelude (leaderrules.js)
-    return offers.concat(getLorePreludeOffers(player, () => true, available));
+    return applyOfferDifficulty(offers.concat(getLorePreludeOffers(player, () => true, available)));
 }
 
 function startPrelude(player) {

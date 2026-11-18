@@ -666,7 +666,8 @@ function chooseBattleDice() {
     // are, it only attacks to steal
     const buildings = getBattleBuildings();
     const onPurpose = !hasShips && buildings.every(building => building.value >= 0);
-    const mood = getBattleMood(defaultBotPersonality);
+    // How loosely it chooses depends on the difficulty (#71)
+    const mood = getBattleMood(getBotPersonality());
     const raid = getBattleRaid(onPurpose);
     if (!hasShips && buildings.every(building => building.value < 0) && raid == null) {
         advice.innerHTML = "<div class=\"battleroll\">Don't attack</div><div class=\"fst-italic\">Destroying "

@@ -591,7 +591,8 @@ function declareAmbition(player, playedCard) {
     // See declareChanceByRound at the top of the file
     const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource, declareChanceMax);
 
-    if (forShips || Math.random() * 100 < chance) {
+    // By the difficulty (#71): on a whim, or when it would come first, or both
+    if (forShips || decideAtDifficulty(player, wouldWinAmbition(player, ambition), () => Math.random() * 100 < getWhimChance(chance))) {
         showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = placesZeroMarker(player, ambition);
 
@@ -687,10 +688,9 @@ function claim(player, cards, actionToPlay) {
         totalValueOfCards += card.number;
     })
 
-    let num = Math.floor(Math.random() * 16);
-
-    //num = 9;
-    if (num >= totalValueOfCards) {
+    // On a whim, rarer on the easier difficulties, or (from Tough) when leading next round lets it declare an ambition from its hand that it would win (#71)
+    const toDeclare = declaredAmbitions.length < 3 && ['tycoon', 'tyrant', 'warlord', 'keeper', 'empath'].some(ambition => holdsAmbitionCard(player, ambition) && wouldWinAmbition(player, ambition));
+    if (decideAtDifficulty(player, toDeclare, () => Math.floor(Math.random() * 16 * getDifficulty().chance) >= totalValueOfCards)) {
         // First play the card for this turn's action, chosen from the cards that have
         // the action the player is after. It couldn't surpass, so a card of the lead
         // suit can only COPY and any other card PIVOTs

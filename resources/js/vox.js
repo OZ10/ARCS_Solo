@@ -206,7 +206,7 @@ function showVoxCard(player, card) {
             showVoxDecision(player, card, "Does it control a Rival's city?", "Returning that costs it nothing.", [
                 { label: "No", run: () => {
                     const city = getCityToReturn(player);
-                    if (city == null || Math.random() * 100 >= preludeChance.songOfFreedom) {
+                    if (city == null || Math.random() * 100 >= getWhimChance(preludeChance.songOfFreedom)) {
                         nothing("It keeps its cities", city == null ? "It would be its last city." : "It isn't worth a city this time.");
                         return;
                     }

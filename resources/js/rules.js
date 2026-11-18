@@ -96,6 +96,23 @@ const maxDicePerType = 6;
 // (randomness was 0.6, which made it nearly random between raids that scored about the same, #113)
 const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.3, buildingWeight: 1, raidWeight: 3 };
 
+// Bot difficulty (#71), chosen in Options. Level 3 is how the bots have always played; the others
+// scale how loosely they choose (see difficulty.js):
+// randomness, moodSwing: times the battle personality's (0 = always its best dice, the same each battle)
+// planVariation: times the random variation in its turn plan (0 = none)
+// chance: times each chance of doing something on a whim: a prelude or Guild action offer, declaring,
+//         seizing the initiative (0 = never on a whim)
+// decides: it decides some prelude and Guild spends itself, pre-ticked with why. Otherwise all are your call
+// smart: declaring and seizing by working out the scores: "none", "also" (as well as the chance) or "only"
+const defaultDifficulty = 3;
+const difficultyLevels = {
+    1: { name: "Easy", text: "Makes plenty of mistakes and takes big gambles.", randomness: 2, moodSwing: 1.6, planVariation: 2, chance: 0.6, decides: false, smart: "none" },
+    2: { name: "Relaxed", text: "Makes the odd mistake, and plays a little loosely.", randomness: 1.5, moodSwing: 1.3, planVariation: 1.5, chance: 0.8, decides: true, smart: "none" },
+    3: { name: "Normal", text: "Plays well, with some surprises. (As it plays now.)", randomness: 1, moodSwing: 1, planVariation: 1, chance: 1, decides: true, smart: "none" },
+    4: { name: "Tough", text: "Rarely strays from its best move.", randomness: 0.5, moodSwing: 0.5, planVariation: 0.5, chance: 1, decides: true, smart: "also" },
+    5: { name: "Hard", text: "Always takes the best move it can work out.", randomness: 0, moodSwing: 0, planVariation: 0, chance: 0, decides: true, smart: "only" }
+};
+
 // What destroying a building is worth to the attacker, in hits on ships (see getBuildingValue).
 // resourceLost and guildCardLost are for each one Outrage discards, by how much it needs that
 // resource (getResourceNeed). These could also become part of the bot personalities (#71)

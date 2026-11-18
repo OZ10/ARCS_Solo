@@ -589,26 +589,66 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     }
 }
 
+// The number of players, in the same style as the Bot difficulty buttons (#71), filled in
 .playercount {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
 
     button {
-        font-family: "Spectral SC", Georgia, serif;
-        font-size: 1.6rem;
-        line-height: 1.1;
-        border-radius: 12px;
-        padding: 6px 0;
+        font-weight: 700;
+        border-radius: 10px;
+        padding: 8px 0;
 
         // A label under the number that isn't part of the button's text
         &::after {
             content: "players";
             display: block;
-            font-size: 0.7rem;
-            opacity: 0.75;
+            font-size: 0.62rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
     }
+}
+
+// Bot difficulty (#71): the level, what it means, and a button for each
+.diffname {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.diffdesc {
+    font-size: 0.85rem;
+    color: #5b6573;
+    margin-top: 2px;
+}
+
+.diffseg {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 10px;
+
+    .btn {
+        padding: 8px 0;
+        font-weight: 700;
+        border-radius: 10px;
+
+        small {
+            display: block;
+            font-weight: 500;
+            font-size: 0.62rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+    }
+}
+
+.diffnote {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 8px;
 }
 
 .appname {

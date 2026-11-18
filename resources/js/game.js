@@ -101,6 +101,8 @@ function setupGame(numberOfPlayers, optionsClosed = false) {
 
     SaveAllSettings();
     saveSettingObject("leadersAndLore", leadersAndLore);
+    // The difficulty carries on into the new game (#71)
+    saveSettingObject("botDifficulty", botDifficulty);
 
     // localStorage was cleared above, so there's nothing to undo
     updateUndoButton();

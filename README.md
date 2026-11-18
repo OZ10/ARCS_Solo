@@ -65,6 +65,17 @@ Tap **Options**, then **New Game**.
 
 <br clear="right">
 
+### Bot difficulty
+In **Options**, under New Game, choose how well the bots play, from **1 (Easy)** to **5 (Hard)**. It applies to every bot from its next decision, so you can change it during a game.
+
+- **1 Easy:** makes plenty of mistakes and takes big gambles. It leaves every prelude spend to you.
+- **2 Relaxed:** makes the odd mistake, and plays a little loosely.
+- **3 Normal:** plays well, with some surprises.
+- **4 Tough:** rarely strays from its best move, and declares an ambition or seizes the initiative when it works out it would win.
+- **5 Hard:** always takes the best move it can work out, and does nothing on a whim. Its prelude spends are still ticked for you to check.
+
+Even on Hard, the app can't see the board, so the bots still ask their questions and plan from what the app knows.
+
 ## Leaders & Lore
 <img src="docs/screenshots/leaders-draft.png" width="300" align="right" alt="The Leaders & Lore draft">
 

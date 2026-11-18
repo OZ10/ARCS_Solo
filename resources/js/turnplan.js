@@ -127,7 +127,7 @@ function getBattleTarget(player) {
             + rival.powerValue * weights.power
             + ((player.shipsBoardValue >= aggressiveFleet && rival.shipsBoardValue < player.shipsBoardValue) ? (player.shipsBoardValue - rival.shipsBoardValue) * weights.outnumbered : 0)
             + rival.shipsBoardValue * (warlord ? weights.shipWarlord : weights.ship)
-            + Math.random() * weights.variation;
+            + Math.random() * weights.variation * getDifficulty().planVariation;
         target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
         player.battleTargetNumber = target.number;
     }
@@ -248,7 +248,7 @@ function getTurnPlan(player) {
     // doesn't change every time the summary is redrawn
     if (player.planVariation == null) {
         player.planVariation = {};
-        turnPlanOrder.forEach(action => { player.planVariation[action] = Math.random() * turnPlanWeights.variation; });
+        turnPlanOrder.forEach(action => { player.planVariation[action] = Math.random() * turnPlanWeights.variation * getDifficulty().planVariation; });
     }
 
     const preludeSpent = (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
