@@ -22,7 +22,10 @@ const fateGuildCards = [
         { protected: true, code: "F4 02", replacesActions: [{ name: "Recover", replaces: "move" }] }),
     new CourtCard(205, "Guild Overseers", "guild", "relics", 0,
         "To use actions on Guild cards, you must be first or second for a declared ambition. When Secured: Take any 1 Guild card from the Court deck or discard pile.",
-        { protected: true, code: "F4 03" })
+        { protected: true, code: "F4 03" }),
+    new CourtCard(206, "Dealmakers", "guild", "psionics", 0,
+        "Bargain (Secure): Choose a Court card that a Rival could secure. They secure it but return the agents they would capture. You influence once for each agent they had on the card, then you secure once.",
+        { protected: true, code: "F1 03", replacesActions: [{ name: "Bargain", replaces: "secure" }] })
 ];
 
 // Fates the bots aren't dealt yet (the Magnate needs Summit deals)
@@ -35,7 +38,7 @@ const botsNotDealt = [3];
 // resolution  - its Resolution card: { completed, failed, gain (Guild cards), scrapEdicts (on a fail) }
 // taught      - the bots play towards its objective
 const fateRules = {
-    1: { resolution: { completed: "Add Council Intrigue (05), Tax Collectors (06) and Hunter Squads (07) to the Court deck. Add Imperial Protectors (08) to the rules booklet. Scrap Empire Falls (09) and 2 Lesser Regents (10-11).",
+    1: { cards: [206], other: ["Imperial Authority"], taught: true, resolution: { completed: "Add Council Intrigue (05), Tax Collectors (06) and Hunter Squads (07) to the Court deck. Add Imperial Protectors (08) to the rules booklet. Scrap Empire Falls (09) and 2 Lesser Regents (10-11).",
         failed: "Scrap Council Intrigue, Tax Collectors, Hunter Squads and Imperial Protectors (05-08). Add Empire Falls (09), 2 Lesser Regents (10-11) and Dealmakers (03) to the Court deck." } },
     2: { resolution: { completed: "Gain Book of Liberation (04). Add 3 Political Intrigue (05-07) to the Court deck. Put 2 Construction Union (08-09) and 2 Admin Union (10-11) behind the next Resolution card (23).",
         failed: "Scrap Book of Liberation and 3 Political Intrigue (04-07). Add 2 Construction Union and 2 Admin Union (08-11) to the Court deck." } },
@@ -85,7 +88,13 @@ function applyFateSetups(act) {
 }
 
 function buryOutlawCards(player) {
-    // Some Fate cards are buried when their holder becomes an Outlaw (Imperial Officers)
+    // Some Fate cards are buried when their holder becomes an Outlaw (Imperial Officers, and the
+    // Steward's Imperial Authority)
+    const state = getCampaignPlayer(player);
+    if (hasFate(player, 1) && !(state.buried || []).includes("Imperial Authority")) {
+        state.buried = (state.buried || []).concat("Imperial Authority");
+        showMessageToast("Player " + player.number + " is an Outlaw", "Bury Imperial Authority.");
+    }
     const buried = getPlayerGuildCards(player).filter(card => card.buryIfOutlaw);
     if (buried.length == 0) { return; }
     player.guildCards = player.guildCards.filter(number => !buried.some(card => card.number == number));
@@ -302,7 +311,7 @@ registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
 
 // The Fates' Guild card actions, offered after a bot's prelude (guildactions.js)
 
-registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can)));
+registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can), getBargainOffers(player, wants, can)));
 
 function getSpyOffers(player, wants, can) {
     // Spy (Informants): its highest card for a Rival's highest. Worth it when its own highest is low
@@ -390,6 +399,29 @@ registerCampaignHook("guildCardButtons", (player, card, body) => {
     return undefined;
 });
 
+// The Steward (Fate 1). Consolidate Your Imperial Power: each time it wins an ambition while First
+// Regent, 1 for each Power gained from it (including bonus city Power). Imperial Authority: it may
+// tax any Empire-controlled cities as if Loyal. Dealmakers: Bargain instead of a Secure
+
+registerCampaignHook("ambitionsScored", results => {
+    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 1) && isFirstRegent(result.player) && result.points > 0)
+        .forEach(result => advanceObjective(result.player, result.points, "Won " + capitalise(result.ambition) + " as First Regent: " + result.points + " Power"));
+    return undefined;
+});
+
+function getBargainOffers(player, wants, can) {
+    // Bargain (Dealmakers): when a Rival could secure a card in the Court, the Steward takes over
+    // their agents' worth of influence and then secures it. The player checks the Court
+    if (!(player.guildCards || []).includes(206) || !can("secure")) { return []; }
+    const rivalCanSecure = isMarketKnown() ? courtMarket.filter(entry => !isMarketCardClosed(entry) && players.some(other => other !== player && canSecureEntry(entry, other))) : [];
+    if (isMarketKnown() && rivalCanSecure.length == 0) { return []; }
+    const entry = rivalCanSecure[0];
+    return [{ label: "Bargain instead of a Secure (Dealmakers)", text: entry != null
+        ? "choose " + getCourtCard(entry.number).name + ": the Rival secures it without capturing; it influences once for each of their agents there, then secures once"
+        : "choose a Court card a Rival could secure: they secure it without capturing; it influences once for each of their agents there, then secures once",
+        decided: entry != null, why: entry != null ? "A Rival could secure " + getCourtCard(entry.number).name + "." : null }];
+}
+
 function getFateMarketBonus(player, entry) {
     // The Advocate wants Guild cards, for their Preludes
     const card = getCourtCard(entry.number);
@@ -418,6 +450,11 @@ function getFateTurnSection(player) {
             : "<b>Partisan Seizing:</b> it seizes the initiative by Provoking Outrage of a resource it doesn't need, never by discarding a second card. ")
             + "Getting the initiative advances its objective.</div>";
     }
+    if (hasFate(player, 1)) {
+        html += "<div class=\"empirenote\">" + (isFirstRegent(player) ? "<b>First Regent:</b> each ambition it wins now advances its objective by the Power it gains."
+            : "<b>Not First Regent:</b> it wants the Imperial Council, to become First Regent and advance its objective with ambitions it wins.")
+            + ((getCampaignPlayer(player).buried || []).includes("Imperial Authority") ? "" : " <b>Imperial Authority:</b> it may tax any Empire-controlled city as if it were its own, ignoring the Presence and Truce Laws (no Captives).") + "</div>";
+    }
     if (hasFate(player, 4)) {
         html += "<div class=\"empirenote\"><b>Guild Overseers:</b> " + (!hasOverseers(player) ? "it no longer has them." : isPlacedInDeclaredAmbition(player)
             ? "it's first or second for a declared ambition, so it can use its Guild card actions. It uses Guild Preludes that discard themselves, and Recovers, to advance its objective."
@@ -443,8 +480,9 @@ function getFatePanelHtml(player) {
             + "<div class=\"objbar\"><div style=\"width:" + Math.round(done / state.objectiveStart * 100) + "%\"></div></div></div>";
     }
     const rules = fateRules[state.fate];
-    if (rules != null && (rules.other || []).length > 0 && campaign.act == 1) {
-        html += "<div class=\"fatecards\"><span class=\"boardgrouplabel mb-0 me-1\">Fate</span>" + rules.other.map(name => "<span class=\"fatechip\">" + name + "</span>").join("") + "</div>";
+    const other = (rules == null || campaign.act != 1) ? [] : (rules.other || []).filter(name => !(state.buried || []).includes(name));
+    if (other.length > 0) {
+        html += "<div class=\"fatecards\"><span class=\"boardgrouplabel mb-0 me-1\">Fate</span>" + other.map(name => "<span class=\"fatechip\">" + name + "</span>").join("") + "</div>";
     }
     return html;
 }

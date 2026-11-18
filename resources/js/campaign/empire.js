@@ -76,7 +76,8 @@ registerCampaignHook("turnSections", (player, plan) => {
 registerCampaignHook("marketValue", (player, entry) => {
     // Other cards: what its Fate makes them worth (fatebots.js)
     if (entry.number != councilNumber) { return getFateMarketBonus(player, entry); }
-    if (isRegent(player)) { return isFirstRegent(player) ? councilValues.alreadyFirstRegent : councilValues.becomeFirstRegent; }
+    // The Steward wants to be First Regent all the more (fatebots.js)
+    if (isRegent(player)) { return isFirstRegent(player) ? councilValues.alreadyFirstRegent : councilValues.becomeFirstRegent + (hasFate(player, 1) ? 1 : 0); }
     return Math.min(getTrustTotal(), getEmptySlots(player)) * councilValues.perStolen;
 });
 
