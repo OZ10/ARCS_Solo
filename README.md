@@ -80,7 +80,7 @@ Even on Hard, the app can't see the board, so the bots still ask their questions
 ## Leaders & Lore
 <img src="docs/screenshots/leaders-draft.png" width="300" align="right" alt="The Leaders & Lore draft">
 
-**The draft:** after the Court, everyone drafts as the rulebook says. There's a row of Leaders and a row of Lore cards, one more of each than there are players, and players pick in reverse turn order. You take one kind in the first round and the other kind in the second. Tap a card to read it, then **Take** it. The bots pick at random.
+**The draft:** after the Court, everyone drafts as the rulebook says. There's a row of Leaders and a row of Lore cards, one more of each than there are players, and players pick in reverse turn order. You take one card type in the first round and the other card type in the second. Tap a card to read it, then **Take** it. The bots pick at random.
 
 **Setting up:** the app sets each player up from their Leader: their starting resources, and what to place in systems A, B and C. An Archivist also chooses 2 extra Lore cards. Each player's Leader and Lore are shown above their Guild row. Tap one to read it.
 

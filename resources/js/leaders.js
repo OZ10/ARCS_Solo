@@ -204,7 +204,7 @@ function showLeaderDraft() {
         + order.slice(0, -1).join(", ") + ", then " + order[order.length - 1] + ".</div>"
         + roundPicks.map(pick => "<div>" + getPlayerTag(getPlayer(pick.player)) + " took <b>" + getDraftCard(pick.kind, pick.number).name + "</b></div>").join("")
         + "<div class=\"mt-1\"><b>" + (isYou(human) ? "Your pick:" : tagPlayerNames("Player " + human.number + "'s") + " pick:") + "</b> " + (leaderDraft.round == 1
-            ? "a Leader or a Lore card. The other kind comes next round."
+            ? "a Leader or a Lore card. " + (isYou(human) ? "You'll get the other card type next round." : "The other card type comes next round.")
             : (isYou(human) ? "your " : "their ") + (needsDraftKind(human.number, "leader") ? "Leader" : "Lore card") + ".") + "</div></div>";
 
     Object.keys(draftKinds).forEach(kind => {

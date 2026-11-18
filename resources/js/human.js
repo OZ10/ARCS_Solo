@@ -21,7 +21,8 @@ function createRadioButtons(btntext, group, groupname, btnstyle, player = null, 
 
     if (groupname == "actiontype") {
         input.onclick = function () {
-            humanSelectedAction(btntext, player);
+            // The player as they are now, not as they were when the button was made
+            humanSelectedAction(btntext, player == null ? undefined : getPlayer(player.number));
 
             // Reset checked on all action type buttons
             document.querySelectorAll('input[name=actiontype]').forEach(input => { input.checked = false });
