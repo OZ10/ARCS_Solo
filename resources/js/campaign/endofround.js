@@ -262,8 +262,9 @@ function startCrises() {
     showCampaignWindow("Crises", "<p class=\"mb-2\">Resolve these in order on the table and tick each one. Dice: " + getDiceHtml(dice) + "</p>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">1 &middot; Blight Crises</div>"
         + step("In every system with Blight: each fresh Blight deals 3 hits, each damaged Blight 1 hit", "Imperial ships take hits first, then the Loyal ships of every player there, fresh before damaged. (A Flagship only once no other fresh Loyal ships remain.)") + "</div>"
-        + "<div class=\"turnsection\"><div class=\"turnlabel\">2 &middot; Fate Crises</div>"
-        + step("Any cards with Crisis text that players hold, in turn order", "From their Fates.") + "</div>"
+        + "<div class=\"turnsection\"><div class=\"turnlabel\">2 &middot; Fate Crises, in turn order</div>"
+        + getTurnOrder().flatMap(player => getPlayerGuildCards(player).filter(card => card.crisis != null).map(card => step(card.name + " (Player " + player.number + ")", card.crisis))).join("")
+        + step("Any other cards with Crisis text that players hold", "From their Fates.") + "</div>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">3 &middot; Court Crises, left to right</div>"
         + (vox.length > 0 ? vox.map(card => step(card.name, fillDice(card.crisis))).join("") : "<p class=\"small mb-0\">No Vox cards in the Court (that the app knows of).</p>")
         + "<p class=\"small text-secondary mt-1 mb-0\">A card that leaves the Court returns its agents, and the Court is refilled.</p></div>"

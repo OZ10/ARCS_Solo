@@ -31,7 +31,13 @@ const fateGuildCards = [
         { protected: true, code: "F2 02" }),
     new CourtCard(208, "Stone-Speakers", "guild", "materials", 0,
         "When you declare an ambition, you may end your turn: take any Golems from your Rivals, then roll the event die and resolve the Crises if they're rolled (not the Edicts).",
-        { protected: true, code: "F5 04" })
+        { protected: true, code: "F5 04" }),
+    new CourtCard(209, "Faithful Disciples", "guild", "relics", 0,
+        "If you play a Faithful action card and declare an ambition you're winning, gain one more action pip.",
+        { protected: true, code: "F8 02" }),
+    new CourtCard(210, "Merchant League", "guild", "fuel", 0,
+        "Crisis: Discard all resources on this card. When you declare an ambition, you may gain any 2 resources and place them here. They're frozen, except for Transfer Asset in Summits.",
+        { protected: true, code: "F3 02", crisis: "Discard all resources on Merchant League." })
 ];
 
 // Fates the bots aren't dealt yet (the Magnate needs Summit deals)
@@ -48,7 +54,7 @@ const fateRules = {
         failed: "Scrap Council Intrigue, Tax Collectors, Hunter Squads and Imperial Protectors (05-08). Add Empire Falls (09), 2 Lesser Regents (10-11) and Dealmakers (03) to the Court deck." } },
     2: { cards: [207], taught: true, resolution: { completed: "Gain Book of Liberation (04). Add 3 Political Intrigue (05-07) to the Court deck. Put 2 Construction Union (08-09) and 2 Admin Union (10-11) behind the next Resolution card (23).",
         failed: "Scrap Book of Liberation and 3 Political Intrigue (04-07). Add 2 Construction Union and 2 Admin Union (08-11) to the Court deck." } },
-    3: { resolution: { completed: "Add Elder Broker (04), Relic Fence (05) and Prison Wardens (06) to the Court deck. Put the 5 Cartels (07-11) behind the next Resolution card (21). If Mining or Shipping Interest is in the Court discard, add it to the Court deck.",
+    3: { cards: [210], resolution: { completed: "Add Elder Broker (04), Relic Fence (05) and Prison Wardens (06) to the Court deck. Put the 5 Cartels (07-11) behind the next Resolution card (21). If Mining or Shipping Interest is in the Court discard, add it to the Court deck.",
         failed: "Scrap Elder Broker, Relic Fence and Prison Wardens (04-06). Add the 5 Cartels (07-11) to the Court deck." } },
     4: { cards: [204, 205], taught: true,
         resolution: { completed: "Add Guild Overseers (03), the 5 Liaisons (05-09) and Diplomatic Fiasco (10) to the Court deck. Scrap Guild Struggle (11).",
@@ -58,6 +64,9 @@ const fateRules = {
     6: { cards: [203], other: ["Partisan Seizing"], taught: true,
         resolution: { completed: "Add the 5 Loyal cards (05-09) to the Court deck. Gain Galactic Bards (10). Scrap Spacing Union (11), Arms Union (12) and 2 Outrage Spreads (13-14).",
             failed: "Scrap the 5 Loyal cards (05-09). Add Galactic Bards, Spacing Union, Arms Union and 2 Outrage Spreads (10-14) to the Court deck. Scrap Partisan Seizing and clear your Outrage.", gain: [25], failClearsOutrage: true } },
+    8: { cards: [209], other: ["Spreading the Faith", "Faithful Cards", "Pluralistic Faith"], taught: true,
+        resolution: { completed: "Gain The Young Light (16). Add Plot to Kidnap (17) to the Court deck. Scrap Spreading the Faith, The Prodigal One (18) and Secret Order (19). Add the Faithful cards left in your stack to the Court deck.",
+            failed: "Scrap Spreading the Faith, The Young Light and Plot to Kidnap. Add The Prodigal One and Secret Order to the Court deck. Add the Faithful cards left in your stack to the Court deck." } },
     7: { cards: [201], edicts: [55], other: ["Use Imperial Foundries (Edict 55)"], taught: true,
         resolution: { completed: "Gain Honor Guard (05). Add 2 Rogue Admirals (06-07) and 2 Court Enforcers (08-09) to the Court deck. Scrap 2 Imperial Defectors (10-11).",
             failed: "Scrap Use Imperial Foundries. Scrap Honor Guard and 2 Rogue Admirals (05-07). Add 2 Court Enforcers and 2 Imperial Defectors (08-11) to the Court deck.", gain: [202], scrapEdicts: [55] } }
@@ -89,6 +98,8 @@ function applyFateSetups(act) {
         if (act != 1 || rules == null) { return; }
         (rules.cards || []).forEach(number => { if (!player.guildCards.includes(number)) { player.guildCards.push(number); } });
         (rules.edicts || []).forEach(number => { if (!campaign.edicts.includes(number)) { campaign.edicts.push(number); } });
+        // The Believer's 9 Faithful cards, "9" on top
+        if (state.fate == 8) { state.faithfulTop = 9; state.wonThisChapter = 0; }
         showGuildCardsRow(player);
     });
 }
@@ -166,7 +177,7 @@ function stepChapterAnswer(index, change) {
 function finishChapterObjectives() {
     chapterQuestions.forEach(question => advanceObjective(question.player, question.answer * (question.multiplier || 1), question.answer + " " + question.reason));
     chapterQuestions = [];
-    players.forEach(player => { getCampaignPlayer(player).objectiveLog = []; });
+    players.forEach(player => { getCampaignPlayer(player).objectiveLog = []; getCampaignPlayer(player).wonThisChapter = 0; });
     SaveAllSettings();
     closeCampaignWindow();
     const carryOn = chapterCarryOn;
@@ -343,7 +354,7 @@ registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
 
 // The Fates' Guild card actions, offered after a bot's prelude (guildactions.js)
 
-registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can), getBargainOffers(player, wants, can), getAwakenOffers(player, wants, can)));
+registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can), getBargainOffers(player, wants, can), getAwakenOffers(player, wants, can), getTeachOffers(player, wants, can)));
 
 function getSpyOffers(player, wants, can) {
     // Spy (Informants): its highest card for a Rival's highest. Worth it when its own highest is low
@@ -371,6 +382,11 @@ function getRecoverOffers(player, wants, can) {
 registerCampaignHook("applyOffer", (player, offer) => {
     if (offer.spy != null) { applySpy(player, offer); }
     if (offer.recover) { advanceAdvocate(player, 2, "Recover (Guild Investigators)"); }
+    if (offer.teach) {
+        const state = getCampaignPlayer(player);
+        state.faithfulTop = Math.max((state.faithfulTop || 0) - 1, 0);
+        showCampaignPanel(player);
+    }
     if (offer.golem) {
         const state = getCampaignPlayer(player);
         state.golems = Math.max((state.golems || 0) - 1, 0);
@@ -480,7 +496,35 @@ function getChapterQuestions() {
     const caretakers = players.filter(player => hasFate(player, 5) && getCampaignPlayer(player).objective > 0)
         .map(player => ({ player: player, text: "How many Golems did other players spend in their Preludes this chapter?" + (player.isHuman ? " (Count your own too.)" : " (The app counted its own.)"),
             reason: "Golems spent in Preludes (Use the Golems)", multiplier: 2, othersOnly: !player.isHuman }));
-    return founders.concat(caretakers);
+    const believers = players.filter(player => hasFate(player, 8) && getCampaignPlayer(player).objective > 0 && (getCampaignPlayer(player).wonThisChapter || 0) > 0 && getCampaignPlayer(player).faithfulTop > 0)
+        .map(player => {
+            const state = getCampaignPlayer(player);
+            return { player: player, text: "It won " + state.wonThisChapter + " ambition" + (state.wonThisChapter == 1 ? "" : "s") + ": how many action pips are on the top card of its Faithful stack (the " + state.faithfulTop + ")?",
+                reason: "action pips on its top Faithful card, for each ambition won (Spread the Good Word)", multiplier: state.wonThisChapter, believer: true };
+        });
+    return founders.concat(caretakers, believers);
+}
+
+// The Believer (Fate 8). Spread the Good Word: for each ambition it wins, 1 for each action pip on
+// the top card of its Faithful stack, or 10 if the stack is empty. Spreading the Faith: Teach
+// instead of an Influence, taking the top card of the stack. Its stack's top card is on its panel
+
+registerCampaignHook("ambitionsScored", results => {
+    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 8)).forEach(result => {
+        const state = getCampaignPlayer(result.player);
+        if ((state.faithfulTop || 0) == 0) { advanceObjective(result.player, 10, "Won " + capitalise(result.ambition) + " with its Faithful stack empty"); }
+        else { state.wonThisChapter = (state.wonThisChapter || 0) + 1; }
+    });
+    return undefined;
+});
+
+function getTeachOffers(player, wants, can) {
+    // Teach: the top Faithful card goes to a Guild card in the Court matching a planet where it has a
+    // city. A lower card on top means more pips for its objective
+    const state = hasFate(player, 8) ? getCampaignPlayer(player) : null;
+    if (state == null || !(state.faithfulTop > 0) || !can("influence") || getCityCount(player) == 0) { return []; }
+    return [{ label: "Teach instead of an Influence (Spreading the Faith)", text: "attach the top Faithful card (the " + state.faithfulTop + ") from its stack to a Guild card in the Court whose suit matches a planet with its city. If it does, scrap the bottom non-Event card of the action discard",
+        teach: true, decided: true, why: "Each card taught leaves a lower Faithful card on top, with more action pips for its objective." }];
 }
 
 // The Caretaker (Fate 5). Find the Golems: for each ambition it wins, 2 for each Golem it has. Use
@@ -555,6 +599,11 @@ function getFateTurnSection(player) {
             : "<b>Not First Regent:</b> it wants the Imperial Council, to become First Regent and advance its objective with ambitions it wins.")
             + ((getCampaignPlayer(player).buried || []).includes("Imperial Authority") ? "" : " <b>Imperial Authority:</b> it may tax any Empire-controlled city as if it were its own, ignoring the Presence and Truce Laws (no Captives).") + "</div>";
     }
+    if (hasFate(player, 8)) {
+        const top = getCampaignPlayer(player).faithfulTop || 0;
+        html += "<div class=\"empirenote\"><b>Faithful stack:</b> " + (top > 0 ? "the " + top + " is on top. Each ambition it wins advances its objective by that card's action pips, so it Teaches to bring a lower card to the top."
+            : "it's empty: each ambition it wins advances its objective 10.") + "</div>";
+    }
     if (hasFate(player, 5)) {
         const golems = getCampaignPlayer(player).golems || 0;
         html += "<div class=\"empirenote\"><b>Golems:</b> it has " + golems + ". Each ambition it wins advances its objective 2 for each Golem, and each Golem anyone spends in a Prelude advances it 2. "
@@ -585,6 +634,11 @@ function getFatePanelHtml(player) {
             + "<div class=\"objbar\"><div style=\"width:" + Math.round(done / state.objectiveStart * 100) + "%\"></div></div></div>";
     }
     const rules = fateRules[state.fate];
+    // The Believer's Faithful stack: the number of the card on top (0 when it's empty)
+    if (hasFate(player, 8)) {
+        html += "<div class=\"favors\"><span class=\"lbl\">Faithful stack: top card</span><span class=\"favorstep\"><button type=\"button\" onclick=\"stepCampaign('faithful', " + player.number + ", -1)\" aria-label=\"One card fewer\"><i class=\"bi bi-dash\"></i></button>"
+            + "<b>" + (state.faithfulTop || 0) + "</b><button type=\"button\" onclick=\"stepCampaign('faithful', " + player.number + ", 1)\" aria-label=\"One card more\"><i class=\"bi bi-plus\"></i></button></span></div>";
+    }
     // The Caretaker's Golems
     if (hasFate(player, 5)) {
         html += "<div class=\"favors\"><span class=\"lbl\">Golems</span><span class=\"favorstep\"><button type=\"button\" onclick=\"stepCampaign('golems', " + player.number + ", -1)\" aria-label=\"One Golem fewer\"><i class=\"bi bi-dash\"></i></button>"

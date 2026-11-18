@@ -390,6 +390,8 @@ function stepCampaign(kind, playerNumber, change, extra) {
     if (kind == "trust") { campaign.trust[extra] = Math.max(campaign.trust[extra] + change, 0); }
     // The Caretaker's Golems (fatebots.js)
     if (kind == "golems") { state.golems = Math.max((state.golems || 0) + change, 0); }
+    // The Believer's Faithful stack (fatebots.js)
+    if (kind == "faithful") { state.faithfulTop = Math.min(Math.max((state.faithfulTop || 0) + change, 0), 9); }
     showCampaignPanel(getPlayer(playerNumber));
     SaveAllSettings();
 }
