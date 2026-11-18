@@ -192,6 +192,9 @@ function nextTurn() {
 
     resetPlayersAmibtions();
 
+    // A new turn: every hand is covered again, even if the same human player leads (#67)
+    handShownFor = null;
+
     //currentPlayer = getPlayerWithInitiative();
     setCurrentPlayer(getPlayerWithInitiative());
 
@@ -285,6 +288,8 @@ function resetRound() {
 
     resetHandsAndPlayedCardsDisplay();
 
+    // A new round: every hand is covered again, even if the same human player leads (#67)
+    handShownFor = null;
     currentPlayer = getPlayerWithInitiative();
     enableDisablePlayerPanels(currentPlayer.number);
 }
