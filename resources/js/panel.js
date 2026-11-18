@@ -126,6 +126,8 @@ function clonePlayerNodeAndSetup(player) {
 
     document.getElementById("playerslots").appendChild(playertemplate);
     showGuildCardsRow(player);
+    // The campaign adds its title, Favors and objective (campaignhooks.js). Nothing outside a campaign
+    runCampaignHook("panelBuilt", player, playertemplate);
 }
 
 // A player's Guild cards: one line on their panel, with a window to add a card or to read

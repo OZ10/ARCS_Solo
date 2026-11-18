@@ -154,6 +154,8 @@ const SaveAllSettings = () => {
     SaveSetting("round", roundNumber);
     SaveSetting("initiaiteClaimed", hasInitiativeBeenClaimedThisTurn);
     SaveSetting("awaitingDone", (awaitingDone == null) ? "" : awaitingDone);
+    // The campaign's own state (campaignhooks.js). Nothing outside a campaign
+    runCampaignHook("save");
 }
 
 const saveSettingObject = (settingName, settingObject) => {

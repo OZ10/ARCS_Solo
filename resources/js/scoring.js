@@ -325,6 +325,9 @@ function setPlayerPower(player, power) {
 }
 
 function isGameOver() {
+    // A campaign Act ends by its own rule (campaignhooks.js)
+    const campaignOver = runCampaignHook("isGameOver");
+    if (campaignOver !== undefined) { return campaignOver; }
     return roundNumber >= 5 || players.some(player => player.powerValue >= powerToWin[players.length]);
 }
 

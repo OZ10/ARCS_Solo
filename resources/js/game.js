@@ -41,6 +41,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // game, which would otherwise overwrite the saved ambitions with an empty list
         loadAmbitions();
         loadPlayers();
+        // The campaign's own state (campaignhooks.js). Nothing outside a campaign
+        runCampaignHook("load");
     }
 
     showChosenColour();
@@ -98,6 +100,9 @@ function setupGame(numberOfPlayers, optionsClosed = false) {
     resetRound();
 
     dealCards();
+
+    // The campaign's own setup (campaignhooks.js). Nothing outside a campaign
+    runCampaignHook("afterSetup");
 
     SaveAllSettings();
     saveSettingObject("leadersAndLore", leadersAndLore);
@@ -221,6 +226,12 @@ function haveAllCardsBeenPlayed() {
 }
 
 function nextRound() {
+    // The campaign's end-of-round steps come first, then it carries on here (campaignhooks.js)
+    if (runCampaignHook("beforeScoring", scoreRound) === true) { return; }
+    scoreRound();
+}
+
+function scoreRound() {
     // Score the ambitions declared this round before moving on.
     // The next round starts once the scores have been confirmed
     if (declaredAmbitions.length > 0) {
@@ -278,6 +289,9 @@ function resetRound() {
     currentactioncards = structuredClone(actioncards);
 
     addExtraCards(players.length);
+
+    // The campaign adds its Event cards (campaignhooks.js). Nothing outside a campaign
+    runCampaignHook("buildActionDeck", currentactioncards);
 
     resetDeck(currentactioncards);
 
