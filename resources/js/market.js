@@ -50,11 +50,14 @@ function getMarketCardValue(player, entry) {
     } else {
         value += marketValues.perNeed * getResourceNeed(player, card.resource);
     }
-    return value + rivalAgents * (chasingTyrant ? marketValues.captiveTyrant : marketValues.captive);
+    // In a campaign, what the Imperial Council is worth to it (campaignhooks.js)
+    return value + rivalAgents * (chasingTyrant ? marketValues.captiveTyrant : marketValues.captive) + (runCampaignHook("marketValue", player, entry) || 0);
 }
 
 function getMarketReason(player, entry) {
-    // Why it wants a card, if there's a clear reason
+    // Why it wants a card, if there's a clear reason. In a campaign, the Imperial Council (campaignhooks.js)
+    const special = runCampaignHook("marketReason", player, entry);
+    if (special != null) { return special; }
     const card = getCourtCard(entry.number);
     const rivalAgents = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
     if (rivalAgents > 0 && declaredAmbitions.includes("tyrant") && isChasingAmbition(player, "tyrant")) { return "captures for Tyrant"; }

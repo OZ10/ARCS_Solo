@@ -337,7 +337,9 @@ function focus_ambition(ambition, questionNumber, answerNo) {
     }
 
     const action = ambitionQuestionActions[ambition][questionNumber - 1];
-    updateYesNoText(action.startsWith("reach") ? getReachQuestion(ambition, action, currentPlayer) : ambitionQuestionText[ambition][action] + getLeaderQuestionHint(currentPlayer, action));
+    // In a campaign, a note on the Empire's laws (campaignhooks.js)
+    updateYesNoText((action.startsWith("reach") ? getReachQuestion(ambition, action, currentPlayer) : ambitionQuestionText[ambition][action] + getLeaderQuestionHint(currentPlayer, action))
+        + (runCampaignHook("questionNote", currentPlayer, action) || ""));
 
     // Only show the modal if the previous 
     // answer was not 'No'

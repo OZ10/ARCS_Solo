@@ -2237,6 +2237,47 @@ header, .footerstyle {
   font-weight: 600;
 }
 
+.empirenote {
+  background: #f3f0f7;
+  border: 1px solid #d6cbe3;
+  border-radius: 10px;
+  padding: 6px 9px;
+  font-size: 0.82rem;
+  margin-top: 8px;
+}
+.empirenote b {
+  color: #5b2a86;
+}
+
+.defnote {
+  font-size: 0.8rem;
+  color: #5b6573;
+  margin-top: 6px;
+}
+
+.playerchoiceempire,
+.playertagempire {
+  background: #5b2a86;
+  color: #fff;
+}
+
+.playerchoicefree,
+.playertagfree {
+  background: #e9e4d8;
+  color: #1f2328;
+}
+
+.playerchoiceblight,
+.playertagblight {
+  background: #2f6b4f;
+  color: #fff;
+}
+
+.playerchoiceempire:hover,
+.playerchoiceblight:hover {
+  color: #fff;
+}
+
 .summitaction small, .summitaction .small {
   display: block;
   color: #5b6573;

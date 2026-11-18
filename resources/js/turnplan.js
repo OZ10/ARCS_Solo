@@ -127,11 +127,16 @@ function getBattleTarget(player) {
             + rival.powerValue * weights.power
             + ((player.shipsBoardValue >= aggressiveFleet && rival.shipsBoardValue < player.shipsBoardValue) ? (player.shipsBoardValue - rival.shipsBoardValue) * weights.outnumbered : 0)
             + rival.shipsBoardValue * (warlord ? weights.shipWarlord : weights.ship)
-            + Math.random() * weights.variation * getDifficulty().planVariation;
+            + Math.random() * weights.variation * getDifficulty().planVariation
+            // In a campaign, a Regent would rather battle an Outlaw (campaignhooks.js)
+            + (runCampaignHook("battleTargetBonus", player, rival) || 0);
         target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
         player.battleTargetNumber = target.number;
     }
-    return { player: target, ...getBattleTargetReason(player, target) };
+    const reason = getBattleTargetReason(player, target);
+    // In a campaign, where the Empire's laws allow it (campaignhooks.js)
+    reason.where += runCampaignHook("battleTargetWhere", player, target) || "";
+    return { player: target, ...reason };
 }
 
 function getWantedCardResource(player) {

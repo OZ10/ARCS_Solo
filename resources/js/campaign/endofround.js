@@ -194,16 +194,20 @@ function applySteal() {
     setPlayerPower(firstRegent, firstRegent.powerValue - total);
     players.forEach(showCampaignPanel);
     SaveAllSettings();
-    roundEvent.titleNote = "Player " + player.number + " is an Outlaw and stole " + (taken.length > 0 ? taken.join(", ") : "nothing") + " from the Imperial Trust. Player " + firstRegent.number + " loses " + total + " Power.";
+    const wanted = player.isHuman ? null : trustResources.filter(resource => roundEvent.steal[resource] > 0 && getResourceNeed(player, resource) == 2).map(resource => preludeResourceNames[resource]);
+    roundEvent.titleNote = "Player " + player.number + " is an Outlaw and stole " + (taken.length > 0 ? taken.join(", ") : "nothing") + " from the Imperial Trust"
+        + (wanted != null && wanted.length > 0 ? " (it's chasing the ambition for " + wanted.join(" and ") + ")" : "") + ". Player " + firstRegent.number + ", the First Regent, loses " + total + " Power.";
     chooseCrisesOrEdicts();
 }
 
 function chooseCrisesOrEdicts() {
     const player = roundEvent.player;
     if (!player.isHuman) {
-        // A bot that's First Regent governs; otherwise it lets the Crises hurt its Rivals
+        // A bot that's First Regent governs; an Outlaw pays nothing to the Empire, so lets the Crises hit its Rivals
         roundEvent.choice = isFirstRegent(player) ? "edicts" : "crises";
-        roundEvent.choiceNote = "Player " + player.number + " (bot) chooses " + (roundEvent.choice == "edicts" ? "the Edicts, as First Regent." : "the Crises.");
+        roundEvent.choiceNote = "Player " + player.number + " (bot) chooses " + (roundEvent.choice == "edicts"
+            ? "the <b>Edicts</b>: as First Regent, it governs the Empire."
+            : "the <b>Crises</b>: " + (isRegent(player) ? "it isn't First Regent, so the Edicts would only take from it." : "as an Outlaw it pays nothing to the Empire, and the Crises hit everyone."));
         showCouncilSummary();
         return;
     }
@@ -327,10 +331,10 @@ function getDemandWord(kind) {
     return { trophies: "Trophy", captives: "Captive" }[kind] || preludeResourceNames[kind];
 }
 
-function getDemandPlan() {
+function getDemandPlan(policy = campaign.policy) {
     // Who pays what. The First Regent takes the kind the payer has most of
     const firstRegent = getPlayer(campaign.firstRegent);
-    const demand = policyDemands[campaign.policy];
+    const demand = policyDemands[policy];
     return players.filter(player => getCampaignPlayer(player).title == "regent" && (demand.fromSelf || player !== firstRegent)).map(player => {
         const kind = demand.resources.slice().sort((a, b) => player[b + "Value"] - player[a + "Value"])[0];
         if (player[kind + "Value"] > 0) { return { player: player, kind: kind }; }
@@ -354,9 +358,17 @@ function showGovern() {
     const intro = "<div class=\"turnsection\"><div class=\"turnlabel\">03 &middot; Govern the Imperial Reach</div>"
         + "<div class=\"policy\"><b class=\"t\">" + policyNames[campaign.policy] + "</b><br><b>Demand:</b> " + demand.words + ".<br><b>Action:</b> " + policyActions[campaign.policy] + "</div>";
     if (!firstRegent.isHuman) {
-        // A bot enforces its Policy for now
-        showCampaignWindow("Edicts", intro + "<p class=\"mt-2 mb-1\">Player " + firstRegent.number + " (bot) is First Regent and enforces it:</p>"
-            + "<ul class=\"small mb-0\">" + plan.map(item => "<li>" + describe(item) + "</li>").join("") + "</ul></div>"
+        // A bot enforces the Policy, unless it would gain little and another would serve it better next time
+        const decision = choosePolicyForBot(firstRegent);
+        const reasons = "<ul class=\"small mb-0\">" + decision.reasons.map(reason => "<li>" + reason + "</li>").join("") + "</ul>";
+        if (decision.change != null) {
+            showCampaignWindow("Edicts", intro + "<p class=\"mt-2 mb-1\">Player " + firstRegent.number + " (bot) is First Regent. It <b>changes the Policy to " + capitalise(decision.change) + "</b>:</p>" + reasons + "</div>"
+                + "<p class=\"small\">Then any other Edicts in the rules booklet, in number order.</p>"
+                + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"changePolicy('" + decision.change + "')\">OK</button>", firstRegent, true);
+            return;
+        }
+        showCampaignWindow("Edicts", intro + "<p class=\"mt-2 mb-1\">Player " + firstRegent.number + " (bot) is First Regent and <b>enforces it</b>:</p>"
+            + "<ul class=\"small mb-1\">" + plan.map(item => "<li>" + describe(item) + "</li>").join("") + "</ul>" + reasons + "</div>"
             + "<p class=\"small\">Then any other Edicts in the rules booklet, in number order.</p>"
             + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"enforcePolicy()\">OK: carry it out</button>", firstRegent, true);
         return;
@@ -367,6 +379,45 @@ function showGovern() {
         + "<button type=\"button\" class=\"btn btn-primary w-100 mb-2\" onclick=\"enforcePolicy()\">Enforce " + policyNames[campaign.policy] + "</button>"
         + "<div class=\"brseg\">" + others.map(policy => "<button type=\"button\" class=\"btn btn-outline-secondary\" onclick=\"changePolicy('" + policy + "')\">Change<small>to " + capitalise(policy) + "</small></button>").join("") + "</div></div>"
         + "<p class=\"small\">Then any other Edicts in the rules booklet, in number order.</p>", firstRegent, true);
+}
+
+// What a Policy is worth to the First Regent: each piece it collects (they count for its ambitions),
+// a little for each Favor, and what the Imperial Action gives it compared with its Rival Regents
+// A change only takes effect next time, so it counts for less (laterFactor), and only when enforcing
+// would gain it less than a piece
+const policyWeights = { piece: 1, favor: 0.3, escalation: 0.5, changeMargin: 0.5, laterFactor: 0.75 };
+
+function getPolicyValue(firstRegent, policy) {
+    const plan = getDemandPlan(policy);
+    const pieces = plan.filter(item => item.kind != null).length;
+    const favors = plan.filter(item => item.favor).length;
+    const rivals = players.filter(player => player !== firstRegent && isRegent(player));
+    let action = 0, actionNote = "";
+    if (policy == "peace") {
+        const own = getCityBonus(firstRegent), best = Math.max(0, ...rivals.map(getCityBonus));
+        action = own - best;
+        actionNote = "Celebrate Regency gives it " + own + " Power" + (rivals.length > 0 ? ", and its Rival Regents up to " + best : "");
+    } else if (policy == "escalation") {
+        action = policyWeights.escalation;
+        actionNote = "Requisition Ships adds 2 Imperial ships";
+    } else {
+        actionNote = "Distribute Arms gives every Regent a Weapon";
+    }
+    return { value: pieces * policyWeights.piece + favors * policyWeights.favor + action, pieces: pieces, favors: favors, actionNote: actionNote };
+}
+
+function choosePolicyForBot(firstRegent) {
+    const current = getPolicyValue(firstRegent, campaign.policy);
+    const others = Object.keys(policyNames).filter(policy => policy != campaign.policy)
+        .map(policy => ({ policy: policy, ...getPolicyValue(firstRegent, policy) })).sort((a, b) => b.value - a.value);
+    const describeDemand = result => result.pieces == 0 && result.favors == 0 ? "the Demand would collect nothing"
+        : "the Demand would collect " + result.pieces + " piece" + (result.pieces == 1 ? "" : "s") + (result.favors > 0 ? " and " + result.favors + " Favor" + (result.favors == 1 ? "" : "s") : "");
+    if (current.value < policyWeights.piece && others[0].value * policyWeights.laterFactor > current.value + policyWeights.changeMargin) {
+        return { change: others[0].policy, reasons: [
+            "Enforcing " + capitalise(campaign.policy) + ": " + describeDemand(current) + ". " + current.actionNote + ".",
+            capitalise(others[0].policy) + " next time: " + describeDemand(others[0]) + ". " + others[0].actionNote + "."] };
+    }
+    return { change: null, reasons: [capitalise(describeDemand(current)) + ". " + current.actionNote + "."] };
 }
 
 function changePolicy(policy) {

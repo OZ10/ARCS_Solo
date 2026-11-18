@@ -15,7 +15,9 @@ function keepClearOfFooter() {
 }
 
 function getPlayerTag(player) {
-    // A player's name on their own colour, for use in a window's text
+    // A player's name on their own colour, for use in a window's text. A campaign's Empire, Free
+    // States and Blight have a label of their own
+    if (player.label != null) { return "<span class=\"playertag playertag" + player.colour + "\">" + player.label + "</span>"; }
     return "<span class=\"playertag playertag" + getPlayerColour(player) + "\">Player " + player.number + "</span>";
 }
 

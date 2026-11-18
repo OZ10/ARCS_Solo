@@ -49,7 +49,11 @@ function setCouncilInSession() {
     if (entry != null) { entry.decided = false; }
 }
 
-registerCampaignHook("courtCard", number => campaignCourtCards.find(card => card.number == number));
+registerCampaignHook("courtCard", number => {
+    const card = campaignCourtCards.find(other => other.number == number);
+    // The Council's name says when it's Decided, wherever it's shown
+    return (card != null && card.council && isCouncilDecided()) ? { ...card, name: card.name + " (Decided)" } : card;
+});
 
 registerCampaignHook("courtPool", () => campaignGuildCards.map(number => courtCards.find(card => card.number == number))
     .concat(campaignCourtCards.filter(card => !card.council)));

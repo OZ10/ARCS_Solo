@@ -236,6 +236,8 @@ function renderTurn(player) {
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
     if (prelude.length > 0) { html += getTurnSection("Prelude: spend first", getOfferRows(prelude)); }
     html += getTurnSection("Card played", getCardHtml(player));
+    // In a campaign, the Empire's laws for this plan (campaignhooks.js)
+    html += runCampaignHook("turnSections", player, plan) || "";
     if ((player.leaderNotes || []).length > 0) {
         html += getTurnSection("Leader: " + getLeaderName(player), player.leaderNotes.map(note => getTurnRow("<i class=\"bi bi-check-lg\"></i>", note.title, note.note)).join(""));
     }

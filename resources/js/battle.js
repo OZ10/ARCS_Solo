@@ -453,6 +453,8 @@ function showBattleModal(button) {
         defenders.append(input, label);
     });
 
+    // In a campaign, the Empire, the Free States and the Blight can defend too (campaignhooks.js)
+    runCampaignHook("battleDefenders", defenders);
     battle.noBuildings = hasNoBuildings(battle.defender);
     updateBattleCounts();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).show();
@@ -520,6 +522,9 @@ function getRaidWants(attacker, defender) {
     // What the attacker could steal from the defender, most wanted first. Guild cards have
     // their keys printed on them; a resource's depend on its slot, so the player enters them.
     // Sworn Guardians stops anything else being stolen until it has been
+    // The Free States: 1 resource of the planet's type (campaignhooks.js)
+    const special = runCampaignHook("raidWants", attacker, defender);
+    if (special != null) { return special; }
     const guardians = getCourtCard(22);
     if ((defender.guildCards || []).includes(guardians.number)) {
         return [{ id: "guild:" + guardians.number, name: guardians.name, keys: guardians.keys, need: 0 }];
@@ -678,10 +683,12 @@ function chooseBattleDice() {
     const buildingScores = getBuildingScores(buildings);
     // With no ships to hit and no building it wants destroyed, only raid dice are any use (#113)
     const raidOnly = !hasShips && !onPurpose && raid != null && Math.max(...buildingScores) <= 0;
-    const limits = { ...getBattleLimits(), raidOnly: raidOnly };
+    // In a campaign the Blight takes 2 hits to damage or destroy, and doesn't intercept (campaignhooks.js)
+    const targets = runCampaignHook("battleTargets") || { fresh: battle.fresh, damaged: battle.damaged, limits: {} };
+    const limits = { ...getBattleLimits(), ...targets.limits, raidOnly: raidOnly };
     const options = onPurpose
         ? getDiceOptions(getBattleDiceLimit(), 0, buildingHits, 0, mood, raid, getBattleRerolls(), [], limits)
-        : getDiceOptions(getBattleDiceLimit(), battle.fresh, battle.damaged, buildingHits, mood, raid, getBattleRerolls(), buildingScores, limits);
+        : getDiceOptions(getBattleDiceLimit(), targets.fresh, targets.damaged, buildingHits, mood, raid, getBattleRerolls(), buildingScores, limits);
 
     // With no ships to hit, attacking at all can cost more than it gains: a raid that would
     // almost certainly destroy a city it doesn't want destroyed (#113)
@@ -693,7 +700,7 @@ function chooseBattleDice() {
     const interceptHits = (limits.interceptHits != null) ? limits.interceptHits : battle.fresh;
     const choice = pickDiceOption(options);
     const canAttackAgain = document.getElementById("battleAttackAgain").checked;
-    const usefulHits = onPurpose ? buildingHits : getHitsToDestroy(battle.fresh, battle.damaged);
+    const usefulHits = onPurpose ? buildingHits : getHitsToDestroy(targets.fresh, targets.damaged);
     const wantedBuilding = buildings.find(building => building.value > 0);
     // Which building first, and why (#138). The attacker chooses where its hits go (rulebook p.14)
     const buildingOrder = (buildings.length > 1 && new Set(buildings.map(building => building.value)).size > 1)
@@ -914,6 +921,14 @@ function applyBattleResults() {
     // Update both players' values and close the window
     const losses = getBattleLosses();
     const { attacker, defender } = battle;
+    // A campaign's Empire, Free States or Blight as the defender (campaignhooks.js)
+    if (runCampaignHook("applyBattle", losses) === true) {
+        battle.start = null;
+        SaveAllSettings();
+        refreshTurnSummary();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).hide();
+        return;
+    }
 
     // Destroyed ships leave the board and become the other side's trophies
     adjustCounter(defender, "shipsBoard", -losses.defenderShips);
