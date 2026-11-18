@@ -416,6 +416,12 @@ function showTitleWindow(playerNumber) {
 }
 
 function setTitle(playerNumber, title) {
+    applyTitle(playerNumber, title);
+    showTitleWindow(playerNumber);
+}
+
+function applyTitle(playerNumber, title) {
+    // Change a title without a window (a bot's Parade Fleets)
     campaign.players[playerNumber].title = title;
     if (title == "outlaw") { buryOutlawCards(getPlayer(playerNumber)); }
     // An Outlaw can't be First Regent: the tile passes to the Regent with the most Power (rulebook p.16)
@@ -425,7 +431,6 @@ function setTitle(playerNumber, title) {
     }
     players.forEach(showCampaignPanel);
     SaveAllSettings();
-    showTitleWindow(playerNumber);
 }
 
 function setFirstRegent(playerNumber) {

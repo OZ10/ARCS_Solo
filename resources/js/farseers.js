@@ -54,6 +54,8 @@ function swapCards(first, second, firstCard, secondCard) {
 function onAmbitionDeclared(player) {
     // Leaders first (leaderrules.js), then whoever holds Farseers looks at a Rival's hand
     onLeaderAmbitionDeclared(player);
+    // A campaign's Fate cards (campaignhooks.js)
+    runCampaignHook("ambitionDeclared", player);
     if (!holdsGuildCard(player, farseersCard)) { return; }
     if (player.isHuman) {
         queueLeaderWindow(() => showFarseersSwap(player));

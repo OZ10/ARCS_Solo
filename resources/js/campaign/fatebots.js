@@ -25,7 +25,10 @@ const fateGuildCards = [
         { protected: true, code: "F4 03" }),
     new CourtCard(206, "Dealmakers", "guild", "psionics", 0,
         "Bargain (Secure): Choose a Court card that a Rival could secure. They secure it but return the agents they would capture. You influence once for each agent they had on the card, then you secure once.",
-        { protected: true, code: "F1 03", replacesActions: [{ name: "Bargain", replaces: "secure" }] })
+        { protected: true, code: "F1 03", replacesActions: [{ name: "Bargain", replaces: "secure" }] }),
+    new CourtCard(207, "Parade Fleets", "guild", "fuel", 0,
+        "When you declare an ambition, you may place 2 fresh ships at a Free city. Then, if you are a Regent, you may become an Outlaw.",
+        { protected: true, code: "F2 02" })
 ];
 
 // Fates the bots aren't dealt yet (the Magnate needs Summit deals)
@@ -40,7 +43,7 @@ const botsNotDealt = [3];
 const fateRules = {
     1: { cards: [206], other: ["Imperial Authority"], taught: true, resolution: { completed: "Add Council Intrigue (05), Tax Collectors (06) and Hunter Squads (07) to the Court deck. Add Imperial Protectors (08) to the rules booklet. Scrap Empire Falls (09) and 2 Lesser Regents (10-11).",
         failed: "Scrap Council Intrigue, Tax Collectors, Hunter Squads and Imperial Protectors (05-08). Add Empire Falls (09), 2 Lesser Regents (10-11) and Dealmakers (03) to the Court deck." } },
-    2: { resolution: { completed: "Gain Book of Liberation (04). Add 3 Political Intrigue (05-07) to the Court deck. Put 2 Construction Union (08-09) and 2 Admin Union (10-11) behind the next Resolution card (23).",
+    2: { cards: [207], taught: true, resolution: { completed: "Gain Book of Liberation (04). Add 3 Political Intrigue (05-07) to the Court deck. Put 2 Construction Union (08-09) and 2 Admin Union (10-11) behind the next Resolution card (23).",
         failed: "Scrap Book of Liberation and 3 Political Intrigue (04-07). Add 2 Construction Union and 2 Admin Union (08-11) to the Court deck." } },
     3: { resolution: { completed: "Add Elder Broker (04), Relic Fence (05) and Prison Wardens (06) to the Court deck. Put the 5 Cartels (07-11) behind the next Resolution card (21). If Mining or Shipping Interest is in the Court discard, add it to the Court deck.",
         failed: "Scrap Elder Broker, Relic Fence and Prison Wardens (04-06). Add the 5 Cartels (07-11) to the Court deck." } },
@@ -122,9 +125,19 @@ function imperialShipsPlaced(count, reason) {
 }
 
 registerCampaignHook("afterScoring", carryOn => {
-    // What moved this chapter, then on. Nothing to show: carry straight on
+    // What moved this chapter, and what the app needs to be told, then on. Nothing: carry straight on
     const moved = players.filter(player => (getCampaignPlayer(player).objectiveLog || []).length > 0);
-    if (moved.length == 0) { return undefined; }
+    chapterQuestions = getChapterQuestions().map(question => ({ ...question, answer: 0 }));
+    if (moved.length == 0 && chapterQuestions.length == 0) { return undefined; }
+    chapterCarryOn = carryOn;
+    showChapterObjectives();
+    return true;
+});
+
+let chapterQuestions = [], chapterCarryOn = null;
+
+function showChapterObjectives() {
+    const moved = players.filter(player => (getCampaignPlayer(player).objectiveLog || []).length > 0);
     const rows = moved.map(player => {
         const state = getCampaignPlayer(player);
         const log = state.objectiveLog;
@@ -132,15 +145,31 @@ registerCampaignHook("afterScoring", carryOn => {
             + "<small class=\"d-block text-secondary\">" + log.map(entry => entry.reason).join("; ") + "</small></span>"
             + "<span class=\"objdelta\">" + log[0].from + " &rarr; " + log[log.length - 1].to + "</span></div>";
     }).join("");
-    showCampaignWindow("End of chapter " + roundNumber + ": objectives", "<p class=\"mb-2\">The objective markers that moved this chapter. Move them on the Power track to match.</p>"
-        + "<div class=\"turnsection\"><div class=\"turnlabel\">Worked out by the app</div>" + rows + "</div>"
-        + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" data-bs-dismiss=\"modal\">OK</button>", null, true, () => {
-            players.forEach(player => { getCampaignPlayer(player).objectiveLog = []; });
-            SaveAllSettings();
-            carryOn();
-        });
-    return true;
-});
+    const questions = chapterQuestions.map((question, index) => "<div class=\"objrow\"><span>Player " + question.player.number + " &middot; " + getFate(getCampaignPlayer(question.player).fate).name
+        + "<small class=\"d-block text-secondary\">" + question.text + "</small></span>"
+        + "<span class=\"neutralstep\"><button type=\"button\" onclick=\"stepChapterAnswer(" + index + ", -1)\" aria-label=\"One fewer\"><i class=\"bi bi-dash\"></i></button><b>" + question.answer
+        + "</b><button type=\"button\" onclick=\"stepChapterAnswer(" + index + ", 1)\" aria-label=\"One more\"><i class=\"bi bi-plus\"></i></button></span></div>").join("");
+    showCampaignWindow("End of chapter " + roundNumber + ": objectives", "<p class=\"mb-2\">The objective markers that moved this chapter" + (questions != "" ? ", and what the app needs to be told" : "") + ". Move them on the Power track to match.</p>"
+        + (rows != "" ? "<div class=\"turnsection\"><div class=\"turnlabel\">Worked out by the app</div>" + rows + "</div>" : "")
+        + (questions != "" ? "<div class=\"turnsection\"><div class=\"turnlabel\">Tell the app</div>" + questions + "</div>" : "")
+        + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"finishChapterObjectives()\">OK</button>", null, true);
+}
+
+function stepChapterAnswer(index, change) {
+    chapterQuestions[index].answer = Math.max(chapterQuestions[index].answer + change, 0);
+    showChapterObjectives();
+}
+
+function finishChapterObjectives() {
+    chapterQuestions.forEach(question => advanceObjective(question.player, question.answer, question.answer + " " + question.reason));
+    chapterQuestions = [];
+    players.forEach(player => { getCampaignPlayer(player).objectiveLog = []; });
+    SaveAllSettings();
+    closeCampaignWindow();
+    const carryOn = chapterCarryOn;
+    chapterCarryOn = null;
+    whenWindowsClosed(() => setTimeout(carryOn, 0));
+}
 
 // The Edicts the Fates add, after Govern the Imperial Reach, lowest number first
 
@@ -408,6 +437,37 @@ registerCampaignHook("ambitionsScored", results => {
         .forEach(result => advanceObjective(result.player, result.points, "Won " + capitalise(result.ambition) + " as First Regent: " + result.points + " Power"));
     return undefined;
 });
+
+// The Founder (Fate 2). Inspire Confidence in the Cause: while an Outlaw, 3 for each ambition it
+// wins. Defy the Empire's Grip: at the end of a chapter, if an Outlaw, 1 for each system it
+// controls (asked in the objectives window). Parade Fleets: when it declares an ambition, it may
+// place 2 fresh ships at a Free city, then a Regent may become an Outlaw
+
+registerCampaignHook("ambitionsScored", results => {
+    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 2) && !isRegent(result.player))
+        .forEach(result => advanceObjective(result.player, 3, "Won " + capitalise(result.ambition) + " as an Outlaw (Inspire Confidence)"));
+    return undefined;
+});
+
+registerCampaignHook("ambitionDeclared", player => {
+    if (!(player.guildCards || []).includes(207)) { return undefined; }
+    if (player.isHuman) {
+        showMessageToast("Parade Fleets", "You may place 2 fresh ships at a Free city" + (isRegent(player) ? ", then become an Outlaw (tap Regent on your panel)." : "."));
+        return undefined;
+    }
+    // A bot Founder does both: its objective needs it to be an Outlaw
+    adjustCounter(player, "shipsBoard", 2);
+    const leaving = isRegent(player);
+    if (leaving) { applyTitle(player.number, "outlaw"); }
+    showMessageToast("Player " + player.number + ": Parade Fleets", "Places 2 fresh ships at a Free city" + (leaving ? ", and becomes an Outlaw." : "."));
+    return undefined;
+});
+
+function getChapterQuestions() {
+    // What the objectives window asks at the end of a chapter: the Founder's systems as an Outlaw
+    return players.filter(player => hasFate(player, 2) && !isRegent(player) && getCampaignPlayer(player).objective > 0)
+        .map(player => ({ player: player, text: "An Outlaw: how many systems does it control?", reason: "systems controlled as an Outlaw (Defy the Empire's Grip)" }));
+}
 
 function getBargainOffers(player, wants, can) {
     // Bargain (Dealmakers): when a Rival could secure a card in the Court, the Steward takes over
