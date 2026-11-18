@@ -105,6 +105,8 @@ function showHideActionButtons(isleading, card, player = players[0]) {
         showHideElement(getActionButtonElements('COPY', player), true);
         showHideElement(getActionButtonElements('PIVOT', player), true);
     }
+    // In a campaign, a Fate can seize another way (campaignhooks.js)
+    runCampaignHook("afterActionButtons", card, player);
 }
 
 function humanSelectedAction(cardAction, player = players[0]) {
@@ -130,6 +132,11 @@ function humanSelectedAction(cardAction, player = players[0]) {
 
         const hasPlayerClaimed = document.getElementById(getActionId(player, "CLAIM")).className.includes("active") ? true : false;
 
+        // In a campaign, the Partisan seizes by Provoking Outrage, then carries on itself (campaignhooks.js)
+        if (hasPlayerClaimed && runCampaignHook("seizeByOutrage", player) === true) {
+            SaveAllSettings();
+            return;
+        }
         if (hasPlayerClaimed) {
             hasInitiativeBeenClaimedThisTurn = true;
             changeInitiative(player);

@@ -540,6 +540,8 @@ function applyPrelude(player, offers) {
         Object.entries(offer.gains || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] + amount));
         if (offer.discards != null) { player.guildCards = player.guildCards.filter(number => number != offer.discards); }
         applyLorePrelude(player, offer);
+        // A campaign's Fate offers (campaignhooks.js)
+        runCampaignHook("applyOffer", player, offer);
     });
 }
 

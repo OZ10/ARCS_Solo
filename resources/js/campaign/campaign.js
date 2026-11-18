@@ -156,7 +156,9 @@ function getCampaignModal() {
 
 function showCampaignWindow(title, html, player = null, locked = false, onClosed = null) {
     // One window at a time: it opens once any other has closed, or if it's already open it changes
-    // what it shows. player colours the title bar
+    // what it shows. player colours the title bar. What follows a window runs once Bootstrap has
+    // finished closing it, as opening it again inside its own closing breaks it
+    if (onClosed != null) { const then = onClosed; onClosed = () => setTimeout(then, 0); }
     const open = getCampaignModal();
     if (open.classList.contains("show")) {
         setCampaignWindow(title, html, player);

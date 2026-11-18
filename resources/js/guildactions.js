@@ -92,6 +92,8 @@ function getGuildActionOffers(player) {
 
     // Lore actions (leaderrules.js)
     offers = offers.concat(getLoreActionOffers(player, wants, can));
+    // A campaign's Fate Guild cards (campaignhooks.js)
+    offers = offers.concat(runCampaignHook("guildActionOffers", player, wants, can) || []);
 
     // No more than it has actions for
     return applyOfferDifficulty(offers.slice(0, getBotActionCount(player)));

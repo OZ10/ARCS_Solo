@@ -691,7 +691,11 @@ function changeInitiative(player) {
         const element = document.querySelectorAll("#playerinitiative" + p.number);
         showHideElement(element, (p.number == player.number) ? true : false);
     })
-    if (moved) { replayAnimation(document.getElementById("playerinitiative" + player.number), "starpop"); }
+    if (moved) {
+        replayAnimation(document.getElementById("playerinitiative" + player.number), "starpop");
+        // A campaign objective can advance for getting the initiative (campaignhooks.js)
+        runCampaignHook("initiativeGained", player);
+    }
 
     SaveAllSettings();
 }

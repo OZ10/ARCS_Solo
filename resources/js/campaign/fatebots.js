@@ -13,7 +13,10 @@ const fateGuildCards = [
         { protected: true, code: "F7 02", buryIfOutlaw: true }),
     new CourtCard(202, "Honor Guard", "guild", "weapons", 0,
         "Your Weapon Guild cards can't be stolen while you have any Weapons.",
-        { protected: true, code: "F7 05" })
+        { protected: true, code: "F7 05" }),
+    new CourtCard(203, "Informants", "guild", "psionics", 0,
+        "Spy (Influence): Once per turn, give your highest action card to a Rival. They give you their highest action card (it can be the same card).",
+        { protected: true, code: "F6 02", replacesActions: [{ name: "Spy", replaces: "influence" }] })
 ];
 
 // Fates the bots aren't dealt yet (the Magnate needs Summit deals)
@@ -36,8 +39,9 @@ const fateRules = {
         failed: "Add Guild Overseers to the Court deck. For each Guild suit you have more of than each Rival, add its Liaison; scrap the rest. Scrap Diplomatic Fiasco. Add Guild Struggle to the Court deck." } },
     5: { resolution: { completed: "Scrap Golem Beacon. Put all the Golems on the map onto Golem Hearth. Add 1 random lore card for each player and the 4 Unstable cards (08-11) to the Court deck.",
         failed: "Scrap Golem Beacon. Add Stone-Speakers to the Court deck. Scrap the Golems on the map. Add the Unstable cards matching Golems still in play; scrap the rest." } },
-    6: { resolution: { completed: "Add the 5 Loyal cards (05-09) to the Court deck. Gain Galactic Bards (10). Scrap Spacing Union (11), Arms Union (12) and 2 Outrage Spreads (13-14).",
-        failed: "Scrap the 5 Loyal cards (05-09). Add Galactic Bards, Spacing Union, Arms Union and 2 Outrage Spreads (10-14) to the Court deck. Scrap Partisan Seizing and clear your Outrage.", gain: [25] } },
+    6: { cards: [203], other: ["Partisan Seizing"], taught: true,
+        resolution: { completed: "Add the 5 Loyal cards (05-09) to the Court deck. Gain Galactic Bards (10). Scrap Spacing Union (11), Arms Union (12) and 2 Outrage Spreads (13-14).",
+            failed: "Scrap the 5 Loyal cards (05-09). Add Galactic Bards, Spacing Union, Arms Union and 2 Outrage Spreads (10-14) to the Court deck. Scrap Partisan Seizing and clear your Outrage.", gain: [25], failClearsOutrage: true } },
     7: { cards: [201], edicts: [55], other: ["Use Imperial Foundries (Edict 55)"], taught: true,
         resolution: { completed: "Gain Honor Guard (05). Add 2 Rogue Admirals (06-07) and 2 Court Enforcers (08-09) to the Court deck. Scrap 2 Imperial Defectors (10-11).",
             failed: "Scrap Use Imperial Foundries. Scrap Honor Guard and 2 Rogue Admirals (05-07). Add 2 Court Enforcers and 2 Imperial Defectors (08-11) to the Court deck.", gain: [202], scrapEdicts: [55] } }
@@ -206,6 +210,116 @@ registerCampaignHook("afterBattle", losses => {
 
 // A bot's choices for its Fate: the Admiral's battle target is in empire.js (battleTargetBonus)
 
+// The Partisan (Fate 6). Sow Division: 1 each time it gets the initiative. Appeal to Your
+// Supporters: 2 for each ambition it wins without Outrage of that ambition's resource. Partisan
+// Seizing: it can't seize by discarding a second card, but may seize when playing a card by
+// Provoking Outrage of a resource it isn't Outraged on. Informants: Spy instead of an Influence
+
+const ambitionOutrageResources = { tycoon: ["fuel", "materials"], tyrant: [], warlord: ["weapons"], keeper: ["relics"], empath: ["psionics"] };
+
+registerCampaignHook("initiativeGained", player => {
+    if (campaign == null || !hasFate(player, 6)) { return undefined; }
+    advanceObjective(player, 1, "Got the initiative (Sow Division)");
+    return undefined;
+});
+
+registerCampaignHook("ambitionsScored", results => {
+    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 6)).forEach(result => {
+        const outraged = (result.player.outraged || []).filter(resource => (ambitionOutrageResources[result.ambition] || []).includes(resource));
+        if (outraged.length == 0) { advanceObjective(result.player, 2, "Won " + capitalise(result.ambition) + " without its Outrage (Appeal to Your Supporters)"); }
+    });
+    return undefined;
+});
+
+function getSeizeOutrages(player) {
+    // The resources it isn't Outraged on
+    return preludeResources.filter(resource => !(player.outraged || []).includes(resource));
+}
+
+function canPartisanSeize(player) {
+    return hasFate(player, 6) && !hasInitiativeBeenClaimedThisTurn && !player.hasInitiative && getSeizeOutrages(player).length > 0;
+}
+
+registerCampaignHook("afterActionButtons", (card, player) => {
+    // A human Partisan's CLAIM button seizes by Outrage instead
+    const claim = document.getElementById(getActionId(player, "CLAIM"));
+    if (claim == null) { return undefined; }
+    const partisan = hasFate(player, 6);
+    claim.innerHTML = partisan ? "SEIZE: OUTRAGE" : "CLAIM";
+    if (partisan) { showHideElement(getActionButtonElements("CLAIM", player), canPartisanSeize(player)); }
+    return undefined;
+});
+
+registerCampaignHook("seizeByOutrage", player => {
+    if (!hasFate(player, 6)) { return undefined; }
+    hasInitiativeBeenClaimedThisTurn = true;
+    changeInitiative(player);
+    const rows = getSeizeOutrages(player).map(resource => {
+        const held = player[resource + "Value"], cards = getPlayerGuildCards(player).filter(card => card.resource == resource && !card.keepOnOutrage);
+        const loses = [held > 0 ? held + " " + preludeResourceNames[resource] : null].concat(cards.map(card => card.name)).filter(item => item != null);
+        return "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" onclick=\"partisanOutrage(" + player.number + ", '" + resource + "')\">" + getGameIcon(resource) + " " + preludeResourceNames[resource]
+            + "<small class=\"d-block text-secondary\">" + (loses.length > 0 ? "Discards your " + loses.join(" and ") : "You have none to discard") + "</small></button>";
+    }).join("");
+    showCampaignWindow("Partisan Seizing", "<p class=\"mb-2\">You seize the initiative: Provoke Outrage of a resource you aren't Outraged on. You discard all that resource and its Guild cards.</p>"
+        + "<div class=\"d-grid gap-2\">" + rows + "</div>", player, true);
+    return true;
+});
+
+function partisanOutrage(playerNumber, resource) {
+    const player = getPlayer(playerNumber);
+    provokeOutrage(player, resource);
+    campaign.partisanSeize = { player: playerNumber, resource: resource, round: roundNumber, turn: turnNumber };
+    SaveAllSettings();
+    closeCampaignWindow();
+    whenWindowsClosed(() => finishPlay(player));
+}
+
+registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
+    // A bot Partisan seizes when there's an Outrage that costs it little: a resource it holds at
+    // most 1 of, with no Guild cards of it, and doesn't need for a declared ambition
+    if (!hasFate(player, 6)) { return undefined; }
+    if (!canPartisanSeize(player) || cards.length == 0) { return false; }
+    const cost = resource => player[resource + "Value"] + getGuildIconCount(player, resource) * 2 + getResourceNeed(player, resource) * 3;
+    const resource = getSeizeOutrages(player).sort((a, b) => cost(a) - cost(b))[0];
+    if (cost(resource) > 1) { return false; }
+    const actionCard = getLowestCardtoPlay(cards);
+    playCard(player, actionCard, actionToPlay, actionCard.name == playedCardList[0].name ? "COPY" : "PIVOT");
+    provokeOutrage(player, resource);
+    hasInitiativeBeenClaimedThisTurn = true;
+    changeInitiative(player);
+    campaign.partisanSeize = { player: player.number, resource: resource, round: roundNumber, turn: turnNumber };
+    showMessageToast("Player " + player.number, "Seized the initiative by Provoking Outrage of " + preludeResourceNames[resource] + " (Partisan Seizing)");
+    SaveAllSettings();
+    return true;
+});
+
+registerCampaignHook("guildActionOffers", (player, wants, can) => {
+    // Spy (Informants): its highest card for a Rival's highest. Worth it when its own highest is low
+    if (!(player.guildCards || []).includes(203) || !can("influence")) { return undefined; }
+    const highest = hand => getHighestCard(getUnplayedCards(hand).filter(card => !isEventCard(card)));
+    const own = highest(player.cards);
+    const rivals = players.filter(other => other !== player && highest(other.cards) != null);
+    if (own == null || rivals.length == 0) { return undefined; }
+    const low = own.number <= 3;
+    if (!low && !wants(guildActionChance.trade)) { return undefined; }
+    const rival = rivals[Math.floor(Math.random() * rivals.length)];
+    return [{ label: "Spy instead of an Influence (Informants)", text: "give its highest card, " + getCardFullName(own) + ", to Player " + rival.number + " and take their highest card. The app swaps them.",
+        spy: rival.number, decided: low, why: low ? "Its highest card is only a " + own.number + "." : null }];
+});
+
+registerCampaignHook("applyOffer", (player, offer) => {
+    if (offer.spy == null) { return undefined; }
+    const rival = getPlayer(offer.spy);
+    const highest = hand => getHighestCard(getUnplayedCards(hand).filter(card => !isEventCard(card)));
+    const own = highest(player.cards), theirs = highest(rival.cards);
+    if (own == null || theirs == null) { return undefined; }
+    player.cards = player.cards.filter(card => card !== own).concat(theirs);
+    rival.cards = rival.cards.filter(card => card !== theirs).concat(own);
+    createCardButtonsForHumanPlayer();
+    showMessageToast("Spy (Informants)", "Player " + player.number + " gave " + getCardFullName(own) + " to Player " + rival.number + " and took " + getCardFullName(theirs) + ".");
+    return undefined;
+});
+
 // The bot's turn window: its Fate
 
 function getFateTurnSection(player) {
@@ -221,6 +335,13 @@ function getFateTurnSection(player) {
             + "<div class=\"objbar\"><div style=\"width:" + done + "%\"></div></div>" + (fate.objective != null && campaign.act == 1 ? fate.objective.text : "") + "</div>";
     }
     if (rules == null || !rules.taught) { html += "<div class=\"small text-secondary mt-1\">The bots don't play towards this Fate's objective yet.</div>"; }
+    if (hasFate(player, 6)) {
+        const seize = campaign.partisanSeize;
+        const now = seize != null && seize.player == player.number && seize.round == roundNumber && seize.turn == turnNumber;
+        html += "<div class=\"empirenote\">" + (now ? "<b>Seized the initiative</b> by Provoking Outrage of " + preludeResourceNames[seize.resource] + " (Partisan Seizing). "
+            : "<b>Partisan Seizing:</b> it seizes the initiative by Provoking Outrage of a resource it doesn't need, never by discarding a second card. ")
+            + "Getting the initiative advances its objective.</div>";
+    }
     if (hasFate(player, 7) && (player.guildCards || []).includes(201)) {
         html += "<div class=\"empirenote\"><b>Imperial Officers:</b> it ignores the Presence and Movement Laws, so it can move and attack with any Imperial ships, even where it has no ships."
             + (isRegent(player) ? " Attacking alongside Imperial ships, each Trophy advances its objective." : "") + "</div>";
@@ -265,6 +386,7 @@ function applyResolutions() {
             (rules.resolution.gain || []).forEach(number => { if (!player.guildCards.includes(number)) { player.guildCards.push(number); } });
         } else {
             campaign.edicts = (campaign.edicts || []).filter(number => !(rules.resolution.scrapEdicts || []).includes(number));
+            if (rules.resolution.failClearsOutrage) { player.outraged = []; }
         }
         showGuildCardsRow(player);
     });

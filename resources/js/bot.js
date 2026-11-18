@@ -676,6 +676,10 @@ function claim(player, cards, actionToPlay) {
 
     if (hasInitiativeBeenClaimedThisTurn == true) { return false; }
 
+    // In a campaign, the Partisan seizes by Provoking Outrage instead (campaignhooks.js)
+    const special = runCampaignHook("botClaim", player, cards, actionToPlay);
+    if (special !== undefined) { return special; }
+
     // The player with the initiative can't seize it (rulebook p.10)
     if (player.hasInitiative) { return false; }
 
