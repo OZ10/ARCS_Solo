@@ -28,7 +28,10 @@ const fateGuildCards = [
         { protected: true, code: "F1 03", replacesActions: [{ name: "Bargain", replaces: "secure" }] }),
     new CourtCard(207, "Parade Fleets", "guild", "fuel", 0,
         "When you declare an ambition, you may place 2 fresh ships at a Free city. Then, if you are a Regent, you may become an Outlaw.",
-        { protected: true, code: "F2 02" })
+        { protected: true, code: "F2 02" }),
+    new CourtCard(208, "Stone-Speakers", "guild", "materials", 0,
+        "When you declare an ambition, you may end your turn: take any Golems from your Rivals, then roll the event die and resolve the Crises if they're rolled (not the Edicts).",
+        { protected: true, code: "F5 04" })
 ];
 
 // Fates the bots aren't dealt yet (the Magnate needs Summit deals)
@@ -50,7 +53,7 @@ const fateRules = {
     4: { cards: [204, 205], taught: true,
         resolution: { completed: "Add Guild Overseers (03), the 5 Liaisons (05-09) and Diplomatic Fiasco (10) to the Court deck. Scrap Guild Struggle (11).",
             failed: "Add Guild Overseers to the Court deck. For each Guild suit you have more of than each Rival, add its Liaison; scrap the rest. Scrap Diplomatic Fiasco. Add Guild Struggle to the Court deck.", lose: [205] } },
-    5: { resolution: { completed: "Scrap Golem Beacon. Put all the Golems on the map onto Golem Hearth. Add 1 random lore card for each player and the 4 Unstable cards (08-11) to the Court deck.",
+    5: { cards: [208], other: ["Golem Beacon", "Golem Hearth", "Golems", "Golem Actions"], taught: true, resolution: { completed: "Scrap Golem Beacon. Put all the Golems on the map onto Golem Hearth. Add 1 random lore card for each player and the 4 Unstable cards (08-11) to the Court deck.",
         failed: "Scrap Golem Beacon. Add Stone-Speakers to the Court deck. Scrap the Golems on the map. Add the Unstable cards matching Golems still in play; scrap the rest." } },
     6: { cards: [203], other: ["Partisan Seizing"], taught: true,
         resolution: { completed: "Add the 5 Loyal cards (05-09) to the Court deck. Gain Galactic Bards (10). Scrap Spacing Union (11), Arms Union (12) and 2 Outrage Spreads (13-14).",
@@ -161,7 +164,7 @@ function stepChapterAnswer(index, change) {
 }
 
 function finishChapterObjectives() {
-    chapterQuestions.forEach(question => advanceObjective(question.player, question.answer, question.answer + " " + question.reason));
+    chapterQuestions.forEach(question => advanceObjective(question.player, question.answer * (question.multiplier || 1), question.answer + " " + question.reason));
     chapterQuestions = [];
     players.forEach(player => { getCampaignPlayer(player).objectiveLog = []; });
     SaveAllSettings();
@@ -340,7 +343,7 @@ registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
 
 // The Fates' Guild card actions, offered after a bot's prelude (guildactions.js)
 
-registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can), getBargainOffers(player, wants, can)));
+registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can), getBargainOffers(player, wants, can), getAwakenOffers(player, wants, can)));
 
 function getSpyOffers(player, wants, can) {
     // Spy (Informants): its highest card for a Rival's highest. Worth it when its own highest is low
@@ -368,6 +371,11 @@ function getRecoverOffers(player, wants, can) {
 registerCampaignHook("applyOffer", (player, offer) => {
     if (offer.spy != null) { applySpy(player, offer); }
     if (offer.recover) { advanceAdvocate(player, 2, "Recover (Guild Investigators)"); }
+    if (offer.golem) {
+        const state = getCampaignPlayer(player);
+        state.golems = Math.max((state.golems || 0) - 1, 0);
+        advanceObjective(player, 2, "Spent a Golem in its Prelude (Use the Golems)");
+    }
     if (offer.discards != null && getCourtCard(offer.discards) != null) { advanceAdvocate(player, 3, "Used the Prelude of " + getCourtCard(offer.discards).name + ", which discards itself"); }
     return undefined;
 });
@@ -402,10 +410,11 @@ function isPlacedInDeclaredAmbition(player) {
 registerCampaignHook("guildActionsBlocked", player => (player.guildCards || []).includes(205) && !isPlacedInDeclaredAmbition(player) ? true : undefined);
 
 registerCampaignHook("preludeOffers", (player, offers) => {
-    // The Advocate: a Guild card's Prelude that discards it advances its objective, so it's a decision
-    if (!hasOverseers(player)) { return undefined; }
-    return offers.map(offer => offer.discards != null && getCourtCard(offer.discards) != null
+    // The Advocate: a Guild card's Prelude that discards it advances its objective, so it's a
+    // decision. The Caretaker spends its Golems
+    const marked = !hasOverseers(player) ? offers : offers.map(offer => offer.discards != null && getCourtCard(offer.discards) != null
         ? { ...offer, decided: true, why: "Its objective advances 3 for a Guild card's Prelude that discards itself." } : offer);
+    return marked.concat(getGolemPreludeOffers(player));
 });
 
 registerCampaignHook("guildPreludeUsed", (player, number, discarded) => {
@@ -464,9 +473,40 @@ registerCampaignHook("ambitionDeclared", player => {
 });
 
 function getChapterQuestions() {
-    // What the objectives window asks at the end of a chapter: the Founder's systems as an Outlaw
-    return players.filter(player => hasFate(player, 2) && !isRegent(player) && getCampaignPlayer(player).objective > 0)
+    // What the objectives window asks at the end of a chapter: the Founder's systems as an Outlaw,
+    // and the Golems other players spent in their Preludes for the Caretaker
+    const founders = players.filter(player => hasFate(player, 2) && !isRegent(player) && getCampaignPlayer(player).objective > 0)
         .map(player => ({ player: player, text: "An Outlaw: how many systems does it control?", reason: "systems controlled as an Outlaw (Defy the Empire's Grip)" }));
+    const caretakers = players.filter(player => hasFate(player, 5) && getCampaignPlayer(player).objective > 0)
+        .map(player => ({ player: player, text: "How many Golems did other players spend in their Preludes this chapter?" + (player.isHuman ? " (Count your own too.)" : " (The app counted its own.)"),
+            reason: "Golems spent in Preludes (Use the Golems)", multiplier: 2, othersOnly: !player.isHuman }));
+    return founders.concat(caretakers);
+}
+
+// The Caretaker (Fate 5). Find the Golems: for each ambition it wins, 2 for each Golem it has. Use
+// the Golems: 2 each time any player spends a Golem in their Prelude. Golem Beacon: Awaken instead
+// of an Influence. Its Golems are counted on its panel
+
+registerCampaignHook("ambitionsScored", results => {
+    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 5)).forEach(result => {
+        const golems = getCampaignPlayer(result.player).golems || 0;
+        advanceObjective(result.player, golems * 2, "Won " + capitalise(result.ambition) + " with " + golems + " Golem" + (golems == 1 ? "" : "s") + " (Find the Golems)");
+    });
+    return undefined;
+});
+
+function getGolemPreludeOffers(player) {
+    // A bot Caretaker spends its Golems in its prelude: each one advances its objective
+    const golems = hasFate(player, 5) ? (getCampaignPlayer(player).golems || 0) : 0;
+    if (golems == 0) { return []; }
+    return [{ label: "Spend a Golem", text: "spend an Awake Golem for its action (Warrior: destroy all damaged ships in a system; Protector: repair ships; Seeker: Catapult from a system; Harvester: gain any resource). Then it goes Sleeping into a Rival's empty resource slot",
+        golem: true, decided: true, why: "Each Golem spent advances its objective 2." }];
+}
+
+function getAwakenOffers(player, wants, can) {
+    // Awaken (Golem Beacon): take its Golems from the map. The player says how many on its panel
+    if (!hasFate(player, 5) || campaign.act != 1 || !can("influence")) { return []; }
+    return [{ label: "Awaken instead of an Influence (Golem Beacon)", text: "take the Golems it controls on the map onto Golem Hearth (Awake if it's winning a declared ambition). Add them to its Golems on its panel" }];
 }
 
 function getBargainOffers(player, wants, can) {
@@ -515,6 +555,11 @@ function getFateTurnSection(player) {
             : "<b>Not First Regent:</b> it wants the Imperial Council, to become First Regent and advance its objective with ambitions it wins.")
             + ((getCampaignPlayer(player).buried || []).includes("Imperial Authority") ? "" : " <b>Imperial Authority:</b> it may tax any Empire-controlled city as if it were its own, ignoring the Presence and Truce Laws (no Captives).") + "</div>";
     }
+    if (hasFate(player, 5)) {
+        const golems = getCampaignPlayer(player).golems || 0;
+        html += "<div class=\"empirenote\"><b>Golems:</b> it has " + golems + ". Each ambition it wins advances its objective 2 for each Golem, and each Golem anyone spends in a Prelude advances it 2. "
+            + "It Awakens Golems it controls on the map (Golem Beacon), and spends them in its Prelude.</div>";
+    }
     if (hasFate(player, 4)) {
         html += "<div class=\"empirenote\"><b>Guild Overseers:</b> " + (!hasOverseers(player) ? "it no longer has them." : isPlacedInDeclaredAmbition(player)
             ? "it's first or second for a declared ambition, so it can use its Guild card actions. It uses Guild Preludes that discard themselves, and Recovers, to advance its objective."
@@ -540,6 +585,11 @@ function getFatePanelHtml(player) {
             + "<div class=\"objbar\"><div style=\"width:" + Math.round(done / state.objectiveStart * 100) + "%\"></div></div></div>";
     }
     const rules = fateRules[state.fate];
+    // The Caretaker's Golems
+    if (hasFate(player, 5)) {
+        html += "<div class=\"favors\"><span class=\"lbl\">Golems</span><span class=\"favorstep\"><button type=\"button\" onclick=\"stepCampaign('golems', " + player.number + ", -1)\" aria-label=\"One Golem fewer\"><i class=\"bi bi-dash\"></i></button>"
+            + "<b>" + (state.golems || 0) + "</b><button type=\"button\" onclick=\"stepCampaign('golems', " + player.number + ", 1)\" aria-label=\"One Golem more\"><i class=\"bi bi-plus\"></i></button></span></div>";
+    }
     const other = (rules == null || campaign.act != 1) ? [] : (rules.other || []).filter(name => !(state.buried || []).includes(name));
     if (other.length > 0) {
         html += "<div class=\"fatecards\"><span class=\"boardgrouplabel mb-0 me-1\">Fate</span>" + other.map(name => "<span class=\"fatechip\">" + name + "</span>").join("") + "</div>";

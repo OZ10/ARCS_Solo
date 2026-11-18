@@ -388,6 +388,8 @@ function stepCampaign(kind, playerNumber, change, extra) {
     if (kind == "objective") { state.objective = Math.max((state.objective ?? 0) + change, 0); }
     if (kind == "favor") { state.favors[extra] = Math.max((state.favors[extra] || 0) + change, 0); }
     if (kind == "trust") { campaign.trust[extra] = Math.max(campaign.trust[extra] + change, 0); }
+    // The Caretaker's Golems (fatebots.js)
+    if (kind == "golems") { state.golems = Math.max((state.golems || 0) + change, 0); }
     showCampaignPanel(getPlayer(playerNumber));
     SaveAllSettings();
 }
