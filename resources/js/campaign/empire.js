@@ -27,7 +27,8 @@ function getTrustTotal() {
 
 registerCampaignHook("battleTargetBonus", (player, rival) => {
     if (!isRegent(player)) { return 0; }
-    return isRegent(rival) ? empireTargetWeights.rivalRegent : empireTargetWeights.outlaw;
+    // The Admiral wants Trophies from battles alongside Imperial ships: Outlaws all the more (fatebots.js)
+    return isRegent(rival) ? empireTargetWeights.rivalRegent : empireTargetWeights.outlaw + (hasFate(player, 7) ? 1 : 0);
 });
 
 registerCampaignHook("battleTargetWhere", (player, rival) => {
@@ -65,7 +66,8 @@ registerCampaignHook("turnSections", (player, plan) => {
         if (actions.includes("tax")) { rows.push("<b>Tax:</b> Free cities it controls can be taxed (no Captives)."); }
         if (actions.includes("move")) { rows.push("<b>Move:</b> a Catapult ends in a gate the Empire or a Regent controls."); }
     }
-    return getTurnSection("The Empire", "<div class=\"small\">" + status + "</div>"
+    // Its Fate first (fatebots.js), then the Empire
+    return getFateTurnSection(player) + getTurnSection("The Empire", "<div class=\"small\">" + status + "</div>"
         + (rows.length > 0 ? "<div class=\"empirenote\">" + rows.join("<br>") + "</div>" : ""));
 });
 
@@ -198,5 +200,7 @@ registerCampaignHook("applyBattle", losses => {
         if (losses.attackerShips > 0) { lines.push(losses.attackerShips + " of its ships destroyed"); }
     }
     showMessageToast("Player " + attacker.number + " attacked " + defender.label, lines.length > 0 ? lines.join("<br>") : "Nothing was destroyed.");
+    // Objectives can advance for the Trophies taken (fatebots.js)
+    runCampaignHook("afterBattle", losses);
     return true;
 });

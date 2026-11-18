@@ -2278,6 +2278,55 @@ header, .footerstyle {
   color: #fff;
 }
 
+.objbar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  margin: 4px 0 2px;
+}
+.objbar > div {
+  height: 100%;
+  background: #5b2a86;
+}
+
+.fatecards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  margin: 0 12px 10px;
+}
+
+.fatechip {
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #efe8f7;
+  color: #3d1d5c;
+  border-left: 4px solid #5b2a86;
+}
+
+.objrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid #e2e4e8;
+}
+.objrow:first-of-type {
+  border-top: 0;
+}
+
+.objdelta {
+  font-weight: 700;
+  color: #198754;
+  white-space: nowrap;
+}
+
 .summitaction small, .summitaction .small {
   display: block;
   color: #5b6573;

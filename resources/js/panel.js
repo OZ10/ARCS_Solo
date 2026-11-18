@@ -188,8 +188,9 @@ function showGuildCard(player, card) {
     // A card's text, with Remove (when it's lost, discarded or stolen)
     document.getElementById("guildTitle").innerHTML = card.name;
     const body = document.getElementById("guildBody");
+    // A campaign's Fate cards are protected and have their own code
     body.innerHTML = "<div class=\"small text-muted mb-2\">" + getPlayerTag(player) + " &middot; " + preludeResourceNames[card.resource]
-        + " &middot; " + card.keys + " key" + (card.keys == 1 ? "" : "s") + " &middot; BC " + String(card.number).padStart(2, "0") + "</div>"
+        + " &middot; " + (card.protected ? "Protected" : card.keys + " key" + (card.keys == 1 ? "" : "s")) + " &middot; " + (card.code || "BC " + String(card.number).padStart(2, "0")) + "</div>"
         + "<p>" + card.text + "</p>";
 
     // Farseers' prelude, for the human player. A bot's is in its prelude window

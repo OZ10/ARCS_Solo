@@ -201,7 +201,7 @@ function chooseFates(act, then) {
         const state = getCampaignPlayer(player);
         const keeping = act > 1 && state.completed === true ? state.fate : null;
         fateChoice.keeping[player.number] = keeping;
-        if (mode == "deal") { dealt[player.number] = keeping != null ? [fateChoice.deck.shift(), keeping] : fateChoice.deck.splice(0, 2); }
+        if (mode == "deal") { dealt[player.number] = keeping != null ? [dealFate(player), keeping] : [dealFate(player), dealFate(player)]; }
         state.previousFate = state.fate;
         state.fate = null;
     });
@@ -218,12 +218,20 @@ function chooseFates(act, then) {
     nextFateChoice();
 }
 
+function dealFate(player) {
+    // The top Fate of the deck. A bot isn't dealt one the bots can't play yet (fatebots.js)
+    const index = fateChoice.deck.findIndex(number => player.isHuman || !botsNotDealt.includes(number));
+    return fateChoice.deck.splice(index, 1)[0];
+}
+
 function getFatesLeftToPick() {
     // Picked Fates can't be anyone else's, nor can one dealt to another player
     const taken = players.map(player => getCampaignPlayer(player).fate).filter(fate => fate != null);
     const dealt = Object.values(fateChoice.dealt).flat();
     const keeping = fateChoice.keeping[fateChoice.current.player.number];
-    return (keeping != null ? [getFate(keeping)] : []).concat(getFatesInSet(fateChoice.set).filter(fate => !taken.includes(fate.number) && !dealt.includes(fate.number)));
+    const forBot = !fateChoice.current.player.isHuman;
+    return (keeping != null ? [getFate(keeping)] : []).concat(getFatesInSet(fateChoice.set)
+        .filter(fate => !taken.includes(fate.number) && !dealt.includes(fate.number) && !(forBot && botsNotDealt.includes(fate.number))));
 }
 
 function nextFateChoice() {
@@ -311,6 +319,8 @@ function showFatesChosen() {
         const firstRegent = holding("Steward") || holding("Admiral") || getPlayerWithInitiative();
         campaign.firstRegent = firstRegent.number;
     }
+    // Their starting cards and Edicts (fatebots.js)
+    applyFateSetups(act);
     players.forEach(showCampaignPanel);
     SaveAllSettings();
 
@@ -368,7 +378,7 @@ function showCampaignPanel(player) {
             + "<b>" + campaign.trust[resource] + "</b>"
             + "<button type=\"button\" onclick=\"stepCampaign('trust', " + player.number + ", 1, '" + resource + "')\" aria-label=\"One more " + resource + "\"><i class=\"bi bi-plus\"></i></button></span>").join("")
         + "</div></div>" : "";
-    holder.innerHTML = chips + objective + favors + trust;
+    holder.innerHTML = chips + objective + getFatePanelHtml(player) + favors + trust;
 }
 
 function stepCampaign(kind, playerNumber, change, extra) {
@@ -405,6 +415,7 @@ function showTitleWindow(playerNumber) {
 
 function setTitle(playerNumber, title) {
     campaign.players[playerNumber].title = title;
+    if (title == "outlaw") { buryOutlawCards(getPlayer(playerNumber)); }
     // An Outlaw can't be First Regent: the tile passes to the Regent with the most Power (rulebook p.16)
     if (title == "outlaw" && campaign.firstRegent == playerNumber) {
         const regents = players.filter(player => getCampaignPlayer(player).title == "regent").sort((a, b) => b.powerValue - a.powerValue);

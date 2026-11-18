@@ -96,6 +96,7 @@ function leaveEmpire(playerNumber) {
     // and the tile goes to the supply (rulebook p.16)
     const player = getPlayer(playerNumber);
     getCampaignPlayer(player).title = "outlaw";
+    buryOutlawCards(player);
     if (isFirstRegent(player)) {
         const regents = players.filter(other => getCampaignPlayer(other).title == "regent").sort((a, b) => b.powerValue - a.powerValue);
         if (regents.length > 0) {
@@ -347,8 +348,7 @@ function showGovern() {
     const firstRegent = campaign.firstRegent != null ? getPlayer(campaign.firstRegent) : null;
     if (firstRegent == null) {
         showCampaignWindow("Edicts", "<div class=\"turnsection\"><div class=\"turnlabel\">03 &middot; Govern the Imperial Reach</div><p class=\"mb-0\">There's no First Regent, so no one governs.</p></div>"
-            + "<p class=\"small\">Then any other Edicts in the rules booklet, in number order.</p>"
-            + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"finishRoundEvent()\">Done: on to scoring</button>", null, true);
+            + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"afterGovern()\">Next</button>", null, true);
         return;
     }
     const demand = policyDemands[campaign.policy];
@@ -423,7 +423,8 @@ function choosePolicyForBot(firstRegent) {
 function changePolicy(policy) {
     campaign.policy = policy;
     showMessageToast("Edicts", "Put " + policyNames[policy] + " on top of the Govern the Imperial Reach cards.");
-    finishRoundEvent();
+    // Then the Fates' Edicts (fatebots.js)
+    afterGovern();
 }
 
 function enforcePolicy() {
@@ -456,9 +457,11 @@ function enforcePolicy() {
         });
     } else {
         notes.push("Place 2 fresh Imperial ships in an Empire-controlled system (or at a Loyal starport of Player " + firstRegent.number + "'s if there are none)");
+        imperialShipsPlaced(2, "Requisition Ships");
     }
     players.forEach(showCampaignPanel);
     SaveAllSettings();
     showMessageToast(policyNames[campaign.policy], notes.join("<br>"));
-    finishRoundEvent();
+    // Then the Fates' Edicts (fatebots.js)
+    afterGovern();
 }

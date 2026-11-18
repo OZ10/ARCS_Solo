@@ -37,8 +37,10 @@ function showIntermission() {
     const step = (text, note) => "<label class=\"setstep\"><input class=\"form-check-input\" type=\"checkbox\"><span>" + text + (note ? "<small>" + note + "</small>" : "") + "</span></label>";
     const fateRows = players.map(player => {
         const state = getCampaignPlayer(player);
+        // Its Resolution card, for a completed or failed objective (fatebots.js)
         return "<label class=\"setstep\"><input class=\"form-check-input\" type=\"checkbox\"" + (state.completed ? " checked" : "") + " onchange=\"setObjectiveCompleted(" + player.number + ", this.checked)\">"
-            + "<span>Player " + player.number + " &middot; " + getFate(state.fate).name + ", marker at " + (state.objective ?? "&ndash;") + "</span></label>";
+            + "<span>Player " + player.number + " &middot; " + getFate(state.fate).name + ": <b>" + (state.completed ? "completed" : "failed") + "</b> (marker at " + (state.objective ?? "&ndash;") + ")"
+            + "<small>" + getResolutionHtml(player) + "</small></span></label>";
     }).join("");
     const highest = players.slice().sort((a, b) => getIntermissionPower(b) - getIntermissionPower(a) || getTurnOrderPosition(a) - getTurnOrderPosition(b))[0];
     const powerRows = players.map(player => {
@@ -49,7 +51,7 @@ function showIntermission() {
     const next = { 1: "B", 2: "C" }[act];
     showCampaignWindow(actNames[act] + " is over: Intermission",
         "<div class=\"turnsection\"><div class=\"turnlabel\">A &middot; Resolve Fate</div><div class=\"mb-1\">Who completed their objective (marker at 0)?</div>" + fateRows
-        + "<small class=\"text-secondary\">Then each player follows their Resolution card.</small></div>"
+        + "<small class=\"text-secondary\">Tick each completed objective; each player follows their Resolution card. The app adds any cards gained to the panels.</small></div>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">Power, worked out by the app</div><table class=\"ptable\"><tr><th>Player</th><th>Power</th><th>Objective</th><th>" + actNames[act + 1] + "</th></tr>" + powerRows + "</table>"
         + "<small class=\"text-secondary d-block mt-1\">A failed objective loses its marker's space, then anyone above 1 Power loses half (rounding to lose less). Player " + highest.number + " takes the initiative.</small></div>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">B&ndash;D &middot; On the table</div>"
@@ -70,6 +72,8 @@ function applyIntermission() {
     // A and E: Power. C: Trophies, Captives, the Trust (and the ambition boxes with 2 players). B: the Court
     const powers = {};
     players.forEach(player => { powers[player.number] = getIntermissionPower(player); });
+    // The Resolution cards: cards gained, Edicts scrapped (fatebots.js)
+    applyResolutions();
     players.forEach(player => {
         setPlayerPower(player, powers[player.number]);
         ["trophies", "captives"].forEach(counter => adjustCounter(player, counter, -player[counter + "Value"]));

@@ -246,6 +246,8 @@ function confirmScoring() {
     const powerBefore = {};
     players.forEach(player => { powerBefore[player.number] = player.powerValue; });
 
+    // A campaign's objectives can advance for ambitions won (campaignhooks.js)
+    runCampaignHook("ambitionsScored", getScoringResults());
     getScoringResults().filter(result => !result.player.isNeutral).forEach(result => {
         setPlayerPower(result.player, result.player.powerValue + result.points);
         if (result.points > 0) {

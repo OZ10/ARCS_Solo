@@ -2465,6 +2465,58 @@ $empire: #5b2a86;
     color: #fff;
 }
 
+// Phase 3: Fates. An objective's progress, the Fate's other cards, and the objectives window
+.objbar {
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    margin: 4px 0 2px;
+
+    > div {
+        height: 100%;
+        background: $empire;
+    }
+}
+
+.fatecards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    align-items: center;
+    margin: 0 12px 10px;
+}
+
+.fatechip {
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: #efe8f7;
+    color: #3d1d5c;
+    border-left: 4px solid $empire;
+}
+
+.objrow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-top: 1px solid #e2e4e8;
+
+    &:first-of-type {
+        border-top: 0;
+    }
+}
+
+.objdelta {
+    font-weight: 700;
+    color: #198754;
+    white-space: nowrap;
+}
+
 // A Summit's Call to Order actions
 .summitaction small {
     display: block;

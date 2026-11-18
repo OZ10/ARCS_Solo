@@ -533,7 +533,8 @@ function getRaidWants(attacker, defender) {
     const resources = preludeResources.filter(resource => defender[resource + "Value"] > 0).map(resource => ({
         id: "resource:" + resource, resource: resource, name: preludeResourceNames[resource], need: getResourceNeed(attacker, resource)
     }));
-    const guildCards = getPlayerGuildCards(defender).map(card => ({
+    // A campaign's protected Guild cards can't be stolen
+    const guildCards = getPlayerGuildCards(defender).filter(card => !card.protected).map(card => ({
         id: "guild:" + card.number, card: card.number, name: card.name, keys: card.keys, need: getResourceNeed(attacker, card.resource)
     }));
     return filterLeaderRaidWants(attacker, defender, resources.concat(guildCards)).sort((a, b) => b.need - a.need);
@@ -1004,6 +1005,8 @@ function applyBattleResults() {
         }
     });
 
+    // A campaign's objectives can advance for Trophies taken (campaignhooks.js)
+    runCampaignHook("afterBattle", losses);
     SaveAllSettings();
     refreshTurnSummary();
     showMessageToast("Player " + attacker.number + " attacked Player " + defender.number,

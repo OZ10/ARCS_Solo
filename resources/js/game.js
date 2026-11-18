@@ -269,7 +269,10 @@ function scoreRound() {
     }
 }
 
-function startNextRound() {
+function startNextRound(afterCampaign = false) {
+    // A campaign checks its objectives first, then carries on here (campaignhooks.js)
+    if (!afterCampaign && runCampaignHook("afterScoring", () => startNextRound(true)) === true) { return; }
+
     // The round has been scored, so undoing a card from it is no longer possible
     clearUndoPoint();
 
