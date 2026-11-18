@@ -39,11 +39,14 @@ document.addEventListener("DOMContentLoaded", () => {
         loadDiscardPile();
         // Ambitions must be loaded before players. Loading the players saves the whole
         // game, which would otherwise overwrite the saved ambitions with an empty list
+        // The campaign's own state (campaignhooks.js), before the players as their panels show it.
+        // Nothing outside a campaign
+        campaignMode = getSettingObject("campaignMode") === true;
+        runCampaignHook("load");
         loadAmbitions();
         loadPlayers();
-        // The campaign's own state (campaignhooks.js). Nothing outside a campaign
-        runCampaignHook("load");
     }
+    notifyCampaignModeChanged();
 
     showChosenColour();
     updateAmbitionsDisplay();
@@ -89,8 +92,11 @@ function setupGame(numberOfPlayers, optionsClosed = false) {
     declaredAmbitions = [];
     neutralCounts = {};
     courtMarket = [];
-    leadersAndLore = document.getElementById("leadersAndLoreSwitch").checked;
+    // A Blighted Reach campaign (campaignhooks.js) has no Leaders
+    campaignMode = isCampaignChosen();
+    leadersAndLore = !campaignMode && document.getElementById("leadersAndLoreSwitch").checked;
     leaderDraft = null;
+    notifyCampaignModeChanged();
 
     removeChildElements("playerslots");
     removeChildElements("playedcards");
@@ -113,9 +119,31 @@ function setupGame(numberOfPlayers, optionsClosed = false) {
     updateUndoButton();
 
     // The Options window is still closing, and one window can't open until another has closed.
-    // After the New Game question it already has
-    if (optionsClosed) { askOpeningCourt(); return; }
-    document.getElementById("numberOfPlayersModal").addEventListener('hidden.bs.modal', () => askOpeningCourt(), { once: true });
+    // After the New Game question it already has. A campaign has its own setup windows first
+    const start = () => { if (runCampaignHook("startSetup", askOpeningCourt) !== true) { askOpeningCourt(); } };
+    if (optionsClosed) { start(); return; }
+    document.getElementById("numberOfPlayersModal").addEventListener('hidden.bs.modal', start, { once: true });
+}
+
+// New Game: tapping a number of players chooses it, and Start game starts the game
+
+let chosenPlayerCount = null;
+
+function choosePlayerCount(numberOfPlayers) {
+    chosenPlayerCount = numberOfPlayers;
+    showChosenPlayerCount();
+}
+
+function showChosenPlayerCount() {
+    // A count hidden by the number of human players can't stay chosen
+    const button = [...document.querySelectorAll(".playercount button")].find(other => parseInt(other.textContent) == chosenPlayerCount);
+    if (button == null || button.classList.contains("d-none")) { chosenPlayerCount = null; }
+    document.querySelectorAll(".playercount button").forEach(other => other.classList.toggle("chosen", parseInt(other.textContent) == chosenPlayerCount));
+    enableDisableButton("startGameButton", chosenPlayerCount == null);
+}
+
+function startChosenGame() {
+    if (chosenPlayerCount != null) { chooseNewGame(chosenPlayerCount); }
 }
 
 function showChosenColour() {
@@ -309,6 +337,8 @@ function updateRoundNumber() {
         element.classList.toggle("roundcurrent", roundNum == roundNumber);
         element.classList.toggle("roundpast", roundNum < roundNumber);
     }
+    // A campaign shows its Act and chapters (campaignhooks.js)
+    runCampaignHook("roundShown");
 
     // Marker values change by round
     updateAmbitionsDisplay();
@@ -362,7 +392,9 @@ function shuffleCards(cards) {
 }
 
 function takeMulligan(player) {
-    // A new hand of 6, and the old hand goes into the discard pile with the rest
+    // A new hand of 6, and the old hand goes into the discard pile with the rest. In a campaign,
+    // Event cards are kept (campaignhooks.js)
+    if (runCampaignHook("mulligan", player) === true) { createCardButtonsForHumanPlayer(); SaveAllSettings(); return; }
     const oldHand = player.cards;
     player.cards = discardPile.splice(0, 6);
     discardPile = shuffleCards(discardPile.concat(oldHand));
@@ -534,6 +566,9 @@ function describePlayerPlays(player) {
     const lead = playedCardList[0];
 
     return playedCardList.filter(card => card.playedByPlayerNumber == player.number).map(card => {
+        // A campaign's Event card (campaignhooks.js)
+        const special = runCampaignHook("describePlay", card, lead);
+        if (special != null) { return special; }
         const focus = (card.playedAction != null && card.playedAction.toUpperCase() != "ANY") ? ", for " + card.playedAction : "";
         const declared = card.declared ? " and declared an ambition" : "";
 
@@ -580,7 +615,9 @@ function setCurrentPlayer(player) {
         return;
     }
 
-    if (hasPlayerGotCardsToPlay(player)) {
+    // In a campaign, a player due to lead with only Event cards passes the initiative (campaignhooks.js)
+    const cannotLead = isLeadingThisTurn() && runCampaignHook("cannotLead", player) === true;
+    if (hasPlayerGotCardsToPlay(player) && !cannotLead) {
         currentPlayer = player;
         enableDisablePlayerPanels(player.number);
 

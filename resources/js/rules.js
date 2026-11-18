@@ -342,8 +342,10 @@ const neutralAmbitions = ["tycoon", "warlord", "keeper", "empath"];
 const neutralPlayer = { number: "neutral", isNeutral: true };
 
 function getRoundMarkers(round) {
-    // Highest marker first, ranked by its first place value
-    return ambitionMarkerValues[round].slice().sort((a, b) => b[0] - a[0]);
+    // Highest marker first, ranked by its first place value. A campaign's later Acts start with
+    // markers already flipped (campaignhooks.js)
+    const markerRound = runCampaignHook("markerRound", round) ?? round;
+    return ambitionMarkerValues[markerRound].slice().sort((a, b) => b[0] - a[0]);
 }
 
 function scoreAmbition(counts, markers, ambition) {

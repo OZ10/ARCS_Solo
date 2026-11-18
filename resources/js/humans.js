@@ -138,6 +138,9 @@ function setHumanCount(count) {
         : "Players 1" + (count > 2 ? ", " + Array.from({ length: count - 2 }, (_, index) => index + 2).join(", ") : "") + " and " + count + " are human players"
             + (count < 4 ? ", and the rest are bots" : "") + ". Pass the device at each human player's turn: their hand stays hidden until they tap to show it.";
     document.querySelectorAll(".playercount button").forEach(button => button.classList.toggle("d-none", parseInt(button.textContent) < count));
+    // With 4 human players there's only one count to choose
+    if (count == 4) { chosenPlayerCount = 4; }
+    showChosenPlayerCount();
     updateHumanColours();
     updateBotDifficultyCard();
 }

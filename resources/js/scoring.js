@@ -152,7 +152,8 @@ function showScoringModal() {
             input.id = "scoreCount_" + id;
             input.dataset.player = player.number;
             // The neutral count is remembered from the last time it was scored
-            input.value = player.isNeutral ? (neutralCounts[group.ambition] || 0) : ambitionResources[group.ambition](player);
+            input.value = player.isNeutral ? (neutralCounts[group.ambition] || 0)
+                : ambitionResources[group.ambition](player) + (runCampaignHook("ambitionExtra", player, group.ambition) || 0);
             input.oninput = updateScoringPreview;
 
             step.append(stepButton(-1, "bi-dash"), input, stepButton(1, "bi-plus"));
@@ -180,7 +181,7 @@ function showScoringModal() {
         "<div class=\"powerline\">" + getPlayerTag(player) + "<div class=\"powerbar\"><div class=\"now playerbanner" + getPlayerColour(player) + "\" id=\"powerNow_" + player.number + "\"></div>"
         + "<div class=\"gain playerbanner" + getPlayerColour(player) + "\" id=\"powerGain_" + player.number + "\"></div></div>"
         + "<span class=\"powernum\" id=\"powerNum_" + player.number + "\"></span></div>").join("")
-        + "<div class=\"powertarget\">" + powerToWin[players.length] + " Power wins</div>";
+        + "<div class=\"powertarget\">" + getPowerTarget().text + "</div>";
     list.appendChild(power);
 
     updateScoringPreview();
@@ -226,7 +227,7 @@ function updateScoringPreview() {
     });
 
     // Power after scoring: now, and striped, what this round adds
-    const target = powerToWin[players.length];
+    const target = getPowerTarget().target;
     const width = value => Math.min(value / target * 100, 100) + "%";
     players.forEach(player => {
         const gain = results.filter(result => result.player === player).reduce((total, result) => total + result.points, 0);
@@ -314,6 +315,11 @@ function confirmScoring() {
     }, { once: true });
 }
 
+function getPowerTarget() {
+    // The Power that wins, for the bars in the scoring window. A campaign Act has none (campaignhooks.js)
+    return runCampaignHook("powerTarget") || { target: powerToWin[players.length], text: powerToWin[players.length] + " Power wins" };
+}
+
 function setPlayerPower(player, power) {
     player.powerValue = power;
 
@@ -340,6 +346,8 @@ function getTurnOrderPosition(player) {
 function showGameOverModal() {
     // Any message still showing (such as the scores) would cover who won (#121)
     document.querySelectorAll(".toast.show").forEach(toast => bootstrap.Toast.getOrCreateInstance(toast).hide());
+    // A campaign Act ends with the Intermission, or the campaign's own winner (campaignhooks.js)
+    if (runCampaignHook("showGameOver") === true) { return; }
     // Most power wins. A tie goes to whoever is earliest in turn order (rulebook p.19)
     const standings = players.slice().sort((a, b) => (b.powerValue - a.powerValue) || (getTurnOrderPosition(a) - getTurnOrderPosition(b)));
     const winner = standings[0];

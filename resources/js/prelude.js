@@ -152,6 +152,9 @@ function getBotPlay(player) {
     if (card == null) { return null; }
 
     const lead = playedCardList[0];
+    // A campaign's Event card takes the lead card's actions, or none (campaignhooks.js)
+    const special = runCampaignHook("botPlay", card, lead);
+    if (special != null) { return special; }
     switch (card.cardAction) {
         case "COPY":
             return { actions: lead.actions, count: 1, leading: false };

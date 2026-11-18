@@ -23,7 +23,12 @@ function getRivalAgents(entry, player) {
 
 function canSecureEntry(entry, player) {
     const own = getMarketAgents(entry, player);
-    return own > 0 && own > Math.max(...getRivalAgents(entry, player)) && !isParanoidBlocked(entry, player);
+    return own > 0 && own > Math.max(...getRivalAgents(entry, player)) && !isParanoidBlocked(entry, player) && !isMarketCardClosed(entry);
+}
+
+function isMarketCardClosed(entry) {
+    // A card no one can influence or secure for now: a campaign's Imperial Council once Decided
+    return runCampaignHook("isCardClosed", entry) === true;
 }
 
 function removeFromMarket(number) {
@@ -91,7 +96,7 @@ function getCardsToInfluence(player) {
     if (getUnplayedCards(player.cards).length == 0 || hasNoAgents(player)) { return []; }
 
     const agentsNeeded = entry => Math.max(...getRivalAgents(entry, player)) + 1 - getMarketAgents(entry, player);
-    return courtMarket.filter(entry => agentsNeeded(entry) > 0)
+    return courtMarket.filter(entry => agentsNeeded(entry) > 0 && !isMarketCardClosed(entry))
         .sort((a, b) => (getMarketCardValue(player, b) / agentsNeeded(b)) - (getMarketCardValue(player, a) / agentsNeeded(a)));
 }
 
@@ -124,7 +129,11 @@ function askOpeningCourt() {
     const modal = document.getElementById("courtModal");
     modal.querySelector(".modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     document.getElementById("courtTitle").innerHTML = "The Court";
-    modal.addEventListener('hidden.bs.modal', () => { courtSetup = false; if (leadersAndLore) { startLeaderDraft(); } else { showSetUpPlayers(); } }, { once: true });
+    // Then the Leader draft, or setting up the players. A campaign has its own setup (campaignhooks.js)
+    modal.addEventListener('hidden.bs.modal', () => {
+        courtSetup = false;
+        if (leadersAndLore) { startLeaderDraft(); } else if (runCampaignHook("setUpPlayers") !== true) { showSetUpPlayers(); }
+    }, { once: true });
 
     showCourtWindow();
     bootstrap.Modal.getOrCreateInstance(modal).show();
@@ -158,7 +167,7 @@ function showSetUpPlayers() {
 function getMarketShortfall() {
     // How many cards the market is missing, if it has been entered
     if (!isMarketKnown()) { return 0; }
-    return Math.max(openingCourtCards[players.length] - courtMarket.length, 0);
+    return Math.max(getCourtSize() - courtMarket.length, 0);
 }
 
 function getMarketReminder(player) {
@@ -200,8 +209,8 @@ function addToMarket(number) {
 function dealCourtForMe() {
     // At setup: the app deals the Court at random from the cards not yet in it, and the player
     // takes the same cards from their Court deck (#136)
-    const target = openingCourtCards[players.length];
-    const available = courtCards.filter(card => !courtMarket.some(entry => entry.number == card.number) && getGuildCardHolder(card.number) == null);
+    const target = getCourtSize();
+    const available = getCourtPool().filter(card => !courtMarket.some(entry => entry.number == card.number) && getGuildCardHolder(card.number) == null);
     shuffleCards(available).slice(0, Math.max(target - courtMarket.length, 0)).forEach(card => addToMarket(card.number));
 }
 
@@ -298,14 +307,14 @@ function showCourtWindow() {
     });
 
     // Add a card, until the market is full: any Court card not held by anyone or already in the market
-    const available = courtCards.filter(card => !courtMarket.some(entry => entry.number == card.number) && getGuildCardHolder(card.number) == null).sort(byCardName);
+    const available = getCourtPool().filter(card => !courtMarket.some(entry => entry.number == card.number) && getGuildCardHolder(card.number) == null).sort(byCardName);
     const add = document.createElement("select");
     add.classList.add("form-select", "form-select-sm", "mt-2");
     add.id = "courtAdd";
     add.innerHTML = "<option value=\"\">Add a card to the market&hellip;</option>"
         + available.map(card => "<option value=\"" + card.number + "\">" + card.name + (card.type == "vox" ? " (Vox)" : " (" + preludeResourceNames[card.resource] + ")") + "</option>").join("");
     add.onchange = () => { if (add.value != "") { addToMarket(add.value); } };
-    const isFull = courtMarket.length >= openingCourtCards[players.length];
+    const isFull = courtMarket.length >= getCourtSize();
     if (!isFull) { body.appendChild(add); }
 
     // At setup, until it's full: or the app can deal the cards (#136)
@@ -353,6 +362,14 @@ function secureMarketCard(number) {
     const card = getCourtCard(number);
     const captured = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
     recordCapturedAgents(entry, player, "agentsCaptive");
+    // A campaign's own cards, such as the Imperial Council (campaignhooks.js)
+    if (runCampaignHook("secureCard", entry, player, captured) === true) {
+        adjustCounter(player, "captives", captured);
+        SaveAllSettings();
+        refreshTurnSummary();
+        showCourtWindow();
+        return;
+    }
 
     removeFromMarket(number);
     adjustCounter(player, "captives", captured);

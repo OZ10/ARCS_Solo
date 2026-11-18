@@ -459,16 +459,23 @@
                 </div>
                 <div class="optrow">
                 <div class="optlabel">How many players? (human players and bots)</div>
+                <!-- Tapping a number chooses it; Start game starts the game (game.js) -->
                 <div class="playercount">
                   <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="chooseNewGame(2)">2</button>
+                    onclick="choosePlayerCount(2)">2</button>
 
                   <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="chooseNewGame(3)">3</button>
+                    onclick="choosePlayerCount(3)">3</button>
 
                   <button type="button" class="btn btn-secondary"
-                    data-bs-dismiss="modal" onclick="chooseNewGame(4)">4</button>
+                    onclick="choosePlayerCount(4)">4</button>
                 </div>
+                </div>
+                <!-- The Blighted Reach campaign's options go here (resources/js/campaign/campaign.js) -->
+                <div id="campaignOptions"></div>
+                <div class="optrow">
+                  <button type="button" class="btn btn-primary w-100 startgame" id="startGameButton"
+                    data-bs-dismiss="modal" onclick="startChosenGame()" disabled>Start game</button>
                 </div>
               </div>
             </div>
@@ -499,7 +506,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v181126.04</small>
+                <small class="text-muted" id="appVersion">v181126.05</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -1034,6 +1041,13 @@
     <script src="./resources/js/farseers.js"></script>
     <script src="./resources/js/leaders.js"></script>
     <script src="./resources/js/leaderrules.js"></script>
+    <script src="./resources/js/campaign/fates.js"></script>
+    <script src="./resources/js/campaign/campaign.js"></script>
+    <script src="./resources/js/campaign/courtcards.js"></script>
+    <script src="./resources/js/campaign/setup.js"></script>
+    <script src="./resources/js/campaign/events.js"></script>
+    <script src="./resources/js/campaign/endofround.js"></script>
+    <script src="./resources/js/campaign/intermission.js"></script>
     <script src="./resources/js/game.js"></script>
   </body>
 </html>

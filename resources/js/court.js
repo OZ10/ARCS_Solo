@@ -143,7 +143,18 @@ const courtCards = [
 ];
 
 function getCourtCard(number) {
-    return courtCards.find(card => card.number == number);
+    // A campaign has Court cards of its own (campaignhooks.js)
+    return courtCards.find(card => card.number == number) || runCampaignHook("courtCard", number);
+}
+
+function getCourtPool() {
+    // The cards that can be in the Court: the base game's, or a campaign's own deck
+    return runCampaignHook("courtPool") || courtCards;
+}
+
+function getCourtSize() {
+    // How many cards the Court holds. A campaign's also has the Imperial Council
+    return runCampaignHook("courtSize") ?? openingCourtCards[players.length];
 }
 
 function getGuildCards() {

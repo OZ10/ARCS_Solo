@@ -611,7 +611,20 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
             letter-spacing: 0.02em;
             text-transform: uppercase;
         }
+
+        // The number chosen, ready for Start game
+        &.chosen {
+            background: #2b3442;
+            border-color: #2b3442;
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2b3442;
+        }
     }
+}
+
+.startgame {
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 10px 0;
 }
 
 // Bot difficulty (#71): the level, what it means, and a button for each
@@ -2012,5 +2025,408 @@ header, .footerstyle {
   .flash {
     animation: flash 1.0s ease-in-out;
   }
+
+// The Blighted Reach campaign (#85, resources/js/campaign)
+
+$empire: #5b2a86;
+
+// New Game: two choices side by side, in the style of the difficulty buttons
+.brseg {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+
+    .btn {
+        padding: 8px 0;
+        font-weight: 700;
+        border-radius: 10px;
+
+        small {
+            display: block;
+            font-weight: 500;
+            font-size: 0.62rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+    }
+}
+
+.brhint {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 6px;
+}
+
+// The top bar's Act
+.actpill {
+    display: inline-flex;
+    align-items: center;
+    background: $empire;
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-right: 6px;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+// Fates: a card to read and take, or a row in the list to pick from
+.fatecard {
+    border: 1px solid #d9dde3;
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #fff;
+
+    &.open {
+        border-color: #2b3442;
+        box-shadow: 0 0 0 1px #2b3442;
+    }
+}
+
+.fatehead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.fatename {
+    font-family: "Spectral SC", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #2b3442;
+}
+
+.fatedots {
+    font-size: 0.75rem;
+    color: #6c757d;
+    flex: none;
+}
+
+.fatesub {
+    font-size: 0.85rem;
+    color: #5b6573;
+    font-style: italic;
+}
+
+.fatepath {
+    font-size: 0.85rem;
+    margin-top: 6px;
+
+    b {
+        display: inline-block;
+        width: 24px;
+    }
+}
+
+.fateobj {
+    background: #f3f4f6;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin-top: 8px;
+    font-size: 0.82rem;
+}
+
+.fatelist {
+    border: 1px solid #d9dde3;
+    border-radius: 12px;
+    overflow: hidden;
+
+    .fatecard {
+        border-radius: 0;
+        margin: 0;
+        border-width: 0 0 1px;
+    }
+}
+
+.faterow {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border: 0;
+    border-bottom: 1px solid #e2e4e8;
+    background: #fff;
+    text-align: left;
+
+    .fatename {
+        font-size: 1.05rem;
+    }
+
+    small {
+        display: block;
+        font-size: 0.78rem;
+        color: #5b6573;
+    }
+}
+
+.fatechosen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 10px;
+    padding: 7px 0;
+    border-top: 1px solid #e2e4e8;
+
+    small {
+        flex-basis: 100%;
+        color: #5b6573;
+    }
+}
+
+// A player's panel: Fate and title chips, objective, Favors and the Imperial Trust
+.campaignpanel {
+    margin-top: 8px;
+}
+
+.brstrip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin: 0 12px 10px;
+}
+
+.brchip {
+    border: 0;
+    border-radius: 999px;
+    padding: 3px 11px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.8);
+    color: #1f2328;
+
+    &.outlaw {
+        background: #1f2328;
+        color: #fff;
+    }
+
+    // Outlined, so it shows on the yellow panel too
+    &.first {
+        background: #c8a42a;
+        color: #1f2328;
+        box-shadow: inset 0 0 0 1.5px #1f2328;
+    }
+}
+
+.brobj {
+    display: flex;
+    justify-content: center;
+    margin: 0 12px 10px;
+
+    .resourcetile {
+        min-width: 150px;
+    }
+}
+
+.favors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    margin: 0 12px 10px;
+    font-size: 0.8rem;
+
+    .lbl {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+    }
+}
+
+.favorstep,
+.truststep {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+
+    button {
+        border: 0;
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        line-height: 1;
+        color: #1f2328;
+    }
+}
+
+.trust {
+    margin: 0 12px 10px;
+    border-radius: 12px;
+    background: $empire;
+    color: #fff;
+    padding: 8px 10px;
+    text-align: center;
+
+    .lbl {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        opacity: 0.85;
+    }
+
+    .trustres {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px 12px;
+        margin-top: 6px;
+    }
+
+    .truststep b {
+        min-width: 14px;
+    }
+
+    .gameicon {
+        margin-right: 2px;
+    }
+}
+
+// Steps to do at the table, ticked off as they're done
+.setstep {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 7px 0;
+    border-top: 1px solid #e2e4e8;
+    margin: 0;
+
+    &:first-of-type {
+        border-top: 0;
+    }
+
+    .form-check-input {
+        margin-top: 3px;
+        flex: none;
+        width: 1.3em;
+        height: 1.3em;
+    }
+
+    small {
+        display: block;
+        color: #5b6573;
+    }
+}
+
+.setnum {
+    flex: none;
+    min-width: 1.3em;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #5b6573;
+    margin-top: 2px;
+}
+
+// A rolled die
+.die {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 6px;
+    border-radius: 7px;
+    background: #1f2328;
+    color: #fff;
+    font-weight: 700;
+    margin-right: 6px;
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
+
+.neutralsteps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin-top: 6px;
+}
+
+.neutralstep {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+
+    span {
+        font-size: 0.8rem;
+        margin-right: 2px;
+    }
+
+    button {
+        border: 1px solid #d0d4da;
+        background: #fff;
+        border-radius: 6px;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        line-height: 1;
+    }
+
+    b {
+        min-width: 14px;
+        text-align: center;
+    }
+}
+
+// The Imperial Policy being enforced
+.policy {
+    border-radius: 10px;
+    background: #f3f0f7;
+    border: 1px solid #d6cbe3;
+    padding: 8px 10px;
+    font-size: 0.88rem;
+
+    b.t {
+        color: $empire;
+    }
+}
+
+// The Intermission's Power table
+.ptable {
+    width: 100%;
+    font-size: 0.85rem;
+    border-collapse: collapse;
+
+    td,
+    th {
+        padding: 5px 4px;
+        border-top: 1px solid #e2e4e8;
+        text-align: center;
+    }
+
+    th {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #5b6573;
+        border-top: 0;
+    }
+
+    td:first-child,
+    th:first-child {
+        text-align: left;
+    }
+
+    .lost {
+        color: #b02a37;
+        font-weight: 600;
+    }
+}
+
+// A Summit's Call to Order actions
+.summitaction small {
+    display: block;
+    color: #5b6573;
+    font-weight: 400;
+}
 
 @import "../bootstrap/scss/bootstrap.scss";

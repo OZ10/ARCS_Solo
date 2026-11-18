@@ -47,7 +47,7 @@ function shouldAskAgents(player) {
     // The Court isn't entered, it has a card that can Influence, and enough of its agents are known
     // to be in use that it may have none left (#123)
     if (player.agentsOut != null || isMarketKnown()) { return false; }
-    if (!getUnplayedCards(player.cards).some(card => card.actions.includes("influence"))) { return false; }
+    if (!getBotCards(player).some(card => card.actions.includes("influence"))) { return false; }
     const inUse = (player.outraged || []).length + (player.agentsCaptive || 0) + (player.agentsTrophy || 0);
     return inUse >= agentsAskAt;
 }
@@ -56,7 +56,7 @@ function shouldAskOutOfShips(player) {
     // It's leading, could declare Warlord with a card in its hand, and has few ships on the board
     if (player.outOfShips != null || !isLeadingThisTurn() || player.shipsBoardValue >= outOfShipsBelow) { return false; }
     if (declaredAmbitions.includes("warlord") || declaredAmbitions.length >= 3 || !canDeclareAmbition(player)) { return false; }
-    return getUnplayedCards(player.cards).some(card => card.ambition == "warlord");
+    return getBotCards(player).some(card => card.ambition == "warlord");
 }
 
 function shouldAskCanBuild(player) {
@@ -65,7 +65,7 @@ function shouldAskCanBuild(player) {
     // pivot). Asked once a turn. Not if it has a Guild card action it can use instead of a Build,
     // as that doesn't need a slot, so Construction is still worth playing (#86). Not if it has no
     // reason to build, as the answer is nearly always Yes (#92)
-    const hand = getUnplayedCards(player.cards);
+    const hand = getBotCards(player);
     if (player.canBuild != null || !hand.some(card => card.name == "Construction")) { return false; }
     if (canUseGuildActionInsteadOf(player, "build") || !wantsToBuild(player)) { return false; }
     if (isLeadingThisTurn()) { return true; }
@@ -137,10 +137,17 @@ function askYesNo(focus, question, onAnswer, player = null) {
     modal.show();
 }
 
+function getBotCards(player) {
+    // The cards a bot chooses from. A campaign's Event cards are played by their own rule (campaignhooks.js)
+    return runCampaignHook("botCards", player) ?? getUnplayedCards(player.cards);
+}
+
 function determineCardToPlay(player) {
 
     if (player.hasPlayedACardThisTurn == false) {
-        let unplayedCards = getUnplayedCards(player.cards);
+        // A campaign may have the bot play an Event card instead (campaignhooks.js)
+        if (runCampaignHook("botPlaysEvent", player) === true) { return; }
+        let unplayedCards = getBotCards(player);
 
         findFocus(player, unplayedCards);
 
@@ -179,7 +186,7 @@ function getRaidHolders(player, resources) {
 function canMoveThenDo(player, action) {
     // Whether it holds a card to Move with, and a way to do this after: a different card on a
     // later turn, or the same card if it has both. A Weapon lets any card Battle
-    const hand = getUnplayedCards(player.cards);
+    const hand = getBotCards(player);
     return hand.some(card => card.actions.includes("move") && (card.actions.includes(action)
         || hand.some(other => other !== card && other.actions.includes(action))
         || (action == "battle" && player.weaponsValue > 0)));
@@ -241,7 +248,7 @@ function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, p
 
     // On the player's final turn of the round (their last card) there's no later turn
     // to secure a card influenced now, so don't ask about influencing
-    const isFinalTurn = getUnplayedCards(player.cards).length <= 1;
+    const isFinalTurn = getBotCards(player).length <= 1;
 
     for (let questionNumber = afterQuestionNumber + 1; questionNumber <= questionActions.length; questionNumber++) {
         const action = questionActions[questionNumber - 1];
@@ -396,7 +403,7 @@ function answerYes() {
 function playForQuestion(player, focus, questionNumber, knownReason) {
     // Play a card for the action a question asks about: the player said Yes, or the app knew.
     // knownReason is why it didn't need to ask, for the turn plan
-    const unplayedCards = getUnplayedCards(player.cards);
+    const unplayedCards = getBotCards(player);
     player.playReason = { type: "chase", ambition: focus.toLowerCase() };
     player.focusReason = knownReason;
 
@@ -470,9 +477,9 @@ function findCardToPlay(cards, actionToPlay) {
         // surpass or copy it, it pivots with another suit if it can (#62)
         const usefulCards = withoutUnwantedConstruction(currentPlayer, cards);
         const skipLead = avoidsConstruction(currentPlayer) && playedCardList[0].name == "Construction"
-            && getUnplayedCards(currentPlayer.cards).some(card => card.name != "Construction");
+            && getBotCards(currentPlayer).some(card => card.name != "Construction");
         const pivotCards = (skipLead && !usefulCards.some(card => card.name != "Construction"))
-            ? getUnplayedCards(currentPlayer.cards).filter(card => card.name != "Construction") : usefulCards;
+            ? getBotCards(currentPlayer).filter(card => card.name != "Construction") : usefulCards;
 
         if (skipLead || canSurpass(currentPlayer, playedCardList[0], cards, actionToPlay) == false) {
             if (claim(currentPlayer, pivotCards, actionToPlay) == false) {
@@ -529,7 +536,7 @@ function answerNo() {
     }
 
     const focus = document.getElementById("focusMessage").innerHTML;
-    const unplayedCards = getUnplayedCards(currentPlayer.cards);
+    const unplayedCards = getBotCards(currentPlayer);
 
     // The turn plan shouldn't then suggest what the player just said it can't do
     if (ambitionQuestionActions[focus][currentQuestionNumber - 1] == "tax") {
@@ -642,7 +649,7 @@ function canCopy(player, playedCard, unplayedCards, actionToPlay) {
     // Any card can be played face down to COPY. If the player is after an action
     // the lead card offers, copy with their lowest card and keep the rest for later
     if (copyCards.length == 0 && actionToPlay != "ANY" && playedCard.actions.includes(actionToPlay)) {
-        copyCards = getUnplayedCards(player.cards);
+        copyCards = getBotCards(player);
     }
 
     if (copyCards.length == 0) {
@@ -673,7 +680,7 @@ function claim(player, cards, actionToPlay) {
     // No point in claiming if cannot declare an ambition
     if (declaredAmbitions.length >= 3) { return false; }
 
-    let unplayedCards = getUnplayedCards(player.cards);
+    let unplayedCards = getBotCards(player);
 
     // No point in claiming if player has two or less cards
     if (unplayedCards.length <= 2) { return false; }
@@ -699,7 +706,7 @@ function claim(player, cards, actionToPlay) {
         playCard(player, actionCard, actionToPlay, actionCardAction);
 
         // Then play a second card face down to claim the initiative
-        playCard(player, getLowestCardtoPlay(getUnplayedCards(player.cards)), "ANY", "CLAIM");
+        playCard(player, getLowestCardtoPlay(getBotCards(player)), "ANY", "CLAIM");
 
         hasInitiativeBeenClaimedThisTurn = true;
         changeInitiative(player);

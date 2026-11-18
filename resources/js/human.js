@@ -57,6 +57,8 @@ function getActionButtonElements(action, player = players[0]) {
 }
 
 function showHideActionButtons(isleading, card, player = players[0]) {
+    // A campaign's Event cards have a button of their own (campaignhooks.js)
+    if (runCampaignHook("actionButtons", isleading, card, player) === true) { return; }
     if (isleading) {
         showHideElement(getActionButtonElements('LEAD', player), true);
         showHideElement(getActionButtonElements('DECLARE', player), (card.number != 1 && declaredAmbitions.length < 3) ? true : false);
