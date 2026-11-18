@@ -25,6 +25,8 @@ function getBotActionCount(player) {
 
 function getGuildActionOffers(player) {
     // What the bot would like to do this turn, in the same form as its prelude offers
+    // In a campaign, Guild Overseers can stop them (campaignhooks.js)
+    if (runCampaignHook("guildActionsBlocked", player) === true) { return []; }
     // On a whim: less often on the easier difficulties, never on the hardest (#71)
     const wants = chance => Math.random() * 100 < Math.min(getWhimChance(chance), preludeChance.max);
     const holds = name => getPlayerGuildCards(player).some(card => (card.replacesActions || []).some(guildAction => guildAction.name == name));

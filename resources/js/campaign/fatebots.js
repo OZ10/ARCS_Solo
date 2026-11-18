@@ -16,7 +16,13 @@ const fateGuildCards = [
         { protected: true, code: "F7 05" }),
     new CourtCard(203, "Informants", "guild", "psionics", 0,
         "Spy (Influence): Once per turn, give your highest action card to a Rival. They give you their highest action card (it can be the same card).",
-        { protected: true, code: "F6 02", replacesActions: [{ name: "Spy", replaces: "influence" }] })
+        { protected: true, code: "F6 02", replacesActions: [{ name: "Spy", replaces: "influence" }] }),
+    new CourtCard(204, "Guild Investigators", "guild", "psionics", 0,
+        "Recover (Move): Attach the topmost Guild card from the Court discard pile to a Court card with no agents on it.",
+        { protected: true, code: "F4 02", replacesActions: [{ name: "Recover", replaces: "move" }] }),
+    new CourtCard(205, "Guild Overseers", "guild", "relics", 0,
+        "To use actions on Guild cards, you must be first or second for a declared ambition. When Secured: Take any 1 Guild card from the Court deck or discard pile.",
+        { protected: true, code: "F4 03" })
 ];
 
 // Fates the bots aren't dealt yet (the Magnate needs Summit deals)
@@ -35,8 +41,9 @@ const fateRules = {
         failed: "Scrap Book of Liberation and 3 Political Intrigue (04-07). Add 2 Construction Union and 2 Admin Union (08-11) to the Court deck." } },
     3: { resolution: { completed: "Add Elder Broker (04), Relic Fence (05) and Prison Wardens (06) to the Court deck. Put the 5 Cartels (07-11) behind the next Resolution card (21). If Mining or Shipping Interest is in the Court discard, add it to the Court deck.",
         failed: "Scrap Elder Broker, Relic Fence and Prison Wardens (04-06). Add the 5 Cartels (07-11) to the Court deck." } },
-    4: { resolution: { completed: "Add Guild Overseers (03), the 5 Liaisons (05-09) and Diplomatic Fiasco (10) to the Court deck. Scrap Guild Struggle (11).",
-        failed: "Add Guild Overseers to the Court deck. For each Guild suit you have more of than each Rival, add its Liaison; scrap the rest. Scrap Diplomatic Fiasco. Add Guild Struggle to the Court deck." } },
+    4: { cards: [204, 205], taught: true,
+        resolution: { completed: "Add Guild Overseers (03), the 5 Liaisons (05-09) and Diplomatic Fiasco (10) to the Court deck. Scrap Guild Struggle (11).",
+            failed: "Add Guild Overseers to the Court deck. For each Guild suit you have more of than each Rival, add its Liaison; scrap the rest. Scrap Diplomatic Fiasco. Add Guild Struggle to the Court deck.", lose: [205] } },
     5: { resolution: { completed: "Scrap Golem Beacon. Put all the Golems on the map onto Golem Hearth. Add 1 random lore card for each player and the 4 Unstable cards (08-11) to the Court deck.",
         failed: "Scrap Golem Beacon. Add Stone-Speakers to the Court deck. Scrap the Golems on the map. Add the Unstable cards matching Golems still in play; scrap the rest." } },
     6: { cards: [203], other: ["Partisan Seizing"], taught: true,
@@ -293,32 +300,101 @@ registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
     return true;
 });
 
-registerCampaignHook("guildActionOffers", (player, wants, can) => {
+// The Fates' Guild card actions, offered after a bot's prelude (guildactions.js)
+
+registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can)));
+
+function getSpyOffers(player, wants, can) {
     // Spy (Informants): its highest card for a Rival's highest. Worth it when its own highest is low
-    if (!(player.guildCards || []).includes(203) || !can("influence")) { return undefined; }
+    if (!(player.guildCards || []).includes(203) || !can("influence")) { return []; }
     const highest = hand => getHighestCard(getUnplayedCards(hand).filter(card => !isEventCard(card)));
     const own = highest(player.cards);
     const rivals = players.filter(other => other !== player && highest(other.cards) != null);
-    if (own == null || rivals.length == 0) { return undefined; }
+    if (own == null || rivals.length == 0) { return []; }
     const low = own.number <= 3;
-    if (!low && !wants(guildActionChance.trade)) { return undefined; }
+    if (!low && !wants(guildActionChance.trade)) { return []; }
     const rival = rivals[Math.floor(Math.random() * rivals.length)];
     return [{ label: "Spy instead of an Influence (Informants)", text: "give its highest card, " + getCardFullName(own) + ", to Player " + rival.number + " and take their highest card. The app swaps them.",
         spy: rival.number, decided: low, why: low ? "Its highest card is only a " + own.number + "." : null }];
-});
+}
+
+function getRecoverOffers(player, wants, can) {
+    // Recover (Guild Investigators): worth a Move to the Advocate while it has Guild Overseers
+    if (!(player.guildCards || []).includes(204) || !can("move")) { return []; }
+    const overseers = (player.guildCards || []).includes(205);
+    if (!overseers && !wants(guildActionChance.trade)) { return []; }
+    return [{ label: "Recover instead of a Move (Guild Investigators)", text: "attach the top Guild card of the Court discard pile to a Court card with no agents (do it on the table)",
+        recover: true, decided: overseers, why: overseers ? "With Guild Overseers, each Recover advances its objective 2." : null }];
+}
 
 registerCampaignHook("applyOffer", (player, offer) => {
-    if (offer.spy == null) { return undefined; }
+    if (offer.spy != null) { applySpy(player, offer); }
+    if (offer.recover) { advanceAdvocate(player, 2, "Recover (Guild Investigators)"); }
+    if (offer.discards != null && getCourtCard(offer.discards) != null) { advanceAdvocate(player, 3, "Used the Prelude of " + getCourtCard(offer.discards).name + ", which discards itself"); }
+    return undefined;
+});
+
+function applySpy(player, offer) {
     const rival = getPlayer(offer.spy);
     const highest = hand => getHighestCard(getUnplayedCards(hand).filter(card => !isEventCard(card)));
     const own = highest(player.cards), theirs = highest(rival.cards);
-    if (own == null || theirs == null) { return undefined; }
+    if (own == null || theirs == null) { return; }
     player.cards = player.cards.filter(card => card !== own).concat(theirs);
     rival.cards = rival.cards.filter(card => card !== theirs).concat(own);
     createCardButtonsForHumanPlayer();
     showMessageToast("Spy (Informants)", "Player " + player.number + " gave " + getCardFullName(own) + " to Player " + rival.number + " and took " + getCardFullName(theirs) + ".");
+}
+
+// The Advocate (Fate 4). While it has Guild Overseers: 3 each time it uses the Prelude of a Guild
+// card that discards itself, and 2 for each Recover. Guild Overseers: to use actions on Guild
+// cards, it must be first or second for a declared ambition
+
+function hasOverseers(player) {
+    return hasFate(player, 4) && (player.guildCards || []).includes(205);
+}
+
+function advanceAdvocate(player, amount, reason) {
+    if (hasOverseers(player)) { advanceObjective(player, amount, reason); }
+}
+
+function isPlacedInDeclaredAmbition(player) {
+    return declaredAmbitions.some(ambition => getAmbitionPlacePoints(player, ambition, ambitionResources[ambition](player)) >= 1);
+}
+
+registerCampaignHook("guildActionsBlocked", player => (player.guildCards || []).includes(205) && !isPlacedInDeclaredAmbition(player) ? true : undefined);
+
+registerCampaignHook("preludeOffers", (player, offers) => {
+    // The Advocate: a Guild card's Prelude that discards it advances its objective, so it's a decision
+    if (!hasOverseers(player)) { return undefined; }
+    return offers.map(offer => offer.discards != null && getCourtCard(offer.discards) != null
+        ? { ...offer, decided: true, why: "Its objective advances 3 for a Guild card's Prelude that discards itself." } : offer);
+});
+
+registerCampaignHook("guildPreludeUsed", (player, number, discarded) => {
+    if (discarded) { advanceAdvocate(player, 3, "Used the Prelude of " + getCourtCard(number).name + ", which discards itself"); }
     return undefined;
 });
+
+registerCampaignHook("guildCardButtons", (player, card, body) => {
+    // A human player's Recover, so the app can count it
+    if (card.number != 204 || !player.isHuman) { return undefined; }
+    const use = document.createElement("button");
+    use.type = "button";
+    use.classList.add("btn", "btn-primary", "w-100", "mb-2");
+    use.innerHTML = "I used Recover" + (hasOverseers(player) ? " (objective &minus;2)" : "");
+    use.onclick = () => {
+        advanceAdvocate(player, 2, "Recover (Guild Investigators)");
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
+    };
+    body.appendChild(use);
+    return undefined;
+});
+
+function getFateMarketBonus(player, entry) {
+    // The Advocate wants Guild cards, for their Preludes
+    const card = getCourtCard(entry.number);
+    return (hasFate(player, 4) && card != null && card.type == "guild") ? 1 : 0;
+}
 
 // The bot's turn window: its Fate
 
@@ -341,6 +417,11 @@ function getFateTurnSection(player) {
         html += "<div class=\"empirenote\">" + (now ? "<b>Seized the initiative</b> by Provoking Outrage of " + preludeResourceNames[seize.resource] + " (Partisan Seizing). "
             : "<b>Partisan Seizing:</b> it seizes the initiative by Provoking Outrage of a resource it doesn't need, never by discarding a second card. ")
             + "Getting the initiative advances its objective.</div>";
+    }
+    if (hasFate(player, 4)) {
+        html += "<div class=\"empirenote\"><b>Guild Overseers:</b> " + (!hasOverseers(player) ? "it no longer has them." : isPlacedInDeclaredAmbition(player)
+            ? "it's first or second for a declared ambition, so it can use its Guild card actions. It uses Guild Preludes that discard themselves, and Recovers, to advance its objective."
+            : "it isn't first or second for a declared ambition, so it can't use its Guild card actions this turn.") + "</div>";
     }
     if (hasFate(player, 7) && (player.guildCards || []).includes(201)) {
         html += "<div class=\"empirenote\"><b>Imperial Officers:</b> it ignores the Presence and Movement Laws, so it can move and attack with any Imperial ships, even where it has no ships."
@@ -382,6 +463,8 @@ function applyResolutions() {
         const state = getCampaignPlayer(player);
         const rules = fateRules[state.fate];
         if (rules == null || rules.resolution == null) { return; }
+        // Cards that go back into the Court deck either way (Guild Overseers)
+        player.guildCards = player.guildCards.filter(number => !(rules.resolution.lose || []).includes(number));
         if (state.completed) {
             (rules.resolution.gain || []).forEach(number => { if (!player.guildCards.includes(number)) { player.guildCards.push(number); } });
         } else {

@@ -204,6 +204,9 @@ function showGuildCard(player, card) {
         body.appendChild(use);
     }
 
+    // A campaign's Fate cards can have an action to record (campaignhooks.js)
+    runCampaignHook("guildCardButtons", player, card, body);
+
     const remove = document.createElement("button");
     remove.type = "button";
     remove.classList.add("btn", "btn-outline-secondary", "w-100");

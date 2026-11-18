@@ -435,8 +435,9 @@ function getPreludeOffers(player) {
         });
     }
 
-    // Lore in its prelude (leaderrules.js)
-    return applyOfferDifficulty(offers.concat(getLorePreludeOffers(player, () => true, available)));
+    // Lore in its prelude (leaderrules.js). In a campaign, a Fate can make some of them decisions (campaignhooks.js)
+    const all = offers.concat(getLorePreludeOffers(player, () => true, available));
+    return applyOfferDifficulty(runCampaignHook("preludeOffers", player, all) || all);
 }
 
 function startPrelude(player) {
@@ -749,6 +750,8 @@ function useGuildPrelude(number) {
     }
     showGuildCardsRow(player);
     player.preludeSpent = getPreludeSpent(player).concat(use);
+    // A campaign objective can advance for it (campaignhooks.js)
+    runCampaignHook("guildPreludeUsed", player, number, !use.kept);
     if (use.gains != null) { showSlotAdvice(player, Object.keys(use.gains)); }
     SaveAllSettings();
     renderTurn(player);

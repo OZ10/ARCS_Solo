@@ -74,7 +74,8 @@ registerCampaignHook("turnSections", (player, plan) => {
 // The Court: the Imperial Council
 
 registerCampaignHook("marketValue", (player, entry) => {
-    if (entry.number != councilNumber) { return 0; }
+    // Other cards: what its Fate makes them worth (fatebots.js)
+    if (entry.number != councilNumber) { return getFateMarketBonus(player, entry); }
     if (isRegent(player)) { return isFirstRegent(player) ? councilValues.alreadyFirstRegent : councilValues.becomeFirstRegent; }
     return Math.min(getTrustTotal(), getEmptySlots(player)) * councilValues.perStolen;
 });
