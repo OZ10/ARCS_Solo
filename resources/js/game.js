@@ -118,6 +118,8 @@ function showChosenColour() {
     if (players.length == 0) { return; }
     document.getElementById("humanColour" + getPlayerColour(players[0])).checked = true;
     document.getElementById("leadersAndLoreSwitch").checked = leadersAndLore;
+    // How many human players, and their colours (#67)
+    showHumanChoices();
 }
 
 function addExtraCards(numberOfPlayers) {
@@ -134,17 +136,19 @@ function addExtraCards(numberOfPlayers) {
 }
 
 function createPlayers(numberOfPlayers) {
-    // The human player takes the colour they chose, and whoever had it takes theirs
-    const humanColour = parseInt(document.querySelector("input[name=humanColour]:checked").value);
+    // The human players take the first seats and the colours they chose; each bot takes its own
+    // seat's colour, or one left over if a human player has it (#67)
+    const humans = Math.min(getChosenHumanCount(), numberOfPlayers);
+    const colours = getPlayerColours(numberOfPlayers, getChosenHumanColours().slice(0, humans));
     // A random player starts with the initiative (rulebook p.4)
     const starter = chooseStartingPlayer(numberOfPlayers);
 
     for (let playerNumber = 1; playerNumber < numberOfPlayers + 1; playerNumber++) {
-        let p = new player(playerNumber, (playerNumber == 1) ? true : false);
+        let p = new player(playerNumber, playerNumber <= humans);
         p.shipsBoardValue = startingShips[numberOfPlayers];
         // One starport each to start, in their B system (#130)
         p.starportsValue = 1;
-        p.colour = (playerNumber == 1) ? humanColour : (playerNumber == humanColour ? 1 : playerNumber);
+        p.colour = colours[playerNumber - 1];
 
         players.push(p);
 
@@ -154,6 +158,7 @@ function createPlayers(numberOfPlayers) {
     // Whoever starts has the initiative and plays first
     changeInitiative(getPlayer(starter));
     currentPlayer = getPlayer(starter);
+    handShownFor = null;
 }
 
 function resetHandsAndPlayedCardsDisplay() {
@@ -362,7 +367,7 @@ function offerMulligan(then) {
         // Your hand in the question, so you can decide (#122)
         const hand = "<div class=\"mullhand\">" + getUnplayedCards(player.cards).map(card => "<div class=\"mullcard\"><b>" + card.number + "</b><span class=\"mullname\">" + card.name + "</span>"
             + "<small>" + (card.ambition == "null" ? "&nbsp;" : card.ambition) + "</small></div>").join("") + "</div>";
-        askYesNo("", "The other player has the initiative. Below is your hand of cards. Do you want to discard them and draw 6 new cards? You must keep the new hand." + hand, yes => { if (yes) { takeMulligan(player); } }, player);
+        askYesNo("", "The other player has the initiative. Below is your hand of cards. Do you want to discard them and draw 6 new cards? You must keep the new hand." + getCoveredHandHtml(player, hand), yes => { if (yes) { takeMulligan(player); } }, player);
         // Carry on once it has closed, answered or not (after askYesNo's own handler)
         document.getElementById("yesNo").addEventListener('hidden.bs.modal', () => then(), { once: true });
         return;

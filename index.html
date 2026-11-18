@@ -422,8 +422,23 @@
             <div class="collapse" id="newGamePlayers">
               <div class="optcard">
                 <div class="optcardhead">New Game</div>
+                <!-- How many human players (#67, see humans.js). They take the first seats -->
                 <div class="optrow">
-                <div class="optlabel">Your colour</div>
+                  <div class="optlabel">How many human players are playing?</div>
+                  <div class="humanseg">
+                    <input type="radio" class="btn-check" name="humanCount" id="humanCount1" value="1" onchange="setHumanCount(1)" checked>
+                    <label class="btn btn-outline-secondary" for="humanCount1">1<small>Human</small></label>
+                    <input type="radio" class="btn-check" name="humanCount" id="humanCount2" value="2" onchange="setHumanCount(2)">
+                    <label class="btn btn-outline-secondary" for="humanCount2">2<small>Humans</small></label>
+                    <input type="radio" class="btn-check" name="humanCount" id="humanCount3" value="3" onchange="setHumanCount(3)">
+                    <label class="btn btn-outline-secondary" for="humanCount3">3<small>Humans</small></label>
+                    <input type="radio" class="btn-check" name="humanCount" id="humanCount4" value="4" onchange="setHumanCount(4)">
+                    <label class="btn btn-outline-secondary" for="humanCount4">4<small>Humans</small></label>
+                  </div>
+                  <div class="humanhint" id="humanCountHint">Just you against the bots.</div>
+                </div>
+                <div class="optrow">
+                <div class="optlabel" id="humanColourLabel1">Your colour</div>
                 <div class="swatches">
                   <input type="radio" class="btn-check" name="humanColour" id="humanColour1" value="1" checked>
                   <label class="btn btn-sm playerchoice playerchoice1" for="humanColour1">Yellow</label>
@@ -435,13 +450,15 @@
                   <label class="btn btn-sm playerchoice playerchoice4" for="humanColour4">Blue</label>
                 </div>
                 </div>
+                <!-- A colour row for each other human player (setHumanCount) -->
+                <div id="moreHumanColours"></div>
                 <!-- Leaders & Lore (see leaders.js) -->
                 <div class="optrow optswitch">
                   <label class="form-check-label" for="leadersAndLoreSwitch"><b>Leaders &amp; Lore</b><small>Draft a Leader and a Lore card each</small></label>
                   <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" id="leadersAndLoreSwitch"></div>
                 </div>
                 <div class="optrow">
-                <div class="optlabel">How many players? (including you)</div>
+                <div class="optlabel">How many players? (human players and bots)</div>
                 <div class="playercount">
                   <button type="button" class="btn btn-secondary"
                     data-bs-dismiss="modal" onclick="chooseNewGame(2)">2</button>
@@ -457,7 +474,7 @@
             </div>
 
             <!-- Bot difficulty (#71, see difficulty.js): for every bot, at any time -->
-            <div class="optcard diffcard mt-3">
+            <div class="optcard diffcard mt-3" id="botDifficultyCard">
               <div class="optcardhead">Bot difficulty</div>
               <div class="optrow">
                 <div class="diffname" id="botDifficultyName">3 &middot; Normal</div>
@@ -482,7 +499,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v181126.01</small>
+                <small class="text-muted" id="appVersion">v181126.02</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -996,6 +1013,7 @@
     <script src="./resources/js/player.js"></script>
     <script src="./resources/js/rules.js"></script>
     <script src="./resources/js/difficulty.js"></script>
+    <script src="./resources/js/humans.js"></script>
     <script src="./resources/js/state.js"></script>
     <script src="./resources/js/storage.js"></script>
     <script src="./resources/js/scoring.js"></script>

@@ -42,26 +42,27 @@ Your game is saved on your phone as you play, so you can close the app and carry
 
 Tap **Options**, then **New Game**.
 
-1. **Your colour:** you're always Player 1, but you can choose your colour. Whichever bot had that colour takes yours.
-2. **Leaders & Lore:** turn on **Play with Leaders & Lore** to play with the mini expansion (see [Leaders & Lore](#leaders--lore)).
-3. **How many players:** 2, 3 or 4, counting you. The app deals everyone's hands. A random player starts with the initiative, as the rulebook says, and the ★ shows who. If a game is being played, it asks first, as Undo can't bring it back. To keep it, save it first.
+1. **Human players:** how many human players are at the table, from 1 to 4. Human players take the first seats (Players 1, 2…), and the rest are bots. With more than one, you pass the device at each human player's turn. Their hand is covered by frosted glass until they tap **Show my hand**, and covered again when play moves on, so nobody sees anyone else's cards. With 4 human players there are no bots, so Bot difficulty is hidden.
+2. **Colours:** each human player chooses a colour. A colour another human player has taken is faded out. The bots take the colours that are left.
+3. **Leaders & Lore:** turn on **Play with Leaders & Lore** to play with the mini expansion (see [Leaders & Lore](#leaders--lore)).
+4. **How many players:** 2, 3 or 4, counting human players and bots, and at least as many as there are human players. The app deals everyone's hands. A random player starts with the initiative, as the rulebook says, and the ★ shows who. If a game is being played, it asks first, as Undo can't bring it back. To keep it, save it first.
 
 <br clear="right">
 
 <img src="docs/screenshots/court-setup.png" width="300" align="right" alt="Entering the Court">
 
-4. **The Court:** add the cards dealt to the Court market (4, or 3 with 2 players), or tap **Deal for me** and take the same cards from your Court deck. Bots use this to choose what to secure and influence. You can skip it, but their advice will be more general.
+5. **The Court:** add the cards dealt to the Court market (4, or 3 with 2 players), or tap **Deal for me** and take the same cards from your Court deck. Bots use this to choose what to secure and influence. You can skip it, but their advice will be more general.
 
 <br clear="right">
 
 <img src="docs/screenshots/setup-players.png" width="300" align="right" alt="Setting up the players">
 
-5. **Set up the players:** the setup list says where each player places their pieces, in turn order from whoever has the initiative. On each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on. With Leaders & Lore, the resources are filled in from each Leader, and the list says which pieces go in systems A, B and C.
+6. **Set up the players:** the setup list says where each player places their pieces, in turn order from whoever has the initiative. On each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on. With Leaders & Lore, the resources are filled in from each Leader, and the list says which pieces go in systems A, B and C.
 <br clear="right">
 
 <img src="docs/screenshots/mulligan.png" width="300" align="right" alt="The mulligan">
 
-6. **The mulligan (2 players):** the player without the initiative may discard their hand and draw 6 new cards. If that's you, the app shows your hand and asks. Then Round 1 begins. In later rounds it asks once the new hands are dealt, before the round begins.
+7. **The mulligan (2 players):** the player without the initiative may discard their hand and draw 6 new cards. If that's a human player, the app shows their hand and asks (with more than one human player, under the frosted glass until they tap). Then Round 1 begins. In later rounds it asks once the new hands are dealt, before the round begins.
 
 <br clear="right">
 

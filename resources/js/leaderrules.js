@@ -218,13 +218,13 @@ function botBold(player) {
 function showConnected(player) {
     // The app can't see the Court deck, so the player says what was drawn
     const choices = courtCards.filter(card => !courtMarket.some(entry => entry.number == card.number) && getGuildCardHolder(card.number) == null).sort(byCardName);
-    const you = player.isHuman ? "You" : "Player " + player.number;
+    const you = getYouOrPlayer(player, true);
     showLeaderWindow(player, "Connected", "<p class=\"mb-2\">" + you + " declared an ambition that wasn't declared, so <b>Noble</b> draws and secures the top card of the Court deck. Which card was it?</p>"
         + "<select class=\"form-select mb-3\" id=\"connectedCard\">" + choices.map(card =>
             "<option value=\"" + card.number + "\">" + card.name + (card.type == "vox" ? " (Vox)" : " (" + preludeResourceNames[card.resource] + ")") + "</option>").join("") + "</select>"
         + "<div class=\"d-flex gap-2\"><button type=\"button\" class=\"btn btn-secondary flex-fill\" onclick=\"closeLeaderWindow()\">The deck is empty</button>"
         + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"connectedSecure\" onclick=\"confirmConnected(" + player.number + ")\">Secure it</button></div>"
-        + "<div class=\"small text-muted mt-2\">" + (player.isHuman ? "You" : "It") + " can't use its Prelude action this turn.</div>");
+        + "<div class=\"small text-muted mt-2\">" + (isYou(player) ? "You" : (player.isHuman ? "Player " + player.number : "It")) + " can't use its Prelude action this turn.</div>");
 }
 
 function confirmConnected(playerNumber) {

@@ -69,7 +69,9 @@ function announceTurn(isRoundStart) {
 
     const title = isRoundStart ? "Round " + roundNumber : "Turn " + turnNumber;
     const sub = isRoundStart ? "Turn " + turnNumber : "Round " + roundNumber;
-    const who = leader.isHuman ? "<b>You</b> " + (seized ? "seized the initiative and lead" : "lead")
+    // With more than one human player, the leader's name, and to pass them the device (#67)
+    const passPhone = (leader.isHuman && isMultiHuman()) ? "<div class=\"passphone\"><i class=\"bi bi-arrow-left-right\"></i> Pass the device to Player " + leader.number + "</div>" : "";
+    const who = isYou(leader) ? "<b>You</b> " + (seized ? "seized the initiative and lead" : "lead")
         : getPlayerTag(leader) + (seized ? " seized the initiative and leads" : " has the initiative and leads");
     const note = (isRoundStart && roundNumber > 1 ? "New hands are dealt. " : "") + "Tap anywhere to carry on.";
 
@@ -83,7 +85,7 @@ function announceTurn(isRoundStart) {
     card.setAttribute("role", "status");
     card.innerHTML = "<div class=\"announcehead playerbanner" + getPlayerColour(leader) + "\"><div class=\"announcetitle\">" + title + "</div>"
         + "<div class=\"announceline\"></div><div class=\"announcesub\">" + sub + "</div></div>"
-        + "<div class=\"announcebody\">" + who + "<div class=\"sub\">" + note + "</div></div>"
+        + "<div class=\"announcebody\">" + who + passPhone + "<div class=\"sub\">" + note + "</div></div>"
         + "<div class=\"announcebar\"><div style=\"animation-duration: " + announceSeconds + "s\"></div></div>";
     [dim, card].forEach(element => { element.onclick = closeAnnouncement; document.body.appendChild(element); });
     announceTimer = setTimeout(closeAnnouncement, (announceSeconds + 0.4) * 1000);

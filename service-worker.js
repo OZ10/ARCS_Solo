@@ -16,7 +16,7 @@ const appFiles = [
     "resources/icons/icon-512.png",
     "resources/icons/icon-maskable-512.png",
     "resources/icons/apple-touch-icon.png",
-    ...["ui", "icons", "cards", "court", "player", "rules", "difficulty", "state", "storage", "scoring", "undo", "panel", "human", "bot", "slots",
+    ...["ui", "icons", "cards", "court", "player", "rules", "difficulty", "humans", "state", "storage", "scoring", "undo", "panel", "human", "bot", "slots",
         "prelude", "guildactions", "turnplan", "vox", "market", "battle", "build", "turnwindow", "farseers", "leaders", "leaderrules", "game"]
         .map(name => "resources/js/" + name + ".js"),
     "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",

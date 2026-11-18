@@ -1,13 +1,14 @@
-// The human player choosing a card and an action.
+// A human player choosing a card and an action. Any human player (#67): their buttons are named for
+// them (see getActionId), Player 1's as they always were.
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
-function createRadioButtons(btntext, group, groupname, btnstyle) {
+function createRadioButtons(btntext, group, groupname, btnstyle, player = null, id = btntext) {
     let input = document.createElement("input");
     input.type = "radio";
     input.classList.add("btn-check");
     input.name = groupname;
-    input.id = btntext;
+    input.id = id;
     input.autocomplete = "off";
     //input.setAttribute("data-bs-toggle","button");
 
@@ -15,12 +16,12 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
     // No id on the label, as the input already uses btntext and ids must be unique.
     // Find the label with label[for="..."] instead
     l.classList.add("btn", btnstyle, "m-1");
-    l.htmlFor = btntext;
+    l.htmlFor = id;
     l.textContent = btntext.toUpperCase();
 
     if (groupname == "actiontype") {
         input.onclick = function () {
-            humanSelectedAction(btntext);
+            humanSelectedAction(btntext, player);
 
             // Reset checked on all action type buttons
             document.querySelectorAll('input[name=actiontype]').forEach(input => { input.checked = false });
@@ -33,13 +34,13 @@ function createRadioButtons(btntext, group, groupname, btnstyle) {
     return input;
 }
 
-function createClaimButton(btntext, group, groupname) {
+function createClaimButton(btntext, group, groupname, id = btntext) {
     let input = document.createElement("button");
     input.type = "button";
     // Light so it shows on any player colour. claimbutton styles the toggled on (active) state
     input.classList.add("btn", "btn-light", "claimbutton", "m-1");
     input.name = groupname;
-    input.id = btntext;
+    input.id = id;
     input.innerHTML = btntext;
     input.setAttribute("data-bs-toggle", "button");
 
@@ -48,75 +49,74 @@ function createClaimButton(btntext, group, groupname) {
     return input;
 }
 
-function getActionButtonElements(action) {
-    // The action's input (or CLAIM button) and the label that displays it
-    return document.querySelectorAll('#' + action + ', label[for="' + action + '"]');
+function getActionButtonElements(action, player = players[0]) {
+    // The action's input (or CLAIM button) and the label that displays it, for this human player
+    const id = getActionId(player, action);
+    return document.querySelectorAll('#' + id + ', label[for="' + id + '"]');
 }
 
-function showHideActionButtons(isleading, card) {
+function showHideActionButtons(isleading, card, player = players[0]) {
     if (isleading) {
-        showHideElement(getActionButtonElements('LEAD'), true);
-        showHideElement(getActionButtonElements('DECLARE'), (card.number != 1 && declaredAmbitions.length < 3) ? true : false);
-        showHideElement(getActionButtonElements('SURPASS'), false);
-        showHideElement(getActionButtonElements('COPY'), false);
-        showHideElement(getActionButtonElements('PIVOT'), false);
-        showHideElement(getActionButtonElements('CLAIM'), false);
+        showHideElement(getActionButtonElements('LEAD', player), true);
+        showHideElement(getActionButtonElements('DECLARE', player), (card.number != 1 && declaredAmbitions.length < 3) ? true : false);
+        showHideElement(getActionButtonElements('SURPASS', player), false);
+        showHideElement(getActionButtonElements('COPY', player), false);
+        showHideElement(getActionButtonElements('PIVOT', player), false);
+        showHideElement(getActionButtonElements('CLAIM', player), false);
         return;
     }
 
     const aiPlayedLeadCard = playedCardList[0];
 
     // Hide the CLAIM button by default
-    showHideElement(getActionButtonElements('CLAIM'), false);
+    showHideElement(getActionButtonElements('CLAIM', player), false);
 
     // Only show the claim button if:
     // - the inititive hasn't already been claimed this turn OR
     // - the active player has two or more cards to play
-    if (hasInitiativeBeenClaimedThisTurn == false && getUnplayedCards(players[0].cards).length > 2) {
-        showHideElement(getActionButtonElements('CLAIM'), true);
+    if (hasInitiativeBeenClaimedThisTurn == false && getUnplayedCards(player.cards).length > 2) {
+        showHideElement(getActionButtonElements('CLAIM', player), true);
     }
-    //(getUnplayedCards(players[0].cards).length < 2) ? showHideElement(getActionButtonElements('CLAIM'), false) : showHideElement(getActionButtonElements('CLAIM'), true)
+    //(getUnplayedCards(players[0].cards).length < 2) ? showHideElement(getActionButtonElements('CLAIM', player), false) : showHideElement(getActionButtonElements('CLAIM', player), true)
 
     // Not leading so cannot Lead or Declare
-    showHideElement(getActionButtonElements('LEAD'), false);
-    showHideElement(getActionButtonElements('DECLARE'), false);
+    showHideElement(getActionButtonElements('LEAD', player), false);
+    showHideElement(getActionButtonElements('DECLARE', player), false);
 
     if (card.name == aiPlayedLeadCard.name) {
         if (card.number > getCardValue(aiPlayedLeadCard)) {
             // Played the same suit and the number is higher so can Surpass.
             // Any card can be played face down to Copy
-            showHideElement(getActionButtonElements('SURPASS'), true);
-            showHideElement(getActionButtonElements('COPY'), true);
-            showHideElement(getActionButtonElements('PIVOT'), false);
+            showHideElement(getActionButtonElements('SURPASS', player), true);
+            showHideElement(getActionButtonElements('COPY', player), true);
+            showHideElement(getActionButtonElements('PIVOT', player), false);
         } else {
             // card is the same suit but not higher so can only COPY
-            showHideElement(getActionButtonElements('SURPASS'), false);
-            showHideElement(getActionButtonElements('COPY'), true);
-            showHideElement(getActionButtonElements('PIVOT'), false);
+            showHideElement(getActionButtonElements('SURPASS', player), false);
+            showHideElement(getActionButtonElements('COPY', player), true);
+            showHideElement(getActionButtonElements('PIVOT', player), false);
         }
     } else {
         // played a different suit so can Copy or Pivot
-        showHideElement(getActionButtonElements('SURPASS'), false);
-        showHideElement(getActionButtonElements('COPY'), true);
-        showHideElement(getActionButtonElements('PIVOT'), true);
+        showHideElement(getActionButtonElements('SURPASS', player), false);
+        showHideElement(getActionButtonElements('COPY', player), true);
+        showHideElement(getActionButtonElements('PIVOT', player), true);
     }
 }
 
-function humanSelectedAction(cardAction) {
-
-    const player = players[0];
+function humanSelectedAction(cardAction, player = players[0]) {
 
     // Save the game first so the card can be undone
     saveUndoPoint(player.number);
 
-    const btnSelected = document.querySelector('input.p1:checked');
+    const btnSelected = document.querySelector('input.p' + player.number + ':checked');
 
     const playedCard = getCardByNameAndNumber(player.cards, btnSelected.id, false);
     enableDisableButton(getCardFullName(playedCard), true);
 
     if (isLeadingThisTurn()) {
         playCard(player, playedCard, "ANY", cardAction, false);
-        showHideElement(document.querySelectorAll("#actionbuttons"), false);
+        showHideElement(document.querySelectorAll("#" + getActionId(player, "actionbuttons")), false);
 
     } else {
 
@@ -125,7 +125,7 @@ function humanSelectedAction(cardAction) {
 
         const aiPlayedLeadCard = playedCardList[0];
 
-        const hasPlayerClaimed = document.getElementById("CLAIM").className.includes("active") ? true : false;
+        const hasPlayerClaimed = document.getElementById(getActionId(player, "CLAIM")).className.includes("active") ? true : false;
 
         if (hasPlayerClaimed) {
             hasInitiativeBeenClaimedThisTurn = true;
@@ -167,10 +167,10 @@ function showCardModal(player, cards, title, prompt, action) {
         switch (action) {
             case "CLAIM":
                 btn.onclick = function () {
-                    addPlayedCardToList(getCardByNameAndNumber(players[0].cards, btn.innerHTML, false), "ANY", "CLAIM", false, players[0]);
+                    addPlayedCardToList(getCardByNameAndNumber(player.cards, btn.innerHTML, false), "ANY", "CLAIM", false, player);
                     createCardButtonsForHumanPlayer();
                     // Update what Done shows the human played
-                    finishPlay(players[0]);
+                    finishPlay(player);
                 };
                 break;
 
@@ -192,17 +192,22 @@ function showCardModal(player, cards, title, prompt, action) {
 }
 
 function createCardButtonsForHumanPlayer() {
-    const player = players[0];
+    // Every human player's hand, then whether each is covered (#67)
+    players.filter(player => player.isHuman).forEach(createCardButtonsFor);
+    updateHandCovers();
+}
 
-    const playerhandDiv = document.getElementById("playerhand1");
+function createCardButtonsFor(player) {
+    const playerhandDiv = document.getElementById("playerhand" + player.number);
+    if (playerhandDiv == null) { return; }
     disposeTooltips(playerhandDiv);
     playerhandDiv.replaceChildren();
 
     player.cards.forEach(card => {
 
-        let btn = createRadioButtons(getCardFullName(card), playerhandDiv, "cards", "btn-dark");
+        let btn = createRadioButtons(getCardFullName(card), playerhandDiv, "cards" + (player.number == 1 ? "" : player.number), "btn-dark");
 
-        btn.classList.add("p1");
+        btn.classList.add("p" + player.number);
         btn.value = card.number;
 
         // Add tooltip which displays the number of pips and ambition
@@ -213,16 +218,17 @@ function createCardButtonsForHumanPlayer() {
         if (card.played || !canPlayNow) { btn.disabled = true; }
 
         btn.onclick = function () {
-            showHideElement(document.querySelectorAll("#actionbuttons"), true);
+            const actionButtons = getActionId(player, "actionbuttons");
+            showHideElement(document.querySelectorAll("#" + actionButtons), true);
 
             // On a small screen the actions can be off screen, so bring them into view
-            document.getElementById("actionbuttons").scrollIntoView({ block: "nearest", behavior: "smooth" });
-            document.getElementById("CLAIM").classList.remove("active");
+            document.getElementById(actionButtons).scrollIntoView({ block: "nearest", behavior: "smooth" });
+            document.getElementById(getActionId(player, "CLAIM")).classList.remove("active");
             if (isLeadingThisTurn()) {
-                showHideActionButtons(true, getCardByNameAndNumber(players[0].cards, this.id, false));
+                showHideActionButtons(true, getCardByNameAndNumber(player.cards, this.id, false), player);
             } else {
                 const playedCard = getCardByNameAndNumber(player.cards, btn.id, false);
-                showHideActionButtons(false, playedCard);
+                showHideActionButtons(false, playedCard, player);
             }
         };
 

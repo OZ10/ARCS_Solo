@@ -50,33 +50,37 @@ function clonePlayerNodeAndSetup(player) {
     playcardbutton.id = "playcard" + playerNumber.toString();
     playcardbutton.disabled = true;
 
-    if (playerNumber == 1) {
+    // Each human player's hand and play buttons (#67: any human player, not just Player 1)
+    if (player.isHuman) {
         playcardbutton.classList.add("d-none");
 
         const actiondiv = document.createElement("div");
         actiondiv.classList.add("mt-1", "sectionlabel", "text-center");
+        actiondiv.id = "actionslabel" + playerNumber;
         actiondiv.innerHTML = "Actions"
 
         const actionbuttons = document.createElement("div");
         actionbuttons.classList.add("btn-group", "d-none", "d-flex");
-        actionbuttons.id = "actionbuttons";
+        actionbuttons.id = getActionId(player, "actionbuttons");
 
-        createRadioButtons("LEAD", actionbuttons, "actiontype", "btn-light");
-        createRadioButtons("DECLARE", actionbuttons, "actiontype", "btn-light");
-        createRadioButtons("SURPASS", actionbuttons, "actiontype", "btn-light");
-        createRadioButtons("COPY", actionbuttons, "actiontype", "btn-light");
-        createRadioButtons("PIVOT", actionbuttons, "actiontype", "btn-light");
-        createClaimButton("CLAIM", actionbuttons, "actionclaim", "btn-light");
+        ["LEAD", "DECLARE", "SURPASS", "COPY", "PIVOT"].forEach(action => createRadioButtons(action, actionbuttons, "actiontype", "btn-light", player, getActionId(player, action)));
+        createClaimButton("CLAIM", actionbuttons, "actionclaim", getActionId(player, "CLAIM"));
 
         playerPanel.appendChild(actiondiv);
         playerPanel.appendChild(actionbuttons);
+
+        // Frosted glass over the hand when there's more than one human player (humans.js)
+        const cover = document.createElement("div");
+        cover.id = "handcover" + playerNumber;
+        cover.classList.add("frosthand", "d-none");
+        hand.before(cover);
     }
 
-    // Only the human player's hand is shown, so bots don't need the Cards heading either
+    // Only human players' hands are shown, so bots don't need the Cards heading either
     const cardslabel = playertemplate.querySelector("#cardslabel");
     cardslabel.id = "cardslabel" + playerNumber.toString();
 
-    if (playerNumber != 1) {
+    if (!player.isHuman) {
         hand.classList.add("d-none");
         cardslabel.classList.add("d-none");
     }
@@ -438,6 +442,9 @@ function enableDisablePlayerPanels(playerNumber) {
 
         if (player.isHuman) { enableDisableButtonsByPlayerNumber(player.number, (player.number == playerNumber) ? true : false) }
     })
+
+    // A new player's turn covers any human player's hand that was showing (#67)
+    onCurrentPlayerChanged(playerNumber);
 }
 
 function showHidePlayerPanel(player, playerNumber) {

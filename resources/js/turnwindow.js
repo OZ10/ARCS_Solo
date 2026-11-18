@@ -213,7 +213,7 @@ function renderHumanTurn(player) {
     const shortfall = getMarketShortfallSection(offered);
     if (shortfall != "") { html += shortfall; offered.push("court"); }
     html += getTurnSection("Also", "<div class=\"turntools\">" + ["battle", "court"].filter(name => !offered.includes(name)).concat("draw").map(getAlsoButton).join("") + "</div>");
-    showTurnHtml(player, "Your turn", html);
+    showTurnHtml(player, isYou(player) ? "Your turn" : "Player " + player.number + "'s turn", html);
 }
 
 function renderTurn(player) {
@@ -269,7 +269,7 @@ function updateTurnDock() {
         const play = player.isHuman ? getBotPlay(player) : null;
         const summary = !player.isHuman ? getBarPlan(player)
             : (play == null ? "No actions" : play.count + " action" + (play.count == 1 ? "" : "s") + ": " + play.actions.split(",").join(", "));
-        bar.innerHTML = "<div class=\"turnbarplan\"><b>" + (player.isHuman ? "Your turn" : "Player " + player.number + "'s turn") + "</b>" + summary + "</div>"
+        bar.innerHTML = "<div class=\"turnbarplan\"><b>" + (isYou(player) ? "Your turn" : "Player " + player.number + "'s turn") + "</b>" + summary + "</div>"
             + "<button type=\"button\" class=\"btn btn-light btn-sm\" id=\"turnBarOpen\" onclick=\"openTurnWindow()\"><i class=\"bi bi-chevron-up\"></i> Open</button>";
     }
     showHideElement([bar], player != null);

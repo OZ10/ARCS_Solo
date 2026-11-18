@@ -187,19 +187,25 @@ function getDraftCardText(kind, card) {
         + "<p class=\"small text-muted mb-0\">Starts with " + getStartingPiecesText(card) + ".</p>";
 }
 
+function getDraftPicker() {
+    // Whose pick it is
+    return getPlayer(leaderDraft.order[leaderDraft.turn]);
+}
+
 function showLeaderDraft() {
-    const human = players[0];
-    const order = leaderDraft.order.map(number => number == human.number ? "you" : getPlayerTag(getPlayer(number)));
+    // For the human player whose pick it is (#67: any human player)
+    const human = getDraftPicker();
+    const order = leaderDraft.order.map(number => isYou(getPlayer(number)) ? "you" : getPlayerTag(getPlayer(number)));
     const initiative = getPlayerWithInitiative();
     const roundPicks = leaderDraft.picks.filter(pick => pick.round == leaderDraft.round);
 
     let html = "<div class=\"draftstatus\">"
-        + "<div class=\"mb-1\">" + (initiative.isHuman ? "You have" : getPlayerTag(initiative) + " has") + " the initiative, so the draft goes "
+        + "<div class=\"mb-1\">" + (isYou(initiative) ? "You have" : getPlayerTag(initiative) + " has") + " the initiative, so the draft goes "
         + order.slice(0, -1).join(", ") + ", then " + order[order.length - 1] + ".</div>"
         + roundPicks.map(pick => "<div>" + getPlayerTag(getPlayer(pick.player)) + " took <b>" + getDraftCard(pick.kind, pick.number).name + "</b></div>").join("")
-        + "<div class=\"mt-1\"><b>Your pick:</b> " + (leaderDraft.round == 1
-            ? "a Leader or a Lore card. You'll get the other kind next round."
-            : "your " + (needsDraftKind(human.number, "leader") ? "Leader" : "Lore card") + ".") + "</div></div>";
+        + "<div class=\"mt-1\"><b>" + (isYou(human) ? "Your pick:" : tagPlayerNames("Player " + human.number + "'s") + " pick:") + "</b> " + (leaderDraft.round == 1
+            ? "a Leader or a Lore card. The other kind comes next round."
+            : (isYou(human) ? "your " : "their ") + (needsDraftKind(human.number, "leader") ? "Leader" : "Lore card") + ".") + "</div></div>";
 
     Object.keys(draftKinds).forEach(kind => {
         html += "<div class=\"turnlabel mt-2\">" + (kind == "leader" ? "Leaders" : "Lore") + "</div>";
@@ -215,13 +221,13 @@ function showLeaderDraft() {
                 + "<div class=\"draftcardsub\">" + (kind == "leader" ? card.powers.map(power => power[0]).join(" &middot; ") : card.tags) + "</div>"
                 + (open ? "<div class=\"draftcardtext\">" + getDraftCardText(kind, card) + "</div>"
                     + (canTake ? "<button type=\"button\" class=\"btn btn-primary btn-sm w-100\" id=\"draftTake\" onclick=\"event.stopPropagation(); humanDraftPick('" + kind + "', " + number + ")\">Take " + card.name + "</button>"
-                        : "<div class=\"small text-muted\">You already have a " + draftKinds[kind] + ".</div>") : "")
+                        : "<div class=\"small text-muted\">" + (isYou(human) ? "You already have" : "Player " + human.number + " already has") + " a " + draftKinds[kind] + ".</div>") : "")
                 + "</div>";
         });
     });
 
     const modal = document.getElementById("guildModal");
-    document.getElementById("guildTitle").innerHTML = "Leaders &amp; Lore: round " + leaderDraft.round;
+    document.getElementById("guildTitle").innerHTML = "Leaders &amp; Lore: round " + leaderDraft.round + (isYou(human) ? "" : " &middot; Player " + human.number);
     const header = modal.querySelector(".modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     header.classList.add("playerbanner" + getPlayerColour(human));
@@ -236,7 +242,7 @@ function openDraftCard(id) {
 
 function humanDraftPick(kind, number) {
     draftOpenCard = null;
-    takeDraftCard(players[0].number, kind, number);
+    takeDraftCard(getDraftPicker().number, kind, number);
     continueLeaderDraft();
 }
 
@@ -302,12 +308,12 @@ function offerArchivistLore(player, draftLore = []) {
         showSetUpPlayers();
         return;
     }
-    archivistChoice = { drawn: drawn, kept: [] };
+    archivistChoice = { drawn: drawn, kept: [], player: player.number };
     showArchivistChoice();
 }
 
 function showArchivistChoice() {
-    const player = players[0];
+    const player = getPlayer(archivistChoice.player) || players[0];
     const html = "<p class=\"mb-2\">Learned: you drew 5 Lore cards. Keep 2, and the other 3 are scrapped.</p>"
         + archivistChoice.drawn.map(number => {
             const card = getLoreCard(number), kept = archivistChoice.kept.includes(number);
@@ -334,7 +340,7 @@ function toggleArchivistLore(number) {
 }
 
 function keepArchivistLore() {
-    const player = players[0];
+    const player = getPlayer(archivistChoice.player) || players[0];
     player.lore = player.lore.concat(archivistChoice.kept);
     archivistChoice = null;
     SaveAllSettings();

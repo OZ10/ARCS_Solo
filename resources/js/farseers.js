@@ -217,9 +217,9 @@ function botFarseersSwap(player) {
         return;
     }
     swapCards(player, best.rival, worst.card, best.card);
-    const theirs = best.rival.isHuman ? "your " : "Player " + best.rival.number + "'s ";
+    const theirs = isYou(best.rival) ? "your " : "Player " + best.rival.number + "'s ";
     player.farseersSwap = {
         title: "Swapped its " + getCardLabel(worst.card) + " for " + theirs + getCardLabel(best.card),
-        note: (best.rival.isHuman ? "Give it your " + getCardLabel(best.card) + " and take its " + getCardLabel(worst.card) + ". " : "") + best.reason
+        note: (best.rival.isHuman ? (isYou(best.rival) ? "Give it your " + getCardLabel(best.card) + " and take its " : "Player " + best.rival.number + " gives it their " + getCardLabel(best.card) + " and takes its ") + getCardLabel(worst.card) + ". " : "") + best.reason
     };
 }

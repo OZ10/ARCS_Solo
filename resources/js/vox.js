@@ -42,8 +42,8 @@ function getOutrageLossText(resource) {
         const cards = getPlayerGuildCards(player).filter(card => card.resource == resource && !card.keepOnOutrage).map(card => card.name);
         const count = player[resource + "Value"];
         const losses = (count > 0 ? [String(count)] : []).concat(cards);
-        const who = player.isHuman ? "you" : "Player " + player.number;
-        return who + (losses.length == 0 ? (player.isHuman ? " lose nothing" : " loses nothing") : (player.isHuman ? " lose " : " loses ") + losses.join(" and "));
+        const who = getYouOrPlayer(player);
+        return who + (losses.length == 0 ? (isYou(player) ? " lose nothing" : " loses nothing") : (isYou(player) ? " lose " : " loses ") + losses.join(" and "));
     }).join(", ");
 }
 

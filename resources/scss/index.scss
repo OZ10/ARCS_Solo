@@ -591,8 +591,10 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
 
 // The number of players, in the same style as the Bot difficulty buttons (#71), filled in
 .playercount {
+    // The numbers that are enough for the human players (#67) share the row equally
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 8px;
 
     button {
@@ -649,6 +651,155 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     font-size: 0.8rem;
     color: #6c757d;
     margin-top: 8px;
+}
+
+// How many human players (#67), in the same style as the difficulty buttons
+.humanseg {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+
+    .btn {
+        padding: 8px 0;
+        font-weight: 700;
+        border-radius: 10px;
+
+        small {
+            display: block;
+            font-weight: 500;
+            font-size: 0.62rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+    }
+}
+
+.humanhint {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 6px;
+}
+
+// A colour another human player has taken
+.swatches .btn-check:disabled + .btn {
+    opacity: 0.3;
+}
+
+// A human player's hand under smoked frosted glass (#67): blank cards, never the real ones
+.frosthand {
+    position: relative;
+    margin: 8px 12px 12px;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.frostcards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 14px 18px 10px;
+}
+
+.frostcard {
+    height: 34px;
+    border-radius: 8px;
+    background: #212529;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &::after {
+        content: "";
+        width: 60%;
+        height: 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.35);
+    }
+}
+
+.frostactions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 4px 10px 14px;
+
+    div {
+        height: 34px;
+        border-radius: 6px;
+        background: #f8f9fa;
+    }
+}
+
+.frostglass {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 14px;
+    background: rgba(20, 22, 26, 0.42);
+    backdrop-filter: blur(8px) saturate(1.3);
+    -webkit-backdrop-filter: blur(8px) saturate(1.3);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+
+    .bi {
+        font-size: 1.6rem;
+    }
+
+    h6 {
+        margin: 6px 0 4px;
+        font-weight: 700;
+    }
+
+    p {
+        font-size: 0.85rem;
+        margin: 0 0 10px;
+    }
+
+    .btn {
+        text-shadow: none;
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 7px 18px;
+    }
+}
+
+// The real hand and play buttons are off the screen while covered. Doubled up so it beats
+// Bootstrap's d-flex, which is also !important and comes later
+.handcovered.handcovered {
+    display: none !important;
+}
+
+// A hand in a window (the mulligan), covered until its human player taps
+.windowcover {
+    .frosthand {
+        margin: 10px 0 4px;
+    }
+
+    .mullhand {
+        display: none;
+    }
+
+    &.revealed {
+        .frosthand {
+            display: none;
+        }
+
+        .mullhand {
+            display: grid;
+        }
+    }
+}
+
+// The turn announcement, with more than one human player
+.passphone {
+    margin-top: 10px;
+    font-weight: 600;
 }
 
 .appname {
