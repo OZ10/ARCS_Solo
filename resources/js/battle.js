@@ -776,6 +776,15 @@ function getDestroyedHtml() {
 function setDestroyedPlanet(planet) {
     battle.destroyed.planet = planet;
     document.getElementById("battleDestroyed").innerHTML = getDestroyedHtml();
+    showCityEffects();
+}
+
+function showCityEffects() {
+    // The Outrage warning and the Ransack choice, only when a destroyed building is a city (#149)
+    const effects = document.getElementById("battleCityEffects");
+    if (effects == null || battle.destroyed == null) { return; }
+    const cityDestroyed = battle.destroyed.kinds.some(kind => kind != "starport") && getPlanetOptions(battle.defender, true).length > 0;
+    effects.classList.toggle("d-none", !cityDestroyed);
 }
 
 function toggleGateType(resource, ticked) {
@@ -786,6 +795,7 @@ function toggleGateType(resource, ticked) {
 function setDestroyedKind(index, kind) {
     battle.destroyed.kinds[index] = kind;
     document.getElementById("battleDestroyed").innerHTML = getDestroyedHtml();
+    showCityEffects();
 }
 
 function getBattleLosses() {
@@ -832,16 +842,18 @@ function showBattleResults() {
             gateTypes: []
         };
         html += "<div id=\"battleDestroyed\">" + (options.length > 0 ? getDestroyedHtml() : "") + "</div>";
+        // Only once a city is chosen: a starport doesn't Provoke Outrage or Ransack the Court (#149)
         const canRansack = canRansackAgainst(battle.defender);
-        html += "<div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Destroying a city:</b> " + attacker + " Provokes Outrage of that resource, discarding its resources and Guild cards of that type"
+        html += "<div id=\"battleCityEffects\"><div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Destroying a city:</b> " + attacker + " Provokes Outrage of that resource, discarding its resources and Guild cards of that type"
             + (canRansack ? ", and Ransacks the Court.</div>" : ". " + defender + " is the Elder, so there's no Ransack (Beloved).</div>");
 
         // Ransack: which card? With no market entered, the player carries it out
         const ransack = (isMarketKnown() && canRansack) ? getRansackOptions(battle.attacker, battle.defender) : [];
         if (ransack.length > 0) {
-            html += "<div class=\"mt-2\">If a city was destroyed, Ransack:</div><select class=\"form-select form-select-sm mt-1\" id=\"battleRansack\">"
+            html += "<div class=\"mt-2\">The city was destroyed, so Ransack:</div><select class=\"form-select form-select-sm mt-1\" id=\"battleRansack\">"
                 + ransack.map(entry => "<option value=\"" + entry.number + "\">" + getCourtCard(entry.number).name + "</option>").join("") + "<option value=\"\">Nothing</option></select>";
         }
+        html += "</div>";
     }
 
     html += getLeaderBattleResultsHtml(losses);
@@ -882,6 +894,7 @@ function showBattleResults() {
         + "</div>";
 
     document.getElementById("battleAdvice").innerHTML = html;
+    showCityEffects();
     showHideElement([document.getElementById("chooseBattleDice"), document.getElementById("battleDone")], false);
 }
 

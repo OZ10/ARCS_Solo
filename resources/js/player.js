@@ -136,6 +136,7 @@ function resetPlayedThisTurn() {
         player.planVariation = null;
         player.turnPlan = null;
         player.canBuild = null;
+        player.hasSlotForCity = null;
         player.noTax = [];
         player.newCityWanted = null;
         player.playReason = null;

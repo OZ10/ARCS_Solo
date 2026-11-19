@@ -40,7 +40,26 @@ function askThenPlay(player) {
         });
         return;
     }
+    // It would move to a planet to build a city there: first check it hasn't already a free slot (#146)
+    if (shouldAskSlotForMove(player)) {
+        const resource = getNewCityResource(player);
+        askYesNo("MOVE", "Is there an empty building slot on a " + preludeResourceNames[resource].toLowerCase() + " planet in a system where I have a piece?", hasSlot => {
+            player.hasSlotForCity = hasSlot;
+            SaveAllSettings();
+            askThenPlay(player);
+        });
+        return;
+    }
     determineCardToPlay(player);
+}
+
+function shouldAskSlotForMove(player) {
+    // Asked once a turn, when Moving to build a city is its best reason to Move and it has a card
+    // that can Move
+    if (player.hasSlotForCity != null || getNewCityResource(player) == null) { return false; }
+    if (!getUnplayedCards(player.cards).some(card => card.actions.includes("move"))) { return false; }
+    const goal = getMoveGoal(player);
+    return goal != null && goal.endsWith("to build a city");
 }
 
 function shouldAskAgents(player) {
@@ -596,7 +615,8 @@ function declareAmbition(player, playedCard) {
         showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = placesZeroMarker(player, ambition);
 
-        addPlayedCardToList(playedCard, playedCard.playedAction, "LEAD", true, player);
+        // Shown as a Declare, not a Lead (#150)
+        addPlayedCardToList(playedCard, playedCard.playedAction, "DECLARE", true, player);
 
         declaredAmbitions.push(ambition);
         updateAmbitionsDisplay();
