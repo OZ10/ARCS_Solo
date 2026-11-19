@@ -76,6 +76,9 @@ class player {
     moveGoal = null;
     // Who it means to Battle this turn, once chosen (see getBattleTarget)
     battleTargetNumber = null;
+    // In a campaign: the Free States, the Blight or the Empire to Battle this turn, once asked
+    // (campaign/targets.js). undefined until asked, null for none
+    campaignTarget = undefined;
     // Why it played for an action without asking, as the plan's reason (see getKnownYesReason)
     focusReason = null;
     // What Farseers' swap did this turn, as { title, note } (see botFarseersSwap)
@@ -142,6 +145,7 @@ function resetPlayedThisTurn() {
         player.playReason = null;
         player.moveGoal = null;
         player.battleTargetNumber = null;
+        player.campaignTarget = undefined;
         player.focusReason = null;
         player.farseersSwap = null;
         player.buildIntent = null;

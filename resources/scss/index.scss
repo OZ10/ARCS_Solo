@@ -2066,6 +2066,11 @@ $empire: #5b2a86;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
 
+    // Three choices (making a Rival an Outlaw at the Edicts)
+    &.brseg3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .btn {
         padding: 8px 0;
         font-weight: 700;

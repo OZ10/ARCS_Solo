@@ -50,6 +50,8 @@ function askThenPlay(player) {
         });
         return;
     }
+    // In a campaign, whether the Free States, the Blight or the Empire are in reach (campaignhooks.js)
+    if (runCampaignHook("botQuestions", player, () => askThenPlay(player)) === true) { return; }
     determineCardToPlay(player);
 }
 
@@ -284,7 +286,8 @@ function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, p
         }
 
         // No need to ask about raiding for something no Rival has
-        if (action == "battle" && taxResources != null && getRaidHolders(player, taxResources).length == 0) { continue; }
+        // (In a campaign, the Free States may have it: campaignhooks.js)
+        if (action == "battle" && taxResources != null && getRaidHolders(player, taxResources).length == 0 && runCampaignHook("knownYes", ambition, action, player) == null) { continue; }
 
         // With the market entered, there's no need to ask about a card that isn't there
         if (!isMarketQuestionPossible(ambition, action, player)) { continue; }
@@ -309,6 +312,9 @@ function getKnownYesReason(ambition, action, player) {
     // Its own city can be taxed anywhere, without control, if there's some left to take. With the
     // market entered, it knows which cards it can secure or influence (getNextQuestionNumber has
     // already skipped the questions that can't be a Yes)
+    // In a campaign, you've already said the Free States, the Blight or the Empire are in reach (campaignhooks.js)
+    const campaignKnown = runCampaignHook("knownYes", ambition, action, player);
+    if (campaignKnown != null) { return campaignKnown; }
     const resources = ambitionTaxResources[ambition];
     if (action == "tax" && resources != null && !(player.noTax || []).includes(ambition)) {
         const own = resources.find(resource => player["cities" + capitalise(resource) + "Value"] > 0 && getResourceSupply(resource) > 0);

@@ -141,6 +141,9 @@ function getBattleTarget(player) {
     // doesn't change as tiles are tapped, with a little variation so it isn't predictable. Only
     // Rivals with something on the board. null if there are none
     const weights = battleTargetWeights;
+    // In a campaign, the Free States, the Blight or the Empire when you said they're in reach (campaignhooks.js)
+    const special = runCampaignHook("specialBattleTarget", player);
+    if (special != null) { return special; }
     const rivals = players.filter(other => other !== player
         && (other.shipsBoardValue > 0 || other.startingCity || cityCounters.some(counter => other[counter + "Value"] > 0)));
     if (rivals.length == 0) { return null; }
@@ -204,7 +207,7 @@ function getActionPlanScore(player, action, focus) {
                 score += weights.battleFleet;
                 const target = getBattleTarget(player);
                 const actions = getBattleActionCount(player);
-                if (reason == "" && target != null && target.player.shipsBoardValue < player.shipsBoardValue) { reason = "its " + player.shipsBoardValue + " ships outnumber their " + target.player.shipsBoardValue; }
+                if (reason == "" && target != null && target.kind == null && target.player.shipsBoardValue < player.shipsBoardValue) { reason = "its " + player.shipsBoardValue + " ships outnumber their " + target.player.shipsBoardValue; }
                 else if (reason == "") { reason = "it has " + player.shipsBoardValue + " ships: enough to attack with " + (actions >= 2 ? actions + " Battle actions" : "1 Battle action"); }
             }
             if (isLastCard) { score += weights.battleLastCard; if (reason == "") { reason = "its last card this round"; } }

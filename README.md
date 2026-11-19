@@ -110,13 +110,13 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 
 **During a chapter:** Event cards are shuffled into the action deck. When one is played, the app rolls the event die and walks through the end of round: the Imperial Council, Summits, then Crises or Edicts, with the First Regent's Policy. Fate cards are added to the Court and Guild rows like any other card.
 
-**How the bots play:** a Regent bot follows the Empire's laws (moving and battling alongside Imperial ships, and leaving Rival Regents alone where there are Imperial ships) and would rather battle an Outlaw. Bots value the Imperial Council, and as First Regent they choose whether to enforce or change the Policy. Each bot plays towards its Act I objective and uses its Fate cards, and its turn window has a section explaining what its Fate wants this turn.
+**How the bots play:** a Regent bot follows the Empire's laws (moving and battling alongside Imperial ships, and leaving Rival Regents alone where there are Imperial ships) and would rather battle an Outlaw. Bots value the Imperial Council, and as First Regent they choose whether to enforce or change the Policy, and whether to make a Rival Regent with no agents left an Outlaw. When a bot may call a Summit, it weighs leaving the Empire (its Fate, stealing from the Imperial Trust, what the Edicts take) against staying (being First Regent, the Imperial ships), and says why. It also revives the Empire when there are no Regents, and petitions the Council when it wants it again. Bots battle the Free States, the Blight and, as Outlaws, the Empire: when one is worth it, the bot asks whether it's in reach, and the Battle window starts with it chosen. Each bot plays towards its Act I objective and uses its Fate cards, and its turn window has a section explaining what its Fate wants this turn.
 
 **Objectives:** at the end of each chapter, a window lists the objective markers that moved and why, and asks you anything the app can't see, such as how many systems a bot controls. Move the markers on the table to match. In Act III, "A" and "B" Fates are asked which grand ambitions they fulfilled and gain the Power for them, and a "C" Fate that completes its final objective with Power wins the campaign.
 
 **Between Acts:** the Intermission works out everyone's Power for the next Act. After Act III, the player with the most Power wins, unless someone completed their final objective.
 
-**Not done yet:** bots don't call Summits or negotiate, and are never dealt the Magnate. In Acts II and III they play their usual game rather than chasing their new objectives. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
+**Not done yet:** bots don't negotiate in Summits, and are never dealt the Magnate. In Acts II and III they play their usual game rather than chasing their new objectives. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
 
 ## The screen
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options** (the gear). Tap an ambition to see how it's won and what it's worth.

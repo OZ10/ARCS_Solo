@@ -126,7 +126,7 @@ function getSplitPlanStep(step, player) {
     const split = parts == null ? { name: step.text, reason: "" } : { name: parts[1], reason: capitalise(parts[2]) };
     const target = (step.action == "battle") ? getBattleTarget(player) : null;
     if (target == null) { return split; }
-    return { name: "Battle Player " + target.player.number, reason: [split.reason ? split.reason + "." : "", target.why, target.where].filter(text => text != "").join(" ") };
+    return { name: target.title || "Battle Player " + target.player.number, reason: [split.reason ? split.reason + "." : "", target.why, target.where].filter(text => text != "").join(" ") };
 }
 
 function getOfferRows(offers) {

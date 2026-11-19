@@ -107,13 +107,24 @@ registerCampaignHook("battleDefenders", defenders => {
     const attacker = battle.attacker;
     // Regents can't harm Imperial ships, so only an Outlaw can choose the Empire (rulebook p.11)
     const kinds = Object.keys(campaignDefenderKinds).filter(kind => kind != "empire" || !isRegent(attacker));
+    // A bot's target may be one of these (targets.js): it starts chosen, with its reason
+    const target = !attacker.isHuman ? getBattleTarget(attacker) : null;
     kinds.forEach(kind => {
         const input = document.createElement("input");
         input.type = "radio";
         input.classList.add("btn-check");
         input.name = "battleDefender";
         input.id = "battleDefender_" + kind;
-        input.onchange = () => { battle.defender = makeCampaignDefender(kind); battle.start = null; battle.ships = Math.max(battle.ships, 1); resetBattleRaid(); updateBattleCounts(); };
+        const defender = () => (target != null && target.kind == kind) ? target.player : makeCampaignDefender(kind);
+        // The Free States defend with buildings only
+        const freeCounts = () => { if (kind == "free") { battle.fresh = 0; battle.damaged = 0; battle.freshBuildings = Math.max(battle.freshBuildings + battle.damagedBuildings, 1) - battle.damagedBuildings; } };
+        input.onchange = () => { battle.defender = defender(); battle.start = null; battle.ships = Math.max(battle.ships, 1); freeCounts(); resetBattleRaid(); updateBattleCounts(); };
+        if (target != null && target.kind == kind) {
+            input.checked = true;
+            battle.defender = defender();
+            freeCounts();
+            resetBattleRaid();
+        }
         const label = document.createElement("label");
         label.classList.add("btn", "btn-sm", "playerchoice", "playerchoice" + kind);
         label.htmlFor = input.id;

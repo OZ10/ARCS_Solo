@@ -49,8 +49,7 @@ function getRoundEventIntro() {
 function askForSummit() {
     const player = roundEvent.player;
     if (!player.isHuman) {
-        // Bots don't call Summits yet
-        roundEvent.summitNote = "Player " + player.number + " (bot) doesn't call a Summit.";
+        botSummit(player);
         afterSummit();
         return;
     }
@@ -115,6 +114,100 @@ function leaveEmpire(playerNumber) {
 function reviveEmpire(playerNumber) {
     campaign.players[playerNumber].title = "regent";
     campaign.firstRegent = playerNumber;
+    players.forEach(showCampaignPanel);
+    SaveAllSettings();
+}
+
+// A bot calling a Summit: it leaves the Empire when that's worth more than staying, revives it
+// when there are no Regents, and petitions the Council when it wants it again. It doesn't
+// negotiate yet
+
+// What a Fate wants its holder's title to be, by Act
+const fateTitleWants = { 1: { 1: "regent", 2: "regent", 3: "regent" }, 2: { 1: "outlaw" }, 7: { 1: "regent", 2: "regent", 3: "regent" } };
+const summitWeights = { fate: 4, perSteal: 0.75, perStealChased: 0.5, edictCost: 1, truce: 1, firstRegent: 3, imperialShips: 1, targeted: 1, petition: 1.5, variation: 1 };
+
+function getFateTitleWant(player) {
+    return (fateTitleWants[getCampaignPlayer(player).fate] || {})[campaign.act] || null;
+}
+
+function getLeaveEmpireCase(player) {
+    // What it gains and loses by becoming an Outlaw, as { score, reasons, against }
+    const weights = summitWeights;
+    const fateName = getFate(getCampaignPlayer(player).fate).name;
+    const reasons = [], against = [];
+    let score = 0;
+    const want = getFateTitleWant(player);
+    if (want == "outlaw") { score += weights.fate; reasons.push("Its Fate, the " + fateName + ", advances its objective only while it's an Outlaw."); }
+    if (want == "regent") { score -= weights.fate; against.push("Its Fate, the " + fateName + ", needs it to be a Regent."); }
+    // As an Outlaw holding the Council, it steals from the Trust straight away
+    const firstRegent = campaign.firstRegent != null ? getPlayer(campaign.firstRegent) : null;
+    const steal = Math.min(getTrustTotal(), getEmptySlots(player));
+    if (roundEvent.kind == "council" && steal > 0 && firstRegent != null && firstRegent !== player) {
+        const chased = trustResources.filter(resource => campaign.trust[resource] > 0 && getResourceNeed(player, resource) == 2);
+        score += steal * weights.perSteal + (chased.length > 0 ? weights.perStealChased : 0);
+        reasons.push("As an Outlaw it steals from the Imperial Trust now: " + getTrustTotal() + " resource" + (getTrustTotal() == 1 ? "" : "s") + ", and it has " + getEmptySlots(player) + " empty slot" + (getEmptySlots(player) == 1 ? "" : "s")
+            + (chased.length > 0 ? ", with " + chased.map(resource => preludeResourceNames[resource]).join(" and ") + " that it's chasing" : "") + ".");
+    }
+    // The Edicts keep taking what it's chasing
+    const demanded = policyDemands[campaign.policy].resources.filter(resource => preludeResources.includes(resource) && player[resource + "Value"] > 0 && getResourceNeed(player, resource) == 2);
+    if (!isFirstRegent(player) && demanded.length > 0) {
+        score += weights.edictCost;
+        reasons.push(policyNames[campaign.policy] + " would take " + demanded.map(resource => preludeResourceNames[resource]).join(" or ") + ", which it's chasing.");
+    }
+    // The Truce Law shields every Rival it could battle
+    const rivals = players.filter(other => other !== player);
+    if (rivals.length > 0 && rivals.every(isRegent) && player.shipsBoardValue >= getAttackFleet(player)) {
+        score += weights.truce;
+        reasons.push("All its Rivals are Regents: the Truce Law shields them wherever there are Imperial ships.");
+    }
+    if (isFirstRegent(player)) { score -= weights.firstRegent; against.push("It's First Regent: it would lose the tile."); }
+    score -= weights.imperialShips;
+    against.push("Imperial ships move and battle alongside it while it's a Regent.");
+    if (rivals.some(other => !other.isHuman && isRegent(other))) { score -= weights.targeted; against.push("Regent bots would rather battle an Outlaw."); }
+    score += (Math.random() - 0.5) * weights.variation * getDifficulty().planVariation;
+    return { score: score, reasons: reasons, against: against };
+}
+
+function wouldPetition(player) {
+    // The Council is Decided, and it would want to secure it again
+    if (!isCouncilDecided()) { return false; }
+    const value = isRegent(player) ? (isFirstRegent(player) ? 0 : councilValues.becomeFirstRegent) : Math.min(getTrustTotal(), getEmptySlots(player)) * councilValues.perStolen;
+    return value >= summitWeights.petition;
+}
+
+function botSummit(player) {
+    const list = items => "<ul class=\"small mb-0 mt-1\">" + items.map(item => "<li>" + item + "</li>").join("") + "</ul>";
+    const noRegents = !players.some(isRegent);
+    const notes = [];
+    let called = false;
+    if (isRegent(player)) {
+        const leave = getLeaveEmpireCase(player);
+        if (leave.score > 0) {
+            called = true;
+            leaveEmpire(player.number);
+            notes.push("Player " + player.number + " (bot) calls a Summit and <b>leaves the Empire</b>: flip its title to Outlaw." + list(leave.reasons.concat(leave.against.map(text => "Against: " + text))));
+        } else {
+            roundEvent.stayReasons = leave;
+        }
+    } else if (noRegents && getFateTitleWant(player) != "outlaw") {
+        called = true;
+        reviveEmpire(player.number);
+        notes.push("Player " + player.number + " (bot) calls a Summit and <b>revives the Empire</b>: flip its title to Regent and give it the First Regent tile." + list(["There are no Regents left, so it becomes First Regent."]));
+    }
+    if (wouldPetition(player)) {
+        setCouncilInSession();
+        notes.push((called ? "It also" : "Player " + player.number + " (bot) calls a Summit and") + " <b>petitions the Council</b>: flip the Imperial Council to In Session." + list(["It wants to secure the Council again."]));
+        called = true;
+    }
+    if (!called) {
+        const stay = roundEvent.stayReasons;
+        notes.push("Player " + player.number + " (bot) doesn't call a Summit" + (isRegent(player) ? ": it stays a Regent." : ".")
+            + (stay != null ? list(stay.against.concat(stay.reasons.map(text => "For leaving: " + text))) : ""));
+    } else {
+        notes.push("Bots don't negotiate yet: human players may still make deals with each other.");
+    }
+    roundEvent.stayReasons = null;
+    roundEvent.summitNote = notes.join("<br>");
     players.forEach(showCampaignPanel);
     SaveAllSettings();
 }
@@ -370,6 +463,7 @@ function showGovern() {
         }
         showCampaignWindow("Edicts", intro + "<p class=\"mt-2 mb-1\">Player " + firstRegent.number + " (bot) is First Regent and <b>enforces it</b>:</p>"
             + "<ul class=\"small mb-1\">" + plan.map(item => "<li>" + describe(item) + "</li>").join("") + "</ul>" + reasons + "</div>"
+            + getOutlawChoicesHtml(firstRegent, plan)
             + "<p class=\"small\">Then any other Edicts in the rules booklet, in number order.</p>"
             + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"enforcePolicy()\">OK: carry it out</button>", firstRegent, true);
         return;
@@ -377,9 +471,54 @@ function showGovern() {
     const others = Object.keys(policyNames).filter(policy => policy != campaign.policy);
     showCampaignWindow("Edicts", intro + "<p class=\"mt-2 mb-1\">Player " + firstRegent.number + " is First Regent: enforce this Policy, or change it (the new one takes effect next time).</p>"
         + "<ul class=\"small mb-2\">" + plan.map(item => "<li>" + describe(item) + "</li>").join("") + "</ul>"
+        + (getOutlawChoicesHtml(firstRegent, plan) != "" ? "</div>" + getOutlawChoicesHtml(firstRegent, plan) + "<div class=\"turnsection\">" : "")
         + "<button type=\"button\" class=\"btn btn-primary w-100 mb-2\" onclick=\"enforcePolicy()\">Enforce " + policyNames[campaign.policy] + "</button>"
         + "<div class=\"brseg\">" + others.map(policy => "<button type=\"button\" class=\"btn btn-outline-secondary\" onclick=\"changePolicy('" + policy + "')\">Change<small>to " + capitalise(policy) + "</small></button>").join("") + "</div></div>"
         + "<p class=\"small\">Then any other Edicts in the rules booklet, in number order.</p>", firstRegent, true);
+}
+
+// A Rival Regent with nothing to give: the First Regent takes an agent as a Favor, or, with none
+// left, may make them an Outlaw (rulebook p.21). The app can't count agents on the table, so it asks
+
+function getOutlawReason(firstRegent, rival) {
+    // Why a bot First Regent would make this Rival an Outlaw, or null. They're ahead of it or close
+    // behind on Power, or its Fate gains from Outlaws (the Admiral in Act II); not while its own
+    // grand ambition wants no Outlaws (the Steward in Act III)
+    if (hasFate(firstRegent, 1) && campaign.act == 3) { return null; }
+    if (hasFate(firstRegent, 7) && campaign.act == 2) { return "its Fate, the Admiral, advances for Outlaw pieces it takes as Trophies"; }
+    if (rival.powerValue >= firstRegent.powerValue - outlawPowerGap) {
+        return rival.powerValue > firstRegent.powerValue ? "they're ahead of it on Power (" + rival.powerValue + " to its " + firstRegent.powerValue + ")"
+            : "they're close behind it on Power (" + rival.powerValue + " to its " + firstRegent.powerValue + ")";
+    }
+    return null;
+}
+const outlawPowerGap = 3;
+
+function getOutlawChoicesHtml(firstRegent, plan) {
+    const choice = (number, value, label, note, checked) => "<input type=\"radio\" class=\"btn-check\" name=\"outlawChoice" + number + "\" id=\"outlawChoice" + number + value + "\" value=\"" + value + "\"" + (checked ? " checked" : "") + ">"
+        + "<label class=\"btn btn-outline-secondary\" for=\"outlawChoice" + number + value + "\">" + label + "<small>" + note + "</small></label>";
+    return plan.filter(item => item.favor).map(item => {
+        const rival = item.player;
+        const words = demandWordsFor(campaign.policy);
+        if (!firstRegent.isHuman) {
+            const reason = getOutlawReason(firstRegent, rival);
+            if (reason == null) { return ""; }
+            return "<div class=\"turnsection\"><div class=\"turnlabel\">Player " + rival.number + " has no " + words + "</div><p class=\"small mb-2\">Does Player " + rival.number + " have an agent left in their supply? If not, Player " + firstRegent.number + " (bot) <b>makes them an Outlaw</b>: " + reason + ".</p>"
+                + "<div class=\"brseg\">" + choice(rival.number, "favor", "Has agents", "Take 1 as a Favor", true) + choice(rival.number, "outlaw", "None left", "Make them an Outlaw", false) + "</div></div>";
+        }
+        return "<div class=\"turnsection\"><div class=\"turnlabel\">Player " + rival.number + " has no " + words + "</div><p class=\"small mb-2\">Take 1 of their agents as a Favor. If they have none left in their supply, you may make them an Outlaw.</p>"
+            + "<div class=\"brseg brseg3\">" + choice(rival.number, "favor", "Has agents", "Take 1 as a Favor", true) + choice(rival.number, "none", "None left", "Stays a Regent", false) + choice(rival.number, "outlaw", "None left", "Make an Outlaw", false) + "</div></div>";
+    }).join("");
+}
+
+function demandWordsFor(policy) {
+    return policyDemands[policy].resources.map(getDemandWord).join(" or ");
+}
+
+function getOutlawChoice(rival) {
+    // "favor" (the default), "none" or "outlaw"
+    const checked = document.querySelector("input[name=outlawChoice" + rival.number + "]:checked");
+    return checked != null ? checked.value : "favor";
 }
 
 // What a Policy is worth to the First Regent: each piece it collects (they count for its ambitions),
@@ -434,9 +573,17 @@ function enforcePolicy() {
     getDemandPlan().forEach(item => {
         if (item.kind == null) {
             if (item.favor) {
-                const favors = getCampaignPlayer(firstRegent).favors;
-                favors[item.player.number] = (favors[item.player.number] || 0) + 1;
-                notes.push("Player " + firstRegent.number + " takes a Favor from Player " + item.player.number + " (if they have no agents left, they may be made an Outlaw)");
+                const choice = getOutlawChoice(item.player);
+                if (choice == "outlaw") {
+                    applyTitle(item.player.number, "outlaw");
+                    notes.push("Player " + item.player.number + " has no agents left: Player " + firstRegent.number + " makes them an Outlaw. Flip their title.");
+                } else if (choice == "none") {
+                    notes.push("Player " + item.player.number + " has no agents left to give, and stays a Regent");
+                } else {
+                    const favors = getCampaignPlayer(firstRegent).favors;
+                    favors[item.player.number] = (favors[item.player.number] || 0) + 1;
+                    notes.push("Player " + firstRegent.number + " takes a Favor from Player " + item.player.number);
+                }
             }
             return;
         }

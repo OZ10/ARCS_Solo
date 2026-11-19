@@ -1913,6 +1913,9 @@ header, .footerstyle {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
+.brseg.brseg3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .brseg .btn {
   padding: 8px 0;
   font-weight: 700;
