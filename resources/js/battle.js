@@ -454,8 +454,22 @@ function showBattleModal(button) {
     });
 
     battle.noBuildings = hasNoBuildings(battle.defender);
+    showBattleCountTiles(battle.attacker.isHuman);
     updateBattleCounts();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).show();
+}
+
+function showBattleCountTiles(simple) {
+    // A human player attacking only needs how many ships and buildings take part: what was
+    // destroyed comes from the totals. A bot needs fresh and damaged for its dice (#147)
+    const tile = id => document.getElementById(id).closest(".resourcetile");
+    ["battleDamaged", "battleDamagedBuildings"].forEach(id => tile(id).classList.toggle("d-none", simple));
+    tile("battleFresh").querySelector(".resourcelabel").textContent = simple ? "Ships" : "Fresh";
+    tile("battleFreshBuildings").querySelector(".resourcelabel").textContent = simple ? "Buildings" : "Fresh";
+    const groupLabel = id => tile(id).parentNode.parentNode.querySelector(".boardgrouplabel");
+    groupLabel("battleFresh").textContent = simple ? "Defender" : "Defender ships";
+    // Kept but blank, so the two counts line up side by side
+    groupLabel("battleFreshBuildings").innerHTML = simple ? "&nbsp;" : "Defender buildings";
 }
 
 function battleStep(field, change) {
