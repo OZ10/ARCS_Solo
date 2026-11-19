@@ -33,7 +33,8 @@ function doesEventGiveActions(card) {
 }
 
 registerCampaignHook("buildActionDeck", cards => {
-    const count = players.length == 4 ? 3 : 2;
+    // And a 4th from the Caretaker in Act II (fatebots.js)
+    const count = (players.length == 4 ? 3 : 2) + (campaign != null && campaign.extraEvent ? 1 : 0);
     for (let number = 1; number <= count; number++) { cards.push(new Card(eventCardName, number, 0, false, "null", "event")); }
 });
 

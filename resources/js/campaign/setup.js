@@ -49,8 +49,13 @@ function showLaterActSetup() {
     }
     html += "</div><div class=\"turnsection\"><div class=\"turnlabel\">The players</div>"
         + step("Each player does the Setup side of their objective card, then flips it", "In turn order if choices clash. Players may also rearrange their resources.")
-        + step(act == 2 ? "Each player sets their objective marker, and enters it on their panel" : "Players with a \"C\" Fate set their objective marker, and enter it on their panel",
-            act == 3 ? "\"A\" and \"B\" Fates have grand ambitions instead." : "")
+        // Each player's Fate setup for this Act (laterfates.js)
+        + getTurnOrder().map(player => {
+            const fate = getFate(getCampaignPlayer(player).fate);
+            return step("Player " + player.number + " &middot; " + fate.name, getFateSetupText(fate, act));
+        }).join("")
+        + step(act == 2 ? "Each player puts their objective marker on its starting space" : "Players with a \"C\" Fate put their objective marker on its starting space",
+            (act == 3 ? "\"A\" and \"B\" Fates have grand ambitions instead. " : "") + "The app has set each one on the panels.")
         + "</div><button type=\"button\" class=\"btn btn-primary w-100 mt-2\" data-bs-dismiss=\"modal\">Done: start chapter 1</button>";
     showCampaignWindow(actNames[act] + " setup", html, null, true, () => startRoundAfterMulligan());
 }

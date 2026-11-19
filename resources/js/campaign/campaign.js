@@ -277,7 +277,10 @@ function showFateChoice() {
 
 function getFateCardHtml(fate, open, act) {
     // A Fate, tapped to read it in full and take it
-    const objective = (fate.objective != null && act == 1) ? "<div class=\"fateobj\"><b>" + actNames[act] + " objective (starts at " + fate.objective.start[players.length] + "):</b> " + fate.objective.text + "</div>" : "";
+    // This Act's objective, or in Act III its grand ambitions or final objective (laterfates.js)
+    const start = (act == 1) ? (fate.objective != null ? fate.objective.start[players.length] : null) : getLaterObjectiveStart(fate, act);
+    const objectiveText = getFateObjectiveText(fate, act);
+    const objective = objectiveText != "" ? "<div class=\"fateobj\"><b>" + actNames[act] + (start != null ? " objective (starts at " + start + "):" : ":") + "</b> " + objectiveText + "</div>" : "";
     const paths = fate.path.map((line, index) => line == "" ? "" : "<div class=\"fatepath\"><b>" + ["I", "II", "III"][index] + "</b>" + line + "</div>").join("");
     return "<div class=\"fatecard" + (open ? " open" : "") + "\"" + (open ? "" : " role=\"button\" onclick=\"selectFate(" + fate.number + ")\"") + ">"
         + "<div class=\"fatehead\"><span class=\"fatename\">" + fate.name + "</span><span class=\"fatedots\">Complexity " + getComplexityDots(fate) + "</span></div>"
@@ -313,7 +316,8 @@ function showFatesChosen() {
         if (state.previousFate != null && state.previousFate != state.fate) { state.favors = {}; changed.push(player); }
         // Act I's objectives are known. Later Acts' are set on the panel from the card. In Act III
         // only "C" Fates have one (rulebook p.7)
-        state.objective = (act == 1 && fate.objective != null) ? fate.objective.start[players.length] : null;
+        // Act II: every Fate's new objective. Act III: a "C" Fate's final objective (laterfates.js)
+        state.objective = (act == 1) ? (fate.objective != null ? fate.objective.start[players.length] : null) : getLaterObjectiveStart(fate, act);
         state.completed = null;
     });
     if (act == 1) {
@@ -329,14 +333,14 @@ function showFatesChosen() {
     const then = fateChoice.then;
     const rows = players.map(player => {
         const fate = getFate(getCampaignPlayer(player).fate);
-        return "<div class=\"fatechosen\"><span>Player " + player.number + "</span><b>" + fate.name + "</b><small>" + (fate.setup || "") + "</small></div>";
+        return "<div class=\"fatechosen\"><span>Player " + player.number + "</span><b>" + fate.name + "</b><small>" + getFateSetupText(fate, act) + "</small></div>";
     }).join("");
     const firstRegent = getPlayer(campaign.firstRegent);
     const intro = (act == 1)
         ? "<p class=\"mb-2\">Everyone reveals their Fate. Take the matching Fate Sets, do the Setup side of your objective card, then flip it over.</p>"
         : "<p class=\"mb-2\">Everyone reveals their Fate at once." + (changed.length > 0 ? " With a new Fate, " + changed.map(player => "Player " + player.number).join(" and ")
             + " return" + (changed.length == 1 ? "s" : "") + " their old Fate card to the box, scrap the rest of its set that isn't in play, return all Favors and take the new Fate Set." : "")
-            + " The Fate setups come with " + actNames[act] + "'s setup.</p>";
+            + " Each Fate's setup is below; do them during " + actNames[act] + "'s setup.</p>";
     const regentLine = (act == 1) ? "<p class=\"mt-2 mb-2\">Everyone starts as an Imperial Regent. Player " + firstRegent.number + " takes the First Regent tile.</p>" : "";
     showCampaignWindow(actNames[act] + ": the Fates", intro + rows + regentLine
         + "<button type=\"button\" class=\"btn btn-primary w-100\" data-bs-dismiss=\"modal\">OK</button>", null, true, () => { fateChoice = null; then(); });
@@ -401,7 +405,7 @@ function showFateInfo(playerNumber) {
     const fate = getFate(campaign.players[playerNumber].fate);
     showCampaignWindow("Player " + playerNumber + ": " + fate.name, "<div class=\"fatedots mb-1\">\"" + fate.set + "\" Fate &middot; Complexity " + getComplexityDots(fate) + "</div>"
         + fate.path.map((line, index) => line == "" ? "" : "<div class=\"fatepath\"><b>" + ["I", "II", "III"][index] + "</b>" + line + "</div>").join("")
-        + (fate.objective != null && campaign.act == 1 ? "<div class=\"fateobj\"><b>" + actNames[1] + " objective:</b> " + fate.objective.text + "</div>" : ""), getPlayer(playerNumber));
+        + (getFateObjectiveText(fate, campaign.act) != "" ? "<div class=\"fateobj\"><b>" + actNames[campaign.act] + ":</b> " + getFateObjectiveText(fate, campaign.act) + "</div>" : ""), getPlayer(playerNumber));
 }
 
 function showTitleWindow(playerNumber) {

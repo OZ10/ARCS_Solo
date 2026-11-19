@@ -94,6 +94,8 @@ function applyFateSetups(act) {
         const state = getCampaignPlayer(player);
         state.objectiveStart = state.objective;
         state.objectiveLog = [];
+        // The Caretaker shuffles a 4th Event card into the action deck in Act II (events.js)
+        if (act == 2 && state.fate == 5) { campaign.extraEvent = true; }
         const rules = fateRules[state.fate];
         if (act != 1 || rules == null) { return; }
         (rules.cards || []).forEach(number => { if (!player.guildCards.includes(number)) { player.guildCards.push(number); } });
@@ -133,16 +135,19 @@ function advanceObjective(player, amount, reason) {
 }
 
 function imperialShipsPlaced(count, reason) {
-    // The Admiral: while a Regent and winning an ambition, 1 for each Imperial ship anyone places
+    // The Admiral in Act I: while a Regent and winning an ambition, 1 for each Imperial ship anyone places
+    if (campaign.act != 1) { return; }
     players.filter(player => hasFate(player, 7) && isRegent(player) && isWinningAnAmbition(player))
         .forEach(player => advanceObjective(player, count, count + " Imperial ship" + (count == 1 ? "" : "s") + " placed (" + reason + ") while winning an ambition"));
 }
 
 registerCampaignHook("afterScoring", carryOn => {
-    // What moved this chapter, and what the app needs to be told, then on. Nothing: carry straight on
+    // What moved this chapter, and what the app needs to be told, then on. Nothing: carry straight on.
+    // Acts II and III first count what they can (laterfates.js)
+    applyLaterAutoObjectives();
     const moved = players.filter(player => (getCampaignPlayer(player).objectiveLog || []).length > 0);
-    chapterQuestions = getChapterQuestions().map(question => ({ ...question, answer: 0 }));
-    if (moved.length == 0 && chapterQuestions.length == 0) { return undefined; }
+    chapterQuestions = getChapterQuestions().concat(getLaterChapterQuestions()).map(question => ({ ...question, answer: 0 }));
+    if (moved.length == 0 && chapterQuestions.length == 0) { resetChapterCounts(); return undefined; }
     chapterCarryOn = carryOn;
     showChapterObjectives();
     return true;
@@ -170,13 +175,19 @@ function showChapterObjectives() {
 }
 
 function stepChapterAnswer(index, change) {
-    chapterQuestions[index].answer = Math.max(chapterQuestions[index].answer + change, 0);
+    const question = chapterQuestions[index];
+    question.answer = Math.min(Math.max(question.answer + change, 0), question.max ?? Infinity);
     showChapterObjectives();
 }
 
 function finishChapterObjectives() {
-    chapterQuestions.forEach(question => advanceObjective(question.player, question.answer * (question.multiplier || 1), question.answer + " " + question.reason));
+    // Grand ambitions are Power; the rest move objectives
+    chapterQuestions.forEach(question => {
+        if (question.grand) { applyGrandAmbitions(question.player, question.answer); return; }
+        advanceObjective(question.player, question.answer * (question.multiplier || 1), question.answer + " " + question.reason);
+    });
     chapterQuestions = [];
+    resetChapterCounts();
     players.forEach(player => { getCampaignPlayer(player).objectiveLog = []; getCampaignPlayer(player).wonThisChapter = 0; });
     SaveAllSettings();
     closeCampaignWindow();
@@ -244,7 +255,7 @@ registerCampaignHook("battleDefenders", () => {
     const attacker = battle.attacker;
     let check = document.getElementById("battleFateCheck");
     if (check != null) { check.remove(); }
-    if (!(hasFate(attacker, 7) && isRegent(attacker))) { return undefined; }
+    if (!(campaign.act == 1 && hasFate(attacker, 7) && isRegent(attacker))) { return undefined; }
     const note = document.getElementById("battleCampaignNote");
     note.insertAdjacentHTML("afterend", "<div class=\"form-check d-flex justify-content-center gap-2 mt-1\" id=\"battleFateCheck\"><input class=\"form-check-input\" type=\"checkbox\" id=\"battleWithImperials\""
         + (attacker.isHuman ? "" : " checked") + "><label class=\"form-check-label small\" for=\"battleWithImperials\">Imperial ships attacked with Player " + attacker.number + " (Admiral: each Trophy advances its objective)</label></div>");
@@ -261,7 +272,7 @@ registerCampaignHook("modeChanged", () => {
 registerCampaignHook("afterBattle", losses => {
     const box = document.getElementById("battleWithImperials");
     const attacker = battle.attacker;
-    if (box == null || !box.checked || !hasFate(attacker, 7) || !isRegent(attacker)) { return undefined; }
+    if (box == null || !box.checked || campaign.act != 1 || !hasFate(attacker, 7) || !isRegent(attacker)) { return undefined; }
     const trophies = losses.defenderShips + losses.defenderBuildings;
     advanceObjective(attacker, trophies, trophies + " Troph" + (trophies == 1 ? "y" : "ies") + " taken in battle with attacking Imperial ships");
     return undefined;
@@ -277,13 +288,13 @@ registerCampaignHook("afterBattle", losses => {
 const ambitionOutrageResources = { tycoon: ["fuel", "materials"], tyrant: [], warlord: ["weapons"], keeper: ["relics"], empath: ["psionics"] };
 
 registerCampaignHook("initiativeGained", player => {
-    if (campaign == null || !hasFate(player, 6)) { return undefined; }
+    if (campaign == null || campaign.act != 1 || !hasFate(player, 6)) { return undefined; }
     advanceObjective(player, 1, "Got the initiative (Sow Division)");
     return undefined;
 });
 
 registerCampaignHook("ambitionsScored", results => {
-    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 6)).forEach(result => {
+    results.filter(result => campaign.act == 1 && result.place == 1 && !result.player.isNeutral && hasFate(result.player, 6)).forEach(result => {
         const outraged = (result.player.outraged || []).filter(resource => (ambitionOutrageResources[result.ambition] || []).includes(resource));
         if (outraged.length == 0) { advanceObjective(result.player, 2, "Won " + capitalise(result.ambition) + " without its Outrage (Appeal to Your Supporters)"); }
     });
@@ -390,7 +401,7 @@ registerCampaignHook("applyOffer", (player, offer) => {
     if (offer.golem) {
         const state = getCampaignPlayer(player);
         state.golems = Math.max((state.golems || 0) - 1, 0);
-        advanceObjective(player, 2, "Spent a Golem in its Prelude (Use the Golems)");
+        if (campaign.act == 1) { advanceObjective(player, 2, "Spent a Golem in its Prelude (Use the Golems)"); }
     }
     if (offer.discards != null && getCourtCard(offer.discards) != null) { advanceAdvocate(player, 3, "Used the Prelude of " + getCourtCard(offer.discards).name + ", which discards itself"); }
     return undefined;
@@ -416,7 +427,7 @@ function hasOverseers(player) {
 }
 
 function advanceAdvocate(player, amount, reason) {
-    if (hasOverseers(player)) { advanceObjective(player, amount, reason); }
+    if (campaign.act == 1 && hasOverseers(player)) { advanceObjective(player, amount, reason); }
 }
 
 function isPlacedInDeclaredAmbition(player) {
@@ -458,7 +469,7 @@ registerCampaignHook("guildCardButtons", (player, card, body) => {
 // tax any Empire-controlled cities as if Loyal. Dealmakers: Bargain instead of a Secure
 
 registerCampaignHook("ambitionsScored", results => {
-    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 1) && isFirstRegent(result.player) && result.points > 0)
+    results.filter(result => campaign.act == 1 && result.place == 1 && !result.player.isNeutral && hasFate(result.player, 1) && isFirstRegent(result.player) && result.points > 0)
         .forEach(result => advanceObjective(result.player, result.points, "Won " + capitalise(result.ambition) + " as First Regent: " + result.points + " Power"));
     return undefined;
 });
@@ -469,7 +480,7 @@ registerCampaignHook("ambitionsScored", results => {
 // place 2 fresh ships at a Free city, then a Regent may become an Outlaw
 
 registerCampaignHook("ambitionsScored", results => {
-    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 2) && !isRegent(result.player))
+    results.filter(result => campaign.act == 1 && result.place == 1 && !result.player.isNeutral && hasFate(result.player, 2) && !isRegent(result.player))
         .forEach(result => advanceObjective(result.player, 3, "Won " + capitalise(result.ambition) + " as an Outlaw (Inspire Confidence)"));
     return undefined;
 });
@@ -489,8 +500,9 @@ registerCampaignHook("ambitionDeclared", player => {
 });
 
 function getChapterQuestions() {
-    // What the objectives window asks at the end of a chapter: the Founder's systems as an Outlaw,
-    // and the Golems other players spent in their Preludes for the Caretaker
+    // What the objectives window asks at the end of a chapter in Act I: the Founder's systems as an
+    // Outlaw, the Golems other players spent for the Caretaker, the Believer's pips
+    if (campaign.act != 1) { return []; }
     const founders = players.filter(player => hasFate(player, 2) && !isRegent(player) && getCampaignPlayer(player).objective > 0)
         .map(player => ({ player: player, text: "An Outlaw: how many systems does it control?", reason: "systems controlled as an Outlaw (Defy the Empire's Grip)" }));
     const caretakers = players.filter(player => hasFate(player, 5) && getCampaignPlayer(player).objective > 0)
@@ -510,7 +522,7 @@ function getChapterQuestions() {
 // instead of an Influence, taking the top card of the stack. Its stack's top card is on its panel
 
 registerCampaignHook("ambitionsScored", results => {
-    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 8)).forEach(result => {
+    results.filter(result => campaign.act == 1 && result.place == 1 && !result.player.isNeutral && hasFate(result.player, 8)).forEach(result => {
         const state = getCampaignPlayer(result.player);
         if ((state.faithfulTop || 0) == 0) { advanceObjective(result.player, 10, "Won " + capitalise(result.ambition) + " with its Faithful stack empty"); }
         else { state.wonThisChapter = (state.wonThisChapter || 0) + 1; }
@@ -532,7 +544,7 @@ function getTeachOffers(player, wants, can) {
 // of an Influence. Its Golems are counted on its panel
 
 registerCampaignHook("ambitionsScored", results => {
-    results.filter(result => result.place == 1 && !result.player.isNeutral && hasFate(result.player, 5)).forEach(result => {
+    results.filter(result => campaign.act == 1 && result.place == 1 && !result.player.isNeutral && hasFate(result.player, 5)).forEach(result => {
         const golems = getCampaignPlayer(result.player).golems || 0;
         advanceObjective(result.player, golems * 2, "Won " + capitalise(result.ambition) + " with " + golems + " Golem" + (golems == 1 ? "" : "s") + " (Find the Golems)");
     });
@@ -584,9 +596,13 @@ function getFateTurnSection(player) {
         const start = state.objectiveStart || state.objective;
         const done = start > 0 ? Math.round((start - state.objective) / start * 100) : 100;
         html += "<div class=\"small\">Objective <b>" + state.objective + "</b> to go" + (state.objectiveStart != null ? " (from " + state.objectiveStart + ")" : "")
-            + "<div class=\"objbar\"><div style=\"width:" + done + "%\"></div></div>" + (fate.objective != null && campaign.act == 1 ? fate.objective.text : "") + "</div>";
+            + "<div class=\"objbar\"><div style=\"width:" + done + "%\"></div></div>" + getFateObjectiveText(fate, campaign.act) + "</div>";
+    } else if (campaign.act == 3) {
+        // Act III "A" and "B" Fates: grand ambitions, asked about at the end of each chapter
+        html += "<div class=\"small\">" + getFateObjectiveText(fate, 3) + "</div>";
     }
-    if (rules == null || !rules.taught) { html += "<div class=\"small text-secondary mt-1\">The bots don't play towards this Fate's objective yet.</div>"; }
+    // In Acts II and III the app tracks the objective, but the bots don't yet play towards it
+    if (rules == null || !rules.taught || campaign.act > 1) { html += "<div class=\"small text-secondary mt-1\">The bots don't play towards this Fate's " + (campaign.act == 3 && state.objective == null ? "grand ambitions" : "objective") + " yet.</div>"; }
     if (hasFate(player, 6)) {
         const seize = campaign.partisanSeize;
         const now = seize != null && seize.player == player.number && seize.round == roundNumber && seize.turn == turnNumber;
@@ -630,8 +646,10 @@ function getFatePanelHtml(player) {
     let html = "";
     if (state.objective != null && state.objectiveStart > 0) {
         const done = state.objectiveStart - state.objective;
-        html += "<div class=\"mx-3 mb-2 small text-center\">" + fate.name + " objective: <b>" + done + " of " + state.objectiveStart + "</b> done"
+        html += "<div class=\"mx-3 mb-2 small text-center\">" + fate.name + (campaign.act == 3 ? " final objective" : " objective") + ": <b>" + done + " of " + state.objectiveStart + "</b> done"
             + "<div class=\"objbar\"><div style=\"width:" + Math.round(done / state.objectiveStart * 100) + "%\"></div></div></div>";
+    } else if (campaign.act == 3 && getLaterFate(state.fate, 3) != null && getLaterFate(state.fate, 3).grand != null) {
+        html += "<div class=\"mx-3 mb-2 small text-center\">Grand ambitions: <b>" + getLaterFate(state.fate, 3).grand + "</b></div>";
     }
     const rules = fateRules[state.fate];
     // The Believer's Faithful stack: the number of the card on top (0 when it's empty)

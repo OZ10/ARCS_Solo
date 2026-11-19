@@ -12,12 +12,13 @@ The app can't see the board. When a bot needs to know something only the board s
 
 It's made for a phone in portrait, works in landscape too, and can be installed so it opens like an app and works offline.
 
-> B4RCS covers the base game. It isn't an official Leder Games product, and you'll need your own copy of Arcs to play.
+> B4RCS covers the base game, the Leaders & Lore mini expansion and, still being tested, the Blighted Reach campaign. It isn't an official Leder Games product, and you'll need your own copy of Arcs (and the expansions you play with) to play.
 
 ## Contents
 - [Getting started](#getting-started)
 - [Starting a game](#starting-a-game)
 - [Leaders & Lore](#leaders--lore)
+- [The Blighted Reach campaign](#the-blighted-reach-campaign)
 - [The screen](#the-screen)
 - [Your turn](#your-turn)
 - [A bot's turn](#a-bots-turn)
@@ -45,24 +46,25 @@ Tap **Options**, then **New Game**.
 1. **Human players:** how many human players are at the table, from 1 to 4. Human players take the first seats (Players 1, 2…), and the rest are bots. With more than one, you pass the device at each human player's turn. Their hand is covered by frosted glass until they tap **Show my hand**, and covered again when play moves on, so nobody sees anyone else's cards. With 4 human players there are no bots, so Bot difficulty is hidden.
 2. **Colours:** each human player chooses a colour. A colour another human player has taken is faded out. The bots take the colours that are left.
 3. **Leaders & Lore:** turn on **Play with Leaders & Lore** to play with the mini expansion (see [Leaders & Lore](#leaders--lore)).
-4. **How many players:** 2, 3 or 4, counting human players and bots, and at least as many as there are human players. The app deals everyone's hands. A random player starts with the initiative, as the rulebook says, and the ★ shows who. If a game is being played, it asks first, as Undo can't bring it back. To keep it, save it first.
+4. **How many players:** 2, 3 or 4, counting human players and bots, and at least as many as there are human players. Below it, turn on **Blighted Reach campaign** to play the campaign instead (see [The Blighted Reach campaign](#the-blighted-reach-campaign)).
+5. **Start game:** the app deals everyone's hands. A random player starts with the initiative, as the rulebook says, and the ★ shows who. If a game is being played, it asks first, as Undo can't bring it back. To keep it, save it first.
 
 <br clear="right">
 
 <img src="docs/screenshots/court-setup.png" width="300" align="right" alt="Entering the Court">
 
-5. **The Court:** add the cards dealt to the Court market (4, or 3 with 2 players), or tap **Deal for me** and take the same cards from your Court deck. Bots use this to choose what to secure and influence. You can skip it, but their advice will be more general.
+6. **The Court:** add the cards dealt to the Court market (4, or 3 with 2 players), or tap **Deal for me** and take the same cards from your Court deck. Bots use this to choose what to secure and influence. You can skip it, but their advice will be more general.
 
 <br clear="right">
 
 <img src="docs/screenshots/setup-players.png" width="300" align="right" alt="Setting up the players">
 
-6. **Set up the players:** the setup list says where each player places their pieces, in turn order from whoever has the initiative. On each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on. With Leaders & Lore, the resources are filled in from each Leader, and the list says which pieces go in systems A, B and C.
+7. **Set up the players:** the setup list says where each player places their pieces, in turn order from whoever has the initiative. On each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on. With Leaders & Lore, the resources are filled in from each Leader, and the list says which pieces go in systems A, B and C.
 <br clear="right">
 
 <img src="docs/screenshots/mulligan.png" width="300" align="right" alt="The mulligan">
 
-7. **The mulligan (2 players):** the player without the initiative may discard their hand and draw 6 new cards. If that's a human player, the app shows their hand and asks (with more than one human player, under the frosted glass until they tap). Then Round 1 begins. In later rounds it asks once the new hands are dealt, before the round begins.
+8. **The mulligan (2 players):** the player without the initiative may discard their hand and draw 6 new cards. If that's a human player, the app shows their hand and asks (with more than one human player, under the frosted glass until they tap). Then Round 1 begins. In later rounds it asks once the new hands are dealt, before the round begins.
 
 <br clear="right">
 
@@ -97,6 +99,25 @@ Even on Hard, the app can't see the board, so the bots still ask their questions
 
 **What's left to you:** anything that depends on the board, such as where Force Beams moves ships or which planet Mythic changes. The hints say what the bot may do. You decide where it makes sense.
 
+## The Blighted Reach campaign
+The campaign is played over three Acts of up to three chapters each, with the bots playing every Fate except the Magnate. It's new, so expect rough edges, and please [report](https://github.com/OZ10/ARCS_Solo/issues) anything that doesn't match the rules.
+
+**Choosing Fates:** with the campaign switched on, choose how Fates are given out. **Deal 2** deals two and you (or the bot) choose one. **Pick** lets you choose any "A" Fate, to try a particular one. At the start of Acts II and III, each player keeps their Fate or takes a new one.
+
+**Setting up:** the setup window lists each step to do on the table, with the dice already rolled: the Imperial clusters, Free cities, Blight, the Imperial Council and the starting Policy in Act I; each player's Fate setup and the new Blight in Acts II and III. Tick each step as you go.
+
+**The panels:** each player's panel shows their Fate (tap it to read the card), their title (**Regent** or **Outlaw**, tap to change it), the First Regent, their objective marker and Favors. The Imperial Trust has its own panel.
+
+**During a chapter:** Event cards are shuffled into the action deck. When one is played, the app rolls the event die and walks through the end of round: the Imperial Council, Summits, then Crises or Edicts, with the First Regent's Policy. Fate cards are added to the Court and Guild rows like any other card.
+
+**How the bots play:** a Regent bot follows the Empire's laws (moving and battling alongside Imperial ships, and leaving Rival Regents alone where there are Imperial ships) and would rather battle an Outlaw. Bots value the Imperial Council, and as First Regent they choose whether to enforce or change the Policy. Each bot plays towards its Act I objective and uses its Fate cards, and its turn window has a section explaining what its Fate wants this turn.
+
+**Objectives:** at the end of each chapter, a window lists the objective markers that moved and why, and asks you anything the app can't see, such as how many systems a bot controls. Move the markers on the table to match. In Act III, "A" and "B" Fates are asked which grand ambitions they fulfilled and gain the Power for them, and a "C" Fate that completes its final objective with Power wins the campaign.
+
+**Between Acts:** the Intermission works out everyone's Power for the next Act. After Act III, the player with the most Power wins, unless someone completed their final objective.
+
+**Not done yet:** bots don't call Summits or negotiate, and are never dealt the Magnate. In Acts II and III they play their usual game rather than chasing their new objectives. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
+
 ## The screen
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options** (the gear). Tap an ambition to see how it's won and what it's worth.
 - **Announcements:** at the start of each round and turn, a card says who leads. It closes by itself, or when tapped.
@@ -119,7 +140,7 @@ Your hand is listed on your panel. Tap a card to see its pips, ambition and acti
 
 <img src="docs/screenshots/your-turn-window.png" width="300" align="right" alt="Your turn window">
 
-**Your turn window** then opens, like a bot's. It lists the actions your card gives you. Battle has a **Battle** button and Secure or Influence a **Court** button, to keep track of a battle or the market (see below). The others are reminders. **Prelude** lists what your resources and Guild cards can do before your actions. **Spend** takes the resource off your panel and adds its action to your list, such as a Move for a Fuel. **Use** does the same for a Guild card. Each has **Undo** until the turn ends. Anything your card doesn't have is under **Also**, with **Draw**. Carry out your actions on the table and tap **Done**. **Back to board** shrinks the window to a bar, as on a bot's turn.
+**Your turn window** then opens, like a bot's. It lists the actions your card gives you, with any prelude actions you've spent for first, marked **PRELUDE**. Battle has a **Battle** button and Secure or Influence a **Court** button, to keep track of a battle or the market (see below). The others are reminders. **Prelude** lists what your resources and Guild cards can do before your actions. **Spend** takes the resource off your panel and adds its action to your list, such as a Move for a Fuel. **Use** does the same for a Guild card. Each has **Undo** until the turn ends. Anything your card doesn't have is under **Also**, with **Draw**. Carry out your actions on the table and tap **Done**. **Back to board** shrinks the window to a bar, as on a bot's turn.
 
 <br clear="right">
 
