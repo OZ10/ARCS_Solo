@@ -168,8 +168,9 @@ const shipsPerBuilding = 3;
 const starportsWanted = { early: 2, later: 3 };
 const starportsLaterFrom = 3;
 
-// With this many ships, and more than a Rival, a bot battles just because it can (#125)
-const aggressiveFleet = 4;
+// A bot battles just because it can with this many ships: fewer with more Battle actions this
+// turn to fight with (the play tester's rule, #125)
+const attackFleet = { manyActions: 4, oneAction: 6 };
 
 // With fewer ships than this on the board, a bot that could declare Warlord asks whether it has
 // run out of ships to build (#129)
@@ -218,7 +219,7 @@ const turnPlanWeights = {
     battleWarlord: 3,       // + chasing Warlord
     battleTyrant: 2,        // + chasing Tyrant
     battleManyShips: 1.5,   // + lots of ships on the board
-    battleFleet: 1.5,       // + more ships than a Rival, and at least aggressiveFleet (#125)
+    battleFleet: 1.5,       // + enough ships to attack just because it can: attackFleet (#125)
     battleLastCard: 1,      // + its last card this round (#125)
     secureLastCard: 1,      // + its last card, so its last chance this round
     secureWanted: 1,        // + there's a resource it wants a card for
