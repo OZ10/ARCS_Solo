@@ -715,8 +715,9 @@ function getPreludeActionRows(player, offered) {
         const buttons = actions.map(action => humanActionTools[action]).filter(name => name != null && !offered.includes(name))
             .filter((name, index, names) => names.indexOf(name) == index).map(name => { offered.push(name); return getToolButton(name); }).join("");
         const name = (offer.action == "lead") ? "An action from the lead card" + getLeadActionsText() : (offer.action == "battle" ? "Battle" : offer.text);
-        return getTurnRow("<i class=\"bi " + (humanActionIcons[offer.action] || "bi-dot") + "\"></i>", name,
-            "From your " + preludeResourceNames[spent.resource] + (offer.note ? ". " + offer.note : ""), buttons);
+        // Marked as a prelude action, with its own background (#151)
+        return getTurnRow("<i class=\"bi " + (humanActionIcons[offer.action] || "bi-dot") + "\"></i>", name + "<span class=\"preludetag\">Prelude</span>",
+            "From your " + preludeResourceNames[spent.resource] + (offer.note ? ". " + offer.note : ""), buttons).replace("class=\"turnstep\"", "class=\"turnstep preludestep\"");
     }).join("");
 }
 

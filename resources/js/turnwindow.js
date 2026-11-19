@@ -196,12 +196,15 @@ function renderHumanTurn(player) {
     const play = getBotPlay(player);
     const actions = (play == null) ? [] : play.actions.split(",");
     const offered = [];
-    const rows = actions.map(action => {
-        const name = humanActionTools[action];
-        const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
-        if (name != null) { offered.push(name); }
-        return getTurnRow("<i class=\"bi " + (humanActionIcons[action] || "bi-dot") + "\"></i>", capitalise(action), humanActionNotes[action] || "", button);
-    }).join("") + getPreludeActionRows(player, offered);
+    // What your prelude spends added come first, as they're done first, and are marked (#151)
+    const preludeRows = getPreludeActionRows(player, offered);
+    const rows = (preludeRows != "" ? "<div class=\"small text-secondary mb-1\">Prelude actions first, then your card's actions.</div>" + preludeRows : "")
+        + actions.map(action => {
+            const name = humanActionTools[action];
+            const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
+            if (name != null) { offered.push(name); }
+            return getTurnRow("<i class=\"bi " + (humanActionIcons[action] || "bi-dot") + "\"></i>", capitalise(action), humanActionNotes[action] || "", button);
+        }).join("");
 
     let html = "";
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
