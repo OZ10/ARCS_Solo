@@ -34,7 +34,7 @@ function getMoveReasons(player) {
     // Every reason it has to Move, best first (#118): its goals, then a planet to build on later if
     // it has cities left to place, then guarding one of its cities
     let reasons = getMoveGoals(player);
-    if (getUncoveredCities(player) < maxCities) { reasons.push("towards a planet with an open building slot that no one controls, to build there later"); }
+    if (getUncoveredCities(player) < maxCities && player.hasSlotForCity !== true) { reasons.push("towards a planet with an open building slot that no one controls, to build there later"); }
     reasons.push("to guard one of its cities with no ships");
     return reasons.filter((reason, index) => reasons.indexOf(reason) == index);
 }
@@ -67,12 +67,24 @@ function getMoveGoals(player) {
     }
     if (chasing("warlord") && canFollowUp("battle")) { goals.push("towards a Rival's ships, to Battle them"); }
 
-    const newCity = preludeResources.filter(resource => !cityOn(player, resource) && getResourceNeed(player, resource) > 0)
-        .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a))[0];
-    if (newCity != null && getUncoveredCities(player) < maxCities && canFollowUp("build")) {
+    // Not if it said it already has an empty slot of that type where it has a piece (#146)
+    const newCity = getNewCityResource(player);
+    if (newCity != null && player.hasSlotForCity !== true && canFollowUp("build")) {
         goals.push("towards a " + named(newCity) + " planet with an open slot, to build a city");
     }
     return goals;
+}
+
+function getNewCityResource(player) {
+    // A planet type it has no city on and would like one, the one it needs most. null if none
+    if (getUncoveredCities(player) >= maxCities) { return null; }
+    return preludeResources.filter(resource => player["cities" + capitalise(resource) + "Value"] == 0 && getResourceNeed(player, resource) > 0)
+        .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a))[0] || null;
+}
+
+function getRepairablePieces(player) {
+    // Its ships and buildings on the board: the most it could have damaged (#145)
+    return player.shipsBoardValue + (player.starportsValue || 0) + getCityCount(player);
 }
 
 function getOutnumberedRival(player) {
@@ -285,7 +297,9 @@ function getTurnPlan(player) {
         // No more Influences than it has agents (#123)
         const agentsLeft = getAgentsLeft(player);
         const canInfluenceAgain = agentsLeft == null || chosen.filter(pick => pick.action == "influence").length < agentsLeft;
-        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain))
+        // No more Repairs than it has pieces on the board to repair (#145)
+        const canRepairAgain = chosen.filter(pick => pick.action == "repair").length < getRepairablePieces(player);
+        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain) && (action != "repair" || canRepairAgain))
             .sort((a, b) => value(b) - value(a))[0];
         if (best == null) { break; }
         chosen.push({ action: best, reason: scores[best].reason });

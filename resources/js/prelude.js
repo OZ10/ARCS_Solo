@@ -630,6 +630,10 @@ function canSpendForPrelude(player, resource) {
     const play = getBotPlay(player);
     if (play == null) { return false; }
     if (resource == "weapons") { return play.count > 0 && !play.actions.includes("battle") && !getPreludeSpent(player).some(spent => spent.resource == "weapons"); }
+    // Not an action that can't be done (#148): a Secure with no Court card it could secure (when
+    // the Court's been entered), or a Move with no ships on the board
+    if (resource == "relics" && isMarketKnown() && getCardsToSecure(player).length == 0) { return false; }
+    if (resource == "fuel" && player.shipsBoardValue == 0) { return false; }
     return true;
 }
 
