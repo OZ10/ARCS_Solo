@@ -2559,6 +2559,54 @@ $empire: #5b2a86;
     font-weight: 400;
 }
 
+// A raid that steals several things (#159, battle.js): a row each, on the grey of a window's tiles
+.raidrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 4px 6px 4px 10px;
+    border-radius: 10px;
+    background: #ececec;
+
+    .raidname {
+        flex: 1;
+        font-size: 0.9rem;
+
+        small {
+            display: block;
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+    }
+}
+
+.raidkeys {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    .btn.resourcebutton {
+        flex: none;
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    b {
+        min-width: 14px;
+        text-align: center;
+    }
+}
+
+.raidtotal {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: #eef1f5;
+    font-size: 0.88rem;
+}
+
 // Negotiations in a Summit (#85, negotiation.js): the deal so far, the deal builder and the bot's answer
 .dealsum {
     border-radius: 10px;

@@ -2363,6 +2363,49 @@ header, .footerstyle {
   font-weight: 400;
 }
 
+.raidrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 10px;
+  background: #ececec;
+}
+.raidrow .raidname {
+  flex: 1;
+  font-size: 0.9rem;
+}
+.raidrow .raidname small, .raidrow .raidname .small {
+  display: block;
+  color: #6c757d;
+  font-size: 0.75rem;
+}
+
+.raidkeys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.raidkeys .btn.resourcebutton {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+}
+.raidkeys b {
+  min-width: 14px;
+  text-align: center;
+}
+
+.raidtotal {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #eef1f5;
+  font-size: 0.88rem;
+}
+
 .dealsum {
   border-radius: 10px;
   background: #f3f1ec;

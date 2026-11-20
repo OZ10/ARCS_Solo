@@ -13,7 +13,7 @@
 
 // What's entered in the Battle window
 let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0, start: null,
-    keys: 0, raidItem: null, noBuildings: false, raidRolled: false, planet: null, buildingKinds: [], destroyed: null };
+    raidPlan: null, keysRolled: null, noBuildings: false, raidRolled: false, planet: null, buildingKinds: [], destroyed: null };
 
 // The counts compared before and after the battle
 const battleCounts = ["ships", "fresh", "damaged", "freshBuildings", "damagedBuildings"];
@@ -178,6 +178,8 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
     let expectedDamage = 0;
     let ambushChance = 0;
     let keyChance = 0;
+    // What the raid dice are expected to take: a smaller roll may still take something (#159)
+    let raidValue = 0;
     const buildingsAreTarget = raid != null && raid.buildingsAreTarget;
 
     getDiceOutcomes(assaultDice, skirmishDice, raidDice, rerolls).forEach(outcome => {
@@ -187,6 +189,7 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
         expectedBuildingHits += buildingHitsRolled * outcome.chance;
         expectedBuildingValue += (buildingScores[buildingHitsRolled] || 0) * outcome.chance;
         if (raid != null && outcome.keys >= raid.keys) { keyChance += outcome.chance; }
+        if (raid != null) { raidValue += getRaidValueFor(raid, outcome.keys) * outcome.chance; }
         const ambush = outcome.ambush || (limits.mirror && assaultDice > 0);
         expectedDamage += (outcome.damage + (ambush ? interceptHits : 0)) * outcome.chance;
         if (ambush) { ambushChance += outcome.chance; }
@@ -204,7 +207,7 @@ function evaluateDice(assaultDice, skirmishDice, fresh, damaged, buildingHits, p
         expectedDamage: expectedDamage,
         ambushChance: ambushChance,
         score: expectedHits - personality.riskWeight * expectedDamage + personality.buildingWeight * expectedBuildingValue
-            + (raid != null ? keyChance * raid.value : 0)
+            + raidValue
     };
 }
 
@@ -499,8 +502,8 @@ function hasNoBuildings(player) {
 }
 
 function resetBattleRaid() {
-    battle.keys = 0;
-    battle.raidItem = null;
+    battle.raidPlan = null;
+    battle.keysRolled = null;
     // A defender with no cities or starports has no buildings on the board (#130)
     battle.noBuildings = battle.defender != null && hasNoBuildings(battle.defender);
     battle.raidRolled = false;
@@ -554,26 +557,102 @@ function getRaidWants(attacker, defender) {
     return filterLeaderRaidWants(attacker, defender, resources.concat(guildCards)).sort((a, b) => b.need - a.need);
 }
 
-function getBattleRaidItem() {
-    // What the bot is after in this battle, or null. Once it has rolled raid dice that stands,
-    // even if the roll destroyed the last building
-    if ((!isRaidAllowed() && !battle.raidRolled) || battle.raidItem == "none") { return null; }
+// A raid can steal several things: resources and Guild cards whose keys add up to no more than the
+// keys rolled (#159). The plan is a row for each thing it could take, best first, each with its keys
+// (a Guild card's are printed; a resource's are on its slot, so they're entered) and whether it's
+// going for it
+
+function getRaidPlan() {
+    // Made once for this attacker and defender, then kept as it's ticked and its keys entered
+    const key = battle.attacker.number + ">" + battle.defender.number;
+    if (battle.raidPlan != null && battle.raidPlan.key == key) { return battle.raidPlan.rows; }
     const wants = getRaidWants(battle.attacker, battle.defender);
-    return wants.find(want => want.id == battle.raidItem) || wants[0] || null;
+    const rows = [];
+    wants.forEach(want => {
+        // A resource once for each the defender holds, as each is in its own slot
+        const count = want.resource != null ? Math.max(battle.defender[want.resource + "Value"], 1) : 1;
+        for (let index = 0; index < count; index++) {
+            rows.push({ id: want.id, resource: want.resource, name: want.name, nth: index + 1, keys: want.keys != null ? want.keys : 0, printed: want.keys != null, need: want.need, on: false });
+        }
+    });
+    // What it goes for: what it needs, as many resources as it has room for (empty slots, or a
+    // resource it doesn't need to swap out). Otherwise the most wanted thing, as before
+    let room = getEmptySlots(battle.attacker) + preludeResources.filter(resource => getResourceNeed(battle.attacker, resource) == 0)
+        .reduce((total, resource) => total + battle.attacker[resource + "Value"], 0);
+    rows.forEach(row => {
+        if (row.need == 0) { return; }
+        if (row.resource == null) { row.on = true; return; }
+        if (room > 0) { row.on = true; room--; }
+    });
+    if (rows.length > 0 && !rows.some(row => row.on)) { rows[0].on = true; }
+    battle.raidPlan = { key: key, rows: rows };
+    return rows;
+}
+
+function getBattleRaidItems() {
+    // What the bot is after in this battle, best first. Once it has rolled raid dice that stands,
+    // even if the roll destroyed the last building
+    if (!isRaidAllowed() && !battle.raidRolled) { return []; }
+    return getRaidPlan().filter(row => row.on);
+}
+
+function getRaidRowName(row) {
+    // e.g. "1 Relic", "2nd Fuel", "Mining Interest"
+    if (row.resource == null) { return row.name; }
+    return (row.nth == 1 ? "1 " : row.nth == 2 ? "2nd " : row.nth == 3 ? "3rd " : row.nth + "th ") + preludeResourceNames[row.resource];
+}
+
+function getRaidItemsText(items) {
+    // e.g. "Relic, Material and 2 Fuel"
+    const counts = new Map();
+    items.forEach(row => { const name = row.resource != null ? preludeResourceNames[row.resource] : row.name; counts.set(name, (counts.get(name) || 0) + 1); });
+    const names = [...counts.entries()].map(([name, count]) => count == 1 ? name : count + " " + name + (name == "Fuel" ? "" : "s"));
+    return names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : (names[0] || "");
 }
 
 function getBattleRaid(buildingsAreTarget) {
-    // What the dice choice needs to know about a raid. Without the keys it can't weigh it up
-    const item = getBattleRaidItem();
-    if (item == null || battle.keys == 0) { return null; }
-    return { keys: battle.keys, value: defaultBotPersonality.raidWeight * raidNeedFactor[item.need], buildingsAreTarget: buildingsAreTarget };
+    // What the dice choice needs to know about a raid: each thing it's going for, in order, with its
+    // keys and worth. Without any keys entered it can't weigh it up
+    const items = getBattleRaidItems().filter(row => row.keys > 0);
+    if (items.length == 0) { return null; }
+    const worth = items.map(row => ({ keys: row.keys, value: defaultBotPersonality.raidWeight * raidNeedFactor[row.need] }));
+    return { keys: worth.reduce((total, item) => total + item.keys, 0), value: worth.reduce((total, item) => total + item.value, 0), items: worth, buildingsAreTarget: buildingsAreTarget };
 }
 
-function chooseRaidItem(id) {
-    battle.raidItem = id;
-    // A Guild card's keys are printed on it. A resource's depend on its slot
-    const item = getBattleRaidItem();
-    battle.keys = (item != null && item.keys != null) ? item.keys : 0;
+function getBestRaidPick(items, keys) {
+    // Which of items ({ keys, value }) a roll of this many keys takes: the most valuable set that
+    // fits, and on a tie the one with things higher on the list. As [true/false] for each
+    let best = { value: -1, pick: items.map(() => false) };
+    const count = Math.min(items.length, 10);
+    for (let mask = 0; mask < (1 << count); mask++) {
+        let used = 0, value = 0;
+        for (let index = 0; index < count; index++) {
+            if (mask & (1 << index)) { used += items[index].keys; value += items[index].value; }
+        }
+        if (used > keys) { continue; }
+        // Higher on the list breaks a tie: a lower bit set for an earlier item scores a little more
+        const tie = items.slice(0, count).reduce((total, item, index) => total + ((mask & (1 << index)) ? 1 / (1 << (index + 1)) : 0), 0) * 0.001;
+        if (value + tie > best.value) { best = { value: value + tie, pick: items.map((item, index) => index < count && (mask & (1 << index)) != 0) }; }
+    }
+    return best.pick;
+}
+
+function getRaidValueFor(raid, keys) {
+    // What a roll of this many keys takes: the most valuable things it's going for that fit
+    if (raid.items == null) { return keys >= raid.keys ? raid.value : 0; }
+    const pick = getBestRaidPick(raid.items, keys);
+    return raid.items.reduce((total, item, index) => total + (pick[index] ? item.value : 0), 0);
+}
+
+function toggleRaidRow(index) {
+    const row = getRaidPlan()[index];
+    row.on = !row.on;
+    updateBattleCounts();
+}
+
+function stepRaidKeys(index, change) {
+    const row = getRaidPlan()[index];
+    row.keys = Math.max(row.keys + change, 0);
     updateBattleCounts();
 }
 
@@ -625,21 +704,22 @@ function showBattleRaid() {
         return;
     }
 
-    const item = getBattleRaidItem();
-    if (item != null && item.keys != null) { battle.keys = item.keys; }
+    // Each thing it could take, best first: tick what it goes for, and enter the keys (#159)
+    const rows = getRaidPlan();
+    const chasing = row => row.need == 2 ? (row.resource != null ? "it's chasing " + capitalise(preludeAmbitions[row.resource] || "warlord") : "it's chasing this") : row.resource == null ? "Guild card" : "";
     html += "<div class=\"boardgrouplabel mt-2\">Raid: steal from " + defender + "</div>"
-        + "<select class=\"form-select form-select-sm\" id=\"battleRaidItem\" onchange=\"chooseRaidItem(this.value)\">"
-        + wants.map(want => "<option value=\"" + want.id + "\"" + (item != null && want.id == item.id ? " selected" : "") + ">" + want.name + (want.need == 2 ? " (it's chasing this)" : "") + "</option>").join("")
-        + "<option value=\"none\"" + (item == null ? " selected" : "") + ">Nothing</option></select>";
-
-    if (item != null) {
-        const printed = item.keys != null;
-        html += "<div class=\"d-flex align-items-center justify-content-center gap-2 mt-2\"><div class=\"resourcetile\">"
-            + "<div class=\"resourcelabel\">Keys</div><div class=\"resourcevalue\" id=\"battleKeys\">" + battle.keys + "</div>"
-            + (printed ? "" : "<div class=\"d-flex gap-1\"><button class=\"btn resourcebutton resourceminus\" type=\"button\" onclick=\"battleStep('keys', -1)\" aria-label=\"One key fewer\"><i class=\"bi bi-dash-lg\"></i></button>"
-                + "<button class=\"btn resourcebutton resourceplus\" type=\"button\" onclick=\"battleStep('keys', 1)\" aria-label=\"One key more\"><i class=\"bi bi-plus-lg\"></i></button></div>")
-            + "</div><div class=\"small text-muted\" style=\"max-width: 170px\">" + (printed ? "Printed on the card." : "How many keys does its slot on " + defender + "'s board show?") + "</div></div>";
-    }
+        + "<p class=\"small text-muted mb-1 text-center\">What it wants, best first. Enter the keys on each slot of " + defender + "'s board.</p><div id=\"battleRaidPlan\">"
+        + rows.map((row, index) => "<div class=\"raidrow" + (row.on ? " on" : "") + "\"><input class=\"form-check-input m-0\" type=\"checkbox\" id=\"battleRaidRow" + index + "\"" + (row.on ? " checked" : "") + " onchange=\"toggleRaidRow(" + index + ")\">"
+            + "<label class=\"raidname\" for=\"battleRaidRow" + index + "\">" + (row.resource != null ? getGameIcon(row.resource) + " " : "") + getRaidRowName(row) + (chasing(row) ? "<small>" + chasing(row) + "</small>" : "") + "</label>"
+            + (row.printed ? "<span class=\"small text-muted\">" + row.keys + " key" + (row.keys == 1 ? "" : "s") + ", printed</span>"
+                : "<span class=\"raidkeys\"><button class=\"btn resourcebutton resourceminus\" type=\"button\" onclick=\"stepRaidKeys(" + index + ", -1)\" aria-label=\"One key fewer\"><i class=\"bi bi-dash-lg\"></i></button>"
+                    + "<b id=\"battleRaidKeys" + index + "\">" + row.keys + "</b><button class=\"btn resourcebutton resourceplus\" type=\"button\" onclick=\"stepRaidKeys(" + index + ", 1)\" aria-label=\"One key more\"><i class=\"bi bi-plus-lg\"></i></button></span>")
+            + "</div>").join("") + "</div>";
+    const items = getBattleRaidItems();
+    const unknown = items.filter(row => row.keys == 0);
+    const total = items.reduce((sum, row) => sum + row.keys, 0);
+    html += "<div class=\"raidtotal\" id=\"battleRaidTotal\">" + (items.length == 0 ? "Not raiding."
+        : "Raiding for <b>" + getRaidItemsText(items) + ": " + total + " key" + (total == 1 ? "" : "s") + "</b>." + (unknown.length > 0 ? " Enter the keys for " + getRaidItemsText(unknown) + "." : " The dice it chooses aim for that.")) + "</div>";
     section.innerHTML = html;
 }
 
@@ -694,7 +774,7 @@ function chooseBattleDice() {
             + buildings.map(building => getBuildingName(building.type)).join(" or ") + " would cost it more than it gains.</div>";
         return;
     }
-    const raidItem = getBattleRaidItem();
+    const raidText = getRaidItemsText(getBattleRaidItems().filter(row => row.keys > 0));
     const buildingScores = getBuildingScores(buildings);
     // With no ships to hit and no building it wants destroyed, only raid dice are any use (#113)
     const raidOnly = !hasShips && !onPurpose && raid != null && Math.max(...buildingScores) <= 0;
@@ -736,8 +816,8 @@ function chooseBattleDice() {
     battle.lastRoll = describeDice(choice);
     advice.innerHTML = getLeaderBattleSetupNote()
         + "<div class=\"battleroll" + (rollShake ? " diceshake" : "") + "\">Roll " + describeDice(choice) + "</div>"
-        + "<div class=\"fst-italic\">" + ((raid != null && choice.raidDice > 0) ? "Going after their " + raidItem.name + "." : getBattleAttitude(choice, getBattleDiceLimit())
-            + (raid != null ? " Their " + raidItem.name + " isn't worth the risk." : "")
+        + "<div class=\"fst-italic\">" + ((raid != null && choice.raidDice > 0) ? "Going after their " + raidText + "." : getBattleAttitude(choice, getBattleDiceLimit())
+            + (raid != null ? " Their " + raidText + (raid.items.length == 1 ? " isn't" : " aren't") + " worth the risk." : "")
             + (hasShips && wantedBuilding != null && choice.expectedBuildingHits > 0 ? " Happy to hit " + getBuildingName(wantedBuilding.type) + "." : "")) + "</div>"
         + "<div class=\"mt-2\"><b>Assign hits:</b> "
         + (hasShips ? getHitAdvice(canAttackAgain) + (buildingHits > 0 ? " Any hits left over go to buildings" + buildingOrder + "." : "") : "All hits go to buildings" + buildingOrder + ".") + "</div>"
@@ -763,7 +843,7 @@ function chooseBattleDice() {
         + "<div class=\"alert alert-secondary py-2 px-3 mt-2 mb-0 small\"><b>After the roll:</b> set the ships and buildings above to what's left.</div>";
 
     noteBattleStart();
-    if (choice.raidDice > 0) { battle.raidRolled = true; }
+    if (choice.raidDice > 0) { battle.raidRolled = true; battle.keysRolled = null; }
     showHideElement([document.getElementById("battleDone")], true);
 
     // The bot may attack again (with the same or updated ships), so it can choose again
@@ -903,11 +983,9 @@ function showBattleResults() {
         }
     }
 
-    // If the bot rolled raid dice, did it get the keys?
-    const raidItem = getBattleRaidItem();
-    if (!battle.attacker.isHuman && battle.raidRolled && raidItem != null && battle.ships > 0) {
-        html += "<div class=\"form-check mt-2\"><input class=\"form-check-input\" type=\"checkbox\" id=\"battleStole\">"
-            + "<label class=\"form-check-label\" for=\"battleStole\">" + attacker + " rolled " + battle.keys + " key" + (battle.keys == 1 ? "" : "s") + " and stole the " + raidItem.name + "</label></div>";
+    // If the bot rolled raid dice: the keys rolled, and what that takes (#159)
+    if (!battle.attacker.isHuman && battle.raidRolled && getBattleRaidItems().length > 0 && battle.ships > 0) {
+        html += "<div id=\"battleRaidResult\">" + getRaidResultHtml() + "</div>";
     }
 
     html += "<div class=\"d-flex gap-2 mt-3\">"
@@ -918,6 +996,49 @@ function showBattleResults() {
     document.getElementById("battleAdvice").innerHTML = html;
     showCityEffects();
     showHideElement([document.getElementById("chooseBattleDice"), document.getElementById("battleDone")], false);
+}
+
+function getRaidResultHtml() {
+    // The keys rolled (it starts on what it went for), and the things that takes, ticked: what it
+    // wants most that still fits. Untick anything it didn't take
+    const items = getBattleRaidItems();
+    if (battle.keysRolled == null) {
+        battle.keysRolled = items.reduce((total, row) => total + row.keys, 0);
+        battle.raidTaken = null;
+    }
+    if (battle.raidTaken == null) {
+        // The most valuable things that fit in the keys rolled (rows with no keys entered can't be weighed)
+        const worth = items.map(row => ({ keys: row.keys > 0 ? row.keys : 99, value: defaultBotPersonality.raidWeight * raidNeedFactor[row.need] }));
+        battle.raidTaken = getBestRaidPick(worth, battle.keysRolled);
+    }
+    const taken = items.filter((row, index) => battle.raidTaken[index]);
+    const used = taken.reduce((total, row) => total + row.keys, 0);
+    return "<div class=\"boardgrouplabel mt-2\">Raid result</div>"
+        + "<div class=\"d-flex justify-content-center mb-2\"><div class=\"resourcetile\"><div class=\"resourcelabel\">Keys rolled</div><div class=\"resourcevalue\" id=\"battleKeysRolled\">" + battle.keysRolled + "</div>"
+        + "<div class=\"d-flex gap-1\"><button class=\"btn resourcebutton resourceminus\" type=\"button\" onclick=\"stepKeysRolled(-1)\" aria-label=\"One key fewer\"><i class=\"bi bi-dash-lg\"></i></button>"
+        + "<button class=\"btn resourcebutton resourceplus\" type=\"button\" onclick=\"stepKeysRolled(1)\" aria-label=\"One key more\"><i class=\"bi bi-plus-lg\"></i></button></div></div></div>"
+        + "<p class=\"small text-muted mb-1 text-center\">It takes what it wants most that adds up to " + battle.keysRolled + " key" + (battle.keysRolled == 1 ? "" : "s") + " or fewer. Untick anything it didn't take.</p>"
+        + "<div id=\"battleRaidTaken\">" + items.map((row, index) => "<div class=\"raidrow\"><input class=\"form-check-input m-0\" type=\"checkbox\" id=\"battleTaken" + index + "\"" + (battle.raidTaken[index] ? " checked" : "") + " onchange=\"toggleRaidTaken(" + index + ")\">"
+            + "<label class=\"raidname\" for=\"battleTaken" + index + "\">" + (row.resource != null ? getGameIcon(row.resource) + " " : "") + getRaidRowName(row) + "<small>" + row.keys + " key" + (row.keys == 1 ? "" : "s")
+            + (!battle.raidTaken[index] && row.keys > battle.keysRolled - used ? ": no keys left" : "") + "</small></label></div>").join("") + "</div>"
+        + "<div class=\"raidtotal\">" + (taken.length > 0 ? "Steals <b>" + getRaidItemsText(taken) + "</b> (" + used + " of " + battle.keysRolled + " keys). Update values moves them on the panels." : "Steals nothing.") + "</div>";
+}
+
+function stepKeysRolled(change) {
+    battle.keysRolled = Math.max(battle.keysRolled + change, 0);
+    battle.raidTaken = null;
+    document.getElementById("battleRaidResult").innerHTML = getRaidResultHtml();
+}
+
+function toggleRaidTaken(index) {
+    battle.raidTaken[index] = !battle.raidTaken[index];
+    document.getElementById("battleRaidResult").innerHTML = getRaidResultHtml();
+}
+
+function getRaidTakenItems() {
+    // What the bot stole, as raid wants ({ id, resource, name })
+    if (battle.raidTaken == null || document.getElementById("battleRaidTaken") == null) { return []; }
+    return getBattleRaidItems().filter((row, index) => battle.raidTaken[index]);
 }
 
 function stepStolen(button, change) {
@@ -1010,15 +1131,15 @@ function applyBattleResults() {
     const leaderLines = applyLeaderBattleResults(losses);
 
     // What it stole moves across. Sworn Guardians is buried instead, so it leaves the game
-    const stoleBox = document.getElementById("battleStole");
     const stolenList = document.getElementById("battleStolenItems");
     const wants = getRaidWants(attacker, defender);
-    // Each resource once for each one stolen (#144), and each Guild card ticked
+    // Each resource once for each one stolen (#144), and each Guild card ticked. A bot: what its
+    // raid took (#159)
     const stolenItems = (stolenList != null)
         ? [...stolenList.querySelectorAll(".stealstep")].flatMap(step => Array(parseInt(step.dataset.count)).fill(step.dataset.id))
             .concat([...stolenList.querySelectorAll("input:checked")].map(input => input.value))
             .map(id => wants.find(want => want.id == id)).filter(want => want != null)
-        : ((stoleBox != null && stoleBox.checked && getBattleRaidItem() != null) ? [getBattleRaidItem()] : []);
+        : getRaidTakenItems();
     stolenItems.forEach(stolen => {
         if (stolen.resource != null) {
             adjustCounter(defender, stolen.resource, -1);

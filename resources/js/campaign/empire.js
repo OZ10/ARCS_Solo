@@ -204,9 +204,8 @@ registerCampaignHook("applyBattle", losses => {
         adjustCounter(attacker, "trophies", losses.defenderBuildings);
         if (losses.defenderBuildings > 0) { lines.push(losses.defenderBuildings + " Free building" + (losses.defenderBuildings == 1 ? "" : "s") + " destroyed, taken as Trophies. A Free city destroyed Provokes Outrage of its type: tap it on the panel"); }
         if (losses.attackerShips > 0) { lines.push(losses.attackerShips + " of its ships destroyed"); }
-        const stole = document.getElementById("battleStole");
         const stolenList = document.getElementById("battleStolenItems");
-        if ((stole != null && stole.checked) || (stolenList != null && stolenList.querySelector("input:checked") != null)) { lines.push("Add the resource it stole on its panel"); }
+        if (getRaidTakenItems().length > 0 || (stolenList != null && stolenList.querySelector("input:checked") != null)) { lines.push("Add the resource it stole on its panel"); }
     } else {
         adjustCounter(attacker, "trophies", losses.defenderShips);
         if (losses.defenderShips > 0) { lines.push(losses.defenderShips + " Blight destroyed, taken as Trophies"); }
