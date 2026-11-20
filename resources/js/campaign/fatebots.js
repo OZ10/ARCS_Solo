@@ -1,8 +1,8 @@
 // Blighted Reach campaign (#85), Phase 3: Fates in play. Each Fate's starting cards go on the panel,
 // objectives the app can work out move by themselves, an objectives window follows scoring, and
 // each Fate's Resolution card is spelled out in the Intermission. The bots learn each "A" Fate in
-// turn: Admiral, Partisan, Advocate, Steward, Founder, Caretaker, Believer, Magnate. Bots aren't
-// dealt the Magnate for now: it advances in Summit deals, and bots don't negotiate yet.
+// turn: Admiral, Partisan, Advocate, Steward, Founder, Caretaker, Believer, Magnate. The Magnate
+// advances in Summit deals (negotiation.js).
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
@@ -40,8 +40,8 @@ const fateGuildCards = [
         { protected: true, code: "F3 02", crisis: "Discard all resources on Merchant League." })
 ];
 
-// Fates the bots aren't dealt yet (the Magnate needs Summit deals)
-const botsNotDealt = [3];
+// Fates the bots aren't dealt yet. None since bots negotiate in Summits (the Magnate, negotiation.js)
+const botsNotDealt = [];
 
 // What the app knows of each Fate beyond fates.js:
 // cards       - Fate Guild cards gained at setup (on the panel)
@@ -54,7 +54,7 @@ const fateRules = {
         failed: "Scrap Council Intrigue, Tax Collectors, Hunter Squads and Imperial Protectors (05-08). Add Empire Falls (09), 2 Lesser Regents (10-11) and Dealmakers (03) to the Court deck." } },
     2: { cards: [207], taught: true, resolution: { completed: "Gain Book of Liberation (04). Add 3 Political Intrigue (05-07) to the Court deck. Put 2 Construction Union (08-09) and 2 Admin Union (10-11) behind the next Resolution card (23).",
         failed: "Scrap Book of Liberation and 3 Political Intrigue (04-07). Add 2 Construction Union and 2 Admin Union (08-11) to the Court deck." } },
-    3: { cards: [210], resolution: { completed: "Add Elder Broker (04), Relic Fence (05) and Prison Wardens (06) to the Court deck. Put the 5 Cartels (07-11) behind the next Resolution card (21). If Mining or Shipping Interest is in the Court discard, add it to the Court deck.",
+    3: { cards: [210], taught: true, resolution: { completed: "Add Elder Broker (04), Relic Fence (05) and Prison Wardens (06) to the Court deck. Put the 5 Cartels (07-11) behind the next Resolution card (21). If Mining or Shipping Interest is in the Court discard, add it to the Court deck.",
         failed: "Scrap Elder Broker, Relic Fence and Prison Wardens (04-06). Add the 5 Cartels (07-11) to the Court deck." } },
     4: { cards: [204, 205], taught: true,
         resolution: { completed: "Add Guild Overseers (03), the 5 Liaisons (05-09) and Diplomatic Fiasco (10) to the Court deck. Scrap Guild Struggle (11).",
@@ -662,6 +662,8 @@ function getFatePanelHtml(player) {
         html += "<div class=\"favors\"><span class=\"lbl\">Golems</span><span class=\"favorstep\"><button type=\"button\" onclick=\"stepCampaign('golems', " + player.number + ", -1)\" aria-label=\"One Golem fewer\"><i class=\"bi bi-dash\"></i></button>"
             + "<b>" + (state.golems || 0) + "</b><button type=\"button\" onclick=\"stepCampaign('golems', " + player.number + ", 1)\" aria-label=\"One Golem more\"><i class=\"bi bi-plus\"></i></button></span></div>";
     }
+    // Merchant League's frozen resources, for Summit deals (negotiation.js)
+    html += getLeagueHtml(player);
     const other = (rules == null || campaign.act != 1) ? [] : (rules.other || []).filter(name => !(state.buried || []).includes(name));
     if (other.length > 0) {
         html += "<div class=\"fatecards\"><span class=\"boardgrouplabel mb-0 me-1\">Fate</span>" + other.map(name => "<span class=\"fatechip\">" + name + "</span>").join("") + "</div>";

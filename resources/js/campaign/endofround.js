@@ -50,14 +50,20 @@ function askForSummit() {
     const player = roundEvent.player;
     if (!player.isHuman) {
         botSummit(player);
-        // Human players may negotiate in a Summit a bot called (negotiation.js)
-        if (roundEvent.summitCalled && players.some(other => other.isHuman)) { showBotSummitNegotiations(); return; }
-        // With only bots, their deals are settled straight away
-        if (roundEvent.summitCalled) {
-            const results = runBotOffersSilently();
-            if (results.length > 0) { roundEvent.summitNote += "<br>" + results.join("<br>"); }
-        }
-        afterSummit();
+        const carryOn = () => {
+            // The Favors it called in, in its Call to Order (negotiation.js)
+            if ((roundEvent.callInResults || []).length > 0) { roundEvent.summitNote += "<br>" + roundEvent.callInResults.join("<br>"); }
+            // Human players may negotiate in a Summit a bot called
+            if (roundEvent.summitCalled && players.some(other => other.isHuman)) { showBotSummitNegotiations(); return; }
+            // With only bots, their deals are settled straight away
+            if (roundEvent.summitCalled) {
+                const results = runBotOffersSilently();
+                if (results.length > 0) { roundEvent.summitNote += "<br>" + results.join("<br>"); }
+            }
+            afterSummit();
+        };
+        if (roundEvent.summitCalled && roundEvent.callIns.length > 0) { runFavorCallIns(carryOn); return; }
+        carryOn();
         return;
     }
     showCampaignWindow(getRoundEventTitle(), getRoundEventIntro()
@@ -212,9 +218,18 @@ function botSummit(player) {
     }
     // A deal worth making is reason enough to call one (negotiation.js)
     const offer = called ? null : getBotOffer(player);
-    if (offer != null && offer.gain >= summitWeights.callForDeal) {
+    // The Magnate calls one for any good deal: each one advances its objective
+    if (offer != null && offer.gain >= (isMagnate(player) ? 0 : summitWeights.callForDeal)) {
         called = true;
-        notes.push("Player " + player.number + " (bot) calls a Summit <b>to make deals</b>: it wants " + preludeResourceNames[offer.ask] + " for " + capitalise(preludeAmbitions[offer.ask] || "warlord") + ".");
+        notes.push("Player " + player.number + " (bot) calls a Summit <b>to make deals</b>: it wants " + preludeResourceNames[offer.ask]
+            + (getResourceNeed(player, offer.ask) == 2 ? " for " + capitalise(preludeAmbitions[offer.ask] || "warlord") : "") + ".");
+    }
+    // Rivals' Favors it holds: it calls them in to force what it's chasing
+    roundEvent.callIns = getFavorCallIns(player);
+    roundEvent.callInResults = [];
+    if (roundEvent.callIns.length > 0 && !called) {
+        called = true;
+        notes.push("Player " + player.number + " (bot) calls a Summit <b>to call in Favors</b>.");
     }
     if (!called) {
         const stay = roundEvent.stayReasons;
@@ -384,6 +399,8 @@ function finishCrises() {
     // The Court's Vox cards that leave after their Crisis. Council Intrigue's agents go onto the Council
     // (Populist Demands and Song of Freedom stay)
     const leaving = [102, 103, 105];
+    // Merchant League's Crisis: discard all resources on it (negotiation.js)
+    clearLeaguesInCrisis();
     const council = getCouncilEntry();
     const intrigue = courtMarket.find(entry => entry.number == 102);
     if (intrigue != null && council != null) {

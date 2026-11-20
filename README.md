@@ -121,7 +121,11 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 - **The bot's answer:** it weighs what it gets against what it gives, and accepts, makes a counter-offer, or refuses, with its reasons. It asks more of the player leading on Power, and remembers deals made with it.
 - **After a deal:** the app updates the panels and lists what to move on the table.
 
-**Not done yet:** bots don't offer deals themselves or return Favors to force you, and are never dealt the Magnate. In Acts II and III they play their usual game rather than chasing their new objectives. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
+**The bots' own deals:** when a Summit opens, each bot may offer one deal. It asks for a resource it's chasing and gives what it can spare. You can accept, make a counter-offer, or say no thanks. Deals between two bots are settled straight away and listed. A bot that calls a Summit also calls in Favors it holds (your agents on its Fate card) to force you to give it what it's chasing. For a resource, the app asks the raid cost shown on that slot.
+
+**The Magnate:** bots can now be dealt it.
+- **Merchant League:** the resources it gains when it declares an ambition are shown on its panel. They can only be given away in Summit deals, and its Crisis empties them.
+- **Its objective:** the app moves it for each resource or Favor a Rival gives the Magnate, and for each export of 3 resources. A human Magnate has an **Export to the Galactic Core** button in the Summit. In Acts II and III they play their usual game rather than chasing their new objectives. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
 
 ## The screen
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options** (the gear). Tap an ambition to see how it's won and what it's worth.

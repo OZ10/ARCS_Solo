@@ -2471,6 +2471,14 @@ header, .footerstyle {
   font-size: 1.05rem;
 }
 
+.leaguerow .leagueres {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  font-weight: 700;
+}
+
 .negobtns {
   display: grid;
   grid-template-columns: 1fr 1fr;

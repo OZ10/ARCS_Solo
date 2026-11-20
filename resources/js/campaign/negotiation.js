@@ -34,10 +34,14 @@ function getNegotiationsHtml(back) {
     if (bots.length == 0 || humans.length == 0) {
         return "<div class=\"turnsection\"><div class=\"turnlabel\">Negotiations</div><p class=\"small mb-0\">Human players may make deals with each other. Change the panels to match.</p></div>";
     }
+    // A human Magnate may export 3 resources
+    const exporters = humans.filter(player => isMagnate(player));
+    const exportButtons = exporters.map(player => "<button type=\"button\" class=\"btn btn-outline-secondary w-100 mt-2\" onclick=\"showExport(" + player.number + ", '" + back + "')\">Export to the Galactic Core"
+        + (exporters.length > 1 || humans.length > 1 ? " (Player " + player.number + ")" : "") + "<small class=\"d-block\">Discard 3 resources: objective +2</small></button>").join("");
     return "<div class=\"turnsection\"><div class=\"turnlabel\">Negotiations</div><p class=\"small mb-2\">Anyone may make deals. Offer a bot a deal and it says yes, no, or what it would take."
         + (humans.length > 1 ? " Deals between human players: change the panels to match." : "") + "</p>"
         + "<div class=\"negobtns\">" + bots.map(bot => "<button type=\"button\" class=\"btn btn-outline-secondary\" onclick=\"openDeal(" + bot.number + ", '" + back + "')\">Deal with Player " + bot.number
-            + "<small>" + getFate(getCampaignPlayer(bot).fate).name + " &middot; bot</small></button>").join("") + "</div></div>";
+            + "<small>" + getFate(getCampaignPlayer(bot).fate).name + " &middot; bot</small></button>").join("") + "</div>" + exportButtons + "</div>";
 }
 
 function openDeal(botNumber, back) {
@@ -67,6 +71,7 @@ function showSummitView(back) {
 // What each side holds, and the most it can give
 
 function getDealHolding(player, key) {
+    if (key.startsWith("league:")) { return getLeague(player)[key.slice(7)] || 0; }
     if (dealCounters.includes(key)) { return player[key + "Value"]; }
     if (key == "promise") { const left = getAgentsLeft(player); return left == null ? 3 : left; }
     if (key == "ship") { return player.shipsBoardValue; }
@@ -83,6 +88,7 @@ function getDealMost(player, key) {
 }
 
 function getDealLabel(key, count) {
+    if (key.startsWith("league:")) { return getDealLabel(key.slice(7), count) + " (Merchant League)"; }
     if (dealCounters.includes(key)) { return count + " " + (key == "captives" ? "Captive" + (count == 1 ? "" : "s") : key == "trophies" ? "Troph" + (count == 1 ? "y" : "ies") : preludeResourceNames[key] + (count > 1 && key != "fuel" ? "s" : "")); }
     if (key == "promise") { return "Promise " + count + " Favor" + (count == 1 ? "" : "s"); }
     if (key == "ship" || key == "starport") { return "Cede " + count + " " + key + (count == 1 ? "" : "s"); }
@@ -130,7 +136,9 @@ function showDealBuilder() {
         const invite = canInvite ? "<button type=\"button\" class=\"btn btn-sm " + (deal.invite == inviteKey ? "btn-dark" : "btn-outline-secondary") + "\" onclick=\"toggleDealInvite('" + inviteKey + "')\">"
                 + (deal.invite == inviteKey ? "<i class=\"bi bi-check-lg\"></i> " : "") + "Invite Player " + other.number + " to the Empire</button>"
             : "<div class=\"small text-secondary\">Only the First Regent can invite an Outlaw.</div>";
+        const league = preludeResources.filter(resource => getDealHolding(owner, "league:" + resource) > 0).map(resource => pill(key, "league:" + resource, getGameIcon(resource), resource)).join("");
         return group("Transfer Asset", assets == "" ? "<div class=\"small text-secondary\">Nothing to give.</div>" : "<div class=\"dealsteps\">" + assets + "</div>")
+            + group("Merchant League", league == "" ? "" : "<div class=\"dealsteps\">" + league + "</div>")
             + group("Favors", "<div class=\"dealsteps\">" + pill(key, "promise", null, "Promise Favor").replace(/(<small>of \d+)/, "$1 agents") + "</div>")
             + group("Cede Control", cede == "" ? "<div class=\"small text-secondary\">Nothing to cede.</div>" : "<div class=\"dealsteps\">" + cede + "</div>")
             + group("Delegate Authority", delegate == "" ? "<div class=\"small text-secondary\">No agents on Court cards.</div>" : delegate)
@@ -172,6 +180,8 @@ function getDealPartValue(bot, key, count, getting) {
     // What count of this is worth to the bot, getting it or giving it
     const v = dealValues;
     const way = getting ? "get" : "give";
+    // Merchant League's resources are frozen: worth a resource to whoever gets one, little to the Magnate
+    if (key.startsWith("league:")) { return getting ? getDealPartValue(bot, key.slice(7), count, true) : count * magnateValues.league; }
     if (preludeResources.includes(key)) { return count * v.resource[way][getResourceNeed(bot, key)]; }
     if (key == "captives" || key == "trophies") {
         const ambition = key == "captives" ? "tyrant" : "warlord";
@@ -205,6 +215,12 @@ function getDealReasons(deal) {
         if ((key == "starport" || cityCounters.includes(key)) && count > 0) { reasons.push("Ceding a building costs it a lot."); }
     });
     if ((deal.give.promise || 0) > 0) { reasons.push("A Favor from you is worth a little to it."); }
+    // The Magnate's objective advances for each resource or Favor a Rival gives it
+    const forMagnate = isMagnate(bot) ? countMagnateItems(deal.give) : 0;
+    if (forMagnate > 0) {
+        net += forMagnate * magnateValues.item;
+        reasons.push("Close Deals with Rivals: each resource or Favor you give it advances its objective by 2.");
+    }
     if ((deal.want.promise || 0) > 0) { reasons.push("A Favor it promises lets you force it in a later Summit."); }
     if (deal.giveDelegate != null) { net += getMarketCardValue(bot, courtMarket.find(entry => entry.number == deal.giveDelegate)) * dealValues.delegate; }
     if (deal.wantDelegate != null) { net -= getMarketCardValue(bot, courtMarket.find(entry => entry.number == deal.wantDelegate)) * dealValues.delegate; }
@@ -304,7 +320,12 @@ function applyDeal(deal) {
     const { bot, human } = deal;
     const table = [];
     const move = (from, to, parts) => Object.entries(parts).filter(([, count]) => count > 0).forEach(([key, count]) => {
-        if (dealCounters.includes(key)) {
+        if (key.startsWith("league:")) {
+            const resource = key.slice(7);
+            getLeague(from)[resource] = Math.max((getLeague(from)[resource] || 0) - count, 0);
+            adjustCounter(to, resource, count);
+            table.push("Player " + from.number + " gives Player " + to.number + " " + getDealLabel(key, count) + ".");
+        } else if (dealCounters.includes(key)) {
             adjustCounter(from, key, -count);
             adjustCounter(to, key, count);
             table.push("Player " + from.number + " gives Player " + to.number + " " + getDealLabel(key, count) + ".");
@@ -322,6 +343,9 @@ function applyDeal(deal) {
     });
     move(human, bot, deal.give);
     move(bot, human, deal.want);
+    // The Magnate (human or bot): its objective, and what it gave, which doesn't count coming back
+    magnateDealt(human, bot, deal.give, deal.want);
+    magnateDealt(bot, human, deal.want, deal.give);
     const delegate = (from, to, number) => {
         if (number == null) { return; }
         const entry = courtMarket.find(card => card.number == number);
@@ -381,16 +405,24 @@ function getBotOffer(bot) {
     if (dealt.includes(bot.number)) { return null; }
     const options = [];
     players.filter(rival => rival !== bot && !dealt.includes(rival.number)).forEach(rival => {
-        preludeResources.filter(resource => getResourceNeed(bot, resource) == 2 && rival[resource + "Value"] > 0 && getResourceNeed(rival, resource) < 2).forEach(ask => {
-            const spare = preludeResources.filter(resource => resource != ask && bot[resource + "Value"] > 0 && getResourceNeed(bot, resource) == 0)
-                .sort((a, b) => getResourceNeed(rival, b) - getResourceNeed(rival, a))[0];
+        // The Magnate wants any resource a Rival gives it: its objective advances for each
+        const magnate = isMagnate(bot);
+        preludeResources.filter(resource => (getResourceNeed(bot, resource) == 2 || magnate) && rival[resource + "Value"] > 0 && getResourceNeed(rival, resource) < 2).forEach(ask => {
+            // Merchant League's frozen resources first: they're only good for trading
+            const byNeed = (a, b) => getResourceNeed(rival, b.replace("league:", "")) - getResourceNeed(rival, a.replace("league:", ""));
+            const league = preludeResources.filter(resource => resource != ask && (getLeague(bot)[resource] || 0) > 0).map(resource => "league:" + resource).sort(byNeed);
+            const spareOwn = preludeResources.filter(resource => resource != ask && bot[resource + "Value"] > 0 && getResourceNeed(bot, resource) == 0).sort(byNeed);
+            const spare = league.concat(spareOwn)[0];
             if (spare == null && getDealMost(bot, "promise") == 0) { return; }
             const give = spare != null ? { [spare]: 1 } : { promise: 1 };
             // From its own side: it gets the resource it asks for, and gives the rest
             const own = getDealReasons({ bot: bot, human: rival, give: { [ask]: 1 }, want: give, giveDelegate: null, wantDelegate: null, invite: null });
             if (own.net < own.required) { return; }
-            const reasons = ["It's chasing " + capitalise(preludeAmbitions[ask] || "warlord") + ", and " + (rival.isHuman ? "you hold " : "Player " + rival.number + " holds ") + rival[ask + "Value"] + " " + preludeResourceNames[ask] + (rival[ask + "Value"] > 1 && ask != "fuel" ? "s" : "") + "."];
-            reasons.push(spare != null ? "It isn't chasing anything " + preludeResourceNames[spare] + " counts for, so it can spare one." : "It has nothing to spare, so it offers a Favor: one of its agents on your Fate card.");
+            const holds = (rival.isHuman ? "you hold " : "Player " + rival.number + " holds ") + rival[ask + "Value"] + " " + preludeResourceNames[ask] + (rival[ask + "Value"] > 1 && ask != "fuel" ? "s" : "");
+            const reasons = [getResourceNeed(bot, ask) == 2 ? "It's chasing " + capitalise(preludeAmbitions[ask] || "warlord") + ", and " + holds + "." : "Close Deals with Rivals: each resource or Favor you give it advances its objective by 2, and " + holds + "."];
+            reasons.push(spare == null ? "It has nothing to spare, so it offers a Favor: one of its agents on your Fate card."
+                : spare.startsWith("league:") ? "The " + preludeResourceNames[spare.slice(7)] + " is frozen on Merchant League: it can only give it away in a Summit."
+                : "It isn't chasing anything " + preludeResourceNames[spare] + " counts for, so it can spare one.");
             options.push({ rival: rival, ask: ask, give: give, gain: own.net - own.required, reasons: reasons });
         });
     });
@@ -418,6 +450,7 @@ function runBotOffersFirst(back) {
 function nextBotOffer() {
     while (roundEvent.offerQueue.length > 0) {
         const bot = getPlayer(roundEvent.offerQueue.shift());
+        magnateExport(bot);
         const offer = getBotOffer(bot);
         if (offer == null) { continue; }
         if (offer.rival.isHuman) {
@@ -499,8 +532,248 @@ function runBotOffersSilently() {
     const order = getTurnOrder();
     const start = Math.max(order.indexOf(roundEvent.player), 0);
     order.slice(start).concat(order.slice(0, start)).forEach(bot => {
+        magnateExport(bot);
         const offer = getBotOffer(bot);
         if (offer != null && !offer.rival.isHuman) { settleBotDeal(bot, offer); }
     });
     return roundEvent.offerResults;
+}
+
+// Step 3: a bot that called the Summit calls in Favors. It returns a Rival's agents from its Fate card
+// to force that Rival into a Negotiation action targeting it (rulebook p.16): a resource it's chasing
+// (its raid cost in Favors, asked as the app can't see the slot), or a Captive or Trophy it's chasing
+// with Tyrant or Warlord (1 Favor each)
+
+function getFavorCallIns(bot) {
+    const favors = getCampaignPlayer(bot).favors || {};
+    const callIns = [];
+    players.filter(rival => rival !== bot && (favors[rival.number] || 0) > 0).forEach(rival => {
+        const options = preludeResources.filter(resource => getResourceNeed(bot, resource) == 2 && rival[resource + "Value"] > 0)
+            .map(resource => ({ kind: "resource", resource: resource, value: dealValues.resource.get[2] }));
+        [["captives", "tyrant"], ["trophies", "warlord"]].forEach(([counter, ambition]) => {
+            if (rival[counter + "Value"] > 0 && declaredAmbitions.includes(ambition) && isChasingAmbition(bot, ambition)) { options.push({ kind: counter, resource: counter, value: dealValues.chased.get }); }
+        });
+        const best = options.sort((a, b) => b.value - a.value)[0];
+        if (best != null) { callIns.push({ bot: bot.number, rival: rival.number, ...best, fallback: options.find(option => option.kind != "resource") || null }); }
+    });
+    return callIns;
+}
+
+function runFavorCallIns(then) {
+    // One at a time, then carry on
+    roundEvent.callInsThen = then;
+    nextFavorCallIn();
+}
+
+function nextFavorCallIn() {
+    const callIn = (roundEvent.callIns || []).shift();
+    if (callIn == null) {
+        const then = roundEvent.callInsThen;
+        roundEvent.callInsThen = null;
+        then();
+        return;
+    }
+    if (callIn.kind == "resource") { askCallInKeys(callIn); return; }
+    applyCallIn(callIn, callIn.kind, 1);
+    nextFavorCallIn();
+}
+
+function askCallInKeys(callIn) {
+    const bot = getPlayer(callIn.bot), rival = getPlayer(callIn.rival);
+    const held = getCampaignPlayer(bot).favors[rival.number] || 0;
+    const name = preludeResourceNames[callIn.resource];
+    const whose = rival.isHuman ? "your" : "Player " + rival.number + "'s";
+    roundEvent.callIn = callIn;
+    setOrShowCampaignWindow("Player " + bot.number + " calls in " + (rival.isHuman ? "your" : "Player " + rival.number + "'s") + " Favors",
+        "<p class=\"small mb-2\">Player " + bot.number + " called the Summit and holds <b>" + held + " of " + whose + " Favors</b> (agents on its Fate card). In its Call to Order it returns them to force a Negotiation action that targets it.</p>"
+        + "<div class=\"reply why\"><div class=\"verdict\">It forces " + (rival.isHuman ? "you" : "Player " + rival.number) + " to give it 1 " + name + "</div><ul class=\"small mb-0 mt-1\"><li>It's chasing " + capitalise(preludeAmbitions[callIn.resource] || "warlord") + ", and "
+            + (rival.isHuman ? "you hold " : "Player " + rival.number + " holds ") + getDealLabel(callIn.resource, rival[callIn.resource + "Value"]) + ".</li><li>Each Favor it returns goes back to " + (rival.isHuman ? "your" : "Player " + rival.number + "'s") + " supply.</li></ul></div>"
+        + "<div class=\"turnsection\"><div class=\"turnlabel\">Transfer Asset costs a resource's raid cost</div><p class=\"small mb-1\">How many keys does the slot with " + whose + " " + name + " show? It returns that many Favors, if it holds them.</p>"
+        + "<div class=\"numberanswers\">" + [1, 2, 3].map(keys => "<button type=\"button\" class=\"numberanswer\" onclick=\"answerCallInKeys(" + keys + ")\">" + keys + "</button>").join("") + "</div></div>", bot);
+}
+
+function answerCallInKeys(keys) {
+    const callIn = roundEvent.callIn;
+    const bot = getPlayer(callIn.bot);
+    const held = getCampaignPlayer(bot).favors[callIn.rival] || 0;
+    if (keys <= held) {
+        applyCallIn(callIn, callIn.resource, keys);
+    } else if (callIn.fallback != null) {
+        applyCallIn(callIn, callIn.fallback.kind, 1, "The " + preludeResourceNames[callIn.resource] + " would cost " + keys + " Favors and it holds " + held + ", so instead: ");
+    } else {
+        roundEvent.callInResults.push("Player " + bot.number + " wanted Player " + callIn.rival + "'s " + preludeResourceNames[callIn.resource] + ", but its raid cost is " + keys + " Favors and it holds " + held + ": nothing forced.");
+    }
+    nextFavorCallIn();
+}
+
+function applyCallIn(callIn, counter, favorsSpent, prefix = "") {
+    const bot = getPlayer(callIn.bot), rival = getPlayer(callIn.rival);
+    const favors = getCampaignPlayer(bot).favors;
+    favors[rival.number] = Math.max((favors[rival.number] || 0) - favorsSpent, 0);
+    adjustCounter(rival, counter, -1);
+    adjustCounter(bot, counter, 1);
+    players.forEach(showCampaignPanel);
+    SaveAllSettings();
+    roundEvent.callInResults.push(prefix + "Player " + bot.number + " <b>calls in " + favorsSpent + " of Player " + rival.number + "'s Favors</b>: Player " + rival.number + " gives it " + getDealLabel(counter, 1) + "."
+        + "<small class=\"d-block text-secondary\">On the table: move it, and Player " + rival.number + " takes back " + favorsSpent + " agent" + (favorsSpent == 1 ? "" : "s") + " from Player " + bot.number + "'s Fate card. The app has moved them.</small>");
+}
+
+// Step 4: the Magnate. Merchant League's frozen resources (gained when it declares an ambition) can
+// only be given away in Summit deals. Its objective advances 2 for each resource or Favor a Rival
+// gives it (not one it gave that Rival in this Summit), and 2 for each 3 resources it exports
+const magnateValues = { item: 1.5, league: 0.3, exportAt: 3 };
+
+function isMagnate(player) {
+    return hasFate(player, 3);
+}
+
+function getLeague(player) {
+    const state = getCampaignPlayer(player);
+    if (state.league == null) { state.league = {}; }
+    return state.league;
+}
+
+function holdsMerchantLeague(player) {
+    return (player.guildCards || []).includes(210);
+}
+
+function getLeagueHtml(player) {
+    if (!holdsMerchantLeague(player)) { return ""; }
+    const league = getLeague(player);
+    const shown = player.isHuman ? preludeResources : preludeResources.filter(resource => (league[resource] || 0) > 0);
+    return "<div class=\"favors leaguerow\"><span class=\"lbl\">Merchant League</span>" + (shown.length == 0 ? "<span class=\"small\">empty</span>" : shown.map(resource =>
+        "<span class=\"favorstep\"><button type=\"button\" onclick=\"stepLeague(" + player.number + ", '" + resource + "', -1)\" aria-label=\"One " + preludeResourceNames[resource] + " fewer\"><i class=\"bi bi-dash\"></i></button>"
+        + "<span class=\"leagueres\">" + getGameIcon(resource) + (league[resource] || 0) + "</span>"
+        + "<button type=\"button\" onclick=\"stepLeague(" + player.number + ", '" + resource + "', 1)\" aria-label=\"One " + preludeResourceNames[resource] + " more\"><i class=\"bi bi-plus\"></i></button></span>").join("")) + "</div>";
+}
+
+function stepLeague(playerNumber, resource, change) {
+    const player = getPlayer(playerNumber);
+    const league = getLeague(player);
+    league[resource] = Math.max((league[resource] || 0) + change, 0);
+    showCampaignPanel(player);
+    SaveAllSettings();
+}
+
+registerCampaignHook("ambitionDeclared", player => {
+    // Merchant League: when it declares an ambition, it may gain any 2 resources onto it
+    if (!holdsMerchantLeague(player)) { return undefined; }
+    if (player.isHuman) {
+        showMessageToast("Merchant League", "You may gain any 2 resources and place them on Merchant League. Add them on its line on your panel.");
+        return undefined;
+    }
+    // A bot takes what its Rivals want most, for its deals
+    const rivals = players.filter(other => other !== player);
+    const wanted = preludeResources.filter(resource => getResourceSupply(resource) > 0)
+        .sort((a, b) => rivals.reduce((total, rival) => total + getResourceNeed(rival, b), 0) - rivals.reduce((total, rival) => total + getResourceNeed(rival, a), 0));
+    const league = getLeague(player);
+    const taken = [];
+    for (let index = 0; index < 2 && wanted.length > 0; index++) {
+        const resource = wanted[index % wanted.length];
+        league[resource] = (league[resource] || 0) + 1;
+        taken.push(preludeResourceNames[resource]);
+    }
+    showCampaignPanel(player);
+    SaveAllSettings();
+    if (taken.length > 0) { showMessageToast("Player " + player.number + ": Merchant League", "Gains " + taken.join(" and ") + " onto Merchant League, for its deals in Summits. Take them from the supply."); }
+    return undefined;
+});
+
+function clearLeaguesInCrisis() {
+    // Merchant League's Crisis: discard all resources on it
+    players.filter(holdsMerchantLeague).forEach(player => {
+        const league = getLeague(player);
+        if (Object.values(league).some(count => count > 0)) { showMessageToast("Merchant League", "Player " + player.number + " discards the resources on Merchant League."); }
+        getCampaignPlayer(player).league = {};
+        showCampaignPanel(player);
+    });
+}
+
+function countMagnateItems(parts) {
+    // Resources (its own or a Merchant League's) and Favors in a deal
+    return Object.entries(parts).filter(([key]) => preludeResources.includes(key) || key.startsWith("league:") || key == "promise").reduce((total, [, count]) => total + count, 0);
+}
+
+function magnateDealt(from, to, given, received) {
+    // to got given from from. A Magnate's objective advances for what a Rival gives it, less what it
+    // gave that Rival in this Summit
+    roundEvent.magnateGave = roundEvent.magnateGave || {};
+    if (isMagnate(from)) {
+        const record = roundEvent.magnateGave[from.number + "-" + to.number] = roundEvent.magnateGave[from.number + "-" + to.number] || {};
+        Object.entries(given).forEach(([key, count]) => { const resource = key.replace("league:", ""); record[resource] = (record[resource] || 0) + count; });
+    }
+    if (!isMagnate(to)) { return; }
+    const record = roundEvent.magnateGave[to.number + "-" + from.number] || {};
+    let counted = 0;
+    Object.entries(given).forEach(([key, count]) => {
+        if (!(preludeResources.includes(key) || key.startsWith("league:") || key == "promise")) { return; }
+        const resource = key.replace("league:", "");
+        const back = Math.min(record[resource] || 0, count);
+        record[resource] = (record[resource] || 0) - back;
+        counted += count - back;
+    });
+    if (counted > 0) { advanceObjective(to, 2 * counted, counted + " resource" + (counted == 1 ? "" : "s") + " or Favor" + (counted == 1 ? "" : "s") + " from Player " + from.number + " (Close Deals with Rivals)"); }
+}
+
+function magnateExport(bot) {
+    // Export to the Galactic Core: once a Summit, 3 resources it doesn't need
+    if (!isMagnate(bot) || (roundEvent.exported || []).includes(bot.number)) { return; }
+    const spare = [];
+    preludeResources.filter(resource => getResourceNeed(bot, resource) == 0).sort((a, b) => bot[b + "Value"] - bot[a + "Value"])
+        .forEach(resource => { for (let count = 0; count < bot[resource + "Value"]; count++) { spare.push(resource); } });
+    if (spare.length < magnateValues.exportAt) { return; }
+    const exported = spare.slice(0, magnateValues.exportAt);
+    exported.forEach(resource => setPlayerResource(bot, resource, bot[resource + "Value"] - 1));
+    roundEvent.exported = (roundEvent.exported || []).concat(bot.number);
+    advanceObjective(bot, 2, "Exported 3 resources (Export to the Galactic Core)");
+    const counts = {};
+    exported.forEach(resource => { counts[resource] = (counts[resource] || 0) + 1; });
+    const named = Object.entries(counts).map(([resource, count]) => getDealLabel(resource, count));
+    roundEvent.offerResults.push("Player " + bot.number + " (Magnate) <b>exports to the Galactic Core</b>: it discards " + (named.length > 1 ? named.slice(0, -1).join(", ") + " and " + named[named.length - 1] : named[0]) + " it doesn't need."
+        + "<small class=\"d-block text-secondary\">On the table: return them to the supply.</small>");
+    players.forEach(showCampaignPanel);
+    SaveAllSettings();
+}
+
+// A human Magnate's export: choose 3 resources to discard
+
+let exportChoice = null;
+
+function showExport(playerNumber, back) {
+    if (exportChoice == null || exportChoice.player != playerNumber) { exportChoice = { player: playerNumber, back: back, parts: {} }; }
+    const player = getPlayer(playerNumber);
+    const total = Object.values(exportChoice.parts).reduce((sum, count) => sum + count, 0);
+    const pills = preludeResources.filter(resource => player[resource + "Value"] > 0).map(resource => {
+        const value = exportChoice.parts[resource] || 0;
+        return "<span class=\"dealstep" + (value > 0 ? " on" : "") + "\"><span class=\"dealicon\">" + getGameIcon(resource) + "</span><small>of " + player[resource + "Value"] + "</small>"
+            + "<button class=\"btn resourcebutton resourceminus\" type=\"button\" onclick=\"stepExport('" + resource + "', -1)\" aria-label=\"One fewer\"><i class=\"bi bi-dash-lg\"></i></button><b>" + value + "</b>"
+            + "<button class=\"btn resourcebutton resourceplus\" type=\"button\" onclick=\"stepExport('" + resource + "', 1)\" aria-label=\"One more\"><i class=\"bi bi-plus-lg\"></i></button></span>";
+    }).join("");
+    setCampaignWindow("Export to the Galactic Core", "<p class=\"small mb-2\">Discard 3 resources: Player " + playerNumber + "'s objective advances 2.</p>"
+        + "<div class=\"dealsteps mb-2\">" + (pills || "<span class=\"small text-secondary\">No resources to export.</span>") + "</div>"
+        + "<button type=\"button\" class=\"btn btn-primary w-100\" onclick=\"applyExport()\"" + (total == magnateValues.exportAt ? "" : " disabled") + ">Export " + total + " of 3</button>"
+        + "<button type=\"button\" class=\"btn btn-outline-secondary w-100 mt-2\" onclick=\"closeExport()\">Back to the Summit</button>", player);
+}
+
+function stepExport(resource, change) {
+    const player = getPlayer(exportChoice.player);
+    const total = Object.values(exportChoice.parts).reduce((sum, count) => sum + count, 0);
+    if (change > 0 && total >= magnateValues.exportAt) { return; }
+    exportChoice.parts[resource] = Math.min(Math.max((exportChoice.parts[resource] || 0) + change, 0), player[resource + "Value"]);
+    showExport(exportChoice.player, exportChoice.back);
+}
+
+function applyExport() {
+    const player = getPlayer(exportChoice.player);
+    Object.entries(exportChoice.parts).forEach(([resource, count]) => setPlayerResource(player, resource, player[resource + "Value"] - count));
+    advanceObjective(player, 2, "Exported 3 resources (Export to the Galactic Core)");
+    players.forEach(showCampaignPanel);
+    SaveAllSettings();
+    closeExport();
+}
+
+function closeExport() {
+    const back = exportChoice.back;
+    exportChoice = null;
+    showSummitView(back);
 }

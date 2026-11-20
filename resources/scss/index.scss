@@ -2684,6 +2684,15 @@ $empire: #5b2a86;
     }
 }
 
+// The Magnate's Merchant League: its frozen resources, on its panel
+.leaguerow .leagueres {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 4px;
+    font-weight: 700;
+}
+
 .negobtns {
     display: grid;
     grid-template-columns: 1fr 1fr;
