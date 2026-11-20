@@ -101,10 +101,19 @@ function shouldAskCanBuild(player) {
     const hand = getBotCards(player);
     if (player.canBuild != null || !hand.some(card => card.name == "Construction")) { return false; }
     if (canUseGuildActionInsteadOf(player, "build") || !wantsToBuild(player)) { return false; }
-    if (isLeadingThisTurn()) { return true; }
+    // Leading: only if a Yes would have it lead Construction (#155)
+    if (isLeadingThisTurn()) { return wouldLeadConstruction(hand); }
 
     const lead = playedCardList[0];
     return lead.name == "Construction" || !hand.some(card => card.name == lead.name);
+}
+
+function wouldLeadConstruction(hand) {
+    // The card it would lead if it could build (see findCardToPlay): the highest of the ambition
+    // it would declare, otherwise its highest card
+    const withAmbition = findCardsWithAmbition(prioritiseAndSortAmbitions(), hand);
+    const top = getHighestCard(withAmbition.length > 0 ? withAmbition : hand);
+    return top != null && top != "" && top.name == "Construction";
 }
 
 function wantsNewCityType(player) {
@@ -251,6 +260,12 @@ function canMoveThenDo(player, action) {
         || (action == "battle" && player.weaponsValue > 0)));
 }
 
+function hasSlotForRaid(player, resources) {
+    // An empty resource slot, or a resource it could spare in its prelude to free one (#158)
+    if (getEmptySlots(player) > 0) { return true; }
+    return preludeResources.some(resource => !resources.includes(resource) && player[resource + "Value"] > 0 && canSpareResource(player, resource) && !couldScoreFromHand(player, resource));
+}
+
 function isReachQuestionPossible(ambition, action, player) {
     // Whether it's worth asking if it can move into position. It needs ships, a card to Move
     // with, and something to go for
@@ -267,7 +282,7 @@ function isReachQuestionPossible(ambition, action, player) {
             return supply && rivals.some(hasCity) && canMoveThenDo(player, "tax");
         }
         case "reachRaid":
-            return getRaidHolders(player, resources).length > 0 && canMoveThenDo(player, "battle");
+            return getRaidHolders(player, resources).length > 0 && canMoveThenDo(player, "battle") && hasSlotForRaid(player, resources);
         default:
             return canMoveThenDo(player, "battle");
     }
@@ -326,6 +341,8 @@ function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, p
         // No need to ask about raiding for something no Rival has
         // (In a campaign, the Free States may have it: campaignhooks.js)
         if (action == "battle" && taxResources != null && getRaidHolders(player, taxResources).length == 0 && runCampaignHook("knownYes", ambition, action, player) == null) { continue; }
+        // Nowhere to put what it raids: every slot full, and nothing it could spare to free one (#158)
+        if (action == "battle" && taxResources != null && !hasSlotForRaid(player, taxResources)) { continue; }
 
         // With the market entered, there's no need to ask about a card that isn't there
         if (!isMarketQuestionPossible(ambition, action, player)) { continue; }

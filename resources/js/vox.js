@@ -89,7 +89,8 @@ function getBestGuildCardToSteal(player) {
     // A Rival's Sworn Guardians has to be stolen before their other cards
     const guardians = getCourtCard(22);
     const options = players.filter(other => other !== player).flatMap(rival => {
-        const cards = (rival.guildCards || []).includes(guardians.number) ? [guardians] : getPlayerGuildCards(rival);
+        // A campaign's Fate cards are protected: they can't be stolen
+        const cards = (rival.guildCards || []).includes(guardians.number) ? [guardians] : getPlayerGuildCards(rival).filter(card => !card.protected);
         return cards.map(card => ({ card: card, rival: rival, need: getResourceNeed(player, card.resource) }));
     });
     return options.sort((a, b) => (b.need - a.need) || (b.card.keys - a.card.keys))[0] || null;

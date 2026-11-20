@@ -159,33 +159,41 @@ function showBuildSlotQuestion() {
     document.getElementById("buildBody").innerHTML =
         "<p>Is there an empty building slot in a system where " + getPlayerTag(build.player) + " has a piece?</p>"
         + "<div class=\"d-flex gap-2\">"
-        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"buildSlotYes\" onclick=\"showBuildResourceQuestion()\">Yes</button>"
+        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"buildSlotYes\" onclick=\"showBuildResourceQuestion(getWantedCityTypes())\">Yes</button>"
         + "<button type=\"button\" class=\"btn btn-secondary flex-fill\" id=\"buildSlotNo\" onclick=\"showBuildDecision()\">No</button>"
         + "</div>";
 }
 
-function showBuildResourceQuestion(only = preludeResources) {
-    // Which resources the planets with an open slot have. More than one can be ticked. only: the
-    // resources it said it wants a city on (#126)
+function getWantedCityTypes() {
+    // The planet types it would build a new city on, for the stars (#157)
+    const intent = getBuildIntent(build.player);
+    return (intent != null && intent.build == "city" && intent.resources != null) ? intent.resources : [];
+}
+
+function showBuildResourceQuestion(wanted = []) {
+    // Which resources the planets with an open slot have. More than one can be ticked. All five
+    // types, with a star on those it said it wants a city on (#126), as the only open slot may be
+    // on another type (#157)
     const body = document.getElementById("buildBody");
-    body.innerHTML = "<p>Which resources are on the planets with an empty slot? Tick all that apply.</p>";
+    body.innerHTML = "<p class=\"mb-1\">Which resources are on the planets with an empty slot, in a system where it has a piece? Tick all that apply.</p>"
+        + (wanted.length > 0 ? "<p class=\"small text-secondary mb-2\">&#9733; the planet types it wants a new city on. Any type will do: it may still build a city, a starport or a ship there.</p>" : "");
 
     const group = document.createElement("div");
     group.classList.add("d-flex", "flex-wrap", "gap-1", "mb-3");
-    only.forEach(resource => {
+    preludeResources.forEach(resource => {
         const input = document.createElement("input");
         input.type = "checkbox";
         input.classList.add("btn-check");
         input.id = "buildSlot_" + resource;
         input.onchange = () => {
-            build.slots = only.filter(r => document.getElementById("buildSlot_" + r).checked);
+            build.slots = preludeResources.filter(r => document.getElementById("buildSlot_" + r).checked);
             document.getElementById("buildDecide").disabled = build.slots.length == 0;
         };
 
         const label = document.createElement("label");
         label.classList.add("btn", "btn-outline-secondary", "btn-sm");
         label.htmlFor = input.id;
-        label.innerHTML = preludeResourceNames[resource];
+        label.innerHTML = getGameIcon(resource) + " " + preludeResourceNames[resource] + (wanted.includes(resource) ? " &#9733;" : "");
 
         group.append(input, label);
     });

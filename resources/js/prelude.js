@@ -269,9 +269,22 @@ function getPreludeOffers(player) {
     const gives = { materials: "build", fuel: "move", relics: "secure" };
     // With a battle in mind, whether it has a way to battle this turn: its card, or a Weapon (#140)
     const canBattle = play.actions.includes("battle") || (play.count > 0 && player.weaponsValue > 0);
+    // Raiding for a resource with every slot full: spending a spare resource frees one for it (#158)
+    const raidFor = player.playReason != null && player.playReason.type == "chase" ? ambitionTaxResources[player.playReason.ambition.toUpperCase()] : null;
+    const slotWhy = (raidFor != null && canBattle && getEmptySlots(player) == 0)
+        ? "It's raiding for " + raidFor.map(resource => preludeResourceNames[resource]).join(" or ") + " with every resource slot full: spending this frees one." : null;
+    const offered = () => offers.length;
+    let slotFreed = false;
+    if (slotWhy != null && player.canBuild !== false && !play.actions.includes("build")) {
+        const before = offered();
+        offerAction("materials", "Build or Repair, and free a slot for what it raids", "build", false, slotWhy);
+        slotFreed = offered() > before;
+    }
     // Material: decided if the player said it can build or repair and its card doesn't. Not if
     // they said it can't. Or, with a battle in mind and a starport, a ship built or repaired for it
-    if (player.canBuild === true && !play.actions.includes("build")) {
+    if (slotFreed) {
+        // Already spent to free a slot
+    } else if (player.canBuild === true && !play.actions.includes("build")) {
         offerAction("materials", "Build or Repair", "build", false, "You said it can build or repair this turn, and its card doesn't build.");
     } else if (battleWhy != null && canBattle && player.canBuild !== false && (player.starportsValue || 0) > 0 && !play.actions.includes("build")) {
         offerAction("materials", "Build a ship at a starport, or repair a damaged ship, ready for its battle", "build", false, battleWhy + ": one more ship, or a repaired one, makes the battle safer.");
@@ -280,7 +293,11 @@ function getPreludeOffers(player) {
     }
     // Fuel: decided if the player said it can reach something and its card doesn't move
     // Or, with a battle in mind and a way to battle, to bring more ships to it (#140)
-    if (player.moveGoal != null && !play.actions.includes("move")) {
+    if (slotWhy != null && !slotFreed && !play.actions.includes("move") && !raidFor.includes("fuel")) {
+        const before = offered();
+        offerAction("fuel", "Move, and free a slot for what it raids", "move", false, slotWhy);
+        slotFreed = offered() > before;
+    } else if (player.moveGoal != null && !play.actions.includes("move")) {
         offerAction("fuel", "Move " + player.moveGoal, "move", false, "You said it can reach that this turn, and its card doesn't move.");
     } else if (battleWhy != null && canBattle && !play.actions.includes("move")) {
         offerAction("fuel", "Move more ships into its battle", "move", false, battleWhy + ", and more ships make the battle safer.");

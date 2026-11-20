@@ -35,6 +35,9 @@ function removeFromMarket(number) {
     courtMarket = courtMarket.filter(entry => entry.number != number);
 }
 
+// Guild Struggle (Vox): steal a Rival's Guild card when secured
+const guildStruggleNumber = 30;
+
 function getMarketCardValue(player, entry) {
     // How much the bot wants a card, from generic values by its type. A Guild card for its
     // resource icon, a Vox card by what it does, plus the agents it would capture
@@ -44,7 +47,9 @@ function getMarketCardValue(player, entry) {
 
     let value = marketValues.base;
     if (card.type == "vox") {
-        value += marketValues.vox[card.number];
+        // Guild Struggle steals a Rival's Guild card: nothing to it while no Rival has one it could steal (#158)
+        const nothingToSteal = card.number == guildStruggleNumber && getBestGuildCardToSteal(player) == null;
+        value += nothingToSteal ? 0 : marketValues.vox[card.number];
     } else if (card.resource == "weapons") {
         if (declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord")) { value += marketValues.perNeed * 2; }
     } else {
@@ -101,6 +106,24 @@ function getCardsToInfluence(player) {
     const agentsNeeded = entry => Math.max(...getRivalAgents(entry, player)) + 1 - getMarketAgents(entry, player);
     return courtMarket.filter(entry => agentsNeeded(entry) > 0 && !isMarketCardClosed(entry))
         .sort((a, b) => (getMarketCardValue(player, b) / agentsNeeded(b)) - (getMarketCardValue(player, a) / agentsNeeded(a)));
+}
+
+function getInfluenceSequence(player, count) {
+    // The card for each of count Influences, best first, each chosen as if its earlier agents were
+    // already placed (#156). The agents are put back afterwards
+    const before = new Map();
+    const targets = [];
+    for (let index = 0; index < count; index++) {
+        const entry = getCardsToInfluence(player)[0];
+        if (entry == null) { break; }
+        targets.push(entry);
+        if (!before.has(entry)) { before.set(entry, entry.agents[player.number]); }
+        entry.agents[player.number] = getMarketAgents(entry, player) + 1;
+    }
+    before.forEach((agents, entry) => {
+        if (agents === undefined) { delete entry.agents[player.number]; } else { entry.agents[player.number] = agents; }
+    });
+    return targets;
 }
 
 function isMarketQuestionPossible(ambition, action, player) {

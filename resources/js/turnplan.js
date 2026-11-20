@@ -372,7 +372,9 @@ function getTurnPlan(player) {
     const hasBattle = chosen.some(pick => pick.action == "battle");
     let taxTargets = getCitiesToTax(player);
     let secureTargets = isMarketKnown() ? getCardsToSecure(player) : [];
-    const influenceTarget = isMarketKnown() ? getCardsToInfluence(player)[0] : null;
+    // Each Influence in turn, as if the earlier ones were placed, so the Court window's advice
+    // matches each step (#156)
+    const influenceTargets = isMarketKnown() ? getInfluenceSequence(player, chosen.filter(pick => pick.action == "influence").length) : [];
     let ruthlessShown = false;
     // Each Move takes the next reason, and the last also says what to do otherwise (#118)
     const moveReasons = getMoveReasons(player);
@@ -409,7 +411,7 @@ function getTurnPlan(player) {
         }
         if (pick.action == "secure" || pick.action == "influence") {
             // The card itself if the market's been entered, otherwise the kind it wants
-            const entry = (pick.action == "secure") ? secureTargets.shift() : influenceTarget;
+            const entry = (pick.action == "secure") ? secureTargets.shift() : influenceTargets.shift();
             const resource = getWantedCardResource(player);
             if (entry != null) {
                 name += " " + getCourtCard(entry.number).name;
