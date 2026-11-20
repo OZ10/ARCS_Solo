@@ -2374,6 +2374,9 @@ header, .footerstyle {
   display: inline-block;
   min-width: 76px;
 }
+.dealsum.dealoffer b {
+  min-width: 0;
+}
 
 .dealside {
   border: 1px solid #e2e4e8;
@@ -2458,6 +2461,10 @@ header, .footerstyle {
 .reply.no {
   background: #f9e6e6;
   border: 1px solid #e3a3a3;
+}
+.reply.why {
+  background: #eef1f5;
+  border: 1px solid #c9d1dc;
 }
 .reply .verdict {
   font-weight: 700;

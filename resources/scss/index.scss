@@ -2571,6 +2571,11 @@ $empire: #5b2a86;
         display: inline-block;
         min-width: 76px;
     }
+
+    // A bot's offer names it, so no fixed width
+    &.dealoffer b {
+        min-width: 0;
+    }
 }
 
 .dealside {
@@ -2665,6 +2670,12 @@ $empire: #5b2a86;
     &.no {
         background: #f9e6e6;
         border: 1px solid #e3a3a3;
+    }
+
+    // Why a bot offers a deal
+    &.why {
+        background: #eef1f5;
+        border: 1px solid #c9d1dc;
     }
 
     .verdict {

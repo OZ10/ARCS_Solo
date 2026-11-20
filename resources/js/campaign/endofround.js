@@ -52,6 +52,11 @@ function askForSummit() {
         botSummit(player);
         // Human players may negotiate in a Summit a bot called (negotiation.js)
         if (roundEvent.summitCalled && players.some(other => other.isHuman)) { showBotSummitNegotiations(); return; }
+        // With only bots, their deals are settled straight away
+        if (roundEvent.summitCalled) {
+            const results = runBotOffersSilently();
+            if (results.length > 0) { roundEvent.summitNote += "<br>" + results.join("<br>"); }
+        }
         afterSummit();
         return;
     }
@@ -62,6 +67,8 @@ function askForSummit() {
 }
 
 function showSummit() {
+    // The bots' offers first (negotiation.js)
+    if (runBotOffersFirst("human")) { return; }
     const player = roundEvent.player;
     const state = getCampaignPlayer(player);
     const noRegents = !players.some(other => getCampaignPlayer(other).title == "regent");
@@ -76,6 +83,7 @@ function showSummit() {
         + actions + (actions == "" ? "<p class=\"small text-secondary\">Nothing else to do in the Call to Order.</p>" : "")
         + "<p class=\"small mb-0\">Player " + player.number + " is " + (getCampaignPlayer(player).title == "regent" ? "a Regent" : "an Outlaw") + (isFirstRegent(player) ? " and the First Regent" : "") + ". The Council is " + (isCouncilDecided() ? "Decided" : "In Session") + ".</p></div>"
         // Deals with the bots (negotiation.js)
+        + getOfferResultsHtml()
         + getNegotiationsHtml("human")
         + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"endSummit()\">End the Summit</button>", player);
 }
@@ -127,7 +135,7 @@ function reviveEmpire(playerNumber) {
 
 // What a Fate wants its holder's title to be, by Act
 const fateTitleWants = { 1: { 1: "regent", 2: "regent", 3: "regent" }, 2: { 1: "outlaw" }, 7: { 1: "regent", 2: "regent", 3: "regent" } };
-const summitWeights = { fate: 4, perSteal: 0.75, perStealChased: 0.5, edictCost: 1, truce: 1, firstRegent: 3, imperialShips: 1, targeted: 1, petition: 1.5, variation: 1 };
+const summitWeights = { fate: 4, perSteal: 0.75, perStealChased: 0.5, edictCost: 1, truce: 1, firstRegent: 3, imperialShips: 1, targeted: 1, petition: 1.5, variation: 1, callForDeal: 1 };
 
 function getFateTitleWant(player) {
     return (fateTitleWants[getCampaignPlayer(player).fate] || {})[campaign.act] || null;
@@ -201,6 +209,12 @@ function botSummit(player) {
         setCouncilInSession();
         notes.push((called ? "It also" : "Player " + player.number + " (bot) calls a Summit and") + " <b>petitions the Council</b>: flip the Imperial Council to In Session." + list(["It wants to secure the Council again."]));
         called = true;
+    }
+    // A deal worth making is reason enough to call one (negotiation.js)
+    const offer = called ? null : getBotOffer(player);
+    if (offer != null && offer.gain >= summitWeights.callForDeal) {
+        called = true;
+        notes.push("Player " + player.number + " (bot) calls a Summit <b>to make deals</b>: it wants " + preludeResourceNames[offer.ask] + " for " + capitalise(preludeAmbitions[offer.ask] || "warlord") + ".");
     }
     if (!called) {
         const stay = roundEvent.stayReasons;

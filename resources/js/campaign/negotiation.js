@@ -48,8 +48,19 @@ function openDeal(botNumber, back) {
 }
 
 function closeDeal() {
-    const back = negotiation.back;
+    const { back, bot, human } = negotiation;
     negotiation = null;
+    if (back == "offers" && roundEvent.offer != null) {
+        // Your counter-offer to a bot's offer
+        const made = (roundEvent.dealt || []).includes(bot.number) && (roundEvent.dealt || []).includes(human.number);
+        roundEvent.offerResults.push("Player " + bot.number + " offered you a deal and you made a counter-offer: " + (made ? "<b>agreed</b>. The app has moved it." : "<b>no deal</b>."));
+        nextBotOffer();
+        return;
+    }
+    showSummitView(back);
+}
+
+function showSummitView(back) {
     if (back == "bot") { showBotSummitNegotiations(); } else { showSummit(); }
 }
 
@@ -281,6 +292,15 @@ function offerDeal() {
 
 function acceptDeal(countered) {
     const deal = countered ? negotiation.counter : negotiation;
+    const table = applyDeal(deal);
+    setCampaignWindow("Deal with Player " + deal.bot.number, getDealSummaryHtml(deal) + "<div class=\"reply yes\"><div class=\"verdict\">Deal made</div>"
+        + "<p class=\"small mb-1 mt-1\">The app has updated the panels. On the table:</p><ul class=\"small mb-0\">" + table.map(line => "<li>" + line + "</li>").join("") + "</ul></div>"
+        + "<button type=\"button\" class=\"btn btn-primary w-100\" onclick=\"closeDeal()\">" + (negotiation.back == "offers" ? "Next" : "Back to the Summit") + "</button>", deal.bot);
+}
+
+function applyDeal(deal) {
+    // Carry out a deal between deal.human (giving deal.give) and deal.bot (giving deal.want). Either
+    // can be a bot. What to move on the table, as lines
     const { bot, human } = deal;
     const table = [];
     const move = (from, to, parts) => Object.entries(parts).filter(([, count]) => count > 0).forEach(([key, count]) => {
@@ -319,19 +339,22 @@ function acceptDeal(countered) {
     campaign.deals = campaign.deals || {};
     const key = bot.number + "-" + human.number;
     campaign.deals[key] = (campaign.deals[key] || 0) + 1;
+    // A bot that made a deal in this Summit doesn't offer another
+    if (roundEvent != null) { roundEvent.dealt = (roundEvent.dealt || []).concat(bot.number, human.number); }
     players.forEach(showCampaignPanel);
     SaveAllSettings();
-    setCampaignWindow("Deal with Player " + bot.number, getDealSummaryHtml(deal) + "<div class=\"reply yes\"><div class=\"verdict\">Deal made</div>"
-        + "<p class=\"small mb-1 mt-1\">The app has updated the panels. On the table:</p><ul class=\"small mb-0\">" + table.map(line => "<li>" + line + "</li>").join("") + "</ul></div>"
-        + "<button type=\"button\" class=\"btn btn-primary w-100\" onclick=\"closeDeal()\">Back to the Summit</button>", bot);
+    return table;
 }
 
 // A Summit a bot called: the human players may still negotiate before it ends
 
 function showBotSummitNegotiations() {
+    // The bots' offers first (step 2)
+    if (runBotOffersFirst("bot")) { return; }
     const player = roundEvent.player;
     setOrShowCampaignWindow("Summit: Player " + player.number + " calls it to order",
         "<div class=\"turnsection\"><div class=\"setstep\"><span class=\"setnum\">&#10003;</span><span>" + roundEvent.summitNote + "</span></div></div>"
+        + getOfferResultsHtml()
         + getNegotiationsHtml("bot")
         + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"endBotSummit()\">End the Summit</button>", player);
 }
@@ -344,4 +367,140 @@ function endBotSummit() {
     // Its note has been shown here, so the next window doesn't repeat it
     roundEvent.summitNote = "Player " + roundEvent.player.number + " (bot) called a Summit.";
     afterSummit();
+}
+
+// Step 2: the bots offer deals. When a Summit opens, each bot in turn order from the caller may offer
+// one: a resource it's chasing, from a Rival who holds it and isn't chasing it, for what it can spare
+// that the Rival wants most (or a Promised Favor). Two bots settle it at once, if both come out
+// ahead; a human player accepts it, makes a counter-offer or says no thanks
+
+function getBotOffer(bot) {
+    // Its best offer, as { rival, ask, give, gain, reasons }, or null. Not to anyone it already dealt
+    // with in this Summit. Asking the Power leader costs it more (see getDealReasons)
+    const dealt = roundEvent.dealt || [];
+    if (dealt.includes(bot.number)) { return null; }
+    const options = [];
+    players.filter(rival => rival !== bot && !dealt.includes(rival.number)).forEach(rival => {
+        preludeResources.filter(resource => getResourceNeed(bot, resource) == 2 && rival[resource + "Value"] > 0 && getResourceNeed(rival, resource) < 2).forEach(ask => {
+            const spare = preludeResources.filter(resource => resource != ask && bot[resource + "Value"] > 0 && getResourceNeed(bot, resource) == 0)
+                .sort((a, b) => getResourceNeed(rival, b) - getResourceNeed(rival, a))[0];
+            if (spare == null && getDealMost(bot, "promise") == 0) { return; }
+            const give = spare != null ? { [spare]: 1 } : { promise: 1 };
+            // From its own side: it gets the resource it asks for, and gives the rest
+            const own = getDealReasons({ bot: bot, human: rival, give: { [ask]: 1 }, want: give, giveDelegate: null, wantDelegate: null, invite: null });
+            if (own.net < own.required) { return; }
+            const reasons = ["It's chasing " + capitalise(preludeAmbitions[ask] || "warlord") + ", and " + (rival.isHuman ? "you hold " : "Player " + rival.number + " holds ") + rival[ask + "Value"] + " " + preludeResourceNames[ask] + (rival[ask + "Value"] > 1 && ask != "fuel" ? "s" : "") + "."];
+            reasons.push(spare != null ? "It isn't chasing anything " + preludeResourceNames[spare] + " counts for, so it can spare one." : "It has nothing to spare, so it offers a Favor: one of its agents on your Fate card.");
+            options.push({ rival: rival, ask: ask, give: give, gain: own.net - own.required, reasons: reasons });
+        });
+    });
+    return options.sort((a, b) => b.gain - a.gain)[0] || null;
+}
+
+function getOfferDeal(bot, offer) {
+    // As a deal between the bot (deal.bot) and the Rival it asks (deal.human)
+    return { bot: bot, human: offer.rival, give: { [offer.ask]: 1 }, want: { ...offer.give }, giveDelegate: null, wantDelegate: null, invite: null };
+}
+
+function runBotOffersFirst(back) {
+    // Once a Summit: true if the bots' offers have started (they show the Summit when they're done)
+    if (roundEvent.offersStarted) { return false; }
+    roundEvent.offersStarted = true;
+    roundEvent.offerResults = [];
+    roundEvent.offersBack = back;
+    const order = getTurnOrder();
+    const start = Math.max(order.indexOf(roundEvent.player), 0);
+    roundEvent.offerQueue = order.slice(start).concat(order.slice(0, start)).filter(player => !player.isHuman).map(player => player.number);
+    nextBotOffer();
+    return true;
+}
+
+function nextBotOffer() {
+    while (roundEvent.offerQueue.length > 0) {
+        const bot = getPlayer(roundEvent.offerQueue.shift());
+        const offer = getBotOffer(bot);
+        if (offer == null) { continue; }
+        if (offer.rival.isHuman) {
+            roundEvent.offer = { bot: bot, ...offer };
+            showBotOffer();
+            return;
+        }
+        settleBotDeal(bot, offer);
+    }
+    roundEvent.offer = null;
+    showSummitView(roundEvent.offersBack);
+}
+
+function settleBotDeal(bot, offer) {
+    // Between two bots: the other weighs it from its side
+    const rival = offer.rival;
+    const theirs = getDealReasons({ bot: rival, human: bot, give: { ...offer.give }, want: { [offer.ask]: 1 }, giveDelegate: null, wantDelegate: null, invite: null });
+    const gives = describeDealSide(offer.give, null, false);
+    const asks = getDealLabel(offer.ask, 1);
+    if (theirs.net >= theirs.required) {
+        const table = applyDeal(getOfferDeal(bot, offer));
+        roundEvent.offerResults.push("Player " + bot.number + " and Player " + rival.number + " agreed: Player " + bot.number + " gives " + gives + ", Player " + rival.number + " gives " + asks + "."
+            + "<small class=\"d-block text-secondary\">On the table: " + table.join(" ") + "</small>");
+        return;
+    }
+    roundEvent.offerResults.push("Player " + bot.number + " offered Player " + rival.number + " " + gives + " for " + asks + ": <b>Player " + rival.number + " refused</b>"
+        + (getResourceNeed(rival, offer.ask) > 0 ? " (it needs it)." : "."));
+}
+
+function showBotOffer() {
+    const offer = roundEvent.offer;
+    const { bot, rival } = offer;
+    const list = items => "<ul class=\"small mb-0 mt-1\">" + items.map(item => "<li>" + item + "</li>").join("") + "</ul>";
+    setOrShowCampaignWindow("Player " + bot.number + " offers a deal", "<p class=\"small mb-2\">In the Summit, each bot may offer one deal, in turn order from the caller." + (getHumanNegotiators().length > 1 ? " This one is for Player " + rival.number + "." : "") + "</p>"
+        + "<div class=\"dealsum dealoffer\"><div><b>Player " + bot.number + " gives</b> " + describeDealSide(offer.give, null, false) + "</div><div><b>You give</b> " + getDealLabel(offer.ask, 1) + "</div></div>"
+        + "<div class=\"reply why\"><div class=\"verdict\">Why Player " + bot.number + " offers it</div>" + list(offer.reasons) + "</div>"
+        + "<button type=\"button\" class=\"btn btn-primary w-100\" onclick=\"acceptBotOffer()\">Accept</button>"
+        + "<div class=\"negobtns\"><button type=\"button\" class=\"btn btn-outline-secondary\" onclick=\"counterBotOffer()\">Counter-offer<small>Change the deal</small></button>"
+        + "<button type=\"button\" class=\"btn btn-outline-secondary\" onclick=\"refuseBotOffer()\">No thanks<small>It remembers</small></button></div>", bot);
+}
+
+function acceptBotOffer() {
+    const offer = roundEvent.offer;
+    const table = applyDeal(getOfferDeal(offer.bot, offer));
+    roundEvent.offerResults.push("Player " + offer.bot.number + " offered Player " + offer.rival.number + " " + describeDealSide(offer.give, null, false) + " for " + getDealLabel(offer.ask, 1) + ": <b>accepted</b>. The app has moved them."
+        + "<small class=\"d-block text-secondary\">On the table: " + table.join(" ") + "</small>");
+    nextBotOffer();
+}
+
+function refuseBotOffer() {
+    // It remembers: one less deal's goodwill
+    const offer = roundEvent.offer;
+    campaign.deals = campaign.deals || {};
+    const key = offer.bot.number + "-" + offer.rival.number;
+    campaign.deals[key] = Math.max((campaign.deals[key] || 0) - 1, 0);
+    SaveAllSettings();
+    roundEvent.offerResults.push("Player " + offer.bot.number + " offered Player " + offer.rival.number + " " + describeDealSide(offer.give, null, false) + " for " + getDealLabel(offer.ask, 1) + ": <b>no thanks</b>.");
+    nextBotOffer();
+}
+
+function counterBotOffer() {
+    // The deal builder, filled in with its offer: what you want is what it gives
+    const offer = roundEvent.offer;
+    negotiation = { bot: offer.bot, human: offer.rival, give: { [offer.ask]: 1 }, want: { ...offer.give }, giveDelegate: null, wantDelegate: null, invite: null, back: "offers", counter: null };
+    showDealBuilder();
+}
+
+function getOfferResultsHtml() {
+    const results = roundEvent.offerResults || [];
+    if (results.length == 0) { return ""; }
+    return "<div class=\"turnsection\"><div class=\"turnlabel\">Deals the bots offered</div>"
+        + results.map(result => "<div class=\"setstep\"><span class=\"setnum\">&#10003;</span><span>" + result + "</span></div>").join("") + "</div>";
+}
+
+function runBotOffersSilently() {
+    // With no human players, the bots' deals are settled straight away, and listed in the Summit note
+    roundEvent.offersStarted = true;
+    roundEvent.offerResults = [];
+    const order = getTurnOrder();
+    const start = Math.max(order.indexOf(roundEvent.player), 0);
+    order.slice(start).concat(order.slice(0, start)).forEach(bot => {
+        const offer = getBotOffer(bot);
+        if (offer != null && !offer.rival.isHuman) { settleBotDeal(bot, offer); }
+    });
+    return roundEvent.offerResults;
 }
