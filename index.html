@@ -455,7 +455,18 @@
                 <!-- Leaders & Lore (see leaders.js) -->
                 <div class="optrow optswitch">
                   <label class="form-check-label" for="leadersAndLoreSwitch"><b>Leaders &amp; Lore</b><small>Draft a Leader and a Lore card each</small></label>
-                  <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" id="leadersAndLoreSwitch"></div>
+                  <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" id="leadersAndLoreSwitch" onchange="showLeadersRowsChoice()"></div>
+                </div>
+                <!-- How the Leader and Lore rows are dealt (#161, see leaders.js): shown while the switch is on -->
+                <div class="optrow d-none" id="leadersRowsRow">
+                  <div class="optlabel">The Leader and Lore rows</div>
+                  <div class="brseg">
+                    <input type="radio" class="btn-check" name="leadersRows" id="leadersRows_deal" onchange="setLeadersRows('deal')" checked>
+                    <label class="btn btn-outline-secondary" for="leadersRows_deal">The app deals<small>From all the cards</small></label>
+                    <input type="radio" class="btn-check" name="leadersRows" id="leadersRows_table" onchange="setLeadersRows('table')">
+                    <label class="btn btn-outline-secondary" for="leadersRows_table">Cards on the table<small>You deal, then tick them</small></label>
+                  </div>
+                  <div class="brhint">With cards on the table, deal the rows from your own decks, then tick the cards you laid out. The draft then runs as usual.</div>
                 </div>
                 <div class="optrow">
                 <div class="optlabel">How many players? (human players and bots)</div>
@@ -522,7 +533,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v201126.09</small>
+                <small class="text-muted" id="appVersion">v201126.10</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>

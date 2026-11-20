@@ -126,11 +126,80 @@ function startLeaderDraft() {
     // Rows of players + 1 Leaders and Lore cards. Picks go in reverse turn order, starting with
     // the player to the right of whoever has the initiative, until everyone has one of each
     const size = players.length + 1;
+    const order = getTurnOrder().slice(1).reverse().concat(getPlayerWithInitiative()).map(player => player.number);
+    // The cards on the table (#161): you deal the rows from your own decks and tick them first
+    if (leadersRows == "table") {
+        leaderDraft = { picking: true, rows: { leader: [], lore: [] }, order: order, round: 1, turn: 0, picks: [] };
+        saveSettingObject("leaderDraft", leaderDraft);
+        showTablePicker();
+        return;
+    }
     leaderDraft = {
         rows: { leader: shuffledNumbers(leaderCards).slice(0, size), lore: shuffledNumbers(loreCards).slice(0, size) },
-        order: getTurnOrder().slice(1).reverse().concat(getPlayerWithInitiative()).map(player => player.number),
-        round: 1, turn: 0, picks: []
+        order: order, round: 1, turn: 0, picks: []
     };
+    continueLeaderDraft();
+}
+
+// The Leader and Lore rows (#161): "deal" (the app deals them) or "table" (you deal them from your
+// own decks and tick them). Saved on the device
+let leadersRows = "deal";
+
+function setLeadersRows(mode) {
+    leadersRows = mode == "table" ? "table" : "deal";
+    saveSettingObject("leadersRows", leadersRows);
+}
+
+function showLeadersRowsChoice() {
+    // Under the Leaders & Lore switch, while it's on (and not in a campaign, which has no Leaders)
+    const row = document.getElementById("leadersRowsRow");
+    if (row == null) { return; }
+    const on = document.getElementById("leadersAndLoreSwitch").checked;
+    const campaignSwitch = document.getElementById("campaignSwitch");
+    row.classList.toggle("d-none", !on || (campaignSwitch != null && campaignSwitch.checked));
+    const input = document.getElementById("leadersRows_" + leadersRows);
+    if (input != null) { input.checked = true; }
+}
+
+function byName(kind) {
+    return (a, b) => getDraftCard(kind, a).name.localeCompare(getDraftCard(kind, b).name);
+}
+
+function getTableChipsHtml(kind, numbers, ticked, onTap) {
+    // Every card of a kind, alphabetical, as tap-to-tick chips
+    return "<div class=\"tablechips\">" + numbers.slice().sort(byName(kind)).map(number => {
+        const id = "table_" + kind + number;
+        return "<input type=\"checkbox\" class=\"btn-check\" id=\"" + id + "\"" + (ticked.includes(number) ? " checked" : "") + " onchange=\"" + onTap + "('" + kind + "', " + number + ")\">"
+            + "<label class=\"btn btn-outline-secondary\" for=\"" + id + "\">" + getDraftCard(kind, number).name + "</label>";
+    }).join("") + "</div>";
+}
+
+function showTablePicker() {
+    const size = players.length + 1;
+    const count = kind => leaderDraft.rows[kind].length;
+    const section = (kind, label) => "<div class=\"turnsection\"><div class=\"turnlabel\">" + label + "</div>"
+        + "<div class=\"tablecount" + (count(kind) == size ? " done" : "") + "\"><b>" + count(kind) + " of " + size + "</b> ticked</div>"
+        + getTableChipsHtml(kind, (kind == "leader" ? leaderCards : loreCards).map(card => card.number), leaderDraft.rows[kind], "toggleTableCard") + "</div>";
+    const modal = document.getElementById("guildModal");
+    document.getElementById("guildTitle").innerHTML = "Leaders &amp; Lore: the cards on the table";
+    modal.querySelector(".modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    document.getElementById("guildBody").innerHTML = "<p class=\"small mb-2\">Deal " + size + " Leaders and " + size + " Lore cards from your decks (one more of each than there are players), then tick them here.</p>"
+        + section("leader", "Leaders") + section("lore", "Lore")
+        + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" id=\"tableDraftStart\" onclick=\"startTableDraft()\"" + (count("leader") == size && count("lore") == size ? "" : " disabled") + ">Start the draft</button>";
+    if (!modal.classList.contains("show")) { showLockedModal(modal); }
+}
+
+function toggleTableCard(kind, number) {
+    const row = leaderDraft.rows[kind];
+    if (row.includes(number)) { leaderDraft.rows[kind] = row.filter(other => other != number); }
+    else if (row.length < players.length + 1) { row.push(number); }
+    saveSettingObject("leaderDraft", leaderDraft);
+    showTablePicker();
+}
+
+function startTableDraft() {
+    leaderDraft.picking = false;
+    saveSettingObject("leaderDraft", leaderDraft);
     continueLeaderDraft();
 }
 
@@ -162,6 +231,8 @@ function botDraftPick(playerNumber) {
 }
 
 function continueLeaderDraft() {
+    // Still ticking the cards on the table (#161)
+    if (leaderDraft.picking) { showTablePicker(); return; }
     // Bots pick until it's the human player's turn or everyone has one of each
     while (leaderDraft.round <= 2) {
         const player = getPlayer(leaderDraft.order[leaderDraft.turn]);
@@ -299,6 +370,12 @@ let archivistChoice = null;
 function offerArchivistLore(player, draftLore = []) {
     // 5 Lore cards nobody holds and that weren't in the draft rows (#114)
     const held = players.flatMap(other => other.lore || []).concat(draftLore);
+    // The cards on the table (#161): the 2 it keeps are ticked from the Lore it could have drawn
+    if (leadersRows == "table") {
+        archivistChoice = { table: true, choices: loreCards.map(card => card.number).filter(number => !held.includes(number)), kept: [], player: player.number };
+        showArchivistChoice();
+        return;
+    }
     const drawn = shuffledNumbers(loreCards.filter(card => !held.includes(card.number))).slice(0, 5);
     if (!player.isHuman) {
         player.lore = player.lore.concat(shuffleCards(drawn).slice(0, 2));
@@ -314,7 +391,14 @@ function offerArchivistLore(player, draftLore = []) {
 
 function showArchivistChoice() {
     const player = getPlayer(archivistChoice.player) || players[0];
-    const html = "<p class=\"mb-2\">Learned: you drew 5 Lore cards. Keep 2, and the other 3 are scrapped.</p>"
+    const keep = "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" id=\"archivistKeep\"" + (archivistChoice.kept.length == 2 ? "" : " disabled") + " onclick=\"keepArchivistLore()\">Keep these 2</button>";
+    // The cards on the table (#161): tick the 2 kept, from the list
+    const html = archivistChoice.table
+        ? "<p class=\"mb-2\">Learned: " + (player.isHuman ? "draw 5 Lore cards from your deck, keep 2 and scrap the other 3. Tick the 2 you keep."
+            : "draw 5 Lore cards from your deck for Player " + player.number + ". A bot keeps 2 at random: shuffle them, tick the first 2, and scrap the other 3.") + "</p>"
+            + "<div class=\"tablecount" + (archivistChoice.kept.length == 2 ? " done" : "") + "\"><b>" + archivistChoice.kept.length + " of 2</b> ticked</div>"
+            + getTableChipsHtml("lore", archivistChoice.choices, archivistChoice.kept, "toggleArchivistTable") + keep
+        : "<p class=\"mb-2\">Learned: you drew 5 Lore cards. Keep 2, and the other 3 are scrapped.</p>"
         + archivistChoice.drawn.map(number => {
             const card = getLoreCard(number), kept = archivistChoice.kept.includes(number);
             return "<div class=\"draftcard" + (kept ? " draftopen" : "") + "\" id=\"archivist_" + number + "\" onclick=\"toggleArchivistLore(" + number + ")\">"
@@ -337,6 +421,10 @@ function toggleArchivistLore(number) {
     if (kept.includes(number)) { archivistChoice.kept = kept.filter(other => other != number); }
     else if (kept.length < 2) { kept.push(number); }
     showArchivistChoice();
+}
+
+function toggleArchivistTable(kind, number) {
+    toggleArchivistLore(number);
 }
 
 function keepArchivistLore() {
@@ -413,6 +501,9 @@ document.addEventListener("DOMContentLoaded", () => {
     leadersAndLore = getSettingObject("leadersAndLore") === true;
     const switchInput = document.getElementById("leadersAndLoreSwitch");
     if (switchInput != null) { switchInput.checked = leadersAndLore; }
+    // How the rows are dealt (#161), saved on the device
+    leadersRows = getSettingObject("leadersRows") == "table" ? "table" : "deal";
+    showLeadersRowsChoice();
     setTimeout(() => {
         leaderDraft = getSettingObject("leaderDraft");
         if (leaderDraft != null && players.length > 0) { continueLeaderDraft(); }

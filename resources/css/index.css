@@ -2363,6 +2363,29 @@ header, .footerstyle {
   font-weight: 400;
 }
 
+.tablechips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tablechips .btn {
+  font-size: 0.85rem;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.tablecount {
+  font-size: 0.8rem;
+  color: #5b6573;
+  margin: 2px 0 6px;
+}
+.tablecount b {
+  color: #1f2328;
+}
+.tablecount.done b {
+  color: #198754;
+}
+
 .raidrow {
   display: flex;
   align-items: center;

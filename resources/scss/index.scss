@@ -2559,6 +2559,33 @@ $empire: #5b2a86;
     font-weight: 400;
 }
 
+// Leaders & Lore, the cards on the table (#161, leaders.js): every card as a tap-to-tick chip
+.tablechips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .btn {
+        font-size: 0.85rem;
+        padding: 5px 10px;
+        border-radius: 999px;
+    }
+}
+
+.tablecount {
+    font-size: 0.8rem;
+    color: #5b6573;
+    margin: 2px 0 6px;
+
+    b {
+        color: #1f2328;
+    }
+
+    &.done b {
+        color: #198754;
+    }
+}
+
 // A raid that steals several things (#159, battle.js): a row each, on the grey of a window's tiles
 .raidrow {
     display: flex;

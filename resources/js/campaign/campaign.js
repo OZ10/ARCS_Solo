@@ -48,6 +48,8 @@ function showCampaignOptions() {
     const on = isCampaignChosen();
     document.getElementById("campaignFateOptions").classList.toggle("d-none", !on);
     document.getElementById("leadersAndLoreSwitch").closest(".optrow").classList.toggle("d-none", on);
+    // And how its rows are dealt (leaders.js)
+    showLeadersRowsChoice();
     const humans = getChosenHumanCount();
     document.getElementById("humanFatesLabel").innerHTML = (humans == 1) ? "Your Fate" : "Human players' Fates";
     document.querySelector("label[for=humanFatesDeal] small").innerHTML = (humans == 1) ? "Choose 1 of them" : "Each chooses 1";

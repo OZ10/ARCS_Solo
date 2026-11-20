@@ -151,6 +151,7 @@ function showChosenColour() {
     if (players.length == 0) { return; }
     document.getElementById("humanColour" + getPlayerColour(players[0])).checked = true;
     document.getElementById("leadersAndLoreSwitch").checked = leadersAndLore;
+    showLeadersRowsChoice();
     // How many human players, and their colours (#67)
     showHumanChoices();
 }
