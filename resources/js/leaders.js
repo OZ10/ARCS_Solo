@@ -19,7 +19,7 @@ const leaderCards = [
     { number: 4, name: "Upstart", resources: ["psionics", "materials"], pieces: [["city", 4], ["starport", 3], [null, 2]], powers: [
         ["Ambitious", "When you <b>declare an ambition</b>, you may gain any resource. (You must declare the ambition before taking any actions, including Prelude actions from resources.)"],
         ["Callow", "You can only <b>tax</b> Loyal cities if you control them."]] },
-    { number: 5, name: "Rebel", resources: ["materials", "weapons"], pieces: [["city", 4], [null, 4], [null, 2]], powers: [
+    { number: 5, name: "Rebel", resources: ["materials", "weapons"], pieces: [["starport", 4], [null, 4], [null, 2]], powers: [
         ["Committed", "In <b>battle</b>, you collect 2 extra dice."],
         ["Disorganized", "You cannot <b>move</b> more than 2 ships at a time."]] },
     { number: 6, name: "Warrior", resources: ["weapons", "materials"], pieces: [["city", 3], ["starport", 3], [null, 2]], powers: [
