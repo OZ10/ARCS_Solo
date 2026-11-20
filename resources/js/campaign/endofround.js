@@ -156,7 +156,7 @@ function getLeaveEmpireCase(player) {
     }
     // The Truce Law shields every Rival it could battle
     const rivals = players.filter(other => other !== player);
-    if (rivals.length > 0 && rivals.every(isRegent) && player.shipsBoardValue >= getAttackFleet(player)) {
+    if (rivals.length > 0 && rivals.every(isRegent) && hasAttackFleet(player)) {
         score += weights.truce;
         reasons.push("All its Rivals are Regents: the Truce Law shields them wherever there are Imperial ships.");
     }

@@ -50,6 +50,18 @@ function askThenPlay(player) {
         });
         return;
     }
+    // Its ships are spread over the map: the biggest fleet it could attack with this turn
+    if (shouldAskAttackFleet(player)) {
+        const move = getFleetMove(player);
+        askNumber("BATTLE", getAttackFleetQuestion(player, move), player.shipsBoardValue, "None", fleet => {
+            player.attackFleetSize = fleet;
+            player.attackFleetMove = move;
+            player.battleTargetNumber = null;
+            SaveAllSettings();
+            askThenPlay(player);
+        });
+        return;
+    }
     // In a campaign, whether the Free States, the Blight or the Empire are in reach (campaignhooks.js)
     if (runCampaignHook("botQuestions", player, () => askThenPlay(player)) === true) { return; }
     determineCardToPlay(player);
@@ -157,6 +169,32 @@ function askYesNo(focus, question, onAnswer, player = null) {
     updateYesNoText(question);
     modal.show();
 }
+
+function askNumber(focus, question, most, noneLabel, onAnswer) {
+    // A question answered with a number, in the Yes/No window: a button for each from 1 to most, and
+    // one for none. Then onAnswer(number) once it has closed. Closed with its X, nothing happens
+    // (tapping Play Card asks again)
+    const yesNoWindow = document.getElementById("yesNo");
+    const footer = yesNoWindow.querySelector(".modal-footer");
+    let answer = null;
+    numberCallback = value => {
+        answer = value;
+        bootstrap.Modal.getOrCreateInstance(yesNoWindow).hide();
+    };
+    yesNoWindow.addEventListener('hidden.bs.modal', () => {
+        numberCallback = null;
+        footer.classList.remove("d-none");
+        if (answer != null) { onAnswer(answer); }
+    }, { once: true });
+
+    const modal = openYesNoModal(focus);
+    const buttons = Array.from({ length: most }, (_, index) => "<button type=\"button\" class=\"numberanswer\" onclick=\"numberCallback(" + (index + 1) + ")\">" + (index + 1) + "</button>").join("")
+        + "<button type=\"button\" class=\"numberanswer small\" onclick=\"numberCallback(0)\">" + noneLabel + "</button>";
+    updateYesNoText(question + "<div class=\"numberanswers\">" + buttons + "</div>");
+    footer.classList.add("d-none");
+    modal.show();
+}
+let numberCallback = null;
 
 function getBotCards(player) {
     // The cards a bot chooses from. A campaign's Event cards are played by their own rule (campaignhooks.js)

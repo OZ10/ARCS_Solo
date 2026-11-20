@@ -243,7 +243,6 @@ const planImpossible = -100;
 const battleTargetWeights = {
     holding: 2,             // + each resource or Guild card they hold of what it's chasing, to raid
     leader: 2,              // + they're ahead of everyone on Power
-    outnumbered: 0.6,       // + each ship fewer than the bot has, when its fleet is big enough (#125)
     power: 0.1,             // + each Power they have
     ship: 0.1,              // + each ship they have on the board
     shipWarlord: 0.5,       // + each ship they have on the board instead, when chasing Warlord

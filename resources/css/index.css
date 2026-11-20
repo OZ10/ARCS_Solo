@@ -1682,7 +1682,7 @@ header, .footerstyle {
 }
 
 .playerpanel1 {
-  background-color: #d19e1f;
+  background-color: rgb(82.0021960784%, 62.0658823529%, 12.0370196078%);
 }
 
 .playerheader2 {
@@ -1691,7 +1691,7 @@ header, .footerstyle {
 }
 
 .playerpanel2 {
-  background-color: #a92020;
+  background-color: rgb(66.4454310026%, 12.6918238994%, 12.6918238994%);
 }
 
 .playerheader3 {
@@ -1700,7 +1700,7 @@ header, .footerstyle {
 }
 
 .playerpanel3 {
-  background-color: #f9e6ce;
+  background-color: rgb(97.5947712418%, 90.3790849673%, 80.7581699346%);
 }
 
 .playerheader4 {
@@ -1709,7 +1709,7 @@ header, .footerstyle {
 }
 
 .playerpanel4 {
-  background-color: #3862e0;
+  background-color: rgb(22.0356506239%, 38.449197861%, 87.6898395722%);
 }
 
 .marketcard {
@@ -2361,6 +2361,33 @@ header, .footerstyle {
   display: block;
   color: #5b6573;
   font-weight: 400;
+}
+
+.fleetnote {
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+  margin-top: 4px;
+}
+
+.numberanswers {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.numberanswer {
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.numberanswer.small {
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 /*!

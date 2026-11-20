@@ -102,11 +102,57 @@ function getAttackFleet(player) {
     return getBattleActionCount(player) >= 2 ? attackFleet.manyActions : attackFleet.oneAction;
 }
 
-function getOutnumberedRival(player) {
-    // A Rival with fewer ships on the board, when its own fleet is big enough (#125). The fewest first
-    if (player.shipsBoardValue < getAttackFleet(player)) { return null; }
-    return players.filter(other => other !== player && other.shipsBoardValue > 0 && other.shipsBoardValue < player.shipsBoardValue)
-        .sort((a, b) => a.shipsBoardValue - b.shipsBoardValue)[0] || null;
+// Its ships are spread over the map, so its total on the board says little about a battle. Before
+// choosing its card it asks for the biggest fleet it could attack with this turn, counting one Move
+// when it can Move first (see askThenPlay)
+
+function getFleetMove(player) {
+    // How it could Move before battling: "card" (a card that can Move and Battle, with 2 or more
+    // pips), "fuel" (a Fuel it can spare for its prelude Move), or null
+    if (getBotCards(player).some(card => card.actions.includes("move") && card.actions.includes("battle") && card.pips >= 2)) { return "card"; }
+    const fuelFree = player.fuelValue > 0 && canSpareResource(player, "fuel") && !couldScoreFromHand(player, "fuel") && !(player.outraged || []).includes("fuel");
+    return fuelFree ? "fuel" : null;
+}
+
+function shouldAskAttackFleet(player) {
+    // Once a turn, with enough ships on the board to make up an attack fleet and a way to Battle
+    if (player.attackFleetSize != null || player.shipsBoardValue < attackFleet.manyActions) { return false; }
+    return getBotCards(player).some(card => card.actions.includes("battle")) || player.weaponsValue > 0;
+}
+
+function getAttackFleetQuestion(player, move) {
+    const where = move != null
+        ? "Count my fresh ships in one system with a Rival's pieces, or that <b>one Move</b> could bring there (next door, or by Catapult)."
+        : "Count only my fresh ships <b>already in a system</b> with a Rival's pieces.";
+    const note = move == "card" ? "I have a card that can Move, then Battle." : move == "fuel" ? "I could spend a Fuel to Move first." : "I can't Move first this turn.";
+    return "What's the biggest fleet I could attack a Rival with this turn? " + where
+        + (runCampaignHook("fleetQuestionNote", player) || "")
+        + "<div class=\"fleetnote\">" + note + " I have " + player.shipsBoardValue + " ships on the board.</div>";
+}
+
+function getFleetForBattle(player) {
+    // The biggest fleet it could attack with this turn: what you said. Not asked, it has fewer ships
+    // than any attack fleet, or no way to Battle
+    if (player.attackFleetSize != null) { return player.attackFleetSize; }
+    return player.shipsBoardValue < attackFleet.manyActions ? player.shipsBoardValue : 0;
+}
+
+function hasAttackFleet(player) {
+    // A fleet big enough to attack just because it can (#125)
+    return getFleetForBattle(player) >= getAttackFleet(player);
+}
+
+function hasManyShips(player) {
+    // Lots of ships on the board, unless you said its biggest fleet this turn is too small to attack
+    return player.shipsBoardValue >= manyShipsOnBoard && !(player.attackFleetSize != null && !hasAttackFleet(player));
+}
+
+function getFleetReason(player) {
+    // e.g. "its fleet of 5 can attack this turn: enough for 2 Battle actions"
+    const fleet = getFleetForBattle(player);
+    if (player.attackFleetMove != null) { return "its fleet of " + fleet + " can attack this turn: Move it in first if it isn't there yet"; }
+    const actions = getBattleActionCount(player);
+    return "its fleet of " + fleet + " can attack this turn: enough for " + (actions >= 2 ? actions + " Battle actions" : "1 Battle action");
 }
 
 function getBattleTargetReason(player, rival) {
@@ -131,7 +177,7 @@ function getBattleTargetReason(player, rival) {
     }
     if (others.every(other => rival.powerValue > other.powerValue)) { return { why: "They're leading on Power.", where: outnumber }; }
     // It outnumbers them: the plan step already says so (#125)
-    if (player.shipsBoardValue >= getAttackFleet(player) && rival.shipsBoardValue < player.shipsBoardValue) { return { why: "", where: outnumber }; }
+    if (hasAttackFleet(player)) { return { why: "", where: outnumber }; }
     return { why: "They have " + rival.shipsBoardValue + " ship" + (rival.shipsBoardValue == 1 ? "" : "s") + " on the board.", where: outnumber };
 }
 
@@ -155,7 +201,6 @@ function getBattleTarget(player) {
         const score = rival => chased.reduce((total, resource) => total + (rival[resource + "Value"] + getGuildIconCount(rival, resource)) * weights.holding, 0)
             + (players.filter(other => other !== rival).every(other => rival.powerValue > other.powerValue) ? weights.leader : 0)
             + rival.powerValue * weights.power
-            + ((player.shipsBoardValue >= getAttackFleet(player) && rival.shipsBoardValue < player.shipsBoardValue) ? (player.shipsBoardValue - rival.shipsBoardValue) * weights.outnumbered : 0)
             + rival.shipsBoardValue * (warlord ? weights.shipWarlord : weights.ship)
             + Math.random() * weights.variation * getDifficulty().planVariation
             // In a campaign, a Regent would rather battle an Outlaw (campaignhooks.js)
@@ -201,14 +246,11 @@ function getActionPlanScore(player, action, focus) {
             if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
             if (chasing("warlord")) { score += weights.battleWarlord; reason = "chasing Warlord"; }
             else if (chasing("tyrant")) { score += weights.battleTyrant; reason = "chasing Tyrant"; }
-            if (player.shipsBoardValue >= manyShipsOnBoard) { score += weights.battleManyShips; if (reason == "") { reason = "lots of ships on the board"; } }
-            // Because it can: enough ships for the Battle actions it has (#125), or its last card
-            if (player.shipsBoardValue >= getAttackFleet(player)) {
+            if (hasManyShips(player)) { score += weights.battleManyShips; if (reason == "") { reason = "lots of ships on the board"; } }
+            // Because it can: a fleet big enough for the Battle actions it has (#125), or its last card
+            if (hasAttackFleet(player)) {
                 score += weights.battleFleet;
-                const target = getBattleTarget(player);
-                const actions = getBattleActionCount(player);
-                if (reason == "" && target != null && target.kind == null && target.player.shipsBoardValue < player.shipsBoardValue) { reason = "its " + player.shipsBoardValue + " ships outnumber their " + target.player.shipsBoardValue; }
-                else if (reason == "") { reason = "it has " + player.shipsBoardValue + " ships: enough to attack with " + (actions >= 2 ? actions + " Battle actions" : "1 Battle action"); }
+                if (reason == "") { reason = getFleetReason(player); }
             }
             if (isLastCard) { score += weights.battleLastCard; if (reason == "") { reason = "its last card this round"; } }
             break;

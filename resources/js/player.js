@@ -79,6 +79,10 @@ class player {
     // In a campaign: the Free States, the Blight or the Empire to Battle this turn, once asked
     // (campaign/targets.js). undefined until asked, null for none
     campaignTarget = undefined;
+    // The biggest fleet it could attack with this turn, once asked, and how it could Move first
+    // ("card", "fuel" or null; see getFleetMove)
+    attackFleetSize = null;
+    attackFleetMove = null;
     // Why it played for an action without asking, as the plan's reason (see getKnownYesReason)
     focusReason = null;
     // What Farseers' swap did this turn, as { title, note } (see botFarseersSwap)
@@ -146,6 +150,8 @@ function resetPlayedThisTurn() {
         player.moveGoal = null;
         player.battleTargetNumber = null;
         player.campaignTarget = undefined;
+        player.attackFleetSize = null;
+        player.attackFleetMove = null;
         player.focusReason = null;
         player.farseersSwap = null;
         player.buildIntent = null;

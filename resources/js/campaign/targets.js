@@ -32,7 +32,7 @@ function getCampaignTargetOptions(player) {
         && (other.shipsBoardValue > 0 || other.startingCity || cityCounters.some(counter => other[counter + "Value"] > 0)));
     const free = rivals.filter(rival => canBattleFreely(player, rival));
     const warlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
-    const fleet = player.shipsBoardValue >= getAttackFleet(player);
+    const fleet = hasAttackFleet(player);
     const options = [];
 
     // The Free States: a raid takes 1 resource of the planet's type, worth it for one it's chasing
@@ -43,7 +43,7 @@ function getCampaignTargetOptions(player) {
     else if (warlord) { options.push({ kind: "free", reason: "warlord", value: weights.warlordFree }); }
 
     // The Blight: Trophies for Warlord, or with no Rival to battle freely, clearing it from its ships
-    if (!blightFriends.includes(getFateNumber(player)) && player.shipsBoardValue >= blightFleet) {
+    if (!blightFriends.includes(getFateNumber(player)) && getFleetForBattle(player) >= blightFleet) {
         if (warlord) { options.push({ kind: "blight", reason: "warlord", value: weights.warlordBlight }); }
         else if (free.length == 0 && fleet) { options.push({ kind: "blight", reason: "noRival", value: weights.noRival }); }
     }
@@ -70,6 +70,8 @@ function getCampaignTargetQuestion(player, option) {
     }
     return "Is there a system where my ships outnumber the Imperial ships? (As an Outlaw I can battle the Empire" + (option.reason == "founder" ? ", to take its systems.)" : ", and its ships are Trophies.)");
 }
+
+registerCampaignHook("fleetQuestionNote", player => " Free buildings and Blight count too" + (isRegent(player) ? ", and Imperial ships can join me." : ", and so do Imperial ships."));
 
 registerCampaignHook("botQuestions", (player, carryOn) => {
     // Asked once a turn, when it has a card that can Battle and a reason to fight one of them

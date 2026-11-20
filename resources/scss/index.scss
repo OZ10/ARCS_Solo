@@ -2559,4 +2559,33 @@ $empire: #5b2a86;
     font-weight: 400;
 }
 
+// A question answered with a number: a button for each (the biggest fleet it could attack with)
+.fleetnote {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+    margin-top: 4px;
+}
+
+.numberanswers {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    margin: 10px 0 4px;
+}
+
+.numberanswer {
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-weight: 700;
+    font-size: 1.05rem;
+
+    &.small {
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+}
+
 @import "../bootstrap/scss/bootstrap.scss";

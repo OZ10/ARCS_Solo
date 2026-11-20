@@ -218,13 +218,13 @@ function getPreludeOffers(player) {
     // On a whim: less often on the easier difficulties, never on the hardest (#71)
     const wants = chance => Math.random() * 100 < Math.min(getWhimChance(chance), preludeChance.max);
     const chasingWarlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
-    // Lots of ships, or more than a Rival (#125)
-    const manyShips = player.shipsBoardValue >= manyShipsOnBoard || getOutnumberedRival(player) != null;
+    // Lots of ships, or a fleet big enough to attack this turn (#125)
+    const fleetReady = hasAttackFleet(player);
+    const manyShips = hasManyShips(player) || fleetReady;
     const keenToBattle = chasingWarlord || manyShips;
-    // A battle in mind: a Rival it outnumbers, or Warlord to chase. Then it decides on spending
-    // what helps it battle, rather than leaving it to chance (#140)
-    const rival = getOutnumberedRival(player);
-    const battleWhy = (rival != null) ? "Its " + player.shipsBoardValue + " ships outnumber Player " + rival.number + "'s " + rival.shipsBoardValue
+    // A battle in mind: a fleet that can attack this turn, or Warlord to chase. Then it decides on
+    // spending what helps it battle, rather than leaving it to chance (#140)
+    const battleWhy = fleetReady ? "Its fleet of " + getFleetForBattle(player) + " can attack this turn"
         : (chasingWarlord ? "It's chasing Warlord" : null);
     const guild = getPlayerGuildCards(player);
     const holds = number => guild.some(card => card.number == number);

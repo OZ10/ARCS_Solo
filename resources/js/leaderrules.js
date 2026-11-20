@@ -487,7 +487,7 @@ function getLoreActionOffers(player, wants, can) {
     // Lore actions in place of one of its normal actions, like Guild actions
     if (!leadersAndLore || (player.lore || []).length == 0) { return []; }
     const chasing = ambition => isAmbitionInPlay(ambition) && isChasingAmbition(player, ambition);
-    const keen = chasing("warlord") || player.shipsBoardValue >= manyShipsOnBoard;
+    const keen = chasing("warlord") || hasManyShips(player);
     let offers = [];
     const add = (number, name, action, chance, text, extras) => {
         if (hasLore(player, number) && can(action) && wants(chance)) {
