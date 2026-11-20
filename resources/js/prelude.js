@@ -532,6 +532,7 @@ function setPlayerResource(player, resource, value) {
     player[resource + "Value"] = Math.max(value, 0);
     const input = document.getElementById(resource + "Value_" + player.number);
     if (input != null) { input.value = player[resource + "Value"]; }
+    refreshPanelSections(player);
 }
 
 function applyPrelude(player, offers) {

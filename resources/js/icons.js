@@ -66,8 +66,12 @@ document.addEventListener("DOMContentLoaded", () => {
         + "<rect width=\"16\" height=\"16\" fill=\"#fff\"/>" + iconMasks[name] + "</mask>").join("");
     document.body.insertAdjacentHTML("afterbegin", "<svg class=\"iconmasks\" width=\"0\" height=\"0\" aria-hidden=\"true\"><defs>" + defs + "</defs></svg>");
 
-    // The tiles on the panel template, before it's copied for each player: an icon above the word
+    // The tiles on the panel template, before it's copied for each player: the icon only (#152). The
+    // word is kept for screen readers, hidden on screen, ready for translating the app later
     document.querySelectorAll(".resourcelabel[data-icon]").forEach(label => {
-        label.insertAdjacentHTML("afterbegin", "<span class=\"tileicon\">" + getGameIcon(label.dataset.icon) + "</span>");
+        const word = label.textContent.trim();
+        label.title = word;
+        label.classList.add("icononly");
+        label.innerHTML = "<span class=\"tileicon\">" + getGameIcon(label.dataset.icon) + "</span><span class=\"visually-hidden\">" + word + "</span>";
     });
 });

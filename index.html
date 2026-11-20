@@ -502,11 +502,27 @@
               </div>
             </div>
 
+            <!-- Panel sections (#152, see sections.js): saved on this device -->
+            <div class="optcard mt-3" id="panelSectionsCard">
+              <div class="optcardhead">Panel sections</div>
+              <div class="optrow">
+                <div class="sectmode">
+                  <input type="radio" class="btn-check" name="panelSections" id="panelSections_open" onchange="setPanelSectionMode('open')">
+                  <label class="btn btn-outline-secondary" for="panelSections_open">All open<small>Always</small></label>
+                  <input type="radio" class="btn-check" name="panelSections" id="panelSections_turn" onchange="setPanelSectionMode('turn')" checked>
+                  <label class="btn btn-outline-secondary" for="panelSections_turn">Turn<small>Open once played</small></label>
+                  <input type="radio" class="btn-check" name="panelSections" id="panelSections_closed" onchange="setPanelSectionMode('closed')">
+                  <label class="btn btn-outline-secondary" for="panelSections_closed">All closed<small>Tap to open</small></label>
+                </div>
+                <div class="diffnote">Resources, Board and Guild cards. The hand and Play Card always show. A closed section opens until the next turn when the app changes it.</div>
+              </div>
+            </div>
+
             <div class="modal-footer mt-2">
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v201126.01</small>
+                <small class="text-muted" id="appVersion">v201126.02</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -1027,6 +1043,7 @@
     <script src="./resources/js/scoring.js"></script>
     <script src="./resources/js/undo.js"></script>
     <script src="./resources/js/panel.js"></script>
+    <script src="./resources/js/sections.js"></script>
     <script src="./resources/js/human.js"></script>
     <script src="./resources/js/bot.js"></script>
     <script src="./resources/js/slots.js"></script>

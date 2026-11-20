@@ -330,6 +330,7 @@ function setPlayerPower(player, power) {
 
     const header = document.getElementById("playerpower" + player.number);
     if (header != null) { header.innerHTML = "Power " + power; }
+    refreshPanelSections(player);
 }
 
 function isGameOver() {

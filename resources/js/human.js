@@ -127,6 +127,8 @@ function humanSelectedAction(cardAction, player = players[0]) {
 
         player.hasPlayedACardThisTurn = true;
         addPlayedCardToList(playedCard, "ANY", cardAction, false, player);
+        // Your panel sections open once you've played, with the "Turn" setting (#152)
+        refreshPanelSections(player);
 
         const aiPlayedLeadCard = playedCardList[0];
 

@@ -123,11 +123,14 @@ function clonePlayerNodeAndSetup(player) {
     citiestotal.innerHTML = getCityCount(player);
 
     playertemplate.querySelector("#guildcards").id = "guildcards" + playerNumber.toString();
+    // Resources, Board and Guild cards under headers that open and close (#152, sections.js)
+    setUpPanelSections(player, playerPanel);
 
     document.getElementById("playerslots").appendChild(playertemplate);
     showGuildCardsRow(player);
     // The campaign adds its title, Favors and objective (campaignhooks.js). Nothing outside a campaign
     runCampaignHook("panelBuilt", player, playertemplate);
+    refreshPanelSections(player);
 }
 
 // A player's Guild cards: one line on their panel, with a window to add a card or to read
@@ -144,6 +147,7 @@ function showOutrageRow(player) {
         return "<button type=\"button\" class=\"outragechip" + (outraged ? " outraged" : "") + "\" id=\"outrage_" + resource + "_" + player.number + "\" aria-pressed=\"" + outraged + "\""
             + " onclick=\"toggleOutrage(" + player.number + ", '" + resource + "')\">" + (outraged ? "<i class=\"bi bi-exclamation-octagon-fill\"></i>" : "<span class=\"chipicon\">" + getGameIcon(resource) + "</span>") + preludeResourceNames[resource] + "</button>";
     }).join("");
+    refreshPanelSections(player);
 }
 
 function toggleOutrage(playerNumber, resource) {
@@ -182,6 +186,7 @@ function showGuildCardsRow(player) {
     add.innerHTML = "<i class=\"bi bi-plus-lg\"></i>";
     add.onclick = () => showAddGuildCard(player);
     row.appendChild(add);
+    refreshPanelSections(player);
 }
 
 function showGuildCard(player, card) {
@@ -428,6 +433,8 @@ function drawACard(pileName) {
 }
 
 function enableDisablePlayerPanels(playerNumber) {
+    // A new player's turn: the panel sections go back to how Options says (#152)
+    resetPanelSections();
     players.forEach(player => {
         let btn = document.querySelector("#playcard" + player.number);
         //btn.disabled = (player.number == playerNumber) ? false : true;
@@ -559,5 +566,6 @@ function plusMinusClicked(id, action, automatic = false) {
         if (overCapacity != null) { showMessageToast("Player " + player.number, overCapacity); }
     }
 
+    refreshPanelSections(player);
     SaveAllSettings();
 }

@@ -2363,6 +2363,83 @@ header, .footerstyle {
   font-weight: 400;
 }
 
+.secthead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 24px);
+  margin: 4px 12px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+  text-align: left;
+}
+.secthead .sectionlabel {
+  flex: none;
+}
+.secthead .sectmini {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.secthead .sectmini span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.secthead .sectchevron {
+  flex: none;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+.secthead.open {
+  margin-bottom: 6px;
+}
+
+.playerpanel1 .secthead, .playerpanel3 .secthead {
+  background: rgba(0, 0, 0, 0.09);
+}
+
+.sectoutrage {
+  color: #ffb3b3;
+}
+
+.playerpanel1 .sectoutrage, .playerpanel3 .sectoutrage {
+  color: #8b1a1a;
+}
+
+.sectmode {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.sectmode .btn {
+  padding: 8px 4px;
+  font-weight: 700;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.15;
+}
+.sectmode .btn small, .sectmode .btn .small {
+  display: block;
+  font-weight: 500;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
+.resourcelabel.icononly .tileicon {
+  font-size: 1.7rem;
+  margin-bottom: 0;
+}
+
 .fleetnote {
   font-size: 0.8rem;
   color: var(--bs-secondary-color);

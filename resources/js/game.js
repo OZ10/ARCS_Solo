@@ -455,6 +455,8 @@ function playCard(player, playedCard, actionToPlay, cardAction) {
 
     addPlayedCardToList(playedCard, actionToPlay, cardAction, false, player);
     player.hasPlayedACardThisTurn = true;
+    // Its panel sections open once it has played, with the "Turn" setting (#152)
+    refreshPanelSections(player);
 
     if (isLeading) {
         if (player.isHuman && cardAction == "DECLARE" && !canDeclareAmbition(player)) {
