@@ -554,7 +554,12 @@ function getFavorCallIns(bot) {
             if (rival[counter + "Value"] > 0 && declaredAmbitions.includes(ambition) && isChasingAmbition(bot, ambition)) { options.push({ kind: counter, resource: counter, value: dealValues.chased.get }); }
         });
         const best = options.sort((a, b) => b.value - a.value)[0];
-        if (best != null) { callIns.push({ bot: bot.number, rival: rival.number, ...best, fallback: options.find(option => option.kind != "resource") || null }); }
+        // Every resource it could ask for, the one it holds most of first, in case the first costs too much
+        const resources = options.filter(option => option.kind == "resource").map(option => option.resource).sort((a, b) => rival[b + "Value"] - rival[a + "Value"]);
+        if (best != null) {
+            callIns.push({ bot: bot.number, rival: rival.number, ...best, resource: best.kind == "resource" ? resources[0] : best.resource, resources: resources, tried: [],
+                fallback: options.find(option => option.kind != "resource") || null });
+        }
     });
     return callIns;
 }
@@ -586,6 +591,8 @@ function askCallInKeys(callIn) {
     roundEvent.callIn = callIn;
     setOrShowCampaignWindow("Player " + bot.number + " calls in " + (rival.isHuman ? "your" : "Player " + rival.number + "'s") + " Favors",
         "<p class=\"small mb-2\">Player " + bot.number + " called the Summit and holds <b>" + held + " of " + whose + " Favors</b> (agents on its Fate card). In its Call to Order it returns them to force a Negotiation action that targets it.</p>"
+        // When the last resource cost too much: why it's asking about this one
+        + (callIn.note ? "<p class=\"small mb-2 text-secondary\">" + callIn.note + "</p>" : "")
         + "<div class=\"reply why\"><div class=\"verdict\">It forces " + (rival.isHuman ? "you" : "Player " + rival.number) + " to give it 1 " + name + "</div><ul class=\"small mb-0 mt-1\"><li>It's chasing " + capitalise(preludeAmbitions[callIn.resource] || "warlord") + ", and "
             + (rival.isHuman ? "you hold " : "Player " + rival.number + " holds ") + getDealLabel(callIn.resource, rival[callIn.resource + "Value"]) + ".</li><li>Each Favor it returns goes back to " + (rival.isHuman ? "your" : "Player " + rival.number + "'s") + " supply.</li></ul></div>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">Transfer Asset costs a resource's raid cost</div><p class=\"small mb-1\">How many keys does the slot with " + whose + " " + name + " show? It returns that many Favors, if it holds them.</p>"
@@ -598,10 +605,23 @@ function answerCallInKeys(keys) {
     const held = getCampaignPlayer(bot).favors[callIn.rival] || 0;
     if (keys <= held) {
         applyCallIn(callIn, callIn.resource, keys);
-    } else if (callIn.fallback != null) {
-        applyCallIn(callIn, callIn.fallback.kind, 1, "The " + preludeResourceNames[callIn.resource] + " would cost " + keys + " Favors and it holds " + held + ", so instead: ");
+        nextFavorCallIn();
+        return;
+    }
+    // Too costly: the next resource it's chasing, then a Captive or Trophy, then nothing
+    callIn.tried = (callIn.tried || []).concat({ resource: callIn.resource, keys: keys });
+    const next = (callIn.resources || []).find(resource => !callIn.tried.some(tried => tried.resource == resource));
+    const costly = callIn.tried.map(tried => "the " + preludeResourceNames[tried.resource] + " would cost " + tried.keys).join(" and ");
+    if (next != null) {
+        callIn.resource = next;
+        callIn.note = capitalise(costly) + " Favors and it holds " + held + ", so it asks about the " + preludeResourceNames[next] + ".";
+        askCallInKeys(callIn);
+        return;
+    }
+    if (callIn.fallback != null) {
+        applyCallIn(callIn, callIn.fallback.kind, 1, capitalise(costly) + " Favors and it holds " + held + ", so instead: ");
     } else {
-        roundEvent.callInResults.push("Player " + bot.number + " wanted Player " + callIn.rival + "'s " + preludeResourceNames[callIn.resource] + ", but its raid cost is " + keys + " Favors and it holds " + held + ": nothing forced.");
+        roundEvent.callInResults.push("Player " + bot.number + " wanted Player " + callIn.rival + "'s resources, but " + costly + " Favors and it holds " + held + ": nothing forced. It keeps the Favors.");
     }
     nextFavorCallIn();
 }
