@@ -116,7 +116,12 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 
 **Between Acts:** the Intermission works out everyone's Power for the next Act. After Act III, the player with the most Power wins, unless someone completed their final objective.
 
-**Not done yet:** bots don't negotiate in Summits, and are never dealt the Magnate. In Acts II and III they play their usual game rather than chasing their new objectives. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
+**Deals with the bots:** in any Summit, whoever called it, the Negotiations section has a **Deal with Player N** button for each bot.
+- **Building the deal:** what you give and what you want from the bot, from the Negotiation actions: Transfer Asset, Promise Favor, Cede Control, Delegate Authority and Invite to Empire.
+- **The bot's answer:** it weighs what it gets against what it gives, and accepts, makes a counter-offer, or refuses, with its reasons. It asks more of the player leading on Power, and remembers deals made with it.
+- **After a deal:** the app updates the panels and lists what to move on the table.
+
+**Not done yet:** bots don't offer deals themselves or return Favors to force you, and are never dealt the Magnate. In Acts II and III they play their usual game rather than chasing their new objectives. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
 
 ## The screen
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options** (the gear). Tap an ambition to see how it's won and what it's worth.

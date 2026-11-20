@@ -2363,6 +2363,120 @@ header, .footerstyle {
   font-weight: 400;
 }
 
+.dealsum {
+  border-radius: 10px;
+  background: #f3f1ec;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+.dealsum b {
+  display: inline-block;
+  min-width: 76px;
+}
+
+.dealside {
+  border: 1px solid #e2e4e8;
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.dealside > .turnlabel {
+  margin-bottom: 2px;
+}
+
+.dealgroup {
+  margin-top: 8px;
+}
+.dealgroup .grouplabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5b6573;
+  margin-bottom: 4px;
+}
+
+.dealsteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dealstep {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 4px 4px 4px 10px;
+  font-size: 0.85rem;
+  background: #ececec;
+}
+.dealstep.on {
+  border-color: #2b3442;
+  font-weight: 600;
+}
+.dealstep small, .dealstep .small {
+  color: #6c757d;
+}
+.dealstep b {
+  min-width: 12px;
+  text-align: center;
+}
+.dealstep .btn.resourcebutton {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+}
+
+.dealicon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.dealsel {
+  font-size: 0.85rem;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.reply {
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.reply.yes {
+  background: #e7f4ec;
+  border: 1px solid #9fd3b4;
+}
+.reply.counter {
+  background: #fff4dd;
+  border: 1px solid #e8c77a;
+}
+.reply.no {
+  background: #f9e6e6;
+  border: 1px solid #e3a3a3;
+}
+.reply .verdict {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.negobtns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.negobtns .btn small, .negobtns .btn .small {
+  display: block;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
 .secthead {
   display: flex;
   align-items: center;

@@ -50,6 +50,8 @@ function askForSummit() {
     const player = roundEvent.player;
     if (!player.isHuman) {
         botSummit(player);
+        // Human players may negotiate in a Summit a bot called (negotiation.js)
+        if (roundEvent.summitCalled && players.some(other => other.isHuman)) { showBotSummitNegotiations(); return; }
         afterSummit();
         return;
     }
@@ -73,7 +75,8 @@ function showSummit() {
         + "<p class=\"small mb-2\"><b>Return Favors:</b> give a Rival's agents on your Fate card back to them to force them to take Negotiation actions you choose, targeting you (1 Favor each; giving a resource costs its raid cost). Change the Favors on the panels. A bot does what you force it to.</p>"
         + actions + (actions == "" ? "<p class=\"small text-secondary\">Nothing else to do in the Call to Order.</p>" : "")
         + "<p class=\"small mb-0\">Player " + player.number + " is " + (getCampaignPlayer(player).title == "regent" ? "a Regent" : "an Outlaw") + (isFirstRegent(player) ? " and the First Regent" : "") + ". The Council is " + (isCouncilDecided() ? "Decided" : "In Session") + ".</p></div>"
-        + "<div class=\"turnsection\"><div class=\"turnlabel\">Negotiations</div><p class=\"small mb-0\">Human players may now make deals with each other: Cede Control, Delegate Authority, Promise Favor, Transfer Asset and, for the First Regent, Invite to Empire. Bots don't negotiate yet. Change the panels to match.</p></div>"
+        // Deals with the bots (negotiation.js)
+        + getNegotiationsHtml("human")
         + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"endSummit()\">End the Summit</button>", player);
 }
 
@@ -203,9 +206,8 @@ function botSummit(player) {
         const stay = roundEvent.stayReasons;
         notes.push("Player " + player.number + " (bot) doesn't call a Summit" + (isRegent(player) ? ": it stays a Regent." : ".")
             + (stay != null ? list(stay.against.concat(stay.reasons.map(text => "For leaving: " + text))) : ""));
-    } else {
-        notes.push("Bots don't negotiate yet: human players may still make deals with each other.");
     }
+    roundEvent.summitCalled = called;
     roundEvent.stayReasons = null;
     roundEvent.summitNote = notes.join("<br>");
     players.forEach(showCampaignPanel);
