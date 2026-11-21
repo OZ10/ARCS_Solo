@@ -112,6 +112,8 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 
 **How the bots play:** a Regent bot follows the Empire's laws (moving and battling alongside Imperial ships, and leaving Rival Regents alone where there are Imperial ships) and would rather battle an Outlaw. Bots value the Imperial Council, and as First Regent they choose whether to enforce or change the Policy, and whether to make a Rival Regent with no agents left an Outlaw. When a bot may call a Summit, it weighs leaving the Empire (its Fate, stealing from the Imperial Trust, what the Edicts take) against staying (being First Regent, the Imperial ships), and says why. It also revives the Empire when there are no Regents, and petitions the Council when it wants it again. Bots battle the Free States, the Blight and, as Outlaws, the Empire: when one is worth it, the bot asks whether it's in reach, and the Battle window starts with it chosen. Each bot plays towards its Act I objective and uses its Fate cards, and its turn window has a section explaining what its Fate wants this turn.
 
+**Act II Fates:** each bot plays towards its Act II objective too. Its turn window lists what that changes under **Playing towards it**: which resources it keeps or spends, the battles it won't fight, where it moves, the Court cards and Policy it wants, and the ambitions it leads with. Steps its Fate shaped are tagged with the Fate's name. Fate tokens the app can't see, such as Banners, Clues, Hammer Fragments and Seats, are listed under **On the table**. A bot Believer asks once a chapter whether each declared ambition has an Ideal marker.
+
 **Objectives:** at the end of each chapter, a window lists the objective markers that moved and why, and asks you anything the app can't see, such as how many systems a bot controls. Move the markers on the table to match. In Act III, "A" and "B" Fates are asked which grand ambitions they fulfilled and gain the Power for them, and a "C" Fate that completes its final objective with Power wins the campaign.
 
 **Between Acts:** the Intermission works out everyone's Power for the next Act. After Act III, the player with the most Power wins, unless someone completed their final objective.
@@ -125,7 +127,7 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 
 **The Magnate:** bots can now be dealt it.
 - **Merchant League:** the resources it gains when it declares an ambition are shown on its panel. They can only be given away in Summit deals, and its Crisis empties them.
-- **Its objective:** the app moves it for each resource or Favor a Rival gives the Magnate, and for each export of 3 resources. A human Magnate has an **Export to the Galactic Core** button in the Summit. In Acts II and III they play their usual game rather than chasing their new objectives. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
+- **Its objective:** the app moves it for each resource or Favor a Rival gives the Magnate, and for each export of 3 resources. A human Magnate has an **Export to the Galactic Core** button in the Summit. In Act III they play their usual game rather than chasing their grand ambitions. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
 
 ## The screen
 - **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options** (the gear). Tap an ambition to see how it's won and what it's worth.

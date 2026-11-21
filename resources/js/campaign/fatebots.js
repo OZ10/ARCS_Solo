@@ -351,7 +351,8 @@ registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
     if (!canPartisanSeize(player) || cards.length == 0) { return false; }
     const cost = resource => player[resource + "Value"] + getGuildIconCount(player, resource) * 2 + getResourceNeed(player, resource) * 3;
     const resource = getSeizeOutrages(player).sort((a, b) => cost(a) - cost(b))[0];
-    if (cost(resource) > 1) { return false; }
+    // In Act II each card it plays with the initiative advances its objective, so it's keener
+    if (cost(resource) > (campaign.act == 2 ? 2 : 1)) { return false; }
     const actionCard = getLowestCardtoPlay(cards);
     playCard(player, actionCard, actionToPlay, actionCard.name == playedCardList[0].name ? "COPY" : "PIVOT");
     provokeOutrage(player, resource);
@@ -579,9 +580,11 @@ function getBargainOffers(player, wants, can) {
 }
 
 function getFateMarketBonus(player, entry) {
-    // The Advocate wants Guild cards, for their Preludes
+    // The Advocate wants Guild cards, for their Preludes. In Acts II and III, what its Fate steers
+    // it towards (steering.js)
     const card = getCourtCard(entry.number);
-    return (hasFate(player, 4) && card != null && card.type == "guild") ? 1 : 0;
+    const steer = getSteerMarketBonus(player, entry);
+    return ((hasFate(player, 4) && card != null && card.type == "guild") ? 1 : 0) + (steer != null ? steer.value : 0);
 }
 
 // The bot's turn window: its Fate

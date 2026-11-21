@@ -576,6 +576,12 @@ function getPolicyValue(firstRegent, policy) {
     } else {
         actionNote = "Distribute Arms gives every Regent a Weapon";
     }
+    // What its Fate makes it worth, such as the Steward filling the Imperial Trust (steering.js)
+    const fate = getSteerPolicyBonus(firstRegent, policy, plan);
+    if (fate != null) {
+        action += fate.value;
+        actionNote += ". " + fate.note;
+    }
     return { value: pieces * policyWeights.piece + favors * policyWeights.favor + action, pieces: pieces, favors: favors, actionNote: actionNote };
 }
 

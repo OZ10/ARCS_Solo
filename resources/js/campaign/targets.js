@@ -55,7 +55,9 @@ function getCampaignTargetOptions(player) {
         if (warlord) { options.push({ kind: "empire", reason: "warlord", value: weights.warlordEmpire }); }
         else if (hasFate(player, 2) && campaign.act == 1 && fleet) { options.push({ kind: "empire", reason: "founder", value: weights.founder }); }
     }
-    return options.sort((a, b) => b.value - a.value);
+    // Not the Free States or the Blight its Fate wants left alone (steering.js)
+    const avoided = getSteerAvoidTargets(player);
+    return options.filter(option => !avoided.includes(option.kind)).sort((a, b) => b.value - a.value);
 }
 
 function getCampaignTargetQuestion(player, option) {

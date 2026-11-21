@@ -49,6 +49,8 @@ function isAmbitionInPlay(ambition) {
 }
 
 function canSpareResource(player, resource) {
+    // In a campaign, never one its Fate keeps (campaignhooks.js)
+    if (runCampaignHook("keepsResource", player, resource) === true) { return false; }
     // Never a resource it could use to chase an ambition within reach
     const ambition = preludeAmbitions[resource];
     if (ambition == null || !isAmbitionInPlay(ambition)) { return true; }

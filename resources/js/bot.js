@@ -676,6 +676,8 @@ function declareAmbition(player, playedCard) {
 
     // Feastbringer can't declare without a Guild card to give
     if (!canDeclareAmbition(player)) { return; }
+    // In a campaign, one its Fate can't declare, such as Warlord under an Oath of Peace (campaignhooks.js)
+    if (runCampaignHook("cannotDeclare", player, ambition) === true) { return; }
 
     // Out of ships: it declares Warlord to get them back from Rivals' Trophies (#129)
     const forShips = ambition == "warlord" && player.outOfShips === true;

@@ -26,9 +26,11 @@ function getTrustTotal() {
 // Choosing who to battle
 
 registerCampaignHook("battleTargetBonus", (player, rival) => {
-    if (!isRegent(player)) { return 0; }
+    // What its Fate steers it towards, such as the Pirate after Rivals holding resources (steering.js)
+    const steer = getSteerTargetBonus(player, rival);
+    if (!isRegent(player)) { return steer; }
     // The Admiral wants Trophies from battles alongside Imperial ships: Outlaws all the more (fatebots.js)
-    return isRegent(rival) ? empireTargetWeights.rivalRegent : empireTargetWeights.outlaw + (hasFate(player, 7) ? 1 : 0);
+    return steer + (isRegent(rival) ? empireTargetWeights.rivalRegent : empireTargetWeights.outlaw + (hasFate(player, 7) ? 1 : 0));
 });
 
 registerCampaignHook("battleTargetWhere", (player, rival) => {
