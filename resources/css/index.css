@@ -2363,6 +2363,55 @@ header, .footerstyle {
   font-weight: 400;
 }
 
+.steers {
+  margin-top: 6px;
+  border-radius: 10px;
+  background: #eef1f5;
+  padding: 6px 10px;
+}
+.steers .lbl {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5b6573;
+}
+.steers ul {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+}
+
+.tablenote {
+  margin-top: 6px;
+  border-radius: 10px;
+  background: #fff4dd;
+  border: 1px solid #e8c77a;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+.tablenote .lbl {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a6d1f;
+}
+
+.steertag {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #5b2a86;
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .tablechips {
   display: flex;
   flex-wrap: wrap;

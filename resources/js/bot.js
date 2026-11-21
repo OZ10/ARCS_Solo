@@ -327,6 +327,8 @@ function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, p
     for (let questionNumber = afterQuestionNumber + 1; questionNumber <= questionActions.length; questionNumber++) {
         const action = questionActions[questionNumber - 1];
         if (isFinalTurn && action == "influence") { continue; }
+        // In a campaign, nothing its Fate rules out this Act, such as a Battle (campaignhooks.js)
+        if (["battle", "reachBattle", "reachRaid"].includes(action) && runCampaignHook("avoidsAction", player, "battle") === true) { continue; }
 
         // No need to ask about taxing for a resource that has run out
         const taxResources = ambitionTaxResources[ambition];
@@ -595,6 +597,12 @@ function findCardsWithAmbition(ambitionSorted, cards) {
 }
 
 function prioritiseAndSortAmbitions() {
+    // In a campaign, an ambition its Fate wants declared comes first while it holds any of it (campaignhooks.js)
+    const steered = runCampaignHook("sortAmbitions", currentPlayer, getAmbitionStanding());
+    return steered != null ? steered : getAmbitionStanding();
+}
+
+function getAmbitionStanding() {
     let amibitions = [];
     amibitions.push(["empath", currentPlayer.psionicsValue]);
     amibitions.push(["keeper", currentPlayer.relicsValue]);

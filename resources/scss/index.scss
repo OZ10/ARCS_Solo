@@ -2559,6 +2559,60 @@ $empire: #5b2a86;
     font-weight: 400;
 }
 
+// A bot's Fate steering it in Acts II and III (#85, steering.js): what it changes, its tokens on
+// the table, and the tag on a plan step its Fate shaped
+.steers {
+    margin-top: 6px;
+    border-radius: 10px;
+    background: #eef1f5;
+    padding: 6px 10px;
+
+    .lbl {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #5b6573;
+    }
+
+    ul {
+        margin: 2px 0 0;
+        padding-left: 18px;
+        font-size: 0.85rem;
+    }
+}
+
+.tablenote {
+    margin-top: 6px;
+    border-radius: 10px;
+    background: #fff4dd;
+    border: 1px solid #e8c77a;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+
+    .lbl {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #8a6d1f;
+    }
+}
+
+.steertag {
+    display: inline-block;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: $empire;
+    color: #fff;
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
 // Leaders & Lore, the cards on the table (#161, leaders.js): every card as a tap-to-tick chip
 .tablechips {
     display: flex;

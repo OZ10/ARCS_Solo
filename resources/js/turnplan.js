@@ -56,7 +56,8 @@ function getMoveGoals(player) {
             goals.push("towards a Rival's " + named(resource) + " city, with more fresh ships than they have there");
         }
         const holder = getRaidHolders(player, [resource])[0];
-        if (holder != null && canFollowUp("battle")) {
+        // In a campaign, a Fate may rule out battles (campaignhooks.js)
+        if (holder != null && canFollowUp("battle") && runCampaignHook("avoidsAction", player, "battle") !== true) {
             goals.push("towards Player " + holder.player.number + ", who holds " + holder.count + " " + named(resource) + (holder.count > 1 && resource != "fuel" ? "s" : "") + ", to raid them");
         }
     }
@@ -65,14 +66,15 @@ function getMoveGoals(player) {
     if (chasing("tyrant") && rivals.some(other => other.startingCity || cityCounters.some(counter => other[counter + "Value"] > 0)) && canFollowUp("tax")) {
         goals.push("towards a Rival's city, with more fresh ships than they have there, to capture");
     }
-    if (chasing("warlord") && canFollowUp("battle")) { goals.push("towards a Rival's ships, to Battle them"); }
+    if (chasing("warlord") && canFollowUp("battle") && runCampaignHook("avoidsAction", player, "battle") !== true) { goals.push("towards a Rival's ships, to Battle them"); }
 
     // Not if it said it already has an empty slot of that type where it has a piece (#146)
     const newCity = getNewCityResource(player);
     if (newCity != null && player.hasSlotForCity !== true && canFollowUp("build")) {
         goals.push("towards a " + named(newCity) + " planet with an open slot, to build a city");
     }
-    return goals;
+    // In a campaign, where its Fate wants it to go this Act, first (campaignhooks.js)
+    return (runCampaignHook("moveGoals", player) || []).concat(goals);
 }
 
 function getNewCityResource(player) {
@@ -117,6 +119,8 @@ function getFleetMove(player) {
 function shouldAskAttackFleet(player) {
     // Once a turn, with enough ships on the board to make up an attack fleet and a way to Battle
     if (player.attackFleetSize != null || player.shipsBoardValue < attackFleet.manyActions) { return false; }
+    // In a campaign, not when its Fate rules out battles (campaignhooks.js)
+    if (runCampaignHook("avoidsAction", player, "battle") === true) { return false; }
     return getBotCards(player).some(card => card.actions.includes("battle")) || player.weaponsValue > 0;
 }
 
@@ -311,7 +315,14 @@ function getActionPlanScore(player, action, focus) {
 
     // What the player said it can do, in the Yes/No questions
     if (action == focus) { score += weights.focus; reason = (action == "move" && player.moveGoal != null) ? player.moveGoal : (player.focusReason || "you said it can"); }
-    return { score: score, reason: reason };
+    // In a campaign, what its Fate wants this Act: { avoid, add, reason } (campaignhooks.js)
+    const steer = runCampaignHook("planSteer", player, action);
+    if (steer != null) {
+        if (steer.avoid && action != focus) { return { score: planImpossible }; }
+        score += steer.add || 0;
+        if (steer.reason && action != focus) { reason = steer.reason; }
+    }
+    return { score: score, reason: reason, tag: (steer != null && action != focus) ? (steer.tag || "") : "" };
 }
 
 function getTurnPlan(player) {
@@ -364,7 +375,7 @@ function getTurnPlan(player) {
         const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain) && (action != "repair" || canRepairAgain))
             .sort((a, b) => value(b) - value(a))[0];
         if (best == null) { break; }
-        chosen.push({ action: best, reason: scores[best].reason });
+        chosen.push({ action: best, reason: scores[best].reason, tag: scores[best].tag || "" });
         actionsLeft -= 1;
     }
 
@@ -420,7 +431,7 @@ function getTurnPlan(player) {
                 name += " a " + preludeResourceNames[resource].toLowerCase() + " card";
             }
         }
-        return { action: pick.action, text: name + (reason ? " (" + reason + ")" : ""), hints: getLeaderPlanHints(player, pick.action, details) };
+        return { action: pick.action, text: name + (reason ? " (" + reason + ")" : ""), tag: pick.tag || "", hints: getLeaderPlanHints(player, pick.action, details) };
     });
 }
 

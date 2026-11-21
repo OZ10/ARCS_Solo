@@ -149,7 +149,8 @@ function getCardHtml(player) {
 
 function getAlsoTools(player, planned) {
     // Anything else it could use: what its card allows but the plan doesn't list, and the rest
-    const possible = { battle: canBotTakeAction(player, "battle"), build: canBotTakeAction(player, "build"), court: canBotTakeAction(player, "influence") || canBotTakeAction(player, "secure") };
+    // In a campaign, not a Battle its Fate rules out (campaignhooks.js)
+    const possible = { battle: canBotTakeAction(player, "battle") && runCampaignHook("avoidsAction", player, "battle") !== true, build: canBotTakeAction(player, "build"), court: canBotTakeAction(player, "influence") || canBotTakeAction(player, "secure") };
     return Object.keys(possible).filter(name => possible[name] && !planned.includes(name)).concat("draw");
 }
 
@@ -232,7 +233,8 @@ function renderTurn(player) {
         const name = turnActionTools[step.action];
         const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
         if (name != null) { offered.push(name); }
-        return getTurnRow(index + 1, step.name, step.reason + getLeaderHintsHtml(step.hints), button);
+        // A campaign Fate's tag, on a step its Fate shaped (steering.js)
+        return getTurnRow(index + 1, step.name, step.reason + (step.tag || "") + getLeaderHintsHtml(step.hints), button);
     }).join("");
 
     let html = "";

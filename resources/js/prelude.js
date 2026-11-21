@@ -140,9 +140,10 @@ function getResourceNeed(player, resource) {
     // How much the bot needs a resource: 2 for an ambition it's chasing, 1 for one that could
     // still be declared, otherwise 0
     const ambition = preludeAmbitions[resource];
-    if (ambition == null) { return 0; }
-    if (declaredAmbitions.includes(ambition) && isChasingAmbition(player, ambition)) { return 2; }
-    return isAmbitionInPlay(ambition) ? 1 : 0;
+    const need = ambition == null ? 0 : (declaredAmbitions.includes(ambition) && isChasingAmbition(player, ambition)) ? 2 : isAmbitionInPlay(ambition) ? 1 : 0;
+    // In a campaign, what its Fate wants this Act (campaignhooks.js)
+    const steered = runCampaignHook("resourceNeed", player, resource, need);
+    return steered != null ? steered : need;
 }
 
 function getBotPlay(player) {
@@ -339,7 +340,12 @@ function getPreludeOffers(player) {
         // the lead card can Battle (#140)
         const decision = getLeadActionDecision(player, lead);
         const chance = preludeChance.psionicsFollowing + ((keenToBattle && lead.actions.includes("battle")) ? preludeChance.psionicsBattle : 0);
-        if (decision != null) { offerAction("psionics", decision.text, "lead", false, decision.why); }
+        // In a campaign, its Fate may want it spent (campaignhooks.js)
+        const steerWhy = runCampaignHook("spendWhy", player, "psionics", lead);
+        if (steerWhy != null && available.psionics > 0 && !(player.outraged || []).includes("psionics")) {
+            available.psionics -= 1;
+            offers.push({ label: "1 Psionic", text: "An action from the lead card (" + lead.actions.split(",").filter(action => action != "battle").join(", ") + ")", costs: { psionics: 1 }, action: "lead", converts: false, decided: true, why: steerWhy });
+        } else if (decision != null) { offerAction("psionics", decision.text, "lead", false, decision.why); }
         else if (battleWhy != null && lead.actions.includes("battle")) { offerAction("psionics", "A Battle, from the lead card", "lead", false, battleWhy + ", and the lead card can Battle."); }
         else if (wants(chance)) { offerAction("psionics", "An action from the lead card (" + lead.actions.split(",").join(", ") + ")", "lead"); }
     }

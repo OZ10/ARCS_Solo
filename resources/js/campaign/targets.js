@@ -27,6 +27,8 @@ function canBattleFreely(player, rival) {
 
 function getCampaignTargetOptions(player) {
     // What it could go after instead of a Rival, best first: [{ kind, reason, resource, value }]
+    // None when its Fate rules out battles this Act (steering.js)
+    if (avoidsBattle(player)) { return []; }
     const weights = campaignTargetWeights;
     const rivals = players.filter(other => other !== player
         && (other.shipsBoardValue > 0 || other.startingCity || cityCounters.some(counter => other[counter + "Value"] > 0)));

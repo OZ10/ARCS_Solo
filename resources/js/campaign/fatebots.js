@@ -601,8 +601,10 @@ function getFateTurnSection(player) {
         // Act III "A" and "B" Fates: grand ambitions, asked about at the end of each chapter
         html += "<div class=\"small\">" + getFateObjectiveText(fate, 3) + "</div>";
     }
-    // In Acts II and III the app tracks the objective, but the bots don't yet play towards it
-    if (rules == null || !rules.taught || campaign.act > 1) { html += "<div class=\"small text-secondary mt-1\">The bots don't play towards this Fate's " + (campaign.act == 3 && state.objective == null ? "grand ambitions" : "objective") + " yet.</div>"; }
+    // In Acts II and III: what its Fate steers it towards (steering.js), where the bots have learned it
+    const steering = getSteerHtml(player);
+    if (steering != "") { html += steering; }
+    else if (rules == null || !rules.taught || campaign.act > 1) { html += "<div class=\"small text-secondary mt-1\">The bots don't play towards this Fate's " + (campaign.act == 3 && state.objective == null ? "grand ambitions" : "objective") + " yet.</div>"; }
     if (hasFate(player, 6)) {
         const seize = campaign.partisanSeize;
         const now = seize != null && seize.player == player.number && seize.round == roundNumber && seize.turn == turnNumber;

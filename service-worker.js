@@ -18,7 +18,7 @@ const appFiles = [
     "resources/icons/apple-touch-icon.png",
     ...["ui", "icons", "cards", "court", "player", "rules", "campaignhooks", "difficulty", "humans", "state", "storage", "scoring", "undo", "panel", "sections","human", "bot", "slots",
         "prelude", "guildactions", "turnplan", "vox", "market", "battle", "build", "turnwindow", "farseers", "leaders", "leaderrules",
-        "campaign/fates", "campaign/campaign", "campaign/courtcards", "campaign/setup", "campaign/events", "campaign/endofround", "campaign/intermission", "campaign/empire", "campaign/fatebots", "campaign/laterfates", "campaign/targets", "campaign/negotiation","game"]
+        "campaign/fates", "campaign/campaign", "campaign/courtcards", "campaign/setup", "campaign/events", "campaign/endofround", "campaign/intermission", "campaign/empire", "campaign/fatebots", "campaign/laterfates", "campaign/steering","campaign/targets", "campaign/negotiation","game"]
         .map(name => "resources/js/" + name + ".js"),
     "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
     "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js",
