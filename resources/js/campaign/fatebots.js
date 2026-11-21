@@ -366,7 +366,9 @@ registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
 
 // The Fates' Guild card actions, offered after a bot's prelude (guildactions.js)
 
-registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can), getBargainOffers(player, wants, can), getAwakenOffers(player, wants, can), getTeachOffers(player, wants, can)));
+// With the Act II and III Fates' own actions (fateactions.js)
+registerCampaignHook("guildActionOffers", (player, wants, can) => getSpyOffers(player, wants, can).concat(getRecoverOffers(player, wants, can), getBargainOffers(player, wants, can), getAwakenOffers(player, wants, can), getTeachOffers(player, wants, can),
+    getFateActionOffers(player, wants, can)));
 
 function getSpyOffers(player, wants, can) {
     // Spy (Informants): its highest card for a Rival's highest. Worth it when its own highest is low
@@ -442,7 +444,7 @@ registerCampaignHook("preludeOffers", (player, offers) => {
     // decision. The Caretaker spends its Golems
     const marked = !hasOverseers(player) ? offers : offers.map(offer => offer.discards != null && getCourtCard(offer.discards) != null
         ? { ...offer, decided: true, why: "Its objective advances 3 for a Guild card's Prelude that discards itself." } : offer);
-    return marked.concat(getGolemPreludeOffers(player));
+    return marked.concat(getGolemPreludeOffers(player), getFatePreludeOffers(player));
 });
 
 registerCampaignHook("guildPreludeUsed", (player, number, discarded) => {
