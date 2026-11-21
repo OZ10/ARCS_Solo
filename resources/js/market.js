@@ -315,6 +315,8 @@ function showCourtWindow() {
         remove.onclick = () => removeMarketCard(entry.number);
         heading.appendChild(remove);
         row.appendChild(heading);
+        // In a campaign, the Imperial Council's side (campaignhooks.js)
+        runCampaignHook("courtRow", entry, row);
 
         // Everyone's agents on the card, in their colours
         const agents = document.createElement("div");

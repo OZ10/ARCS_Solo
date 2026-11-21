@@ -62,6 +62,25 @@ registerCampaignHook("courtSize", () => openingCourtCards[players.length] + (get
 
 registerCampaignHook("isCardClosed", entry => entry.number == councilNumber && entry.decided === true);
 
+registerCampaignHook("courtRow", (entry, row) => {
+    // The Council's side, to set by hand if it was secured or petitioned on the table without the
+    // app (#169). While Decided, bots don't influence or secure it
+    if (entry.number != councilNumber || courtSetup) { return undefined; }
+    const side = (decided, label) => "<button type=\"button\" class=\"btn btn-outline-secondary btn-sm" + (isCouncilDecided() == decided ? " active" : "") + "\" onclick=\"setCouncilSide(" + decided + ")\">" + label + "</button>";
+    row.insertAdjacentHTML("beforeend", "<div class=\"brseg councilside mb-1\">" + side(false, "In Session") + side(true, "Decided") + "</div>"
+        + (isCouncilDecided() ? "<div class=\"small text-secondary text-center mb-1\">Decided: no one can influence or secure it until it's In Session again.</div>" : ""));
+    return undefined;
+});
+
+function setCouncilSide(decided) {
+    const entry = getCouncilEntry();
+    if (entry == null) { return; }
+    entry.decided = decided;
+    SaveAllSettings();
+    showCourtWindow();
+    refreshTurnSummary();
+}
+
 registerCampaignHook("secureCard", (entry, player, captured) => {
     const card = getCourtCard(entry.number);
     if (card == null || card.number < councilNumber) { return undefined; }

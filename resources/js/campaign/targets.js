@@ -75,7 +75,8 @@ function getCampaignTargetQuestion(player, option) {
     return "Is there a system where my ships outnumber the Imperial ships? (As an Outlaw I can battle the Empire" + (option.reason == "founder" ? ", to take its systems.)" : ", and its ships are Trophies.)");
 }
 
-registerCampaignHook("fleetQuestionNote", player => " Free buildings and Blight count too" + (isRegent(player) ? ", and Imperial ships can join me." : ", and so do Imperial ships."));
+registerCampaignHook("fleetQuestionNote", player => " Free buildings and Blight count too" + (isRegent(player) ? ", and Imperial ships can join me." : ", and so do Imperial ships.")
+    + (hasRivalRegent(player) ? truceQuestionNote : ""));
 
 registerCampaignHook("botQuestions", (player, carryOn) => {
     // Asked once a turn, when it has a card that can Battle and a reason to fight one of them

@@ -40,9 +40,18 @@ registerCampaignHook("battleTargetWhere", (player, rival) => {
     return "";
 });
 
+// The Truce Law (#165): a Regent can attack a Rival Regent only where there are no Imperial ships
+const truceQuestionNote = " <b>A Rival Regent only where there are no Imperial ships</b> (the Truce Law).";
+
+function hasRivalRegent(player) {
+    return isRegent(player) && players.some(other => other !== player && isRegent(other));
+}
+
 registerCampaignHook("questionNote", (player, action) => {
     if (!isRegent(player)) { return ""; }
-    if (action == "reachBattle") { return " Imperial ships in a system with my ships can come along, 1 for each of my ships."; }
+    const truce = hasRivalRegent(player) ? truceQuestionNote : "";
+    if (action == "reachBattle") { return " Imperial ships in a system with my ships can come along, 1 for each of my ships." + truce; }
+    if (action == "battle" || action == "reachRaid") { return truce; }
     if (action == "tax" || action == "reachTax") { return " Not a Rival Regent's city in a system with Imperial ships."; }
     return "";
 });
