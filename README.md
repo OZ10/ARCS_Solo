@@ -114,6 +114,11 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 
 **Act II Fates:** each bot plays towards its Act II objective too. Its turn window lists what that changes under **Playing towards it**: which resources it keeps or spends, the battles it won't fight, where it moves, the Court cards and Policy it wants, and the ambitions it leads with. Steps its Fate shaped are tagged with the Fate's name. Fate tokens the app can't see, such as Banners, Clues, Hammer Fragments and Seats, are listed under **On the table**. A bot Believer asks once a chapter whether each declared ambition has an Ideal marker.
 
+**Act III Fates:** bots play towards their grand ambitions, or a "C" Fate's final objective, in the same way. Some never declare an ambition their Fate needs no Rival to win, and chase it once a Rival declares it; the Judge stops adding to an ambition once it's tied for first.
+- **Edenguard and Blightkin:** while the Guardian or the Naturalist is in play, the new ambition has its own chip in the top bar and a button in the Declare window, under the ambition it replaces. The app can't see the planets or the Blight, so you enter the counts in the scoring window. A bot Guardian or Naturalist leading with a Tycoon or Empath card asks whether it controls the most, and declares the new ambition on a Yes.
+- **The Pathfinder:** a bot asks each turn whether it controls the Portal, and moves its Flagship there if not.
+- **The Conspirator:** a bot places a Conspiracy instead of a marker. Put any Conspiracy token face down without looking at it: the app keeps who it's for secret, reveals it after scoring and moves the objective. To guess one, tap **Foil a Conspiracy** on its panel.
+
 **Objectives:** at the end of each chapter, a window lists the objective markers that moved and why, and asks you anything the app can't see, such as how many systems a bot controls. Move the markers on the table to match. In Act III, "A" and "B" Fates are asked which grand ambitions they fulfilled and gain the Power for them, and a "C" Fate that completes its final objective with Power wins the campaign.
 
 **Between Acts:** the Intermission works out everyone's Power for the next Act. After Act III, the player with the most Power wins, unless someone completed their final objective.

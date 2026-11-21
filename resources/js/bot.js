@@ -318,7 +318,8 @@ function getReachGoal(ambition, action, player) {
 function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, player) {
     // Find the next question for the ambition that the player has a card
     // for, skipping any whose action isn't in their hand. 0 if there are none
-    const questionActions = ambitionQuestionActions[ambition];
+    // A campaign's new ambitions (Edenguard, Blightkin) count what's on the map, so have no questions
+    const questionActions = ambitionQuestionActions[ambition] || [];
 
     // On the player's final turn of the round (their last card) there's no later turn
     // to secure a card influenced now, so don't ask about influencing
@@ -674,6 +675,12 @@ function declareAmbition(player, playedCard) {
         ambition = ambitionSorted[0][0];
     }
 
+    // In a campaign, its Fate may declare a new ambition instead ({ ambition, resources, wins }), or
+    // place a Conspiracy (true, done) (campaignhooks.js)
+    const instead = runCampaignHook("declareInstead", player, ambition, playedCard);
+    if (instead === true) { return; }
+    if (instead != null) { ambition = instead.ambition; }
+
     // Feastbringer can't declare without a Guild card to give
     if (!canDeclareAmbition(player)) { return; }
     // In a campaign, one its Fate can't declare, such as Warlord under an Oath of Peace (campaignhooks.js)
@@ -684,14 +691,15 @@ function declareAmbition(player, playedCard) {
 
     // A bot with none of the ambition's resources doesn't declare it. This
     // includes the 1 cards, which have no ambition
-    const resources = (ambitionResources[ambition] == null) ? 0 : ambitionResources[ambition](player);
+    const resources = instead != null ? instead.resources : ((ambitionResources[ambition] == null) ? 0 : ambitionResources[ambition](player));
     if (resources == 0 && !forShips) { return; }
 
     // See declareChanceByRound at the top of the file
     const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource, declareChanceMax);
 
     // By the difficulty (#71): on a whim, or when it would come first, or both
-    if (forShips || decideAtDifficulty(player, wouldWinAmbition(player, ambition), () => Math.random() * 100 < getWhimChance(chance))) {
+    const wins = instead != null ? instead.wins : wouldWinAmbition(player, ambition);
+    if (forShips || decideAtDifficulty(player, wins, () => Math.random() * 100 < getWhimChance(chance))) {
         showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = placesZeroMarker(player, ambition);
 

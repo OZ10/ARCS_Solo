@@ -40,7 +40,8 @@ function updateAmbitionsDisplay() {
     shownAmbitionMarkers = {};
     declared.forEach(group => { shownAmbitionMarkers[group.ambition] = group.markers.length; });
 
-    ambitions.forEach(ambition => {
+    // In a campaign, new ambitions such as Edenguard come after the one they replace (campaignhooks.js)
+    (runCampaignHook("ambitionList") || ambitions).forEach(ambition => {
         const group = declared.find(g => g.ambition == ambition);
         const points = (group == null) ? "&ndash;" : group.markers.map(m => m[0] + "/" + m[1]).join(" + ");
 

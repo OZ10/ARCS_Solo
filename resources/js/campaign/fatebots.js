@@ -351,8 +351,8 @@ registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
     if (!canPartisanSeize(player) || cards.length == 0) { return false; }
     const cost = resource => player[resource + "Value"] + getGuildIconCount(player, resource) * 2 + getResourceNeed(player, resource) * 3;
     const resource = getSeizeOutrages(player).sort((a, b) => cost(a) - cost(b))[0];
-    // In Act II each card it plays with the initiative advances its objective, so it's keener
-    if (cost(resource) > (campaign.act == 2 ? 2 : 1)) { return false; }
+    // In Acts II and III the initiative advances its objective or a grand ambition, so it's keener
+    if (cost(resource) > (campaign.act >= 2 ? 2 : 1)) { return false; }
     const actionCard = getLowestCardtoPlay(cards);
     playCard(player, actionCard, actionToPlay, actionCard.name == playedCardList[0].name ? "COPY" : "PIVOT");
     provokeOutrage(player, resource);
@@ -555,7 +555,8 @@ registerCampaignHook("ambitionsScored", results => {
 function getGolemPreludeOffers(player) {
     // A bot Caretaker spends its Golems in its prelude: each one advances its objective
     const golems = hasFate(player, 5) ? (getCampaignPlayer(player).golems || 0) : 0;
-    if (golems == 0) { return []; }
+    // In Act III it keeps its last Golem, for its grand ambition (steering.js)
+    if (golems <= (campaign.act == 3 ? 1 : 0)) { return []; }
     return [{ label: "Spend a Golem", text: "spend an Awake Golem for its action (Warrior: destroy all damaged ships in a system; Protector: repair ships; Seeker: Catapult from a system; Harvester: gain any resource). Then it goes Sleeping into a Rival's empty resource slot",
         golem: true, decided: true, why: "Each Golem spent advances its objective 2." }];
 }
@@ -669,6 +670,8 @@ function getFatePanelHtml(player) {
     }
     // Merchant League's frozen resources, for Summit deals (negotiation.js)
     html += getLeagueHtml(player);
+    // A bot Conspirator's face-down Conspiracies, to foil (grand.js)
+    html += getConspiracyPanelHtml(player);
     const other = (rules == null || campaign.act != 1) ? [] : (rules.other || []).filter(name => !(state.buried || []).includes(name));
     if (other.length > 0) {
         html += "<div class=\"fatecards\"><span class=\"boardgrouplabel mb-0 me-1\">Fate</span>" + other.map(name => "<span class=\"fatechip\">" + name + "</span>").join("") + "</div>";

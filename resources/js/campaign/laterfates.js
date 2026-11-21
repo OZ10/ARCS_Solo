@@ -137,7 +137,8 @@ const laterFates = {
                 { text: "If it controlled the Twisted Passage before scoring: how many Passage tokens?", per: 1 }] } },
     23: { act3: { start: startByCount(12, 9, 6), setup: "You may Resettle. Gain Farseers (02), the 8 Conspiracy tokens (2 in each colour) and Conspiracies (03). Add Scoring Conspiracies (04) and Foiling Conspiracies (05).",
             text: "<b>Control the Proceedings:</b> when scoring, 1 for each correct revealed Conspiracy and each unrevealed one.",
-            ask: [{ text: "How many Conspiracies were correct when revealed, or are unrevealed?", per: 1 }] } },
+            // A bot Conspirator's are counted by the app (grand.js)
+            ask: [{ text: "How many Conspiracies were correct when revealed, or are unrevealed?", per: 1, when: player => player.isHuman }] } },
     24: { act3: { start: startAll(6), setup: "You may Resettle. Gain Vow of Fairness (02), The Arbiter (03) and Judge's Chosen (04). Add Judge Sets Agenda (05).",
             text: "<b>Balance the Reach:</b> at the end of a chapter, 1 for each ambition where players are tied for first.",
             auto: [{ reason: "ambitions tied for first (Balance the Reach)", amount: () => campaign.tiesForFirst || 0 }] } }

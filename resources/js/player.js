@@ -95,6 +95,8 @@ class player {
     outOfShips = null;
     // A bot's answer this turn to "Do I have any agents left in my supply?", as true for none (#123)
     agentsOut = null;
+    // In a campaign: its answers this turn to its Fate's questions (campaign/steering.js), by question
+    steerAnswers = {};
 }
 
 function getPlayerColour(player) {
@@ -158,6 +160,7 @@ function resetPlayedThisTurn() {
         player.outOfShips = null;
         player.agentsOut = null;
         player.leaderNotes = [];
+        player.steerAnswers = {};
     })
 }
 

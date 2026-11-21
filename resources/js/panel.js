@@ -361,6 +361,10 @@ function showDeclareAmbitionModal(ele, hasPlayedASeven, player, playedCard) {
         card.innerHTML = getCardFullName(playedCard);
     }
 
+    // In a campaign, new ambitions such as Edenguard (campaignhooks.js)
+    document.querySelectorAll("#declareAmbitionModal .campaignambition").forEach(button => button.remove());
+    runCampaignHook("declareButtons");
+
     modal.show();
 }
 
