@@ -94,12 +94,7 @@
                 data-bs-title="Seize the initiative"><i
                   class="bi bi-exclamation-circle"
                   onclick="seizeInitiativeQuestion(this)"></i></button>
-              <button class="btn" data-bs-toggle="tooltip"
-                data-bs-placement="top"
-                data-bs-custom-class="custom-tooltip"
-                data-bs-title="Declare an ambition"><i
-                  class="bi bi-hexagon-fill"
-                  onclick="showDeclareAmbitionModal(this, false, null, null)"></i></button>
+              <!-- Declaring outside a turn: tap the ambition in the top bar (#174) -->
               <!-- Help a bot choose its dice, and keep track of any player's battle (see battle.js) -->
               <button class="btn" data-bs-toggle="tooltip" data-bs-trigger="hover"
                 data-bs-placement="top"
@@ -533,7 +528,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v221126.01</small>
+                <small class="text-muted" id="appVersion">v221126.02</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -688,6 +683,21 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- An ambition chip in the top bar, tapped: how it's won, and who declares it (scoring.js, #174) -->
+    <div class="modal fade" id="ambitionWindow" tabindex="-1"
+      aria-labelledby="ambitionWindowTitle" aria-hidden="true">
+      <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="ambitionWindowTitle">Ambition</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"
+              aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="ambitionWindowBody"></div>
         </div>
       </div>
     </div>
@@ -926,6 +936,8 @@
     <!-- Above the footer: where to put a resource just gained, and the bot's turn when its
          window is closed -->
     <div id="turnDock">
+      <!-- What happened: announcements that stay until closed (ui.js) -->
+      <div class="d-none" id="turnNews"></div>
       <div class="d-none" id="turnAdvice"></div>
       <div class="d-none" id="turnBar"></div>
     </div>

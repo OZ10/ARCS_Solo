@@ -101,9 +101,10 @@ function clonePlayerNodeAndSetup(player) {
     buildbutton.id = "buildbutton" + playerNumber.toString();
     buildbutton.classList.add("d-none");
 
-    // Seizing and declaring are the human player's to do, as a bot does both itself (#82)
+    // Seizing is the human player's to do, as a bot does it itself (#82). Declaring is from the
+    // top bar, for anyone (#174)
     if (!player.isHuman) {
-        [".bi-exclamation-circle", ".bi-hexagon-fill"].forEach(icon => playertemplate.querySelector(icon).closest("button").remove());
+        playertemplate.querySelector(".bi-exclamation-circle").closest("button").remove();
     }
 
     // Shown once the player has played their card: what they played, and Done to move

@@ -389,7 +389,7 @@ function getRecoverOffers(player, wants, can) {
     if (!(player.guildCards || []).includes(204) || !can("move")) { return []; }
     const overseers = (player.guildCards || []).includes(205);
     if (!overseers && !wants(guildActionChance.trade)) { return []; }
-    return [{ label: "Recover instead of a Move (Guild Investigators)", text: "attach the top Guild card of the Court discard pile to a Court card with no agents (do it on the table)",
+    return [{ label: "Recover instead of a Move (Guild Investigators)", text: "attach the top Guild card of the Court discard pile to a Court card with no agents. Add it to that card in the Court window",
         recover: true, decided: overseers, why: overseers ? "With Guild Overseers, each Recover advances its objective 2." : null }];
 }
 

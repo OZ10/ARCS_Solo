@@ -50,6 +50,8 @@ function askThenPlay(player) {
         });
         return;
     }
+    // In a campaign, the Blight first when it has no undefended Rival to fight (#168, campaignhooks.js)
+    if (runCampaignHook("botQuestionsFirst", player, () => askThenPlay(player)) === true) { return; }
     // Its ships are spread over the map: the biggest fleet it could attack with this turn
     if (shouldAskAttackFleet(player)) {
         const move = getFleetMove(player);

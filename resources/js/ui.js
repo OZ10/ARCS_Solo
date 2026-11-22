@@ -145,8 +145,72 @@ function refreshTooltips() {
     const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => bootstrap.Tooltip.getOrCreateInstance(tooltipTriggerEl));
 }
 
+// Announcements stay in the "What happened" list, above the turn bar and in the turn window, until
+// they're closed: a toast disappeared too quickly to read, and a second one replaced the first
+let newsItems = [];
+let newsExpanded = false;
+let newsCount = 0;
+// How many show before "earlier" ones are folded away
+const newsShown = 3;
+const newsKept = 40;
+
 function showMessageToast(headerValue, bodyValue) {
-    showToast("messageToast", "messageToastHeader", headerValue, "messageToastBody", bodyValue);
+    // Also written to the (hidden) toast, the last message as before
+    const toast = document.getElementById("messageToast");
+    toast.querySelector("#messageToastHeader").innerHTML = tagPlayerNames(headerValue);
+    toast.querySelector("#messageToastBody").innerHTML = tagPlayerNames(bodyValue);
+    newsCount++;
+    newsItems.unshift({ id: newsCount, title: tagPlayerNames(headerValue), body: tagPlayerNames(bodyValue), when: "Round " + roundNumber + ", turn " + turnNumber });
+    newsItems = newsItems.slice(0, newsKept);
+    refreshNews();
+}
+
+function getNewsHtml() {
+    // The newest first, with a close button each; older ones folded away
+    if (newsItems.length == 0) { return ""; }
+    // Only the newest on a short screen, such as a device held sideways
+    const count = window.innerHeight < 500 ? 1 : newsShown;
+    const shown = newsExpanded ? newsItems : newsItems.slice(0, count);
+    const hidden = newsItems.length - shown.length;
+    return "<div class=\"d-flex align-items-center mb-1\"><span class=\"small fw-bold flex-fill\">What happened</span>"
+        + "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0\" onclick=\"clearNews()\">Clear all</button></div>"
+        + shown.map(item => "<div class=\"slotadvice newsitem\"><div class=\"d-flex align-items-start\"><b class=\"flex-fill\">" + item.title + "</b>"
+            + "<span class=\"small text-secondary me-2 text-nowrap\">" + item.when + "</span>"
+            + "<button type=\"button\" class=\"btn-close btn-sm\" aria-label=\"Close\" onclick=\"closeNews(" + item.id + ")\"></button></div>"
+            + "<div class=\"small\">" + item.body + "</div></div>").join("")
+        + (hidden > 0 ? "<button type=\"button\" class=\"btn btn-link btn-sm p-0\" onclick=\"toggleNews()\">+" + hidden + " earlier</button>"
+            : (newsExpanded && newsItems.length > count ? "<button type=\"button\" class=\"btn btn-link btn-sm p-0\" onclick=\"toggleNews()\">Show fewer</button>" : ""));
+}
+
+function refreshNews() {
+    // Only the lists themselves, so nothing else is worked out at an odd moment
+    const html = getNewsHtml();
+    const dock = document.getElementById("turnNews");
+    if (dock != null) {
+        dock.innerHTML = html;
+        dock.classList.toggle("d-none", html == "");
+    }
+    const section = document.getElementById("turnNewsSection");
+    if (section != null) {
+        section.innerHTML = html;
+        section.classList.toggle("d-none", html == "");
+    }
+}
+
+function closeNews(id) {
+    newsItems = newsItems.filter(item => item.id != id);
+    refreshNews();
+}
+
+function clearNews() {
+    newsItems = [];
+    newsExpanded = false;
+    refreshNews();
+}
+
+function toggleNews() {
+    newsExpanded = !newsExpanded;
+    refreshNews();
 }
 
 function showToast(id, headerId, headerValue, bodyId, bodyValue) {

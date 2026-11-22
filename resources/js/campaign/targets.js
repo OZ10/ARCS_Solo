@@ -46,10 +46,14 @@ function getCampaignTargetOptions(player) {
     if (chased.length > 0) { options.push({ kind: "free", reason: "chased", resource: chased[0], value: weights.chased }); }
     else if (warlord) { options.push({ kind: "free", reason: "warlord", value: weights.warlordFree }); }
 
-    // The Blight: Trophies for Warlord, or with no Rival to battle freely, clearing it from its ships
-    if (!blightFriends.includes(getFateNumber(player)) && getFleetForBattle(player) >= blightFleet) {
-        if (warlord) { options.push({ kind: "blight", reason: "warlord", value: weights.warlordBlight }); }
-        else if (free.length == 0 && fleet) { options.push({ kind: "blight", reason: "noRival", value: weights.noRival }); }
+    // The Blight: Trophies for Warlord, or with no undefended Rival to fight, clearing it from its
+    // ships (#168). An Outlaw Rival is undefended; a Regent has the Truce Law, or Imperial ships
+    // defending with them. Not once you've said there's none in reach this turn
+    const undefended = rivals.filter(rival => !isRegent(rival));
+    const blightAnswer = (player.steerAnswers || {}).blight;
+    if (!blightFriends.includes(getFateNumber(player)) && blightAnswer !== false) {
+        if (warlord && getFleetForBattle(player) >= blightFleet) { options.push({ kind: "blight", reason: "warlord", value: weights.warlordBlight }); }
+        else if (!warlord && undefended.length == 0 && player.shipsBoardValue >= blightFleet) { options.push({ kind: "blight", reason: "noRival", value: weights.noRival }); }
     }
 
     // The Empire, for an Outlaw: Imperial ships are Trophies, and the Founder wants its systems
@@ -76,6 +80,28 @@ function getCampaignTargetQuestion(player, option) {
     }
     return "Is there a system where my ships outnumber the Imperial ships? (As an Outlaw I can battle the Empire" + (option.reason == "founder" ? ", to take its systems.)" : ", and its ships are Trophies.)");
 }
+
+// #168: with no undefended Rival to fight, the Blight comes first, before the fleet question. A Yes
+// makes it the turn's target and skips the fleet question; a No isn't asked again this turn
+registerCampaignHook("botQuestionsFirst", (player, carryOn) => {
+    if (player.isHuman || player.campaignTarget !== undefined || (player.steerAnswers || {}).blight !== undefined) { return undefined; }
+    if (!getBotCards(player).some(card => card.actions.includes("battle")) && player.weaponsValue == 0) { return undefined; }
+    const option = getCampaignTargetOptions(player).find(item => item.kind == "blight" && item.reason == "noRival");
+    if (option == null) { return undefined; }
+    askYesNo("BATTLE", getCampaignTargetQuestion(player, option), inReach => {
+        player.steerAnswers = player.steerAnswers || {};
+        player.steerAnswers.blight = inReach;
+        if (inReach) {
+            player.campaignTarget = option;
+            player.battleTargetNumber = null;
+        }
+        SaveAllSettings();
+        carryOn();
+    });
+    return true;
+});
+
+registerCampaignHook("skipFleetQuestion", player => (player.campaignTarget != null && player.campaignTarget.kind == "blight") ? true : undefined);
 
 registerCampaignHook("fleetQuestionNote", player => " Free buildings and Blight count too" + (isRegent(player) ? ", and Imperial ships can join me." : ", and so do Imperial ships.")
     + (hasRivalRegent(player) ? truceQuestionNote : ""));

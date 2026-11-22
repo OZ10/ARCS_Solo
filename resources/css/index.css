@@ -1593,6 +1593,25 @@ header {
   padding: 8px 12px;
 }
 
+#turnNews {
+  background: white;
+  padding: 8px 12px;
+  max-height: 40vh;
+  overflow-y: auto;
+  border-bottom: 1px solid #e3e6ea;
+}
+@media (max-height: 500px) {
+  #turnNews {
+    max-height: 24vh;
+    padding: 4px 12px;
+  }
+}
+
+.newsitem {
+  border-top: 1px solid #eef0f2;
+  padding-top: 6px;
+}
+
 .slotadvice {
   font-size: 0.88rem;
   color: rgb(30, 30, 30);

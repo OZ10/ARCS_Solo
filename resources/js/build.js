@@ -207,6 +207,16 @@ function showBuildResourceQuestion(wanted = []) {
     decide.innerHTML = "What does it build?";
     decide.onclick = showBuildDecision;
     body.appendChild(decide);
+
+    // None of them (#163): it builds a ship or a starport, or repairs
+    const none = document.createElement("button");
+    none.type = "button";
+    none.classList.add("btn", "btn-outline-secondary", "w-100", "mt-2");
+    none.id = "buildNoSlot";
+    none.innerHTML = "No empty slot";
+    none.onclick = () => { build.slots = []; showBuildDecision(); };
+    body.appendChild(none);
+    body.insertAdjacentHTML("beforeend", "<p class=\"small text-secondary text-center mt-1 mb-0\">It then builds a ship or a starport, or repairs.</p>");
 }
 
 function showBuildDecision(forced = null) {

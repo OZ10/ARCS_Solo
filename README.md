@@ -136,8 +136,9 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 - **Its objective:** the app moves it for each resource or Favor a Rival gives the Magnate, and for each export of 3 resources. A human Magnate has an **Export to the Galactic Core** button in the Summit. In Act III they play their usual game rather than chasing their grand ambitions. Faithful cards played from a hand, Flagships and Fate tokens are handled on the table.
 
 ## The screen
-- **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options** (the gear). Tap an ambition to see how it's won and what it's worth.
+- **Top bar:** the round and turn, the ambitions declared this round with their marker values, and **Options** (the gear). Tap an ambition to see how it's won and what it's worth, and to declare it for any player, bots included: for example after a Surpass with Galactic Bards, or with Populist Demands.
 - **Announcements:** at the start of each round and turn, a card says who leads. It closes by itself, or when tapped.
+- **What happened:** everything else the app tells you, such as a battle's results or an ambition declared, is listed above the turn bar and at the top of the turn window, newest first. Each stays until you close it with **×** or tap **Clear all**. The newest 3 show; tap **+N earlier** for the rest.
 - **Player panels:** one per player in their colour. Tap a player's name to open or close their panel. The ★ shows who has the initiative.
 - **Panel sections:** each panel's **Resources** (with Outrage), **Board** and **Guild cards** sit under a header you tap to open or close. A closed header shows small counts, such as the resources held and the ships on the board. The hand and **Play Card** always show. In **Options**, **Panel sections** chooses how they start:
   - **All open:** always open.
@@ -199,7 +200,7 @@ Carry out the steps on the table, then tap **Done** to move on to the next playe
 
 **Back to board** shrinks the window to a bar above the footer, so you can tap the tiles while still seeing the plan. Tap **Open** to bring the window back. It also comes back by itself when you finish a battle, build or Court action.
 
-When a bot gains a resource, a box above the bar says **which resource slot to put it in**, high keys first if it wants to keep it safe from raids. It stays until you close it or the turn ends.
+When a bot gains a resource, a box above the bar says **which resource slot to put it in**, high keys first if it wants to keep it safe from raids. It stays until you close it or the turn ends. A bot with no room for a resource it steals or is given returns the one it needs least, and says so.
 
 <br clear="right">
 
@@ -244,7 +245,7 @@ For your own battles, the window doesn't choose dice. It keeps count while you r
 ## Building
 <img src="docs/screenshots/build.png" width="300" align="right" alt="The Build window">
 
-Tap **Build** in a bot's turn window. Say whether there's an empty building slot where it has a piece and which planet types those slots are on. The app tells you what it builds and why: a city, a starport or a ship. Bots like 2 starports, and 3 from round 3, so they can build more ships each turn. Tap **Built it** to update its panel.
+Tap **Build** in a bot's turn window. Say whether there's an empty building slot where it has a piece and which planet types those slots are on, or tap **No empty slot**. The app tells you what it builds and why: a city, a starport or a ship. Bots like 2 starports, and 3 from round 3, so they can build more ships each turn. Tap **Built it** to update its panel.
 
 <br clear="right">
 
@@ -256,6 +257,8 @@ Tap **Court** in the turn window, yours or a bot's. It lists the cards in the ma
 For a bot, the top line says what it would secure or influence. **Secure** takes a card the player can secure, captures any Rival agents on it, and moves it to their Guild row. When a bot secures a Vox card, the app tells you what it does with it.
 
 If a card leaves the market, the turn window reminds you to add the replacement.
+
+In a campaign, while someone holds Guild Investigators, a Court card with no agents has a list to **attach** a Guild card from the discard pile (Recover). The attached card shows under it, goes with it when it's secured, and makes it worth more to the bots. The Imperial Council's row has an **In Session / Decided** switch, for when it changes on the table without the app.
 
 <br clear="right">
 
@@ -275,9 +278,8 @@ The icons on your panel's header are:
 
 - **Draw:** add a card to a hand, either one played this turn (the Unions) or the bottom card of the discard pile (Farseers, Call to Action). Bots have this icon too.
 - **Seize:** seize the initiative, for example with a Vox card.
-- **Declare:** declare an ambition, for example after a Surpass with Galactic Bards.
 
-Bots seize and declare by themselves.
+To declare outside your turn's card, tap the ambition in the top bar. Bots seize and declare by themselves.
 
 <br clear="right">
 

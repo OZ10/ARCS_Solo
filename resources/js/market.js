@@ -56,13 +56,33 @@ function getMarketCardValue(player, entry) {
         value += marketValues.perNeed * getResourceNeed(player, card.resource);
     }
     // In a campaign, what the Imperial Council is worth to it (campaignhooks.js)
-    return value + rivalAgents * (chasingTyrant ? marketValues.captiveTyrant : marketValues.captive) + (runCampaignHook("marketValue", player, entry) || 0);
+    return value + rivalAgents * (chasingTyrant ? marketValues.captiveTyrant : marketValues.captive) + (runCampaignHook("marketValue", player, entry) || 0)
+        + getAttachedValue(player, entry);
+}
+
+function getAttachedValue(player, entry) {
+    // Guild cards attached to it (Guild Investigators' Recover, #176) come with it when it's secured
+    return (entry.attached || []).map(getCourtCard).filter(card => card != null).reduce((total, card) => total + marketValues.base
+        + (card.resource == "weapons" ? (declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord") ? marketValues.perNeed * 2 : 0)
+            : marketValues.perNeed * getResourceNeed(player, card.resource)), 0);
+}
+
+function takeAttachedCards(player, entry) {
+    // The Guild cards attached to a card it secured or ransacked go to its Guild row (#176)
+    const attached = (entry.attached || []).filter(number => getCourtCard(number) != null);
+    attached.forEach(number => player.guildCards.push(number));
+    entry.attached = [];
+    if (attached.length > 0) { showGuildCardsRow(player); }
+    return attached.map(number => getCourtCard(number).name);
 }
 
 function getMarketReason(player, entry) {
     // Why it wants a card, if there's a clear reason. In a campaign, the Imperial Council (campaignhooks.js)
     const special = runCampaignHook("marketReason", player, entry);
     if (special != null) { return special; }
+    // Guild cards attached to it (#176)
+    const attached = (entry.attached || []).map(getCourtCard).filter(card => card != null);
+    if (attached.length > 0) { return "it comes with " + attached.map(card => card.name).join(" and ") + " attached"; }
     const card = getCourtCard(entry.number);
     const rivalAgents = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
     if (rivalAgents > 0 && declaredAmbitions.includes("tyrant") && isChasingAmbition(player, "tyrant")) { return "captures for Tyrant"; }
@@ -375,6 +395,7 @@ function ransackMarketCard(player, number) {
     const card = getCourtCard(number);
     recordCapturedAgents(entry, player, "agentsTrophy");
     adjustCounter(player, "trophies", getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0));
+    takeAttachedCards(player, entry);
     removeFromMarket(number);
     if (card.type == "guild") {
         player.guildCards.push(number);
@@ -390,6 +411,9 @@ function secureMarketCard(number) {
     const card = getCourtCard(number);
     const captured = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
     recordCapturedAgents(entry, player, "agentsCaptive");
+    // Guild cards attached to it come too (#176)
+    const attachedNames = takeAttachedCards(player, entry);
+    if (attachedNames.length > 0) { showMessageToast("Player " + player.number, "Takes the attached " + attachedNames.join(" and ") + " too."); }
     // A campaign's own cards, such as the Imperial Council (campaignhooks.js)
     if (runCampaignHook("secureCard", entry, player, captured) === true) {
         adjustCounter(player, "captives", captured);

@@ -53,7 +53,8 @@ function updateAmbitionsDisplay() {
             info += "<br>1st: " + first + " &middot; 2nd: " + second;
         }
 
-        const chip = createAmbitionChip(ambition.toUpperCase(), points, (group == null) ? "" : "ambitiondeclared", info);
+        // Tapping it opens the Declare window for it, for any player (#174)
+        const chip = createAmbitionChip(ambition.toUpperCase(), points, (group == null) ? "" : "ambitiondeclared", info, () => showAmbitionWindow(ambition));
         // Just declared: it flips over, like turning over the marker
         if (before != null && group != null && group.markers.length > (before[ambition] || 0)) { chip.classList.add("ambitionflip"); }
         track.appendChild(chip);
@@ -66,20 +67,25 @@ function updateAmbitionsDisplay() {
     refreshTooltips();
 }
 
-function createAmbitionChip(name, points, style, info) {
-    // A button so it can be tapped on a phone. The tooltip shows when tapped and
-    // hides when anything else is tapped (focus trigger)
+function createAmbitionChip(name, points, style, info, onTap = null) {
+    // A button so it can be tapped on a device. An ambition opens its Declare window (#174); the
+    // NEXT chip's tooltip shows when tapped and hides when anything else is tapped (focus trigger)
     const chip = document.createElement("button");
     chip.type = "button";
     chip.classList.add("ambitionchip");
     if (style != "") { chip.classList.add(style); }
 
-    chip.setAttribute('data-bs-toggle', 'tooltip');
-    chip.setAttribute('data-bs-trigger', 'focus');
-    chip.setAttribute('data-bs-html', 'true');
-    chip.setAttribute('data-bs-placement', 'bottom');
-    chip.setAttribute('data-bs-custom-class', 'custom-tooltip');
-    chip.setAttribute('title', info);
+    if (onTap != null) {
+        chip.onclick = onTap;
+        chip.setAttribute('aria-label', name + ": declare");
+    } else {
+        chip.setAttribute('data-bs-toggle', 'tooltip');
+        chip.setAttribute('data-bs-trigger', 'focus');
+        chip.setAttribute('data-bs-html', 'true');
+        chip.setAttribute('data-bs-placement', 'bottom');
+        chip.setAttribute('data-bs-custom-class', 'custom-tooltip');
+        chip.setAttribute('title', info);
+    }
 
     const nameDiv = document.createElement("div");
     nameDiv.classList.add("ambitionname");
@@ -93,6 +99,43 @@ function createAmbitionChip(name, points, style, info) {
 
     chip.append(nameDiv, pointsDiv);
     return chip;
+}
+
+function showAmbitionWindow(ambition) {
+    // How it's won, what it's worth, and a button for each player to declare it: on a turn, or
+    // outside one, such as with Populist Demands (#174)
+    const group = getDeclaredAmbitionMarkers().find(g => g.ambition == ambition);
+    const markers = getRoundMarkers(roundNumber);
+    const next = declaredAmbitions.length < markers.length ? markers[declaredAmbitions.length] : null;
+    const name = capitalise(ambition);
+    let html = "<p class=\"mb-1\"><b>" + capitalise(ambitionConditions[ambition]) + ".</b>"
+        + (group != null ? " Declared: " + group.markers.reduce((sum, m) => sum + m[0], 0) + " for 1st, " + group.markers.reduce((sum, m) => sum + m[1], 0) + " for 2nd." : "") + "</p>";
+    if (next == null) {
+        html += "<p class=\"small text-secondary mb-0\">All the ambition markers are placed this round.</p>";
+    } else {
+        html += "<p class=\"small text-secondary mb-2\">Declared now, it takes the next marker: <b>" + next[0] + "</b> for 1st, <b>" + next[1] + "</b> for 2nd. Who declares it?</p>"
+            + "<div class=\"d-grid gap-2\">" + players.map(player => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" onclick=\"declareFromTopBar('" + ambition + "', " + player.number + ")\">"
+                + getPlayerTag(player) + " declares " + name + "</button>").join("") + "</div>";
+    }
+    document.getElementById("ambitionWindowTitle").innerHTML = (getGameIcon(ambition) != "" ? getGameIcon(ambition) + " " : "") + name;
+    document.getElementById("ambitionWindowBody").innerHTML = html;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("ambitionWindow")).show();
+}
+
+function declareFromTopBar(ambition, playerNumber) {
+    const player = getPlayer(playerNumber);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("ambitionWindow")).hide();
+    if (declaredAmbitions.length >= getRoundMarkers(roundNumber).length) { return; }
+    if (!canDeclareAmbition(player)) {
+        showMessageToast("Feastbringer, Generous", "Player " + player.number + " needs a Guild card to give before they can declare.");
+        return;
+    }
+    showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
+    declaredAmbitions.push(ambition);
+    updateAmbitionsDisplay();
+    onAmbitionDeclared(player);
+    if (awaitingDone == player.number) { showTurnDone(player); }
+    SaveAllSettings();
 }
 
 function showScoringModal() {

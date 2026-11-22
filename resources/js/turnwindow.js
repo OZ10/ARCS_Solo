@@ -154,6 +154,12 @@ function getAlsoTools(player, planned) {
     return Object.keys(possible).filter(name => possible[name] && !planned.includes(name)).concat("draw");
 }
 
+function getNewsSection() {
+    // What happened, at the top of the turn window (ui.js keeps it up to date)
+    const html = getNewsHtml();
+    return "<div class=\"turnsection" + (html == "" ? " d-none" : "") + "\" id=\"turnNewsSection\">" + html + "</div>";
+}
+
 function getSlotAdviceHtml() {
     // Where to put what was just gained, the first slot to try first
     return slotAdvice.map(advice => {
@@ -207,7 +213,7 @@ function renderHumanTurn(player) {
             return getTurnRow("<i class=\"bi " + (humanActionIcons[action] || "bi-dot") + "\"></i>", capitalise(action), humanActionNotes[action] || "", button);
         }).join("");
 
-    let html = "";
+    let html = getNewsSection();
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
     // What your resources and Guild cards can do first (#127)
     const prelude = getPreludeHtml(player);
@@ -237,7 +243,7 @@ function renderTurn(player) {
         return getTurnRow(index + 1, step.name, step.reason + (step.tag || "") + getLeaderHintsHtml(step.hints), button);
     }).join("");
 
-    let html = "";
+    let html = getNewsSection();
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
     if (prelude.length > 0) { html += getTurnSection("Prelude: spend first", getOfferRows(prelude)); }
     html += getTurnSection("Card played", getCardHtml(player));

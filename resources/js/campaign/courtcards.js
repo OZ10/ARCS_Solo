@@ -63,14 +63,62 @@ registerCampaignHook("courtSize", () => openingCourtCards[players.length] + (get
 registerCampaignHook("isCardClosed", entry => entry.number == councilNumber && entry.decided === true);
 
 registerCampaignHook("courtRow", (entry, row) => {
+    // Guild cards attached by Recover (Guild Investigators, #176), and the Council's side
+    if (courtSetup) { return undefined; }
+    addAttachedRows(entry, row);
     // The Council's side, to set by hand if it was secured or petitioned on the table without the
     // app (#169). While Decided, bots don't influence or secure it
-    if (entry.number != councilNumber || courtSetup) { return undefined; }
+    if (entry.number != councilNumber) { return undefined; }
     const side = (decided, label) => "<button type=\"button\" class=\"btn btn-outline-secondary btn-sm" + (isCouncilDecided() == decided ? " active" : "") + "\" onclick=\"setCouncilSide(" + decided + ")\">" + label + "</button>";
     row.insertAdjacentHTML("beforeend", "<div class=\"brseg councilside mb-1\">" + side(false, "In Session") + side(true, "Decided") + "</div>"
         + (isCouncilDecided() ? "<div class=\"small text-secondary text-center mb-1\">Decided: no one can influence or secure it until it's In Session again.</div>" : ""));
     return undefined;
 });
+
+// Recover (Guild Investigators, card 204): the top Guild card of the Court discard pile is attached
+// to a Court card with no agents. It goes with that card when it's secured (#176)
+
+function getAttachableCards() {
+    // Guild cards that could be in the discard pile: not in the market, held or attached already
+    const attached = courtMarket.flatMap(entry => entry.attached || []);
+    return getCourtPool().filter(card => card.type == "guild" && !courtMarket.some(entry => entry.number == card.number)
+        && getGuildCardHolder(card.number) == null && !attached.includes(card.number)).sort(byCardName);
+}
+
+function addAttachedRows(entry, row) {
+    (entry.attached || []).forEach(number => {
+        const card = getCourtCard(number);
+        if (card == null) { return; }
+        row.insertAdjacentHTML("beforeend", "<div class=\"d-flex align-items-center gap-1 mb-1 ps-3\"><i class=\"bi bi-arrow-return-right text-secondary\"></i>"
+            + "<span class=\"guildchip" + (card.resource != null ? " guild-" + card.resource : "") + "\">" + card.name + "</span><span class=\"small text-secondary\">attached</span>"
+            + "<button type=\"button\" class=\"btn btn-outline-secondary btn-sm py-0 ms-auto\" aria-label=\"Detach " + card.name + "\" onclick=\"detachCourtCard(" + entry.number + ", " + number + ")\"><i class=\"bi bi-x-lg\"></i></button></div>");
+    });
+    // Attaching: while someone holds Guild Investigators, to a card with no agents
+    const recover = players.some(player => (player.guildCards || []).includes(204));
+    const noAgents = Object.values(entry.agents || {}).every(count => count == 0);
+    if (!recover || !noAgents || entry.number == councilNumber) { return; }
+    row.insertAdjacentHTML("beforeend", "<select class=\"form-select form-select-sm mt-1\" aria-label=\"Attach a Guild card\" onchange=\"attachCourtCard(" + entry.number + ", this.value)\">"
+        + "<option value=\"\">Attach a Guild card from the discard pile&hellip;</option>"
+        + getAttachableCards().map(card => "<option value=\"" + card.number + "\">" + card.name + " (" + preludeResourceNames[card.resource] + ")</option>").join("") + "</select>");
+}
+
+function attachCourtCard(number, attachNumber) {
+    const entry = courtMarket.find(item => item.number == number);
+    if (entry == null || attachNumber == "") { return; }
+    entry.attached = (entry.attached || []).concat(parseInt(attachNumber));
+    SaveAllSettings();
+    showCourtWindow();
+    refreshTurnSummary();
+}
+
+function detachCourtCard(number, attachNumber) {
+    const entry = courtMarket.find(item => item.number == number);
+    if (entry == null) { return; }
+    entry.attached = (entry.attached || []).filter(item => item != attachNumber);
+    SaveAllSettings();
+    showCourtWindow();
+    refreshTurnSummary();
+}
 
 function setCouncilSide(decided) {
     const entry = getCouncilEntry();

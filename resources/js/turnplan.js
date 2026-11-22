@@ -119,8 +119,8 @@ function getFleetMove(player) {
 function shouldAskAttackFleet(player) {
     // Once a turn, with enough ships on the board to make up an attack fleet and a way to Battle
     if (player.attackFleetSize != null || player.shipsBoardValue < attackFleet.manyActions) { return false; }
-    // In a campaign, not when its Fate rules out battles (campaignhooks.js)
-    if (runCampaignHook("avoidsAction", player, "battle") === true) { return false; }
+    // In a campaign, not when its Fate rules out battles, or it's going after the Blight (campaignhooks.js)
+    if (runCampaignHook("avoidsAction", player, "battle") === true || runCampaignHook("skipFleetQuestion", player) === true) { return false; }
     return getBotCards(player).some(card => card.actions.includes("battle")) || player.weaponsValue > 0;
 }
 

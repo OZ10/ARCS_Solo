@@ -1728,6 +1728,26 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     padding: 8px 12px;
 }
 
+// What happened: announcements that stay until closed, scrolling rather than covering the board
+#turnNews {
+    background: white;
+    padding: 8px 12px;
+    max-height: 40vh;
+    overflow-y: auto;
+    border-bottom: 1px solid #e3e6ea;
+
+    // A short screen, such as a device held sideways: less of it covered
+    @media (max-height: 500px) {
+        max-height: 24vh;
+        padding: 4px 12px;
+    }
+}
+
+.newsitem {
+    border-top: 1px solid #eef0f2;
+    padding-top: 6px;
+}
+
 .slotadvice {
     font-size: 0.88rem;
     color: $mainfontcolour;
