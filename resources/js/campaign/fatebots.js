@@ -360,8 +360,9 @@ registerCampaignHook("botClaim", (player, cards, actionToPlay) => {
     if (!canPartisanSeize(player) || cards.length == 0) { return false; }
     const cost = resource => player[resource + "Value"] + getGuildIconCount(player, resource) * 2 + getResourceNeed(player, resource) * 3;
     const resource = getSeizeOutrages(player).sort((a, b) => cost(a) - cost(b))[0];
-    // In Acts II and III the initiative advances its objective or a grand ambition, so it's keener
-    if (cost(resource) > (campaign.act >= 2 ? 2 : 1)) { return false; }
+    // The initiative advances its objective (Sow Division, then Show Your Leadership) or a grand
+    // ambition, so it seizes when the Outrage costs it little
+    if (cost(resource) > 2) { return false; }
     const actionCard = getLowestCardtoPlay(cards);
     playCard(player, actionCard, actionToPlay, actionCard.name == playedCardList[0].name ? "COPY" : "PIVOT");
     provokeOutrage(player, resource);
@@ -573,9 +574,12 @@ function getGolemPreludeOffers(player) {
 }
 
 function getAwakenOffers(player, wants, can) {
-    // Awaken (Golem Beacon): take its Golems from the map. The player says how many on its panel
+    // Awaken (Golem Beacon): take its Golems from the map. The player says how many on its panel.
+    // Decided when you said it controls one this turn (steering.js)
     if (!hasFate(player, 5) || campaign.act != 1 || !can("influence")) { return []; }
-    return [{ label: "Awaken instead of an Influence (Golem Beacon)", text: "take the Golems it controls on the map onto Golem Hearth (Awake if it's winning a declared ambition). Add them to its Golems on its panel" }];
+    const controls = (player.steerAnswers || {}).golem === true;
+    return [{ label: "Awaken instead of an Influence (Golem Beacon)", text: "take the Golems it controls on the map onto Golem Hearth (Awake if it's winning a declared ambition). Add them to its Golems on its panel",
+        decided: controls, why: controls ? "You said it controls a Golem: each one it has counts when it wins an ambition, and spending one advances its objective." : null }];
 }
 
 function getBargainOffers(player, wants, can) {

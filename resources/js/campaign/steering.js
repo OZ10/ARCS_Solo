@@ -315,9 +315,84 @@ Object.entries(actThreeSteers).forEach(([fate, steer]) => {
     fateSteers[fate][3] = steer;
 });
 
+// Act I: the "A" Fates. Their cards and powers are in fatebots.js; these steer the bot's everyday
+// play towards the objective. drive is when its Fate pays for winning ambitions: it declares more
+// readily and leads with the ambitions it would win (only those driveAmbition allows)
+const driveNote = "<b>Keen to declare and win ambitions</b>";
+const actOneSteers = {
+    1: { name: "Steward", drive: player => isFirstRegent(player),
+        notes: player => [isFirstRegent(player) ? driveNote + ": as First Regent, each ambition it wins advances its objective by the Power gained (Consolidate Your Imperial Power)."
+            : "<b>Wants to be First Regent</b>: the Imperial Council is worth more to it. Only as First Regent do the ambitions it wins count.",
+            "<b>Stays a Regent.</b>"],
+        plan: player => isFirstRegent(player) ? {} : { influence: { add: 0.25 } } },
+    2: { name: "Founder", drive: player => !isRegent(player),
+        notes: player => isRegent(player)
+            ? ["<b>Wants to be an Outlaw</b>: Parade Fleets lets it leave the Empire when it declares an ambition."]
+            : [driveNote + ": as an Outlaw, each one it wins advances its objective by 3 (Inspire Confidence in the Cause).",
+                "<b>Moves to take systems</b>: at the end of a chapter each system it controls advances it 1 (Defy the Empire's Grip)."],
+        plan: player => isRegent(player) ? {} : { move: { add: 0.5 } },
+        move: player => isRegent(player) ? null : "ships to a system with no Rival or Imperial ships, to control it" },
+    3: { name: "Magnate",
+        notes: ["<b>Trades in Summits</b>: each resource or Favor a Rival gives it advances its objective by 2, so it calls a Summit for any good deal (Close Deals with Rivals).",
+            "<b>Gathers resources</b> to trade, and exports 3 at a time when it can (Export to the Galactic Core)."],
+        plan: { tax: { add: 0.25, reason: "Resources to trade in Summits and to export" } } },
+    4: { name: "Advocate", drive: player => (player.guildCards || []).includes(205),
+        notes: player => (player.guildCards || []).includes(205)
+            ? [driveNote + ": with Guild Overseers it can only use Guild card actions while it's 1st or 2nd in a declared ambition.",
+                "<b>Secures Guild cards</b> whose Prelude discards them: each one used advances its objective by 3 (Prove Yourself to the Overseers)."]
+            : ["<b>Secures Guild cards</b>, for their Preludes."],
+        plan: { secure: { add: 0.25 } } },
+    5: { name: "Caretaker", drive: player => (getCampaignPlayer(player).golems || 0) > 0,
+        notes: player => ((getCampaignPlayer(player).golems || 0) > 0 ? [driveNote + ": each one it wins advances its objective by 2 for each Golem it has (Find the Golems)."] : [])
+            .concat("<b>Goes after the Golems</b>: it moves its ships to gates with Golems, and asks whether it controls one so it can Awaken them.",
+                "<b>Spends Golems</b> in its prelude: each one advances its objective by 2 (Use the Golems)."),
+        plan: { move: { add: 0.25 } },
+        move: "ships to a gate with a Golem, to control it and Awaken it" },
+    6: { name: "Partisan", drive: () => true, driveAmbition: (player, ambition) => !getAmbitionOutrage(player, ambition),
+        notes: [driveNote + " where it has no Outrage of that ambition's resource: each one it wins advances its objective by 2 (Appeal to Your Supporters).",
+            "<b>Keen to get the initiative</b>: each time advances its objective by 1 (Sow Division). It seizes by Provoking Outrage of a resource it holds little of."] },
+    7: { name: "Admiral", drive: player => isRegent(player),
+        notes: [driveNote + ": while it's winning one, each Imperial ship placed advances its objective (Prove Yourself as a New Admiral).",
+            "<b>Battles alongside Imperial ships</b> as a Regent, Outlaws first: each Trophy advances its objective (Demonstrate the Navy's Might).",
+            "<b>Stays a Regent</b>, and as First Regent likes Requisition Ships (2 more Imperial ships)."],
+        plan: player => isRegent(player) ? { battle: { add: 0.5, reason: "Trophies taken alongside Imperial ships advance its objective" } } : {},
+        policy: (firstRegent, policy) => policy == "escalation" ? { value: 1, note: "Imperial ships placed while it's winning an ambition advance its objective" } : null },
+    8: { name: "Believer", drive: () => true,
+        notes: [driveNote + ": each one it wins advances its objective by the action pips on its top Faithful card, or 10 with the stack empty (Spread the Good Word).",
+            "<b>Teaches</b> instead of an Influence, for a lower Faithful card on top."] }
+};
+Object.entries(actOneSteers).forEach(([fate, steer]) => {
+    fateSteers[fate] = fateSteers[fate] || {};
+    fateSteers[fate][1] = steer;
+});
+
+function getAmbitionOutrage(player, ambition) {
+    // The Partisan: Outrage of a resource this ambition counts (fatebots.js ambitionOutrageResources)
+    return (ambitionOutrageResources[ambition] || []).some(resource => (player.outraged || []).includes(resource));
+}
+
+// How much more likely (%) a driven bot is to declare an ambition it could place in
+const driveDeclareBonus = 25;
+
+function isDriven(player, ambition) {
+    const steer = getSteer(player);
+    if (steer == null || steer.drive == null || !steer.drive(player)) { return false; }
+    return ambition == null || steer.driveAmbition == null || steer.driveAmbition(player, ambition);
+}
+
+registerCampaignHook("declareBonus", (player, ambition) => isDriven(player, ambition) ? driveDeclareBonus : undefined);
+
+function getDrivePrefer(player) {
+    // A driven bot leads with an ambition it would place in, best place first
+    const steer = getSteer(player);
+    const ambitionsNow = ["tycoon", "tyrant", "warlord", "keeper", "empath"].filter(ambition => isDriven(player, ambition));
+    return ambitionsNow.map(ambition => ({ ambition: ambition, place: getAmbitionPlacePoints(player, ambition, ambitionResources[ambition](player)) }))
+        .filter(item => item.place > 0).sort((a, b) => b.place - a.place).map(item => item.ambition);
+}
+
 function getSteer(player) {
-    // Its steer for this Act, or null. Act I is played by fatebots.js
-    if (campaign == null || campaign.act < 2 || player.isHuman) { return null; }
+    // Its steer for this Act, or null. Act I's cards and powers are in fatebots.js
+    if (campaign == null || player.isHuman) { return null; }
     const state = getCampaignPlayer(player);
     return state == null ? null : ((fateSteers[state.fate] || {})[campaign.act] || null);
 }
@@ -455,7 +530,20 @@ function getSteerTargetBonus(player, rival) {
 // The Believer asks once a chapter whether each declared ambition has an Ideal marker, on its
 // first turn after it's declared
 registerCampaignHook("botQuestions", (player, carryOn) => {
-    if (getSteer(player) == null || !hasFate(player, 8)) { return undefined; }
+    // The Caretaker (Act I) first: whether it controls a Golem, so it can Awaken them (fatebots.js)
+    if (getSteer(player) != null && campaign.act == 1 && hasFate(player, 5)) {
+        player.steerAnswers = player.steerAnswers || {};
+        if (player.steerAnswers.golem === undefined && getBotCards(player).some(card => card.actions.includes("influence"))) {
+            askYesNo("INFLUENCE", "Do I control a Golem on the map? (My Fate, the Caretaker: Golem Beacon lets me Awaken it instead of an Influence.)", yes => {
+                player.steerAnswers.golem = yes;
+                SaveAllSettings();
+                carryOn();
+            });
+            return true;
+        }
+        return undefined;
+    }
+    if (getSteer(player) == null || campaign.act < 2 || !hasFate(player, 8)) { return undefined; }
     const state = getCampaignPlayer(player);
     if (state.ideals == null || state.ideals.act != campaign.act || state.ideals.chapter != roundNumber) {
         state.ideals = { act: campaign.act, chapter: roundNumber, marked: {} };
@@ -504,10 +592,13 @@ registerCampaignHook("sortAmbitions", (player, standing) => {
     // An ambition it wants declared first, while it holds any of what it counts
     // One it can't declare goes last
     const steer = getSteer(player);
-    if (steer == null || (steer.prefer == null && getCannotDeclare(steer).length == 0)) { return undefined; }
-    const prefer = getSteerField(steer, "prefer", player, []);
+    if (steer == null || (steer.prefer == null && steer.drive == null && getCannotDeclare(steer).length == 0)) { return undefined; }
+    // Its Fate's own, then (driven) the ambitions it would place in
+    const prefer = getSteerField(steer, "prefer", player, []).concat(steer.drive != null ? getDrivePrefer(player) : []);
     const never = getCannotDeclare(steer).filter(ambition => !prefer.includes(ambition));
-    const first = standing.filter(([ambition, count]) => prefer.includes(ambition) && count > 0);
+    // In the order it prefers them, not by how many it holds
+    const first = standing.filter(([ambition, count]) => prefer.includes(ambition) && count > 0)
+        .sort((a, b) => prefer.indexOf(a[0]) - prefer.indexOf(b[0]));
     const last = standing.filter(([ambition]) => never.includes(ambition));
     return first.concat(standing.filter(entry => !first.includes(entry) && !last.includes(entry)), last);
 });

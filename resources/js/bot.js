@@ -697,8 +697,9 @@ function declareAmbition(player, playedCard) {
     const resources = instead != null ? instead.resources : ((ambitionResources[ambition] == null) ? 0 : ambitionResources[ambition](player));
     if (resources == 0 && !forShips) { return; }
 
-    // See declareChanceByRound at the top of the file
-    const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource, declareChanceMax);
+    // See declareChanceByRound at the top of the file. In a campaign, more when its Fate pays for
+    // winning ambitions (campaignhooks.js)
+    const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource + (runCampaignHook("declareBonus", player, ambition) || 0), declareChanceMax);
 
     // By the difficulty (#71): on a whim, or when it would come first, or both
     const wins = instead != null ? instead.wins : wouldWinAmbition(player, ambition);
