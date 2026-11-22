@@ -253,7 +253,9 @@ function getDealsKept(bot, human) {
 function findCounterOffer(deal, gap) {
     // The least it would ask on top: what you have left, cheapest for you first, until the gap is closed
     const { bot, human } = deal;
-    const options = dealCounters.concat(["promise", "ship"]).map(key => ({ key: key, left: getDealMost(human, key) - (deal.give[key] || 0), value: getDealPartValue(bot, key, 1, true) }))
+    // Not anything it's giving you in this deal (#177)
+    const options = dealCounters.concat(["promise", "ship"]).filter(key => !((deal.want[key] || 0) > 0) && !((deal.want["league:" + key] || 0) > 0))
+        .map(key => ({ key: key, left: getDealMost(human, key) - (deal.give[key] || 0), value: getDealPartValue(bot, key, 1, true) }))
         .filter(option => option.left > 0 && option.value > 0);
     // One item that covers it, the smallest
     const single = options.filter(option => option.value >= gap).sort((a, b) => a.value - b.value)[0];
@@ -431,6 +433,24 @@ function getBotOffer(bot) {
     return options.sort((a, b) => b.gain - a.gain)[0] || null;
 }
 
+function getNoOfferReason(bot) {
+    // Why a bot offers no deal this Summit (#177), so every bot is accounted for
+    const chased = preludeResources.filter(resource => getResourceNeed(bot, resource) == 2);
+    const name = resource => preludeResourceNames[resource];
+    if (chased.length == 0 && !isMagnate(bot)) { return "it isn't chasing any resource"; }
+    const asks = (isMagnate(bot) ? preludeResources : chased).filter(resource => players.some(rival => rival !== bot && rival[resource + "Value"] > 0 && getResourceNeed(rival, resource) < 2));
+    if (asks.length == 0) { return "no Rival holds the " + chased.map(name).join(" or ") + " it's chasing without needing it too"; }
+    const spare = preludeResources.some(resource => !asks.includes(resource) && bot[resource + "Value"] > 0 && getResourceNeed(bot, resource) == 0)
+        || preludeResources.some(resource => (getLeague(bot)[resource] || 0) > 0) || getDealMost(bot, "promise") > 0;
+    if (!spare) { return "it has nothing to spare to give for it"; }
+    return "no deal would be worth what it gives up";
+}
+
+function noteNoOffer(bot) {
+    if (bot.isHuman || (roundEvent.dealt || []).includes(bot.number)) { return; }
+    roundEvent.offerResults.push("Player " + bot.number + " had no deal to offer: " + getNoOfferReason(bot) + ".");
+}
+
 function getOfferDeal(bot, offer) {
     // As a deal between the bot (deal.bot) and the Rival it asks (deal.human)
     return { bot: bot, human: offer.rival, give: { [offer.ask]: 1 }, want: { ...offer.give }, giveDelegate: null, wantDelegate: null, invite: null };
@@ -454,7 +474,7 @@ function nextBotOffer() {
         const bot = getPlayer(roundEvent.offerQueue.shift());
         magnateExport(bot);
         const offer = getBotOffer(bot);
-        if (offer == null) { continue; }
+        if (offer == null) { noteNoOffer(bot); continue; }
         if (offer.rival.isHuman) {
             roundEvent.offer = { bot: bot, ...offer };
             showBotOffer();
@@ -523,7 +543,7 @@ function counterBotOffer() {
 function getOfferResultsHtml() {
     const results = roundEvent.offerResults || [];
     if (results.length == 0) { return ""; }
-    return "<div class=\"turnsection\"><div class=\"turnlabel\">Deals the bots offered</div>"
+    return "<div class=\"turnsection\"><div class=\"turnlabel\">The bots' deals</div>"
         + results.map(result => "<div class=\"setstep\"><span class=\"setnum\">&#10003;</span><span>" + result + "</span></div>").join("") + "</div>";
 }
 
@@ -537,6 +557,7 @@ function runBotOffersSilently() {
         magnateExport(bot);
         const offer = getBotOffer(bot);
         if (offer != null && !offer.rival.isHuman) { settleBotDeal(bot, offer); }
+        else if (offer == null) { noteNoOffer(bot); }
     });
     return roundEvent.offerResults;
 }

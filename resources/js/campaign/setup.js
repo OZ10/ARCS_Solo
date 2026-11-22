@@ -57,7 +57,11 @@ function showLaterActSetup() {
         + step(act == 2 ? "Each player puts their objective marker on its starting space" : "Players with a \"C\" Fate put their objective marker on its starting space",
             (act == 3 ? "\"A\" and \"B\" Fates have grand ambitions instead. " : "") + "The app has set each one on the panels.")
         + "</div><button type=\"button\" class=\"btn btn-primary w-100 mt-2\" data-bs-dismiss=\"modal\">Done: start chapter 1</button>";
-    showCampaignWindow(actNames[act] + " setup", html, null, true, () => startRoundAfterMulligan());
+    showCampaignWindow(actNames[act] + " setup", html, null, true, () => {
+        // The Act has started: a reload now carries on the game
+        if (campaign.stage == "actSetup") { campaign.stage = null; SaveAllSettings(); }
+        startRoundAfterMulligan();
+    });
 }
 
 function ensureCouncilInCourt() {

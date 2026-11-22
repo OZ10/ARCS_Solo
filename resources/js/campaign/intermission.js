@@ -5,16 +5,31 @@
 // they are loaded as plain scripts, in order, by index.html
 
 registerCampaignHook("showGameOver", () => {
+    // The Act is over, so its setup certainly is
+    if (campaign.stage == "actSetup") { campaign.stage = null; }
+    // Already between Acts (after a reload): carry on from that step, not from the start
+    if (campaign.act < 3 && ["choosingFates", "betweenActs"].includes(campaign.stage)) { resumeBetweenActs(); return true; }
     if (campaign.act < 3) { startIntermission(); } else { showCampaignWinner(); }
     return true;
 });
 
 registerCampaignHook("modeChanged", () => {
-    // Loaded between Acts: carry on from there
+    // Loaded between Acts: carry on from the step it had got to
     if (!campaignMode || campaign == null) { return; }
-    if (campaign.stage == "intermission") { whenWindowsClosed(showIntermission); }
-    if (campaign.stage == "betweenActs") { whenWindowsClosed(showNextAct); }
+    resumeBetweenActs();
 });
+
+function resumeBetweenActs() {
+    // Each step is saved as it's reached, so nothing is done twice and the same Fates are on offer
+    if (campaign.stage == "intermission") { whenWindowsClosed(showIntermission); }
+    if (campaign.stage == "choosingFates") { whenWindowsClosed(() => resumeFateChoice(afterLaterFatesChosen)); }
+    if (campaign.stage == "betweenActs") { whenWindowsClosed(showNextAct); }
+    if (campaign.stage == "actSetup") {
+        // Only while no card has been played in the new Act; after that it's under way
+        if (roundNumber == 1 && turnNumber == 1 && playedCardList.length == 0) { whenWindowsClosed(askOpeningCourt); }
+        else { campaign.stage = null; SaveAllSettings(); }
+    }
+}
 
 function startIntermission() {
     campaign.stage = "intermission";
@@ -69,33 +84,42 @@ function setObjectiveCompleted(playerNumber, completed) {
 }
 
 function applyIntermission() {
-    // A and E: Power. C: Trophies, Captives, the Trust (and the ambition boxes with 2 players). B: the Court
-    const powers = {};
-    players.forEach(player => { powers[player.number] = getIntermissionPower(player); });
-    // The Resolution cards: cards gained, Edicts scrapped (fatebots.js)
-    applyResolutions();
-    players.forEach(player => {
-        setPlayerPower(player, powers[player.number]);
-        ["trophies", "captives"].forEach(counter => adjustCounter(player, counter, -player[counter + "Value"]));
-        player.agentsCaptive = 0;
-        player.agentsTrophy = 0;
-        player.citiesAsTrophies = 0;
-    });
-    trustResources.forEach(resource => { campaign.trust[resource] = 0; });
-    if (players.length == 2) { neutralCounts = {}; }
-    const council = getCouncilEntry();
-    courtMarket = (council != null) ? [{ number: councilNumber, agents: {}, decided: council.decided }] : [];
-    // The initiative to the player with the most Power
-    const highest = players.slice().sort((a, b) => powers[b.number] - powers[a.number] || getTurnOrderPosition(a) - getTurnOrderPosition(b))[0];
-    changeInitiative(highest);
+    // A and E: Power. C: Trophies, Captives, the Trust (and the ambition boxes with 2 players). B: the Court.
+    // Once only for each Act (#179): tapped again, or reloaded, it doesn't take the Power away twice
+    if (campaign.intermissionDone !== campaign.act) {
+        const powers = {};
+        players.forEach(player => { powers[player.number] = getIntermissionPower(player); });
+        // The Resolution cards: cards gained, Edicts scrapped (fatebots.js)
+        applyResolutions();
+        players.forEach(player => {
+            setPlayerPower(player, powers[player.number]);
+            ["trophies", "captives"].forEach(counter => adjustCounter(player, counter, -player[counter + "Value"]));
+            player.agentsCaptive = 0;
+            player.agentsTrophy = 0;
+            player.citiesAsTrophies = 0;
+        });
+        trustResources.forEach(resource => { campaign.trust[resource] = 0; });
+        if (players.length == 2) { neutralCounts = {}; }
+        const council = getCouncilEntry();
+        courtMarket = (council != null) ? [{ number: councilNumber, agents: {}, decided: council.decided }] : [];
+        // The initiative to the player with the most Power
+        const highest = players.slice().sort((a, b) => powers[b.number] - powers[a.number] || getTurnOrderPosition(a) - getTurnOrderPosition(b))[0];
+        changeInitiative(highest);
+        campaign.intermissionDone = campaign.act;
+    }
+    // Next: choosing Fates, saved as it goes (campaign.js). Already started: the same Fates again
+    const resuming = campaign.stage == "choosingFates" && campaign.fateChoice != null;
+    campaign.stage = "choosingFates";
     players.forEach(showCampaignPanel);
     SaveAllSettings();
     closeCampaignWindow();
-    whenWindowsClosed(() => chooseFates(campaign.act + 1, () => {
-        campaign.stage = "betweenActs";
-        SaveAllSettings();
-        showNextAct();
-    }));
+    whenWindowsClosed(() => resuming ? resumeFateChoice(afterLaterFatesChosen) : chooseFates(campaign.act + 1, afterLaterFatesChosen));
+}
+
+function afterLaterFatesChosen() {
+    campaign.stage = "betweenActs";
+    SaveAllSettings();
+    showNextAct();
 }
 
 function showNextAct() {
@@ -109,7 +133,8 @@ function showNextAct() {
 function startNextAct() {
     // As the previous Act ended, including Power, with the changes in the Act II & III setup (rulebook p.7)
     campaign.act += 1;
-    campaign.stage = null;
+    // Until the setup window is done: reloaded, it starts with the Court again (setup.js)
+    campaign.stage = "actSetup";
     campaign.setupRolls = null;
     campaign.councilSecuredBy = null;
     campaign.councilSecuredAt = null;

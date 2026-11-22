@@ -119,7 +119,8 @@ registerCampaignHook("isGameOver", () => {
     // Acts the campaign is still going. In Act III, a "C" Fate with its final objective complete and
     // at least 1 Power wins at the end of a chapter (rulebook p.9)
     if (campaign == null) { return undefined; }
-    if (campaign.stage != null) { return campaign.stage == "over"; }
+    // Between Acts (intermission.js). Setting up the next Act counts as playing it
+    if (campaign.stage != null && campaign.stage != "actSetup") { return campaign.stage == "over"; }
     return roundNumber >= chaptersInAct[campaign.act] || getFinalObjectiveWinners().length > 0;
 });
 
@@ -222,6 +223,29 @@ function chooseFates(act, then) {
     nextFateChoice();
 }
 
+// The Fates being chosen are saved with the campaign, so reloading the app carries on with the same
+// Fates dealt and those already taken (after Acts I and II; Act I's is part of starting a new game)
+
+function saveFateChoice() {
+    if (fateChoice == null || fateChoice.act < 2) { return; }
+    const ref = item => item == null ? null : { player: item.player.number, picker: item.picker };
+    campaign.fateChoice = { set: fateChoice.set, act: fateChoice.act, deck: fateChoice.deck, dealt: fateChoice.dealt, keeping: fateChoice.keeping,
+        queue: fateChoice.queue.map(ref), current: ref(fateChoice.current), shown: fateChoice.shown === true };
+    SaveAllSettings();
+}
+
+function resumeFateChoice(then) {
+    // After loading: the saved choice, or a new one if it hadn't started
+    const saved = campaign.fateChoice;
+    if (saved == null) { chooseFates(campaign.act + 1, then); return; }
+    const item = ref => ref == null ? null : { player: getPlayer(ref.player), picker: ref.picker };
+    fateChoice = { set: saved.set, act: saved.act, then: then, deck: saved.deck, dealt: saved.dealt, keeping: saved.keeping,
+        queue: saved.queue.map(item), current: item(saved.current), selected: null };
+    if (saved.shown) { showFatesChosen(); return; }
+    if (fateChoice.current != null) { fateChoice.queue.unshift(fateChoice.current); }
+    nextFateChoice();
+}
+
 function dealFate(player) {
     // The top Fate of the deck. A bot isn't dealt one the bots can't play yet (fatebots.js)
     const index = fateChoice.deck.findIndex(number => player.isHuman || !botsNotDealt.includes(number));
@@ -243,6 +267,7 @@ function nextFateChoice() {
     if (next == null) { showFatesChosen(); return; }
     fateChoice.current = next;
     fateChoice.selected = null;
+    saveFateChoice();
     const player = next.player;
     // With more than one human player, the others mustn't see the Fates on offer (#67)
     if (next.picker == "self" && isMultiHuman()) {
@@ -300,6 +325,8 @@ function takeFate(number) {
     getCampaignPlayer(fateChoice.current.player).fate = number;
     // The other dealt card is no longer on offer to anyone picking
     delete fateChoice.dealt[fateChoice.current.player.number];
+    fateChoice.current = null;
+    saveFateChoice();
     SaveAllSettings();
     if (fateChoice.queue.length == 0) { showFatesChosen(); return; }
     nextFateChoice();
@@ -310,25 +337,30 @@ function showFatesChosen() {
     // (rulebook p.6). The Steward, or else the Admiral, takes the First Regent tile; if neither, the
     // player with the initiative
     const act = fateChoice.act;
-    const changed = [];
-    players.forEach(player => {
-        const state = getCampaignPlayer(player);
-        const fate = getFate(state.fate);
-        // A new Fate: Favors go back to their owners (rulebook p.29)
-        if (state.previousFate != null && state.previousFate != state.fate) { state.favors = {}; changed.push(player); }
-        // Act I's objectives are known. Later Acts' are set on the panel from the card. In Act III
-        // only "C" Fates have one (rulebook p.7)
-        // Act II: every Fate's new objective. Act III: a "C" Fate's final objective (laterfates.js)
-        state.objective = (act == 1) ? (fate.objective != null ? fate.objective.start[players.length] : null) : getLaterObjectiveStart(fate, act);
-        state.completed = null;
-    });
-    if (act == 1) {
-        const holding = name => players.find(player => getFate(getCampaignPlayer(player).fate).name == name);
-        const firstRegent = holding("Steward") || holding("Admiral") || getPlayerWithInitiative();
-        campaign.firstRegent = firstRegent.number;
+    const changed = players.filter(player => getCampaignPlayer(player).previousFate != null && getCampaignPlayer(player).previousFate != getCampaignPlayer(player).fate);
+    // Done once: shown again after loading, it doesn't apply the Fates a second time
+    if (campaign.fatesApplied !== act) {
+        players.forEach(player => {
+            const state = getCampaignPlayer(player);
+            const fate = getFate(state.fate);
+            // A new Fate: Favors go back to their owners (rulebook p.29)
+            if (changed.includes(player)) { state.favors = {}; }
+            // Act I's objectives are known. Act II: every Fate's new objective. Act III: a "C" Fate's
+            // final objective (laterfates.js)
+            state.objective = (act == 1) ? (fate.objective != null ? fate.objective.start[players.length] : null) : getLaterObjectiveStart(fate, act);
+            state.completed = null;
+        });
+        if (act == 1) {
+            const holding = name => players.find(player => getFate(getCampaignPlayer(player).fate).name == name);
+            const firstRegent = holding("Steward") || holding("Admiral") || getPlayerWithInitiative();
+            campaign.firstRegent = firstRegent.number;
+        }
+        // Their starting cards and Edicts (fatebots.js)
+        applyFateSetups(act);
+        campaign.fatesApplied = act;
     }
-    // Their starting cards and Edicts (fatebots.js)
-    applyFateSetups(act);
+    fateChoice.shown = true;
+    saveFateChoice();
     players.forEach(showCampaignPanel);
     SaveAllSettings();
 
@@ -345,7 +377,7 @@ function showFatesChosen() {
             + " Each Fate's setup is below; do them during " + actNames[act] + "'s setup.</p>";
     const regentLine = (act == 1) ? "<p class=\"mt-2 mb-2\">Everyone starts as an Imperial Regent. Player " + firstRegent.number + " takes the First Regent tile.</p>" : "";
     showCampaignWindow(actNames[act] + ": the Fates", intro + rows + regentLine
-        + "<button type=\"button\" class=\"btn btn-primary w-100\" data-bs-dismiss=\"modal\">OK</button>", null, true, () => { fateChoice = null; then(); });
+        + "<button type=\"button\" class=\"btn btn-primary w-100\" data-bs-dismiss=\"modal\">OK</button>", null, true, () => { fateChoice = null; campaign.fateChoice = null; then(); });
 }
 
 // A player's panel: Fate, title, objective, Favors and, for the First Regent, the Imperial Trust

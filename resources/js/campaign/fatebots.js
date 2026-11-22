@@ -217,16 +217,25 @@ function showImperialFoundries() {
     const holder = players.find(player => (player.guildCards || []).includes(201));
     const most = holder == null ? 0 : Math.min(holder.starportsValue || 0, holder.shipsBoardValue);
     if (holder == null || most == 0) { nextFateEdict(); return; }
-    // A bot keeps a few ships of its own
-    roundEvent.foundries = holder.isHuman ? most : Math.min(most, Math.max(holder.shipsBoardValue - 3, 0));
+    // The app can't see which starports have one of its ships, so it starts at 0 (#178): a human
+    // player sets how many they replace; for a bot, how many of its starports have one of its ships
+    roundEvent.foundries = 0;
     showFoundries(holder, most);
 }
 
+function getBotFoundries(holder) {
+    // A bot replaces one at each starport with a ship there, keeping a few ships of its own
+    return Math.min(roundEvent.foundries, Math.max(holder.shipsBoardValue - 3, 0));
+}
+
 function showFoundries(holder, most) {
+    const stepper = label => "<div class=\"neutralsteps mb-2\"><span class=\"neutralstep\"><span>" + label + "</span><button type=\"button\" onclick=\"stepFoundries(-1, " + most + ")\" aria-label=\"One fewer\"><i class=\"bi bi-dash\"></i></button><b>" + roundEvent.foundries
+        + "</b><button type=\"button\" onclick=\"stepFoundries(1, " + most + ")\" aria-label=\"One more\"><i class=\"bi bi-plus\"></i></button></span></div>";
+    const replaces = holder.isHuman ? null : getBotFoundries(holder);
     const choice = holder.isHuman
-        ? "<div class=\"neutralsteps mb-2\"><span class=\"neutralstep\"><span>Ships to replace</span><button type=\"button\" onclick=\"stepFoundries(-1, " + most + ")\" aria-label=\"One fewer\"><i class=\"bi bi-dash\"></i></button><b>" + roundEvent.foundries
-            + "</b><button type=\"button\" onclick=\"stepFoundries(1, " + most + ")\" aria-label=\"One more\"><i class=\"bi bi-plus\"></i></button></span></div>"
-        : "<p class=\"mb-2\">Player " + holder.number + " (bot) replaces <b>" + roundEvent.foundries + "</b>" + (roundEvent.foundries < most ? ", keeping enough ships of its own" : "") + ".</p>";
+        ? stepper("Ships to replace")
+        : stepper("Its starports with one of its ships there")
+            + "<p class=\"mb-2\">Player " + holder.number + " (bot) replaces <b>" + replaces + "</b>" + (replaces < roundEvent.foundries ? ", keeping enough ships of its own" : "") + ".</p>";
     showCampaignWindow("Edicts", "<div class=\"turnsection\"><div class=\"turnlabel\">55 &middot; Use Imperial Foundries</div>"
         + "<p class=\"mb-2\">Player " + holder.number + " holds Imperial Officers: for each of its Loyal starports (" + (holder.starportsValue || 0) + "), it may replace 1 of its ships in that system with an Imperial ship.</p>"
         + choice + "</div><button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"applyFoundries(" + holder.number + ")\">OK</button>", holder, true);
@@ -240,7 +249,7 @@ function stepFoundries(change, most) {
 
 function applyFoundries(playerNumber) {
     const holder = getPlayer(playerNumber);
-    const count = roundEvent.foundries;
+    const count = holder.isHuman ? roundEvent.foundries : getBotFoundries(holder);
     if (count > 0) {
         adjustCounter(holder, "shipsBoard", -count);
         imperialShipsPlaced(count, "Use Imperial Foundries");

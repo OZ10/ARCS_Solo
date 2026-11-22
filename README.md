@@ -122,14 +122,14 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 
 **Objectives:** at the end of each chapter, a window lists the objective markers that moved and why, and asks you anything the app can't see, such as how many systems a bot controls. Move the markers on the table to match. In Act III, "A" and "B" Fates are asked which grand ambitions they fulfilled and gain the Power for them, and a "C" Fate that completes its final objective with Power wins the campaign.
 
-**Between Acts:** the Intermission works out everyone's Power for the next Act. After Act III, the player with the most Power wins, unless someone completed their final objective.
+**Between Acts:** the Intermission works out everyone's Power for the next Act. Each step between Acts is saved as it's reached: the Intermission, choosing Fates (with the same Fates dealt), the Fates revealed, and the next Act's setup. If the app is reloaded partway through, it carries on from that step, and nothing is done twice. After Act III, the player with the most Power wins, unless someone completed their final objective.
 
 **Deals with the bots:** in any Summit, whoever called it, the Negotiations section has a **Deal with Player N** button for each bot.
 - **Building the deal:** what you give and what you want from the bot, from the Negotiation actions: Transfer Asset, Promise Favor, Cede Control, Delegate Authority and Invite to Empire.
 - **The bot's answer:** it weighs what it gets against what it gives, and accepts, makes a counter-offer, or refuses, with its reasons. It asks more of the player leading on Power, and remembers deals made with it.
 - **After a deal:** the app updates the panels and lists what to move on the table.
 
-**The bots' own deals:** when a Summit opens, each bot may offer one deal. It asks for a resource it's chasing and gives what it can spare. You can accept, make a counter-offer, or say no thanks. Deals between two bots are settled straight away and listed. A bot that calls a Summit also calls in Favors it holds (your agents on its Fate card) to force you to give it what it's chasing. For a resource, the app asks the raid cost shown on that slot.
+**The bots' own deals:** when a Summit opens, whoever called it, each bot may offer one deal. A bot with nothing to offer says why. It asks for a resource it's chasing and gives what it can spare. You can accept, make a counter-offer, or say no thanks. Deals between two bots are settled straight away and listed. A bot that calls a Summit also calls in Favors it holds (your agents on its Fate card) to force you to give it what it's chasing. For a resource, the app asks the raid cost shown on that slot.
 
 **The Magnate:** bots can now be dealt it.
 - **Merchant League:** the resources it gains when it declares an ambition are shown on its panel. They can only be given away in Summit deals, and its Crisis empties them.
