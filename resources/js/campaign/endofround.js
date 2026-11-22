@@ -641,6 +641,9 @@ function enforcePolicy() {
         regents.forEach(player => {
             if (getResourceSupply("weapons") > 0) { adjustCounter(player, "weapons", 1); notes.push("Player " + player.number + " gains 1 Weapon"); }
             else if (campaign.trust.weapons > 0) { campaign.trust.weapons -= 1; adjustCounter(player, "weapons", 1); notes.push("Player " + player.number + " gains 1 Weapon from the Trust"); }
+            // A bot with no room returns what it needs least (#167)
+            const room = returnOverCapacity(player);
+            if (room != null) { notes.push(room); }
         });
     } else {
         notes.push("Place 2 fresh Imperial ships in an Empire-controlled system (or at a Loyal starport of Player " + firstRegent.number + "'s if there are none)");

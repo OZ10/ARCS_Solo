@@ -164,7 +164,7 @@ function getBattleTargetReason(player, rival) {
     // a defending fresh ship hits back on an intercept, and raid dice need a building there
     const outnumber = "Choose a system where it outnumbers their fresh ships.";
     const holding = preludeResources.filter(resource => getResourceNeed(player, resource) == 2)
-        .map(resource => ({ resource: resource, count: rival[resource + "Value"] + getGuildIconCount(rival, resource) }))
+        .map(resource => ({ resource: resource, count: rival[resource + "Value"] + getStealableIconCount(rival, resource) }))
         .filter(held => held.count > 0).sort((a, b) => b.count - a.count)[0];
     if (holding != null) {
         const name = preludeResourceNames[holding.resource].toLowerCase() + (holding.count > 1 && holding.resource != "fuel" ? "s" : "");
@@ -202,7 +202,7 @@ function getBattleTarget(player) {
     if (target == null) {
         const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2);
         const warlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
-        const score = rival => chased.reduce((total, resource) => total + (rival[resource + "Value"] + getGuildIconCount(rival, resource)) * weights.holding, 0)
+        const score = rival => chased.reduce((total, resource) => total + (rival[resource + "Value"] + getStealableIconCount(rival, resource)) * weights.holding, 0)
             + (players.filter(other => other !== rival).every(other => rival.powerValue > other.powerValue) ? weights.leader : 0)
             + rival.powerValue * weights.power
             + rival.shipsBoardValue * (warlord ? weights.shipWarlord : weights.ship)

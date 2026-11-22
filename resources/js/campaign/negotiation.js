@@ -343,6 +343,8 @@ function applyDeal(deal) {
     });
     move(human, bot, deal.give);
     move(bot, human, deal.want);
+    // A bot with no room for what it was given returns what it needs least (#172)
+    [bot, human].forEach(player => { const room = returnOverCapacity(player); if (room != null) { table.push(room); } });
     // The Magnate (human or bot): its objective, and what it gave, which doesn't count coming back
     magnateDealt(human, bot, deal.give, deal.want);
     magnateDealt(bot, human, deal.want, deal.give);

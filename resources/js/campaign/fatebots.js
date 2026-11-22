@@ -642,6 +642,10 @@ function getFateTurnSection(player) {
         html += "<div class=\"empirenote\"><b>Imperial Officers:</b> it ignores the Presence and Movement Laws, so it can move and attack with any Imperial ships, even where it has no ships."
             + (isRegent(player) ? " Attacking alongside Imperial ships, each Trophy advances its objective." : "") + "</div>";
     }
+    // Use Imperial Foundries needs a ship of its own at each of its starports (#166)
+    if ((player.guildCards || []).includes(201) && (player.starportsValue || 0) > 0) {
+        html += "<div class=\"empirenote\"><b>Use Imperial Foundries:</b> when it moves, it leaves at least 1 of its ships at each of its starports. At the Edicts, 1 ship at each can become an Imperial ship.</div>";
+    }
     return getTurnSection("Fate: " + fate.name, html);
 }
 

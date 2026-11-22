@@ -165,8 +165,9 @@ function showVoxCard(player, card) {
             break;
         }
 
-        case 27: {
-            // Populist Demands
+        case 27:
+        case 101: {
+            // Populist Demands (101 is the campaign's, #173)
             const best = getBestAmbitionToDeclare(player);
             if (best == null) {
                 nothing("It doesn't declare", declaredAmbitions.length >= 3 ? "All the ambition markers are placed." : "It has nothing towards any ambition.");

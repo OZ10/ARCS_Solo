@@ -186,6 +186,8 @@ function showBattleCampaignNote() {
     note.classList.toggle("d-none", lines.length == 0);
 }
 
+registerCampaignHook("defenderPieces", defender => defender == null ? undefined : ({ blight: "Blight", empire: "Imperial ships" }[defender.campaignDefender]));
+
 registerCampaignHook("battleTargets", () => {
     // Tough: a fresh Blight needs 4 hits to destroy, a damaged one 2, like 2 ships each. It doesn't intercept
     if (battle.defender.campaignDefender != "blight") { return undefined; }

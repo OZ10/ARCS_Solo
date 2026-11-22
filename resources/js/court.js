@@ -171,6 +171,12 @@ function getGuildIconCount(player, resource) {
     return getPlayerGuildCards(player).filter(card => card.resource == resource).length;
 }
 
+function getStealableIconCount(player, resource) {
+    // Its Guild cards of a resource that a raid could take: not a campaign's protected Fate cards,
+    // which have an X for their keys (#171)
+    return getPlayerGuildCards(player).filter(card => card.resource == resource && !card.protected).length;
+}
+
 function holdsGuildCard(player, number) {
     return (player.guildCards || []).includes(number);
 }

@@ -97,7 +97,15 @@ registerCampaignHook("secureCard", (entry, player, captured) => {
     }
     removeFromMarket(card.number);
     if (card.number == 102) { setCouncilInSession(); }
-    showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". " + card.text + " Add its replacement to the market."
-        + (player.isHuman ? "" : " (Bots don't yet decide this for themselves: choose for it.)"));
+    // Populist Demands: a bot says which ambition it declares, as with the base game's (vox.js, #173)
+    const decides = !player.isHuman && card.number == 101;
+    showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". " + (decides ? "" : card.text + " ") + "Add its replacement to the market."
+        + (player.isHuman || decides ? "" : " (Bots don't yet decide this for themselves: choose for it.)"));
+    if (decides) {
+        document.getElementById("courtModal").addEventListener('hidden.bs.modal', () => {
+            showVoxCard(player, card);
+            bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
+        }, { once: true });
+    }
     return true;
 });

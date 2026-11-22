@@ -398,15 +398,21 @@ function getBattleBuildings() {
     })).sort((a, b) => b.value - a.value);
 }
 
+function getDefenderPieces() {
+    // What the defender's "ships" are: in a campaign, Blight or Imperial ships (#164)
+    return runCampaignHook("defenderPieces", battle.defender) || "ships";
+}
+
 function getHitAdvice(canAttackAgain) {
     // How the bot assigns the hits it rolls. The attacker chooses, for both sides' ships
+    const pieces = getDefenderPieces();
     if (declaredAmbitions.includes("warlord")) {
-        return "Destroy damaged ships first: Warlord is declared and destroyed ships are trophies.";
+        return "Destroy damaged " + pieces + " first: Warlord is declared and destroyed " + pieces + " are trophies.";
     }
     if (canAttackAgain) {
-        return "Damage fresh ships first, so the next attack faces fewer fresh ships and less risk of an ambush.";
+        return "Damage fresh " + pieces + " first, so the next attack faces fewer fresh " + pieces + (pieces == "Blight" ? "." : " and less risk of an ambush.");
     }
-    return "Destroy damaged ships first, then damage fresh ones.";
+    return "Destroy damaged " + pieces + " first, then damage fresh ones.";
 }
 
 // The Battle window
@@ -491,6 +497,9 @@ function updateBattleCounts() {
     document.getElementById("battleDamaged").innerHTML = battle.damaged;
     document.getElementById("battleFreshBuildings").innerHTML = battle.freshBuildings;
     document.getElementById("battleDamagedBuildings").innerHTML = battle.damagedBuildings;
+    // "Defender Blight" or "Defender Imperial ships" in a campaign (#164)
+    const label = document.getElementById("battleDefenderShipsLabel");
+    if (label != null && battle.defender != null) { label.innerHTML = "Defender " + getDefenderPieces(); }
     showBattleRaid();
     clearBattleDecision();
 }
@@ -999,11 +1008,11 @@ function showBattleResults() {
 }
 
 function getRaidResultHtml() {
-    // The keys rolled (it starts on what it went for), and the things that takes, ticked: what it
-    // wants most that still fits. Untick anything it didn't take
+    // The keys rolled (it starts on 0, to be set to what was rolled: #175), and the things that
+    // takes, ticked: what it wants most that still fits. Untick anything it didn't take
     const items = getBattleRaidItems();
     if (battle.keysRolled == null) {
-        battle.keysRolled = items.reduce((total, row) => total + row.keys, 0);
+        battle.keysRolled = 0;
         battle.raidTaken = null;
     }
     if (battle.raidTaken == null) {
@@ -1017,7 +1026,8 @@ function getRaidResultHtml() {
         + "<div class=\"d-flex justify-content-center mb-2\"><div class=\"resourcetile\"><div class=\"resourcelabel\">Keys rolled</div><div class=\"resourcevalue\" id=\"battleKeysRolled\">" + battle.keysRolled + "</div>"
         + "<div class=\"d-flex gap-1\"><button class=\"btn resourcebutton resourceminus\" type=\"button\" onclick=\"stepKeysRolled(-1)\" aria-label=\"One key fewer\"><i class=\"bi bi-dash-lg\"></i></button>"
         + "<button class=\"btn resourcebutton resourceplus\" type=\"button\" onclick=\"stepKeysRolled(1)\" aria-label=\"One key more\"><i class=\"bi bi-plus-lg\"></i></button></div></div></div>"
-        + "<p class=\"small text-muted mb-1 text-center\">It takes what it wants most that adds up to " + battle.keysRolled + " key" + (battle.keysRolled == 1 ? "" : "s") + " or fewer. Untick anything it didn't take.</p>"
+        + "<p class=\"small text-muted mb-1 text-center\">" + (battle.keysRolled == 0 ? "Set the keys rolled with + and &minus;. " : "")
+        + "It takes what it wants most that adds up to " + battle.keysRolled + " key" + (battle.keysRolled == 1 ? "" : "s") + " or fewer. Untick anything it didn't take.</p>"
         + "<div id=\"battleRaidTaken\">" + items.map((row, index) => "<div class=\"raidrow\"><input class=\"form-check-input m-0\" type=\"checkbox\" id=\"battleTaken" + index + "\"" + (battle.raidTaken[index] ? " checked" : "") + " onchange=\"toggleRaidTaken(" + index + ")\">"
             + "<label class=\"raidname\" for=\"battleTaken" + index + "\">" + (row.resource != null ? getGameIcon(row.resource) + " " : "") + getRaidRowName(row) + "<small>" + row.keys + " key" + (row.keys == 1 ? "" : "s")
             + (!battle.raidTaken[index] && row.keys > battle.keysRolled - used ? ": no keys left" : "") + "</small></label></div>").join("") + "</div>"
@@ -1152,6 +1162,8 @@ function applyBattleResults() {
             showGuildCardsRow(attacker);
         }
     });
+    // A bot with no room for what it stole returns what it needs least (#172)
+    const roomNote = stolenItems.some(stolen => stolen.resource != null) ? returnOverCapacity(attacker) : null;
 
     // A campaign's objectives can advance for Trophies taken (campaignhooks.js)
     runCampaignHook("afterBattle", losses);
@@ -1164,6 +1176,7 @@ function applyBattleResults() {
         + (ransacked != null ? "<br>Ransacked " + ransacked.name + ". Add its replacement to the market." : (cities.length > 0 && canRansackAgainst(defender) ? "<br>Ransack the Court." : ""))
         + leaderLines.map(line => "<br>" + line).join("")
         + (stolenItems.length > 0 ? "<br>Stole " + getStolenText(stolenItems) : "")
+        + (roomNote != null ? "<br>" + roomNote : "")
         + (cities.length > 0 && getOverCapacityAdvice(defender) != null ? "<br>" + getOverCapacityAdvice(defender) : ""));
 
     battle.start = null;

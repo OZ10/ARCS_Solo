@@ -245,9 +245,10 @@ function findFocus(player, unplayedCards) {
 }
 
 function getRaidHolders(player, resources) {
-    // The Rivals with something of these resources to steal, most first
+    // The Rivals with something of these resources to steal, most first. Not a protected Guild card
+    // (a campaign's Fate cards, with an X for their keys), which can't be stolen (#171)
     return players.filter(other => other !== player)
-        .map(other => ({ player: other, count: resources.reduce((total, resource) => total + other[resource + "Value"] + getGuildIconCount(other, resource), 0) }))
+        .map(other => ({ player: other, count: resources.reduce((total, resource) => total + other[resource + "Value"] + getStealableIconCount(other, resource), 0) }))
         .filter(holder => holder.count > 0).sort((a, b) => b.count - a.count);
 }
 

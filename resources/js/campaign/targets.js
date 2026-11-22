@@ -38,9 +38,11 @@ function getCampaignTargetOptions(player) {
     const options = [];
 
     // The Free States: a raid takes 1 resource of the planet's type, worth it for one it's chasing
-    // that no Rival it can battle freely holds
-    const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2
-        && !free.some(rival => rival[resource + "Value"] + getGuildIconCount(rival, resource) > 0));
+    // that no Rival it can battle freely holds, and that it can't simply tax from its own or a
+    // Rival's city of that type (#170: the Tax question comes first)
+    const canTaxFor = resource => getResourceSupply(resource) > 0 && players.some(other => other["cities" + capitalise(resource) + "Value"] > 0);
+    const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2 && !canTaxFor(resource)
+        && !free.some(rival => rival[resource + "Value"] + getStealableIconCount(rival, resource) > 0));
     if (chased.length > 0) { options.push({ kind: "free", reason: "chased", resource: chased[0], value: weights.chased }); }
     else if (warlord) { options.push({ kind: "free", reason: "warlord", value: weights.warlordFree }); }
 

@@ -103,6 +103,8 @@ registerCampaignHook("botQuestions", (player, carryOn) => {
 });
 
 registerCampaignHook("declareInstead", (player, ambition, playedCard) => {
+    // Nothing for a card with no ambition (the 1s): it can't declare
+    if (ambition == null || ambitionResources[ambition] == null) { return undefined; }
     // A bot Conspirator places a Conspiracy instead of a marker
     if (isBotConspirator(player)) { return placeConspiracy(player, ambition, playedCard) ? true : undefined; }
     // The Guardian or Naturalist, told it controls the most: the new ambition instead

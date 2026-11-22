@@ -60,6 +60,22 @@ function getOverCapacityAdvice(player) {
     return used + " resources but only " + open + " slots: lose 1 " + preludeResourceNames[getResourceToLose(player)] + ", the one it needs least.";
 }
 
+function returnOverCapacity(player) {
+    // A bot can't hold more resources than it has open slots (#167, #172): after a gain or a steal
+    // it returns the ones it needs least to the supply. Returns what it returned, as a sentence, or null
+    if (player.isHuman || player.isNeutral || !hasGameStarted()) { return null; }
+    const returned = [];
+    while (getUsedSlots(player) > getOpenSlots(player).length) {
+        const resource = getResourceToLose(player);
+        if (resource == null) { break; }
+        setPlayerResource(player, resource, player[resource + "Value"] - 1);
+        returned.push(resource);
+    }
+    if (returned.length == 0) { return null; }
+    return "Player " + player.number + " has no room: it returns " + getStolenText(returned.map(resource => ({ id: resource, resource: resource })))
+        + " to the supply, the one" + (returned.length == 1 ? "" : "s") + " it needs least.";
+}
+
 function getKeepReason(player, resource) {
     // Why it wants to keep a resource hard to steal, or null if it doesn't
     if (!wantsToKeep(player, resource)) { return null; }
