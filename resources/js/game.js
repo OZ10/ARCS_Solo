@@ -274,7 +274,7 @@ function scoreRound() {
     }
 }
 
-function startNextRound(afterCampaign = false) {
+function startNextRound(afterCampaign = false, boardChecked = false) {
     // A campaign checks its objectives first, then carries on here (campaignhooks.js)
     if (!afterCampaign && runCampaignHook("afterScoring", () => startNextRound(true)) === true) { return; }
 
@@ -286,6 +286,9 @@ function startNextRound(afterCampaign = false) {
         showGameOverModal();
         return;
     }
+
+    // Before the next round: check the board against the map (boardui.js, #160)
+    if (!boardChecked) { whenWindowsClosed(() => showBoardCheck(() => startNextRound(true, true))); return; }
 
     turnNumber = 1;
     roundNumber += 1;

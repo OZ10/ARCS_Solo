@@ -186,12 +186,41 @@ function askOpeningCourt() {
 }
 
 function showSetUpPlayers() {
-    // A new game, once the Court has been entered: what each player starts with (rulebook p.5).
-    // The app can't see the setup card, so the player enters it
-    document.getElementById("guildTitle").innerHTML = "Set up the players";
+    // A new game, once the Court has been entered: the setup card (rulebook p.4-5). The app deals
+    // one, or the player picks the one they drew, and places everyone's pieces (board.js, #160)
+    document.getElementById("guildTitle").innerHTML = "Set up the board";
     document.querySelector("#guildModal .modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
     const body = document.getElementById("guildBody");
-    body.innerHTML = getSetupPlayersHtml();
+    const cards = getSetupCards(players.length);
+    body.innerHTML = "<p class=\"mb-2\">Deal a setup card for " + players.length + " players, or pick the one you drew. The app places everyone's starting pieces"
+        + (leadersAndLore ? " (as their Leaders say)" : " and gives each player the 2 resources of their A and B planets") + ".</p>"
+        + "<button type=\"button\" class=\"btn btn-primary w-100 mb-3\" id=\"dealSetupCard\" onclick=\"chooseSetupCard(null)\"><i class=\"bi bi-shuffle\"></i> Deal a setup card</button>"
+        + "<div class=\"small text-secondary mb-1\">Or the one you drew:</div><div class=\"d-grid gap-2\">"
+        + cards.map(card => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" onclick=\"chooseSetupCard(" + setupCards.indexOf(card) + ")\">"
+            + players.length + " Players &middot; <b>" + card.name + "</b>" + (card.experienced ? " <small class=\"text-secondary\">for experienced players</small>" : "") + "</button>").join("")
+        + "</div>";
+    // It has to be finished: the mulligan and Round 1 follow (#135)
+    showLockedModal(document.getElementById("guildModal"));
+}
+
+function chooseSetupCard(index) {
+    // Dealt (null): one at random for the player count
+    const cards = getSetupCards(players.length);
+    const card = index != null ? setupCards[index] : cards[Math.floor(Math.random() * cards.length)];
+    applySetupCard(card);
+    showStartingPieces(card);
+}
+
+function showStartingPieces(card) {
+    // What to place where, system by system, then on to the game
+    document.getElementById("guildTitle").innerHTML = players.length + " Players &middot; " + card.name;
+    const body = document.getElementById("guildBody");
+    const systems = getSystemIds().filter(id => getPiecesText(id) != "");
+    body.innerHTML = "<p class=\"mb-2\">Clusters " + card.outOfPlay.join(" and ") + " " + (card.outOfPlay.length == 1 ? "is" : "are") + " out of play: cover "
+        + (card.outOfPlay.length == 1 ? "its gate with a path marker and its planets" : "their gates with path markers and their planets") + " with out-of-play markers. Place these:</p>"
+        + "<div class=\"mb-2\">" + systems.map(id => "<div class=\"d-flex gap-2 py-1 border-bottom\"><b style=\"min-width:110px\">" + getSystemName(id) + "</b><span class=\"small\">" + tagPlayerNames(getPiecesText(id)) + "</span></div>").join("") + "</div>"
+        + "<p class=\"small text-secondary mb-3\">" + (leadersAndLore ? "Resources, ships and Outrage come from each Leader." : "Each player's 2 starting resources are on their panel.")
+        + (players.length == 2 ? " The resources of the out-of-play planets are on the ambition boxes." : "") + "</p>";
 
     const done = document.createElement("button");
     done.type = "button";
@@ -205,9 +234,9 @@ function showSetUpPlayers() {
         startRoundAfterMulligan();
     };
     body.appendChild(done);
-
-    // It has to be finished: the mulligan and Round 1 follow its OK (#135)
-    showLockedModal(document.getElementById("guildModal"));
+    // The window is still open from choosing the card; it has to be finished (#135)
+    const modal = document.getElementById("guildModal");
+    if (!modal.classList.contains("show")) { showLockedModal(modal); }
 }
 
 function getMarketShortfall() {

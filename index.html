@@ -409,6 +409,10 @@
               <button type="button" class="opttile"
                 id="loadGame" onclick="chooseGameFile()"><i
                   class="bi bi-upload"></i>Load</button>
+              <!-- Check what the app has on the board against the map (boardui.js, #160) -->
+              <button type="button" class="opttile"
+                id="checkBoard" onclick="openBoardCheckFromOptions()"><i
+                  class="bi bi-grid-3x3-gap"></i>Check the board</button>
             </div>
             <input type="file" class="d-none" id="loadGameFile"
               accept=".json,application/json" onchange="loadGameFile(this)">
@@ -528,7 +532,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v231126.01</small>
+                <small class="text-muted" id="appVersion">v231126.02</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -605,6 +609,19 @@
               aria-label="Close"></button>
           </div>
           <div class="modal-body" id="guildBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Check the board: what the app has in each system, one cluster at a time (boardui.js, #160) -->
+    <div class="modal fade" id="boardModal" tabindex="-1" aria-labelledby="boardTitle"
+      aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="boardTitle">Check the board</h5>
+          </div>
+          <div class="modal-body" id="boardBody"></div>
         </div>
       </div>
     </div>
@@ -1064,6 +1081,7 @@
     <script src="./resources/js/state.js"></script>
     <script src="./resources/js/storage.js"></script>
     <script src="./resources/js/board.js"></script>
+    <script src="./resources/js/boardui.js"></script>
     <script src="./resources/js/scoring.js"></script>
     <script src="./resources/js/undo.js"></script>
     <script src="./resources/js/panel.js"></script>

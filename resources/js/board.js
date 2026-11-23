@@ -245,6 +245,92 @@ function getTaxableCities(playerNumber) {
         .map(city => ({ system: id, owner: city.owner, resource: getPlanetResource(id) })));
 }
 
+// The setup cards (rulebook p.4-5): the clusters out of play, and each seat's A, B and C systems.
+// Seat 1 has the initiative, then clockwise. A has a city and 3 ships, B a starport and 3 ships,
+// C 2 ships (in each of two systems with 2 players). Read from the cards with the map's cluster
+// numbers: clockwise from the top 1-6, and within a cluster a, c, h clockwise
+const setupCards = [
+    { name: "Frontiers", players: 2, experienced: true, outOfPlay: [1, 6], seats: [["5h", "4h", ["3g", "3h"]], ["3a", "5a", ["5g", "4a"]]] },
+    { name: "Mix Up 1", players: 2, outOfPlay: [2, 5], seats: [["4c", "3c", ["1g", "6a"]], ["6h", "3h", ["4g", "1c"]]] },
+    { name: "Homelands", players: 2, outOfPlay: [1, 4], seats: [["5a", "6a", ["5g", "5h"]], ["3h", "3a", ["3g", "2a"]]] },
+    { name: "Mix Up 2", players: 2, outOfPlay: [1, 4], seats: [["5c", "2a", ["3g", "6c"]], ["2c", "6a", ["5g", "3h"]]] },
+    { name: "Mix Up", players: 3, outOfPlay: [1, 4], seats: [["3h", "5c", ["2g"]], ["5h", "2a", ["3g"]], ["2h", "3a", ["5g"]]] },
+    { name: "Frontiers", players: 3, outOfPlay: [2, 3], seats: [["1h", "4h", ["6g"]], ["5h", "1c", ["5g"]], ["4c", "6a", ["1g"]]] },
+    { name: "Homelands", players: 3, outOfPlay: [5, 6], seats: [["2h", "3c", ["3g"]], ["1h", "2a", ["2g"]], ["1a", "4h", ["4g"]]] },
+    { name: "Core Conflict", players: 3, experienced: true, outOfPlay: [3, 6], seats: [["1h", "2c", ["1g"]], ["2h", "1c", ["2g"]], ["1a", "2a", ["4g"]]] },
+    { name: "Mix Up 1", players: 4, outOfPlay: [3], seats: [["4a", "6h", ["1g"]], ["4h", "5h", ["6g"]], ["5a", "1h", ["4g"]], ["6a", "1a", ["5g"]]] },
+    { name: "Mix Up 2", players: 4, outOfPlay: [4], seats: [["5h", "3a", ["2g"]], ["3h", "5c", ["1g"]], ["2h", "1h", ["3g"]], ["1a", "2a", ["5g"]]] },
+    { name: "Frontiers", players: 4, outOfPlay: [5], seats: [["1h", "3c", ["2g"]], ["2h", "6h", ["3g"]], ["4c", "2a", ["6g"]], ["1a", "6a", ["4g"]]] },
+    { name: "Mix Up 3", players: 4, outOfPlay: [6], seats: [["3h", "5c", ["1g"]], ["1a", "3a", ["2g"]], ["1h", "4h", ["3g"]], ["4a", "2c", ["5g"]]] }
+];
+
+function getSetupCards(count) {
+    return setupCards.filter(card => card.players == count);
+}
+
+function getStartingPieces(player) {
+    // [[building, ships] for A, B and C]: the usual ones, or its Leader's (Leaders & Lore)
+    return (leadersAndLore && player.leader != null) ? getLeaderCard(player.leader).pieces : [["city", 3], ["starport", 3], [null, 2]];
+}
+
+// Where the ambition boxes' resources come from with 2 players (rulebook p.4, step K)
+const outOfPlayAmbitions = { materials: "tycoon", fuel: "tycoon", weapons: "warlord", relics: "keeper", psionics: "empath" };
+
+function applySetupCard(card) {
+    // Everyone's starting pieces on the board, their starting resources (from their A and B
+    // planets, unless their Leader gave them theirs) and, with 2 players, the ambition boxes
+    board = newBoard();
+    board.outOfPlay = card.outOfPlay.slice();
+    board.setupCard = card.name;
+    const place = (id, player, [building, ships]) => {
+        addShips(id, player.number, ships);
+        if (building != null) { placeBuilding(id, player.number, building); }
+    };
+    getTurnOrder().forEach((player, seat) => {
+        const [a, b, c] = card.seats[seat];
+        const pieces = getStartingPieces(player);
+        place(a, player, pieces[0]);
+        place(b, player, pieces[1]);
+        c.forEach(id => place(id, player, pieces[2]));
+        if (!(leadersAndLore && player.leader != null)) {
+            [a, b].forEach(id => { const resource = getPlanetResource(id); setPlayerResource(player, resource, player[resource + "Value"] + 1); });
+        }
+        player.startingCity = 0;
+        syncPanelFromBoard(player);
+    });
+    if (players.length == 2) {
+        neutralCounts = {};
+        getAllSystemIds().filter(id => isPlanet(id) && !isSystemInPlay(id)).forEach(id => {
+            const ambition = outOfPlayAmbitions[getPlanetResource(id)];
+            neutralCounts[ambition] = (neutralCounts[ambition] || 0) + 1;
+        });
+    }
+    SaveAllSettings();
+}
+
+function syncPanelFromBoard(player) {
+    // The panel's board tiles follow the board: ships on it, starports and cities by planet type
+    setPlayerResource(player, "shipsBoard", getBoardShips(player.number));
+    setPlayerResource(player, "starports", getBoardBuildings(player.number, "starport").length);
+    cityCounters.forEach(counter => setPlayerResource(player, counter, getBoardCities(player.number, counter.replace(/^cities/, "").toLowerCase()).length));
+    player.startingCity = 0;
+    const total = document.getElementById("citiestotal" + player.number);
+    if (total != null) { total.innerHTML = getCityCount(player); }
+}
+
+function getPiecesText(id) {
+    // e.g. "Player 1: 3 ships, a city. Player 2: 2 ships (1 damaged)"
+    const system = getSystem(id);
+    const owners = [...new Set(Object.keys(system.ships).map(Number).concat(system.buildings.map(building => building.owner)))].sort();
+    return owners.map(number => {
+        const ships = getShips(id, number);
+        const parts = [];
+        if (ships.fresh + ships.damaged > 0) { parts.push((ships.fresh + ships.damaged) + " ship" + (ships.fresh + ships.damaged == 1 ? "" : "s") + (ships.damaged > 0 ? " (" + ships.damaged + " damaged)" : "")); }
+        getBuildings(id, number).forEach(building => parts.push("a " + (building.damaged ? "damaged " : "") + building.kind));
+        return "Player " + number + ": " + parts.join(", ");
+    }).join(". ");
+}
+
 // Saving: with the rest of the game (storage.js)
 
 // An empty board until a game is started or loaded
