@@ -92,6 +92,7 @@ function setupGame(numberOfPlayers, optionsClosed = false) {
     declaredAmbitions = [];
     neutralCounts = {};
     courtMarket = [];
+    board = newBoard();
     // A Blighted Reach campaign (campaignhooks.js) has no Leaders
     campaignMode = isCampaignChosen();
     leadersAndLore = !campaignMode && document.getElementById("leadersAndLoreSwitch").checked;

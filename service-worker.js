@@ -16,7 +16,7 @@ const appFiles = [
     "resources/icons/icon-512.png",
     "resources/icons/icon-maskable-512.png",
     "resources/icons/apple-touch-icon.png",
-    ...["ui", "icons", "cards", "court", "player", "rules", "campaignhooks", "difficulty", "humans", "state", "storage", "scoring", "undo", "panel", "sections","human", "bot", "slots",
+    ...["ui", "icons", "cards", "court", "player", "rules", "campaignhooks", "difficulty", "humans", "state", "storage", "board","scoring", "undo", "panel", "sections","human", "bot", "slots",
         "prelude", "guildactions", "turnplan", "vox", "market", "battle", "build", "turnwindow", "farseers", "leaders", "leaderrules",
         "campaign/fates", "campaign/campaign", "campaign/courtcards", "campaign/setup", "campaign/events", "campaign/endofround", "campaign/intermission", "campaign/empire", "campaign/fatebots", "campaign/laterfates", "campaign/steering", "campaign/grand", "campaign/fateactions","campaign/targets", "campaign/negotiation","game"]
         .map(name => "resources/js/" + name + ".js"),

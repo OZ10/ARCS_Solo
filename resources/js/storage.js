@@ -93,6 +93,8 @@ function loadAmbitions() {
     // Games saved before the neutral resources were tracked won't have them
     neutralCounts = getSettingObject('neutralCounts') || {};
     courtMarket = getSettingObject('courtMarket') || [];
+    // The board (board.js)
+    loadBoard();
 
     updateAmbitionsDisplay();
 }
@@ -149,6 +151,7 @@ const SaveAllSettings = () => {
     saveSettingObject('ambitions', declaredAmbitions);
     saveSettingObject('neutralCounts', neutralCounts);
     saveSettingObject('courtMarket', courtMarket);
+    saveSettingObject('board', board);
     saveSettingObject('discardPile', discardPile);
     SaveSetting("turn", turnNumber);
     SaveSetting("round", roundNumber);
