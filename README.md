@@ -57,7 +57,7 @@ Tap **Options**, then **New Game**.
 
 <br clear="right">
 
-<img src="docs/screenshots/setup-players.png" width="300" align="right" alt="Setting up the players">
+<img src="docs/screenshots/setup-players.png" width="300" align="right" alt="Setting up the board from a setup card">
 
 7. **Set up the board:** tap **Deal a setup card** for the app to choose one, or pick the setup card you drew from the list. The app places everyone's starting pieces on its board and fills in their panels, including the 2 starting resources. It then lists where each player's pieces go, by system (such as *3h: 1 city, 3 ships*), and which clusters are out of play. Set up the table to match and tap **OK**. With Leaders & Lore, the pieces come from each Leader.
 <br clear="right">
@@ -163,6 +163,8 @@ Your hand is listed on your panel. Tap a card to see its pips, ambition and acti
 <br clear="right">
 
 <img src="docs/screenshots/your-turn-window.png" width="300" align="right" alt="Your turn window">
+
+<img src="docs/screenshots/move.png" width="300" align="right" alt="The Move window">
 
 **Your turn window** then opens, like a bot's. It counts your actions, such as **3 of 3 actions left**, and lists each kind your card gives you with a button and what's possible on the board, such as *"Where your ships meet a Rival: 2g (Player 3)"*. Take the same action as many times as your card allows. Each one you do on the table, do in the app too:
 - **Move:** choose where from and where to (only the systems your ships can reach, Catapult included) and how many fresh and damaged ships. If the ships pass through other systems, the window shows the route, with **−** and **+** for any you left on the way, and **Choose the route** if you went another way. The button says what goes on the board, such as *"Move 5 ships 3c → 5a, leaving 2 at 3g"*.

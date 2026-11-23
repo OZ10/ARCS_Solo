@@ -216,7 +216,7 @@ function showStartingPieces(card) {
     document.getElementById("guildTitle").innerHTML = players.length + " Players &middot; " + card.name;
     const body = document.getElementById("guildBody");
     const systems = getSystemIds().filter(id => getPiecesText(id) != "");
-    body.innerHTML = "<p class=\"mb-2\">Clusters " + card.outOfPlay.join(" and ") + " " + (card.outOfPlay.length == 1 ? "is" : "are") + " out of play: cover "
+    body.innerHTML = "<p class=\"mb-2\">" + (card.outOfPlay.length == 1 ? "Cluster " : "Clusters ") + card.outOfPlay.join(" and ") + " " + (card.outOfPlay.length == 1 ? "is" : "are") + " out of play: cover "
         + (card.outOfPlay.length == 1 ? "its gate with a path marker and its planets" : "their gates with path markers and their planets") + " with out-of-play markers. Place these:</p>"
         + "<div class=\"mb-2\">" + systems.map(id => "<div class=\"d-flex gap-2 py-1 border-bottom\"><b style=\"min-width:110px\">" + getSystemName(id) + "</b><span class=\"small\">" + tagPlayerNames(getPiecesText(id)) + "</span></div>").join("") + "</div>"
         + "<p class=\"small text-secondary mb-3\">" + (leadersAndLore ? "Resources, ships and Outrage come from each Leader." : "Each player's 2 starting resources are on their panel.")

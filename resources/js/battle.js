@@ -685,10 +685,11 @@ function showBattleRaid() {
         return;
     }
 
-    // Why it would rather Battle this Rival, and where
+    // Why it would rather Battle this Rival, and where: the system from the board, or general advice
     const target = !battle.attacker.isHuman ? getBattleTarget(battle.attacker) : null;
+    const where = battle.boardSystem != null ? "At " + battle.boardSystem + ", from the board." : (target != null ? target.where : "");
     let html = (target != null && target.player === battle.defender)
-        ? "<div class=\"small text-muted text-center mb-2\" id=\"battleTargetReason\">" + target.why + " " + target.where + "</div>" : "";
+        ? "<div class=\"small text-muted text-center mb-2\" id=\"battleTargetReason\">" + target.why + " " + where + "</div>" : "";
     if (holdsGuildCard(battle.attacker, 8)) {
         html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
             + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleInGate\" onchange=\"setInGate(this.checked)\"" + (battle.inGate ? " checked" : "") + ">"

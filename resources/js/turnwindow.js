@@ -130,8 +130,9 @@ function getSplitPlanStep(step, player) {
     const target = (step.action == "battle") ? getBattleTarget(player) : null;
     if (target == null) { return split; }
     // Where, from the board (boardbot.js, #160)
+    // Once the board has chosen the system, the general advice on where to battle is left out
     const at = step.where != null && step.where.system != null ? " at " + step.where.system : "";
-    return { name: (target.title || "Battle Player " + target.player.number) + at, reason: [split.reason ? split.reason + "." : "", target.why, target.where].filter(text => text != "").join(" ") };
+    return { name: (target.title || "Battle Player " + target.player.number) + at, reason: [split.reason ? split.reason + "." : "", target.why, at == "" ? target.where : ""].filter(text => text != null && text != "").join(" ") };
 }
 
 function getOfferRows(offers) {
