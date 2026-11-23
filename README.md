@@ -8,7 +8,7 @@
 
 B4RCS is a free web app that plays bots for the board game **Arcs**, so you can play solo or fill empty seats at the table. You play the real game on the table, and the app decides what each bot does: which card it plays, whether it declares an ambition, what it spends, who it battles and which dice it rolls.
 
-The app can't see the board. When a bot needs to know something only the board shows, it asks you a quick Yes/No question, and you move its pieces for it. The app keeps track of everything else: each bot's hand, resources, cities, Guild cards, the Court and the score.
+The app keeps a copy of the board: where every ship and building is, in each system. Bots use it to plan exact moves, such as *"Move 5 ships 2h → 3a"*, and you move their pieces for them on the table. At the end of each round, you check the app's board against the table. The app keeps track of everything else too: each bot's hand, resources, Guild cards, the Court and the score.
 
 It's made for a phone in portrait, works in landscape too, and can be installed so it opens like an app and works offline.
 
@@ -59,7 +59,7 @@ Tap **Options**, then **New Game**.
 
 <img src="docs/screenshots/setup-players.png" width="300" align="right" alt="Setting up the players">
 
-7. **Set up the players:** the setup list says where each player places their pieces, in turn order from whoever has the initiative. On each panel, add the 2 resources each player starts with, then tap **+** on the type of planet their starting city is on. With Leaders & Lore, the resources are filled in from each Leader, and the list says which pieces go in systems A, B and C.
+7. **Set up the board:** tap **Deal a setup card** for the app to choose one, or pick the setup card you drew from the list. The app places everyone's starting pieces on its board and fills in their panels, including the 2 starting resources. It then lists where each player's pieces go, by system (such as *3h: 1 city, 3 ships*), and which clusters are out of play. Set up the table to match and tap **OK**. With Leaders & Lore, the pieces come from each Leader.
 <br clear="right">
 
 <img src="docs/screenshots/mulligan.png" width="300" align="right" alt="The mulligan">
@@ -77,7 +77,7 @@ In **Options**, under New Game, choose how well the bots play, from **1 (Easy)**
 - **4 Tough:** rarely strays from its best move, and declares an ambition or seizes the initiative when it works out it would win.
 - **5 Hard:** always takes the best move it can work out, and does nothing on a whim. Its prelude spends are still ticked for you to check.
 
-Even on Hard, the app can't see the board, so the bots still ask their questions and plan from what the app knows.
+Every difficulty plans from the app's board, so keep it matching the table.
 
 ## Leaders & Lore
 <img src="docs/screenshots/leaders-draft.png" width="300" align="right" alt="The Leaders & Lore draft">
@@ -173,7 +173,7 @@ Tap the bot's **Play Card** button.
 
 <img src="docs/screenshots/question.png" width="300" align="right" alt="A bot's question">
 
-**Its questions:** if a bot is chasing an ambition, it may ask what it can do on the board, such as *"Can I tax a city for a relic?"* or *"Can I reach a Rival's relic city this turn, or get within one space of it?"*. Answer honestly from what you see on the table. It skips anything it can work out for itself.
+**Its questions:** the bot works out most things from the app's board: how big a fleet it can bring to a battle, where it can build, which cities it can tax and which Rivals it can reach. It only asks about what the board doesn't hold, such as *"Can I reach a Rival's relic city this turn?"* when that depends on a card. Answer honestly from what you see on the table.
 
 <br clear="right">
 
@@ -189,10 +189,10 @@ Tap the bot's **Play Card** button.
 
 - **Prelude:** what it spent first.
 - **Card played:** what it played, and the actions it gives.
-- **Plan:** numbered steps with the reason for each, including who and where to battle and where to move. Steps that need a window have a button beside them, such as **Battle**, **Build** or **Court**. The plan is advice: see [The plan is advice](#the-plan-is-advice).
+- **Plan:** numbered steps with the reason for each, naming the systems: *"Move 5 ships 2h → 3a (to set up the Battle)"*, *"Battle Player 3 at 3a"*, *"Build a city at 4a (Relic)"*, *"Tax its relic city at 2h"*, *"Repair a damaged ship at 1g"*. A bot moves to set up its battle, to defend a city a Rival's fleet could reach, to take control of a Rival's city, to build, or to guard a city with no ships. Steps that need a window have a button beside them, such as **Battle**, **Build** or **Court**. The plan is advice: see [The plan is advice](#the-plan-is-advice).
 - **Also:** anything else it may use this turn.
 
-Carry out the steps on the table, then tap **Done** to move on to the next player.
+Carry out the steps on the table, then tap **Done** to move on to the next player. **Done** also makes the bot's moves, builds and repairs on the app's board.
 
 <br clear="right">
 
@@ -207,14 +207,15 @@ When a bot gains a resource, a box above the bar says **which resource slot to p
 ## What you handle for the bots
 The app plays each bot's cards and makes its choices, but it can't see or touch the table. You're its eyes and hands:
 
-- **Its pieces:** move its ships, and place or remove its buildings, agents and resources on the table. When the plan says something like *"a Rival's relic city"*, you choose which one.
-- **Its panel:** keep its tiles matching the table. The app fills them in when it knows what happened, such as after a prelude, a battle, a build, the Court or scoring. For anything it can't see, such as a tax, you update the tiles.
+- **Its pieces:** move its ships, and place or remove its buildings, agents and resources on the table, where the plan says.
+- **Its panel:** the ships, starports and cities on its panel come from the app's board. The app fills in its resources when it knows what happened, such as after a prelude, a battle, a build, the Court or scoring. For anything it can't see, such as a tax, you update the tiles.
 - **Its answers:** answer its Yes/No questions from what you see on the table.
+- **The board check:** at the end of each round, the **Check the board** window goes through each cluster in play, listing every player's ships and buildings in each system. Correct anything that doesn't match the table with **−** and **+**, **+ Ships**, **+ City**, **+ Starport** and **×**, then tap the next cluster and **Done**, or **It all matches: done**. Your own moves aren't on the app's board yet, so this is where they go. You can open it any time from **Options**, **Check the board**.
 - **Its dice:** roll the dice it chooses, then enter what's left.
 - **The Court:** when a card leaves the market, add its replacement. Do anything a window asks you to update yourself.
 
 ### The plan is advice
-A bot plans its turn from what the app knows, and the app can't see the whole board. If a step doesn't make sense on the table, such as a battle it can't reach or a card that's no longer worth securing, skip it or use that action for something better. Play the bot the way a sensible player would.
+A bot plans its turn from the app's board, which can drift from the table between board checks. If a step doesn't make sense on the table, such as a battle it can't reach or a card that's no longer worth securing, skip it or use that action for something better. Play the bot the way a sensible player would.
 
 The plan is set when the turn window opens and doesn't change as you work through it, so you can follow it step by step.
 
@@ -225,7 +226,7 @@ Tap **Battle** in the turn window, yours or a bot's.
 
 For a bot:
 1. **Defender:** it starts on the Rival it wants to fight, and says why.
-2. **Counts:** enter the ships and buildings in the system, whether each building is a city or a starport, and, for a city, the planet type.
+2. **Counts:** filled in from the app's board for the system in the plan: the ships and buildings there, and the planet type. Correct them if the table is different.
 3. **Raid:** if the bot can raid, choose what it's after and enter the keys shown on that slot of the defender's board. Raid dice need a building in the system, or a defender with no buildings on the board at all. The app knows that from the panels and says so.
 4. **Choose dice:** tells you which dice to roll and how to assign the hits, including which building to hit first and why. The attacker chooses where its hits go. It weighs up the risk to its ships, what destroying a city would cost in Outrage, any Ransack, and what the defender loses, such as their last starport. **Details** shows the odds.
 5. **After rolling:** set the counts to what's left. Attack again, or tap **Done battling**.
@@ -236,7 +237,7 @@ The **(i)** beside *Can attack again this turn* explains when to use that switch
 
 <img src="docs/screenshots/battle-results.png" width="300" align="right" alt="Battle results">
 
-**Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. Check them and tap **Update values** to update both players' panels.
+**Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. Check them and tap **Update values** to update both players' panels. For a bot's battle, the losses go on the app's board too.
 
 For your own battles, the window doesn't choose dice. It keeps count while you roll, then updates the panels in the same way. For what you stole, use **−** and **+** for each resource, as you can take more than one of a kind, and tick any Guild card.
 
@@ -245,7 +246,7 @@ For your own battles, the window doesn't choose dice. It keeps count while you r
 ## Building
 <img src="docs/screenshots/build.png" width="300" align="right" alt="The Build window">
 
-Tap **Build** in a bot's turn window. Say whether there's an empty building slot where it has a piece and which planet types those slots are on, or tap **No empty slot**. The app tells you what it builds and why: a city, a starport or a ship. Bots like 2 starports, and 3 from round 3, so they can build more ships each turn. Tap **Built it** to update its panel.
+Tap **Build** in a bot's turn window. The app has already chosen from its board what to build and where, and says why: a city, a starport or a ship. Bots like 2 starports, and 3 from round 3, so they can build more ships each turn. Tap **Built it** to put it on the board and update its panel, or **Something else** if it can't be built on the table.
 
 <br clear="right">
 
@@ -284,7 +285,7 @@ To declare outside your turn's card, tap the ambition in the top bar. Bots seize
 <br clear="right">
 
 ## Ending a turn and a round
-When everyone has played, tap **Next Turn**. When nobody has cards left, tap **Next Round**.
+When everyone has played, tap **Next Turn**. When nobody has cards left, tap **Next Round**. Before the next round starts, the app asks you to check its board against the table (see [What you handle for the bots](#what-you-handle-for-the-bots)).
 
 <img src="docs/screenshots/scoring.png" width="300" align="right" alt="Round scoring">
 
