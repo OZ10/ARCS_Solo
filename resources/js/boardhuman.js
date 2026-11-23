@@ -177,7 +177,8 @@ function getHumanBuildOptions(player) {
     const shipsBuilt = getBoardActions(player).filter(action => action.action == "build" && action.kind == "ship").map(action => action.system);
     const options = [];
     getBuildableSystems(number).forEach(id => ["city", "starport"].forEach(kind => options.push({ system: id, kind: kind, damaged: isControlledByOther(id, number) })));
-    getBoardBuildings(number, "starport").map(port => port.system).filter(id => !shipsBuilt.includes(id))
+    // Ships only while some are left in the supply
+    getBoardBuildings(number, "starport").map(port => port.system).filter(id => !shipsBuilt.includes(id) && getShipSupply(player) > 0)
         .forEach(id => options.push({ system: id, kind: "ship", damaged: isControlledByOther(id, number) }));
     return options;
 }

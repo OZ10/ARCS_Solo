@@ -26,6 +26,8 @@ class player {
     // This player's agents held by Rivals, as Captives and as Trophies (#123)
     agentsCaptive = 0;
     agentsTrophy = 0;
+    // Its ships held as Rivals' Trophies, from the Battle window, until Warlord is scored (#160)
+    shipsTrophy = 0;
     citiesFuelValue = 0;
     citiesMaterialsValue = 0;
     citiesWeaponsValue = 0;

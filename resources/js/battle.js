@@ -1099,6 +1099,9 @@ function applyBattleResults() {
     adjustCounter(attacker, "trophies", losses.defenderShips);
     adjustCounter(attacker, "shipsBoard", -losses.attackerShips);
     adjustCounter(defender, "trophies", losses.attackerShips);
+    // Whose ships they are, so a bot knows how many it has left to build (#160)
+    defender.shipsTrophy = (defender.shipsTrophy || 0) + losses.defenderShips;
+    attacker.shipsTrophy = (attacker.shipsTrophy || 0) + losses.attackerShips;
 
     // Destroyed buildings are the attacker's Trophies (starports aren't otherwise counted). A city
     // leaves the map, but its slot stays open until the Trophies are returned. The attacker

@@ -87,10 +87,12 @@ function shouldAskAgents(player) {
 }
 
 function shouldAskOutOfShips(player) {
-    // It's leading, could declare Warlord with a card in its hand, and has few ships on the board
+    // It's leading, could declare Warlord with a card in its hand, and has few ships on the board.
+    // The board and the Trophies it knows about show whether any are left, so it's never asked (#160)
     if (player.outOfShips != null || !isLeadingThisTurn() || player.shipsBoardValue >= outOfShipsBelow) { return false; }
     if (declaredAmbitions.includes("warlord") || declaredAmbitions.length >= 3 || !canDeclareAmbition(player)) { return false; }
-    return getBotCards(player).some(card => card.ambition == "warlord");
+    if (getBotCards(player).some(card => card.ambition == "warlord")) { player.outOfShips = getShipSupply(player) <= 0; }
+    return false;
 }
 
 function shouldAskCanBuild(player) {

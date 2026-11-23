@@ -226,7 +226,8 @@ function chooseBoardBuild(player) {
         const system = buildable.slice().sort((a, b) => mine(b) - mine(a) || getShips(b, player.number).fresh - getShips(a, player.number).fresh)[0];
         if (system != null) { return { system: system, kind: "starport", reason: choice.reason }; }
     }
-    const starport = getBoardBuildings(player.number, "starport").map(port => port.system)[0];
+    // A ship only with one left in its supply (#160)
+    const starport = getShipSupply(player) > 0 ? getBoardBuildings(player.number, "starport").map(port => port.system)[0] : null;
     return starport != null ? { system: starport, kind: "ship", reason: choice.reason } : null;
 }
 
@@ -340,6 +341,13 @@ function applyBattleToBoard(losses) {
     if (step != null) { step.applied = true; }
     // Both panels follow the board, human players' too now their actions are on it
     [battle.attacker, battle.defender].forEach(syncPanelFromBoard);
+}
+
+// Each player has 15 ships: those not on the board or held as Rivals' Trophies are in its supply
+const shipsPerPlayer = 15;
+
+function getShipSupply(player) {
+    return Math.max(shipsPerPlayer - getBoardShips(player.number) - (player.shipsTrophy || 0), 0);
 }
 
 function getBoardYesReason(ambition, action) {

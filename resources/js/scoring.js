@@ -324,6 +324,8 @@ function confirmScoring() {
         if (resource == "trophies") {
             players.forEach(player => {
                 player.citiesAsTrophies = 0;
+                // And ships to their owners' supplies (#160)
+                player.shipsTrophy = 0;
                 const overCapacity = getOverCapacityAdvice(player);
                 if (overCapacity != null) { returned.push("Player " + player.number + ": " + overCapacity); }
             });
