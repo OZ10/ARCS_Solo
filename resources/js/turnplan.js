@@ -206,8 +206,9 @@ function getBattleTarget(player) {
             + Math.random() * weights.variation * getDifficulty().planVariation
             // In a campaign, a Regent would rather battle an Outlaw (campaignhooks.js)
             + (runCampaignHook("battleTargetBonus", player, rival) || 0)
-            // One its ships can't reach this turn hardly counts (boardbot.js, #160)
-            + (canReachRival(player, rival) ? 0 : unreachableTargetPenalty);
+            // One its ships can't reach this turn hardly counts, and an unguarded building it can
+            // reach counts for more (boardbot.js, #160)
+            + getBattleTargetBoardBonus(player, rival);
         target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
         player.battleTargetNumber = target.number;
     }

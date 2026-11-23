@@ -23,8 +23,31 @@ function getMoveSources(player, to) {
         .sort((a, b) => getShips(b, player.number).fresh - getShips(a, player.number).fresh);
 }
 
-// A Rival its ships can't reach this turn is a poor battle target (turnplan.js getBattleTarget)
+// A Rival its ships can't reach this turn is a poor battle target, and one with a building it can
+// reach that no ships guard is a good one (turnplan.js getBattleTarget)
 const unreachableTargetPenalty = -100;
+const exposedBuildingBonus = 2;
+
+function getExposedBuildings(player, rival) {
+    // The Rival's buildings with none of their ships, in systems its ships are in or can reach
+    return getSystemIds().filter(id => getBuildings(id, rival.number).length > 0 && getShips(id, rival.number).fresh + getShips(id, rival.number).damaged == 0
+        && (getShips(id, player.number).fresh > 0 || getMoveSources(player, id).length > 0));
+}
+
+function getBattleTargetBoardBonus(player, rival) {
+    if (!canReachRival(player, rival)) { return unreachableTargetPenalty; }
+    return getExposedBuildings(player, rival).length > 0 ? exposedBuildingBonus : 0;
+}
+
+function getThreatenedCity(player) {
+    // One of its cities that a Rival's fresh ships could reach this turn with more ships than it
+    // has there: the most threatened first
+    const threat = id => Math.max(0, ...getRivalNumbers(player).flatMap(number => getSystemsWithShips(number)
+        .filter(from => from == id || canMove(from, id, number)).map(from => getShips(from, number).fresh)));
+    return getBoardCities(player.number).map(city => city.system)
+        .map(id => ({ id: id, gap: threat(id) - getShips(id, player.number).fresh })).filter(item => item.gap > 0)
+        .sort((a, b) => b.gap - a.gap)[0] || null;
+}
 
 function canReachRival(player, rival) {
     // Its fresh ships already with the Rival's pieces, or one Move away (if it can Move)
@@ -148,9 +171,12 @@ function withBoardCopy(work) {
 }
 
 function getBattleSystem(player, targetNumber) {
-    // Where its fresh ships meet the target's pieces, the most of its ships first
+    // Where its fresh ships meet the target's pieces: where it outnumbers them most, an unguarded
+    // building of theirs first (raid dice there)
+    const edge = id => getShips(id, player.number).fresh - getShips(id, targetNumber).fresh - getShips(id, targetNumber).damaged
+        + (getBuildings(id, targetNumber).length > 0 && getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged == 0 ? exposedBuildingBonus : 0);
     return getSystemIds().filter(id => getShips(id, player.number).fresh > 0 && (getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged > 0 || getBuildings(id, targetNumber).length > 0))
-        .sort((a, b) => getShips(b, player.number).fresh - getShips(a, player.number).fresh)[0] || null;
+        .sort((a, b) => edge(b) - edge(a))[0] || null;
 }
 
 function chooseBoardMove(player, battleTarget, wantsCity) {
@@ -168,6 +194,9 @@ function chooseBoardMove(player, battleTarget, wantsCity) {
         }
     }
     const move = (to, count) => { const from = getMoveSources(player, to)[0]; return from == null ? null : { from: from, to: to, count: count == null ? getShips(from, player.number).fresh : Math.min(count, getShips(from, player.number).fresh) }; };
+    // Defending one of its cities a Rival's fleet could reach, with enough to hold it
+    const threatened = getThreatenedCity(player);
+    if (threatened != null) { const found = move(threatened.id, threatened.gap + 1); if (found != null) { return { ...found, why: "to defend its city at " + threatened.id + " from a Rival fleet in reach" }; } }
     const rivalCity = getSystemIds().find(id => getBuildings(id, null, "city").some(city => city.owner != player.number) && getMoveSources(player, id).length > 0);
     if (rivalCity != null && battleTarget == null) { const found = move(rivalCity, null); if (found != null) { return { ...found, why: "to a Rival's city" }; } }
     if (wantsCity != null) {
@@ -177,6 +206,11 @@ function chooseBoardMove(player, battleTarget, wantsCity) {
     const unguarded = getBoardCities(player.number).map(city => city.system).find(id => getShips(id, player.number).fresh == 0 && getMoveSources(player, id).length > 0);
     if (unguarded != null) { const found = move(unguarded, 1); if (found != null) { return { ...found, why: "to guard its city" }; } }
     return null;
+}
+
+function getMoveWhy(where) {
+    const why = { "to battle": "to set up the Battle", "to a Rival's city": "to take control of a Rival's city and tax it", "to build a city": "to build a city there", "to guard its city": "to guard its city, which has no ships" }[where.why];
+    return why || where.why;
 }
 
 function chooseBoardBuild(player) {
@@ -226,7 +260,8 @@ function placeBoardPlan(player, plan) {
             let where = null;
             if (step.action == "move") {
                 where = chooseBoardMove(player, targetNumber, getNewCityResource(player));
-                if (where != null) { step.text = step.text.replace(/^Move/, "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + where.from + " &rarr; " + where.to); }
+                // Its reason is where it's going and why
+                if (where != null) { step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + where.from + " &rarr; " + where.to + " (" + getMoveWhy(where) + ")"; }
             } else if (step.action == "build") {
                 where = chooseBoardBuild(player);
                 if (where != null) { step.text = step.text.replace(/^Build/, where.kind == "ship" ? "Build a ship at " + where.system : "Build a " + where.kind + " at " + getSystemName(where.system)); }
