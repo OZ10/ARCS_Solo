@@ -142,7 +142,19 @@ function showBuildModal(button) {
     header.classList.add("playerbanner" + getPlayerColour(build.player));
     document.getElementById("buildTitle").innerHTML = "Player " + build.player.number + " builds";
 
-    // Its plan's next Build, at a place on the board (boardbot.js, #160)
+    // Its plan's next Build, at a place on the board (boardbot.js, #160). With none in its plan, the
+    // board still chooses, so it never asks (#183)
+    build.extra = null;
+    if (getPlannedBuild(build.player) == null) {
+        const where = chooseBoardBuild(build.player);
+        if (where == null) {
+            document.getElementById("buildBody").innerHTML = "<p>There's nothing it can build on the app's board: no empty slot where it has a piece, and no starport with ships left to build.</p>"
+                + "<p class=\"small text-muted\">If the table is different, fix it with Check the board in Options.</p>";
+            bootstrap.Modal.getOrCreateInstance(document.getElementById("buildModal")).show();
+            return;
+        }
+        build.extra = { action: "build", where: where };
+    }
     const planned = getPlannedBuild(build.player);
     // What it said it would build, and you said it can (#126): straight to it, without asking again
     const intent = (build.player.canBuild === true) ? build.player.buildIntent : null;
@@ -281,7 +293,10 @@ function builtStarport() {
 
 function getPlannedBuild(player) {
     // The next Build in its plan that has a place on the board and isn't done yet
-    return (player.turnPlan || []).find(step => step.action == "build" && step.where != null && !step.applied) || null;
+    const step = (player.turnPlan || []).find(item => item.action == "build" && item.where != null && !item.applied);
+    if (step != null) { return step; }
+    // Or what the board chose when the plan had no Build (#183)
+    return (build.extra != null && build.player === player && !build.extra.applied) ? build.extra : null;
 }
 
 function showPlannedBuild(step) {
@@ -296,9 +311,11 @@ function showPlannedBuild(step) {
 
 function skipPlannedBuild() {
     // It builds something else: the plan's Build isn't put on the board (the board check catches up)
+    // No questions (#183): build what makes sense on the table, then put it right in the board check
     const step = getPlannedBuild(build.player);
     if (step != null) { step.applied = true; }
-    showBuildSlotQuestion();
+    document.getElementById("buildBody").innerHTML = "<p>Build what makes sense on the table instead.</p>"
+        + "<p class=\"small text-muted mb-0\">Then add it to the app's board with Check the board in Options, so its panel and plans stay right.</p>";
 }
 
 function builtPlanned() {

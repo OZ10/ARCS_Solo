@@ -196,6 +196,8 @@ function getBattleTarget(player) {
     if (rivals.length == 0) { return null; }
 
     let target = rivals.find(other => other.number == player.battleTargetNumber);
+    // Chosen before its card was played, but out of reach now while another Rival isn't (#188)
+    if (target != null && !canReachRival(player, target) && rivals.some(rival => canReachRival(player, rival))) { target = null; }
     if (target == null) {
         const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2);
         const warlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
@@ -278,13 +280,17 @@ function getActionPlanScore(player, action, focus) {
         case "tax": {
             const targets = getCitiesToTax(player);
             if (chasing("tyrant") && !(player.noTax || []).includes("TYRANT")) { score += weights.taxTyrant; reason = rivalTaxReason; break; }
-            if (action != focus && (getEmptySlots(player) == 0 || (targets.length == 0 && !player.startingCity))) { return { score: planImpossible }; }
+            // No room for the resource, even if it played the card for Tax (#187)
+            if (getEmptySlots(player) == 0) { return { score: planImpossible }; }
+            if (action != focus && targets.length == 0 && !player.startingCity) { return { score: planImpossible }; }
             if (targets.length > 0) { score += getResourceNeed(player, targets[0]) * weights.taxPerNeed; }
             break;
         }
 
         case "build":
             if (player.canBuild === false && !canUseGuildActionInsteadOf(player, "build")) { return { score: planImpossible }; }
+            // Nothing the board allows it to build (#183)
+            if (chooseBoardBuild(player) == null && !canUseGuildActionInsteadOf(player, "build")) { return { score: planImpossible }; }
             if (player.shipsBoardValue < getShipTarget(player)) { score += weights.buildFewShips; reason = "more ships: it wants about " + shipsPerBuilding + " per building, or repair a damaged one"; }
             else if (isNearCityBonus(player)) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
             break;
@@ -293,6 +299,8 @@ function getActionPlanScore(player, action, focus) {
             // Damage only matters for intercepts and control, which are about ships, and a building
             // takes hits only once the ships are gone. A city is worth it if it's chasing that
             // resource. With lots of ships, a damaged one matters less
+            // The board shows nothing of its is damaged (#183)
+            if (getDamagedPiece(player) == null) { return { score: planImpossible }; }
             const city = getTaxTargets(player).find(resource => getResourceNeed(player, resource) == 2);
             if (declaredAmbitions.includes("warlord")) { score += weights.repairWarlord; }
             else if (player.shipsBoardValue < fewShipsOnBoard) { score += weights.repairFewShips; }

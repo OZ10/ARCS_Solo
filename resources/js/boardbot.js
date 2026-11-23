@@ -52,7 +52,9 @@ function getThreatenedCity(player) {
 function canReachRival(player, rival) {
     // Its fresh ships already with the Rival's pieces, or one Move away (if it can Move)
     const hasPieces = id => getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0;
-    const canMoveFirst = getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
+    // Once its card is played, only that card (and its prelude) can Move it, not the rest of its hand (#188)
+    const canMoveFirst = getBotPlay(player) != null ? canBotTakeAction(player, "move")
+        : getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
     return getSystemsWithShips(player.number).some(from => getShips(from, player.number).fresh > 0
         && (hasPieces(from) || (canMoveFirst && getMoveDestinations(from, player.number).some(hasPieces))));
 }
@@ -273,7 +275,7 @@ function placeBoardPlan(player, plan) {
                 const resource = (step.text.match(/Tax its (\w+) city/) || [])[1];
                 const city = getTaxableCities(player.number).find(item => item.owner == player.number && (resource == null || preludeResourceNames[item.resource].toLowerCase() == resource))
                     || getTaxableCities(player.number).find(item => item.owner != player.number);
-                if (city != null) { where = { system: city.system, tax: true }; step.text = step.text.replace(/^Tax[^(]*?(?= \(|$)/, match => match + " at " + city.system); }
+                if (city != null) { where = { system: city.system, tax: true, owner: city.owner }; step.text = step.text.replace(/^Tax[^(]*?(?= \(|$)/, match => match + " at " + city.system); }
             } else if (step.action == "repair") {
                 where = getDamagedPiece(player);
                 if (where != null) { step.text = step.text.replace(/^Repair/, "Repair " + where.piece + " at " + where.system); }
@@ -291,6 +293,15 @@ function applyBotPlanToBoard(player) {
     (player.turnPlan || []).forEach(step => {
         if (step.where == null || step.applied) { return; }
         if (step.action == "move" || step.action == "build" || step.action == "repair") { applyBoardStep(player, step.where); }
+        // A Tax: the resource on its panel, if there's one left and room for it, and a Captive
+        // from a Rival's city (#187)
+        if (step.action == "tax" && step.where.tax) {
+            const resource = getPlanetResource(step.where.system);
+            if (resource != null && getResourceSupply(resource) > 0 && getEmptySlots(player) > 0) {
+                setPlayerResource(player, resource, player[resource + "Value"] + 1);
+                if (step.where.owner != null && step.where.owner != player.number) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
+            }
+        }
         step.applied = true;
     });
     syncPanelFromBoard(player);
