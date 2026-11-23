@@ -142,9 +142,13 @@ function showBuildModal(button) {
     header.classList.add("playerbanner" + getPlayerColour(build.player));
     document.getElementById("buildTitle").innerHTML = "Player " + build.player.number + " builds";
 
+    // Its plan's next Build, at a place on the board (boardbot.js, #160)
+    const planned = getPlannedBuild(build.player);
     // What it said it would build, and you said it can (#126): straight to it, without asking again
     const intent = (build.player.canBuild === true) ? build.player.buildIntent : null;
-    if (intent != null && intent.build == "city" && intent.resources != null) {
+    if (planned != null) {
+        showPlannedBuild(planned);
+    } else if (intent != null && intent.build == "city" && intent.resources != null) {
         if (intent.resources.length == 1) { build.slots = intent.resources.slice(); showBuildDecision(); }
         else { showBuildResourceQuestion(intent.resources); }
     } else if (intent != null && intent.build != "city") {
@@ -273,6 +277,38 @@ function builtStarport() {
     // One more starport on the board (#130)
     plusMinusClicked("plusButton_starports_" + build.player.number, "plus", true);
     finishBuild("a starport");
+}
+
+function getPlannedBuild(player) {
+    // The next Build in its plan that has a place on the board and isn't done yet
+    return (player.turnPlan || []).find(step => step.action == "build" && step.where != null && !step.applied) || null;
+}
+
+function showPlannedBuild(step) {
+    const where = step.where;
+    const headline = where.kind == "ship" ? "Build a ship at its starport at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system);
+    document.getElementById("buildBody").innerHTML = "<div class=\"battleroll\">" + headline + "</div>"
+        + (where.reason ? "<div class=\"fst-italic mb-2\">" + where.reason + "</div>" : "")
+        + "<div class=\"small text-muted mb-3\">" + (isControlledByOther(where.system, build.player.number) ? "A Rival controls that system, so it's built damaged." : "From its plan, on the board.") + "</div>"
+        + "<div class=\"d-flex gap-2\"><button type=\"button\" class=\"btn btn-primary flex-fill\" onclick=\"builtPlanned()\">Built it</button>"
+        + "<button type=\"button\" class=\"btn btn-outline-secondary flex-fill\" onclick=\"skipPlannedBuild()\">Something else</button></div>";
+}
+
+function skipPlannedBuild() {
+    // It builds something else: the plan's Build isn't put on the board (the board check catches up)
+    const step = getPlannedBuild(build.player);
+    if (step != null) { step.applied = true; }
+    showBuildSlotQuestion();
+}
+
+function builtPlanned() {
+    // On the board, and the panel follows
+    const step = getPlannedBuild(build.player);
+    if (step == null) { return; }
+    applyBoardStep(build.player, step.where);
+    step.applied = true;
+    syncPanelFromBoard(build.player);
+    finishBuild(step.where.kind == "ship" ? "a ship at " + step.where.system : "a " + step.where.kind + " at " + step.where.system);
 }
 
 function finishBuild(what) {

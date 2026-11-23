@@ -70,12 +70,11 @@ function askThenPlay(player) {
 }
 
 function shouldAskSlotForMove(player) {
-    // Asked once a turn, when Moving to build a city is its best reason to Move and it has a card
-    // that can Move
-    if (player.hasSlotForCity != null || getNewCityResource(player) == null) { return false; }
-    if (!getUnplayedCards(player.cards).some(card => card.actions.includes("move"))) { return false; }
-    const goal = getMoveGoal(player);
-    return goal != null && goal.endsWith("to build a city");
+    // The board shows whether it already has an empty slot of that type where it has a piece, so
+    // it's never asked (boardbot.js, #160)
+    const resource = getNewCityResource(player);
+    if (player.hasSlotForCity == null && resource != null) { player.hasSlotForCity = getBoardSlotResources(player).includes(resource); }
+    return false;
 }
 
 function shouldAskAgents(player) {
@@ -95,19 +94,13 @@ function shouldAskOutOfShips(player) {
 }
 
 function shouldAskCanBuild(player) {
-    // Only when the bot might play a Construction card face up for its actions: it has one,
-    // and it's leading, Construction was led, or it has no card of the lead suit (so it may
-    // pivot). Asked once a turn. Not if it has a Guild card action it can use instead of a Build,
-    // as that doesn't need a slot, so Construction is still worth playing (#86). Not if it has no
-    // reason to build, as the answer is nearly always Yes (#92)
-    const hand = getBotCards(player);
-    if (player.canBuild != null || !hand.some(card => card.name == "Construction")) { return false; }
-    if (canUseGuildActionInsteadOf(player, "build") || !wantsToBuild(player)) { return false; }
-    // Leading: only if a Yes would have it lead Construction (#155)
-    if (isLeadingThisTurn()) { return wouldLeadConstruction(hand); }
-
-    const lead = playedCardList[0];
-    return lead.name == "Construction" || !hand.some(card => card.name == lead.name);
+    // Whether it can build what it wants (#62, #126): the board shows whether it can build what it wants, so it's never asked (boardbot.js, #160)
+    if (player.canBuild == null && wantsToBuild(player)) {
+        const intent = getBuildIntent(player);
+        player.canBuild = canBuildFromBoard(player, intent);
+        player.buildIntent = intent;
+    }
+    return false;
 }
 
 function wouldLeadConstruction(hand) {
@@ -338,6 +331,9 @@ function getNextQuestionNumber(ambition, afterQuestionNumber, possibleActions, p
         const taxResources = ambitionTaxResources[ambition];
         if (action == "tax" && taxResources != null && !taxResources.some(resource => getResourceSupply(resource) > 0)) { continue; }
 
+        // The board shows the answer: no need to ask about something it can't do (boardbot.js, #160)
+        if (getBoardAnswer(ambition, action, player) === false) { continue; }
+
         // Moving into position has its own checks
         if (action.startsWith("reach")) {
             if (isReachQuestionPossible(ambition, action, player)) { return questionNumber; }
@@ -376,6 +372,8 @@ function getKnownYesReason(ambition, action, player) {
     // In a campaign, you've already said the Free States, the Blight or the Empire are in reach (campaignhooks.js)
     const campaignKnown = runCampaignHook("knownYes", ambition, action, player);
     if (campaignKnown != null) { return campaignKnown; }
+    // The board shows it can (boardbot.js, #160)
+    if (getBoardAnswer(ambition, action, player) === true) { return getBoardYesReason(ambition, action); }
     const resources = ambitionTaxResources[ambition];
     if (action == "tax" && resources != null && !(player.noTax || []).includes(ambition)) {
         const own = resources.find(resource => player["cities" + capitalise(resource) + "Value"] > 0 && getResourceSupply(resource) > 0);

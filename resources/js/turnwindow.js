@@ -95,6 +95,9 @@ function useTurnTool(name) {
 }
 
 function turnDone() {
+    // A bot's Moves, Builds and Repairs go on the board (boardbot.js, #160)
+    const player = getTurnPlayer();
+    if (player != null && !player.isHuman) { applyBotPlanToBoard(player); }
     closeTurnWindow(doneClick);
 }
 
@@ -126,7 +129,9 @@ function getSplitPlanStep(step, player) {
     const split = parts == null ? { name: step.text, reason: "" } : { name: parts[1], reason: capitalise(parts[2]) };
     const target = (step.action == "battle") ? getBattleTarget(player) : null;
     if (target == null) { return split; }
-    return { name: target.title || "Battle Player " + target.player.number, reason: [split.reason ? split.reason + "." : "", target.why, target.where].filter(text => text != "").join(" ") };
+    // Where, from the board (boardbot.js, #160)
+    const at = step.where != null && step.where.system != null ? " at " + step.where.system : "";
+    return { name: (target.title || "Battle Player " + target.player.number) + at, reason: [split.reason ? split.reason + "." : "", target.why, target.where].filter(text => text != "").join(" ") };
 }
 
 function getOfferRows(offers) {

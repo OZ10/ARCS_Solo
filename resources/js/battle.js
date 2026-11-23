@@ -448,7 +448,7 @@ function showBattleModal(button) {
         input.name = "battleDefender";
         input.id = "battleDefender" + player.number;
         // A different defender is a different battle, so its counts start again
-        input.onchange = () => { battle.defender = player; battle.start = null; battle.ships = Math.max(battle.ships, 1); resetBattleRaid(); updateBattleCounts(); };
+        input.onchange = () => { battle.defender = player; battle.start = null; battle.ships = Math.max(battle.ships, 1); resetBattleRaid(); prefillBattleFromBoard(); updateBattleCounts(); };
 
         const label = document.createElement("label");
         label.classList.add("btn", "btn-sm", "playerchoice", "playerchoice" + getPlayerColour(player));
@@ -465,6 +465,8 @@ function showBattleModal(button) {
     // In a campaign, the Empire, the Free States and the Blight can defend too (campaignhooks.js)
     runCampaignHook("battleDefenders", defenders);
     battle.noBuildings = hasNoBuildings(battle.defender);
+    // A bot's counts from the board (boardbot.js, #160)
+    prefillBattleFromBoard();
     showBattleCountTiles(battle.attacker.isHuman);
     updateBattleCounts();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).show();
@@ -1164,6 +1166,8 @@ function applyBattleResults() {
     });
     // A bot with no room for what it stole returns what it needs least (#172)
     const roomNote = stolenItems.some(stolen => stolen.resource != null) ? returnOverCapacity(attacker) : null;
+    // What's left in the battle system goes on the board (boardbot.js, #160)
+    applyBattleToBoard(losses);
 
     // A campaign's objectives can advance for Trophies taken (campaignhooks.js)
     runCampaignHook("afterBattle", losses);

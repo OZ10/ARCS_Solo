@@ -117,11 +117,9 @@ function getFleetMove(player) {
 }
 
 function shouldAskAttackFleet(player) {
-    // Once a turn, with enough ships on the board to make up an attack fleet and a way to Battle
-    if (player.attackFleetSize != null || player.shipsBoardValue < attackFleet.manyActions) { return false; }
-    // In a campaign, not when its Fate rules out battles, or it's going after the Blight (campaignhooks.js)
-    if (runCampaignHook("avoidsAction", player, "battle") === true || runCampaignHook("skipFleetQuestion", player) === true) { return false; }
-    return getBotCards(player).some(card => card.actions.includes("battle")) || player.weaponsValue > 0;
+    // The board shows its biggest fleet, so it's never asked (boardbot.js, #160)
+    setFleetFromBoard(player);
+    return false;
 }
 
 function getAttackFleetQuestion(player, move) {
@@ -135,10 +133,9 @@ function getAttackFleetQuestion(player, move) {
 }
 
 function getFleetForBattle(player) {
-    // The biggest fleet it could attack with this turn: what you said. Not asked, it has fewer ships
-    // than any attack fleet, or no way to Battle
-    if (player.attackFleetSize != null) { return player.attackFleetSize; }
-    return player.shipsBoardValue < attackFleet.manyActions ? player.shipsBoardValue : 0;
+    // The biggest fleet it could attack with this turn, from the board (boardbot.js, #160)
+    setFleetFromBoard(player);
+    return player.attackFleetSize;
 }
 
 function hasAttackFleet(player) {
@@ -208,7 +205,9 @@ function getBattleTarget(player) {
             + rival.shipsBoardValue * (warlord ? weights.shipWarlord : weights.ship)
             + Math.random() * weights.variation * getDifficulty().planVariation
             // In a campaign, a Regent would rather battle an Outlaw (campaignhooks.js)
-            + (runCampaignHook("battleTargetBonus", player, rival) || 0);
+            + (runCampaignHook("battleTargetBonus", player, rival) || 0)
+            // One its ships can't reach this turn hardly counts (boardbot.js, #160)
+            + (canReachRival(player, rival) ? 0 : unreachableTargetPenalty);
         target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
         player.battleTargetNumber = target.number;
     }
@@ -379,6 +378,15 @@ function getTurnPlan(player) {
         actionsLeft -= 1;
     }
 
+    // Its fleet needs a Move to reach the battle (boardbot.js, #160): the first step it can spare
+    // becomes that Move, if its card can Move
+    setFleetFromBoard(player);
+    if (available.includes("move") && player.attackFleetMove != null && chosen.some(pick => pick.action == "battle") && !chosen.some(pick => pick.action == "move")) {
+        const spare = chosen.findIndex(pick => pick.action != "battle");
+        const index = spare >= 0 ? spare : (chosen.filter(pick => pick.action == "battle").length > 1 ? chosen.findIndex(pick => pick.action == "battle") : -1);
+        if (index >= 0) { chosen[index] = { action: "move", reason: "to set up the Battle", tag: "" }; }
+    }
+
     // A move sets up a battle, if there's one
     const hasBattle = chosen.some(pick => pick.action == "battle");
     let taxTargets = getCitiesToTax(player);
@@ -391,7 +399,8 @@ function getTurnPlan(player) {
     const moveReasons = getMoveReasons(player);
     const moveCount = chosen.filter(pick => pick.action == "move").length;
     let movesSeen = 0, reasonIndex = 0;
-    return chosen.sort((a, b) => turnPlanOrder.indexOf(a.action) - turnPlanOrder.indexOf(b.action)).map(pick => {
+    // Each step at a place on the board (boardbot.js, #160)
+    return placeBoardPlan(player, chosen.sort((a, b) => turnPlanOrder.indexOf(a.action) - turnPlanOrder.indexOf(b.action)).map(pick => {
         let name = capitalise(pick.action);
         let reason = pick.reason;
         let details = {};
@@ -432,7 +441,7 @@ function getTurnPlan(player) {
             }
         }
         return { action: pick.action, text: name + (reason ? " (" + reason + ")" : ""), tag: pick.tag || "", hints: getLeaderPlanHints(player, pick.action, details) };
-    });
+    }));
 }
 
 function describeTurnPlan(player) {
