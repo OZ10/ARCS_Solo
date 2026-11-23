@@ -64,6 +64,8 @@ class player {
     unionDraws = [];
     // Your prelude this turn, spent from your turn window (#127, prelude.js)
     preludeSpent = [];
+    // Your actions on the board this turn, with what to undo (#160, boardhuman.js)
+    boardActions = [];
     // A bot's answer this turn to "Can I build or repair anything?" (null until asked, see bot.js)
     canBuild = null;
     // The ambitions it was told it can't Tax for this turn (see answerNo in bot.js)
@@ -141,6 +143,7 @@ function resetPlayedThisTurn() {
         player.hasPlayedACardThisTurn = false;
         player.prelude = null;
         player.preludeSpent = [];
+        player.boardActions = [];
         player.guildActions = null;
         player.planVariation = null;
         player.turnPlan = null;

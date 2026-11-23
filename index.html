@@ -532,7 +532,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v231126.05</small>
+                <small class="text-muted" id="appVersion">v231126.06</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
@@ -622,6 +622,20 @@
             <h5 class="modal-title" id="boardTitle">Check the board</h5>
           </div>
           <div class="modal-body" id="boardBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A human player's Move, Build, Tax or Repair on the board (boardhuman.js, #160) -->
+    <div class="modal fade" id="boardActionModal" tabindex="-1" aria-labelledby="boardActionTitle"
+      aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="boardActionTitle">Move</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="boardActionBody"></div>
         </div>
       </div>
     </div>
@@ -880,6 +894,9 @@
                 <!-- Filled in with the other players by showBattleModal -->
                 <div class="d-flex flex-wrap gap-1 justify-content-center mt-2" id="battleDefenders"></div>
 
+                <!-- Where: the systems on the board with both sides' pieces (boardhuman.js, #160) -->
+                <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center mt-2" id="battleSystems"></div>
+
                 <div class="form-check form-switch d-flex justify-content-center gap-2 mt-2">
                   <input class="form-check-input" type="checkbox" id="battleAttackAgain"
                     onchange="clearBattleDecision()">
@@ -1083,6 +1100,7 @@
     <script src="./resources/js/board.js"></script>
     <script src="./resources/js/boardui.js"></script>
     <script src="./resources/js/boardbot.js"></script>
+    <script src="./resources/js/boardhuman.js"></script>
     <script src="./resources/js/scoring.js"></script>
     <script src="./resources/js/undo.js"></script>
     <script src="./resources/js/panel.js"></script>

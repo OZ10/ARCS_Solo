@@ -299,21 +299,20 @@ function applyBotPlanToBoard(player) {
 // A bot's Battle window: the counts from the battle system on the board, and its results back on it
 
 function prefillBattleFromBoard() {
+    // A bot: the system in its plan. A human player: the first where both sides have pieces, and
+    // they can choose another (boardhuman.js)
     battle.boardSystem = null;
     const { attacker, defender } = battle;
-    if (attacker == null || attacker.isHuman || defender == null || typeof defender.number != "number") { return; }
-    const step = (attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.battle == defender.number && !item.applied);
-    const system = step != null ? step.where.system : getBattleSystem(attacker, defender.number);
-    if (system == null) { return; }
-    battle.boardSystem = system;
-    battle.ships = Math.max(getShips(system, attacker.number).fresh, 1);
-    const ships = getShips(system, defender.number);
-    battle.fresh = ships.fresh;
-    battle.damaged = ships.damaged;
-    const buildings = getBuildings(system, defender.number);
-    battle.freshBuildings = buildings.filter(building => !building.damaged).length;
-    battle.damagedBuildings = buildings.filter(building => building.damaged).length;
-    if (isPlanet(system)) { battle.planet = getPlanetResource(system); }
+    if (attacker != null && defender != null && typeof defender.number == "number") {
+        const places = getBattlePlacesFor(attacker, defender);
+        let system = places[0];
+        if (!attacker.isHuman) {
+            const step = (attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.battle == defender.number && !item.applied);
+            system = step != null ? step.where.system : getBattleSystem(attacker, defender.number);
+        }
+        if (system != null) { fillBattleFromSystem(system); }
+    }
+    showBattleSystems();
 }
 
 function applyBattleToBoard(losses) {
@@ -321,22 +320,26 @@ function applyBattleToBoard(losses) {
     const system = battle.boardSystem;
     if (system == null) { return; }
     const attacker = battle.attacker.number, defender = battle.defender.number;
-    for (let lost = 0; lost < losses.attackerShips; lost++) {
-        if (getShips(system, attacker).damaged > 0) { removeShips(system, attacker, 1, true); } else { removeShips(system, attacker, 1); }
-    }
-    setShips(system, defender, battle.fresh, battle.damaged);
+    const removeOne = (number) => { if (getShips(system, number).damaged > 0) { removeShips(system, number, 1, true); } else { removeShips(system, number, 1); } };
+    for (let lost = 0; lost < losses.attackerShips; lost++) { removeOne(attacker); }
     for (let lost = 0; lost < losses.defenderBuildings; lost++) {
         const building = getBuildings(system, defender).sort((a, b) => b.damaged - a.damaged)[0];
         if (building != null) { removeBuilding(system, defender, building.kind); }
     }
-    // As many of the defender's buildings damaged as the window says
-    let damaged = battle.damagedBuildings;
-    getBuildings(system, defender).forEach(building => { building.damaged = damaged > 0; damaged--; });
+    if (battle.attacker.isHuman) {
+        // A human player's window only counts what's left, not fresh and damaged: the destroyed
+        // ones go, damaged first. Which survivors are damaged is put right in the board check
+        for (let lost = 0; lost < losses.defenderShips; lost++) { removeOne(defender); }
+    } else {
+        setShips(system, defender, battle.fresh, battle.damaged);
+        // As many of the defender's buildings damaged as the window says
+        let damaged = battle.damagedBuildings;
+        getBuildings(system, defender).forEach(building => { building.damaged = damaged > 0; damaged--; });
+    }
     const step = (battle.attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.system == system && !item.applied);
     if (step != null) { step.applied = true; }
-    // A bot's panel follows the board. A human player's is left as the Battle window set it, until
-    // their own actions are on the board too
-    [battle.attacker, battle.defender].filter(player => !player.isHuman).forEach(syncPanelFromBoard);
+    // Both panels follow the board, human players' too now their actions are on it
+    [battle.attacker, battle.defender].forEach(syncPanelFromBoard);
 }
 
 function getBoardYesReason(ambition, action) {

@@ -203,28 +203,16 @@ function showTurnHtml(player, title, html) {
 }
 
 function renderHumanTurn(player) {
-    // The actions their card gives them, with the button beside those that have a window. Their
-    // prelude can add actions the app doesn't know about, so Battle and Court are always somewhere
-    const play = getBotPlay(player);
-    const actions = (play == null) ? [] : play.actions.split(",");
+    // The actions their card and prelude give them: what's done, with Undo, and how many are left,
+    // each with its window. Battle and Court are always somewhere (boardhuman.js, #160)
     const offered = [];
-    // What your prelude spends added come first, as they're done first, and are marked (#151)
-    const preludeRows = getPreludeActionRows(player, offered);
-    const rows = (preludeRows != "" ? "<div class=\"small text-secondary mb-1\">Prelude actions first, then your card's actions.</div>" + preludeRows : "")
-        + actions.map(action => {
-            const name = humanActionTools[action];
-            const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
-            if (name != null) { offered.push(name); }
-            return getTurnRow("<i class=\"bi " + (humanActionIcons[action] || "bi-dot") + "\"></i>", capitalise(action), humanActionNotes[action] || "", button);
-        }).join("");
-
     let html = getNewsSection();
     if (slotAdvice.length > 0) { html += getTurnSection("Resources gained", getSlotAdviceHtml()); }
     // What your resources and Guild cards can do first (#127)
     const prelude = getPreludeHtml(player);
     if (prelude != "") { html += getTurnSection("Prelude: before your actions", prelude); }
     html += getTurnSection("Card played", getCardHtml(player));
-    html += getTurnSection("Your actions", rows != "" ? rows : "<div class=\"small text-muted\">No actions this turn.</div>");
+    html += getHumanActionSections(player, offered);
     const shortfall = getMarketShortfallSection(offered);
     if (shortfall != "") { html += shortfall; offered.push("court"); }
     html += getTurnSection("Also", "<div class=\"turntools\">" + ["battle", "court"].filter(name => !offered.includes(name)).concat("draw").map(getAlsoButton).join("") + "</div>");
@@ -284,9 +272,7 @@ function updateTurnDock() {
     if (player != null) {
         bar.className = "turnbar playerbanner" + getPlayerColour(player);
         // The human player's bar has the actions their card gives them
-        const play = player.isHuman ? getBotPlay(player) : null;
-        const summary = !player.isHuman ? getBarPlan(player)
-            : (play == null ? "No actions" : play.count + " action" + (play.count == 1 ? "" : "s") + ": " + play.actions.split(",").join(", "));
+        const summary = !player.isHuman ? getBarPlan(player) : getHumanActionsLeftText(player);
         bar.innerHTML = "<div class=\"turnbarplan\"><b>" + (isYou(player) ? "Your turn" : "Player " + player.number + "'s turn") + "</b>" + summary + "</div>"
             + "<button type=\"button\" class=\"btn btn-light btn-sm\" id=\"turnBarOpen\" onclick=\"openTurnWindow()\"><i class=\"bi bi-chevron-up\"></i> Open</button>";
     }

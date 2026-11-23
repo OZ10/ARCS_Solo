@@ -437,8 +437,10 @@ function showBattleModal(button) {
     header.classList.add("playerbanner" + getPlayerColour(battle.attacker));
     document.getElementById("battleTitle").innerHTML = "Player " + battle.attacker.number + " attacks";
 
-    // The defender can be any other player, starting on who a bot would rather Battle
-    const target = !battle.attacker.isHuman ? getBattleTarget(battle.attacker) : null;
+    // The defender can be any other player, starting on who a bot would rather Battle. A human
+    // player starts on a Rival their ships share a system with on the board (#160)
+    const sharing = battle.attacker.isHuman ? players.find(player => player.number != battle.attacker.number && getBattlePlacesFor(battle.attacker, player).length > 0) : null;
+    const target = !battle.attacker.isHuman ? getBattleTarget(battle.attacker) : (sharing != null ? { player: sharing } : null);
     const defenders = document.getElementById("battleDefenders");
     defenders.replaceChildren();
     players.filter(player => player.number != battle.attacker.number).forEach((player, index) => {
@@ -1168,6 +1170,8 @@ function applyBattleResults() {
     const roomNote = stolenItems.some(stolen => stolen.resource != null) ? returnOverCapacity(attacker) : null;
     // What's left in the battle system goes on the board (boardbot.js, #160)
     applyBattleToBoard(losses);
+    // A human player's Battle counts as one of their actions (boardhuman.js)
+    recordHumanBattle(attacker, defender, battle.boardSystem);
 
     // A campaign's objectives can advance for Trophies taken (campaignhooks.js)
     runCampaignHook("afterBattle", losses);

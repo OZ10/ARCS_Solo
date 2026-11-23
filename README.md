@@ -146,7 +146,7 @@ The campaign is played over three Acts of up to three chapters each, with the bo
   - **All closed:** open one by tapping its header.
 
   A closed section opens when the app changes it, such as after a battle or scoring.
-- **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships and starports on the board, and cities on each planet type. Resources and cities show only an icon, after the game's tokens, and the ambitions in the top bar use the same ones. Keep these matching the table. Bots use them to make their choices, and they're filled in for you when the app knows what happened, such as after a battle.
+- **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships and starports on the board, and cities on each planet type. Resources and cities show only an icon, after the game's tokens, and the ambitions in the top bar use the same ones. Keep these matching the table. Bots use them to make their choices, and they're filled in for you when the app knows what happened, such as after a battle. Ships, starports and cities follow the app's board, so correct those with **Check the board** in **Options**: a change on the tile alone is replaced the next time the board changes.
 - **Outrage:** under the tiles, the resources that player is Outraged in are marked red. It's filled in when a city is destroyed or Outrage Spreads is played, and you can tap one to mark or clear it. A bot won't spend an Outraged resource in its prelude.
 - **Guild row:** the Guild cards each player holds. Tap **+** to add one, or tap a card to read it or remove it.
 - **Footer:** **Undo**, **Next Turn** and **Next Round**, with the cards played this turn listed above them.
@@ -164,7 +164,13 @@ Your hand is listed on your panel. Tap a card to see its pips, ambition and acti
 
 <img src="docs/screenshots/your-turn-window.png" width="300" align="right" alt="Your turn window">
 
-**Your turn window** then opens, like a bot's. It lists the actions your card gives you, with any prelude actions you've spent for first, marked **PRELUDE**. Battle has a **Battle** button and Secure or Influence a **Court** button, to keep track of a battle or the market (see below). The others are reminders. **Prelude** lists what your resources and Guild cards can do before your actions. **Spend** takes the resource off your panel and adds its action to your list, such as a Move for a Fuel. **Use** does the same for a Guild card. Each has **Undo** until the turn ends. Anything your card doesn't have is under **Also**, with **Draw**. Carry out your actions on the table and tap **Done**. **Back to board** shrinks the window to a bar, as on a bot's turn.
+**Your turn window** then opens, like a bot's. It counts your actions, such as **3 of 3 actions left**, and lists each kind your card gives you with a button and what's possible on the board, such as *"Where your ships meet a Rival: 2g (Player 3)"*. Take the same action as many times as your card allows. Each one you do on the table, do in the app too:
+- **Move:** choose where from and where to (only the systems your ships can reach, Catapult included) and how many fresh and damaged ships. If the ships pass through other systems, the window shows the route, with **−** and **+** for any you left on the way, and **Choose the route** if you went another way. The button says what goes on the board, such as *"Move 5 ships 3c → 5a, leaving 2 at 3g"*.
+- **Build, Repair and Tax:** only what the board allows: a city or starport on a planet with an empty slot where you have a piece (damaged if a Rival controls it), a ship at each starport once a turn, your damaged pieces, and your cities or a Rival's city in a system you control (which also captures one of their agents). Tax adds the resource to your panel.
+- **Battle:** opens the Battle window, starting on a Rival you share a system with, and the counts from the board. **Where** lists the systems you could battle in. When it updates the panels, it counts as an action.
+- **Secure and Influence:** **Court** opens the Court window, and **Done it** counts the action.
+
+Each action you've taken is listed under **Done**, with **Undo**, which takes it off the board and gives the action back. When none are left, the buttons are greyed out. **Prelude** lists what your resources and Guild cards can do before your actions. **Spend** takes the resource off your panel and adds its action, such as a Move for a Fuel, marked **PRELUDE**. **Use** does the same for a Guild card. Anything your card doesn't have is under **Also**, with **Draw**. Tap **Done** when you've finished. **Back to board** shrinks the window to a bar, as on a bot's turn.
 
 <br clear="right">
 
@@ -210,7 +216,7 @@ The app plays each bot's cards and makes its choices, but it can't see or touch 
 - **Its pieces:** move its ships, and place or remove its buildings, agents and resources on the table, where the plan says.
 - **Its panel:** the ships, starports and cities on its panel come from the app's board. The app fills in its resources when it knows what happened, such as after a prelude, a battle, a build, the Court or scoring. For anything it can't see, such as a tax, you update the tiles.
 - **Its answers:** answer its Yes/No questions from what you see on the table.
-- **The board check:** at the end of each round, the **Check the board** window goes through each cluster in play, listing every player's ships and buildings in each system. Correct anything that doesn't match the table with **−** and **+**, **+ Ships**, **+ City**, **+ Starport** and **×**, then tap the next cluster and **Done**, or **It all matches: done**. Your own moves aren't on the app's board yet, so this is where they go. You can open it any time from **Options**, **Check the board**.
+- **The board check:** at the end of each round, the **Check the board** window goes through each cluster in play, listing every player's ships and buildings in each system. Correct anything that doesn't match the table with **−** and **+**, **+ Ships**, **+ City**, **+ Starport** and **×**, then tap the next cluster and **Done**, or **It all matches: done**. This catches anything that didn't go through the app, such as a Leader's or Guild card's effect, or a step you skipped. You can open it any time from **Options**, **Check the board**.
 - **Its dice:** roll the dice it chooses, then enter what's left.
 - **The Court:** when a card leaves the market, add its replacement. Do anything a window asks you to update yourself.
 
