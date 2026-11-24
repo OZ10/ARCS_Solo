@@ -12,11 +12,11 @@
 // they are loaded as plain scripts, in order, by index.html
 
 // What's entered in the Battle window
-let battle = { attacker: null, defender: null, ships: 1, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0, start: null,
+let battle = { attacker: null, defender: null, ships: 1, attackerDamaged: 0, fresh: 1, damaged: 0, freshBuildings: 0, damagedBuildings: 0, start: null,
     raidPlan: null, keysRolled: null, noBuildings: false, raidRolled: false, planet: null, buildingKinds: [], destroyed: null };
 
 // The counts compared before and after the battle
-const battleCounts = ["ships", "fresh", "damaged", "freshBuildings", "damagedBuildings"];
+const battleCounts = ["ships", "attackerDamaged", "fresh", "damaged", "freshBuildings", "damagedBuildings"];
 
 function getHitsToDestroy(fresh, damaged) {
     // Ships and buildings both take one hit to damage a fresh one and another to destroy it
@@ -422,6 +422,7 @@ function showBattleModal(button) {
     battle.attacker = getPlayer(getPlayerNumberFromString(button.parentNode.id));
     hideIconTooltip(button, "battleModal");
     battle.ships = 1;
+    battle.attackerDamaged = 0;
     battle.fresh = 1;
     battle.damaged = 0;
     battle.freshBuildings = 0;
@@ -497,6 +498,7 @@ function battleStep(field, change) {
 
 function updateBattleCounts() {
     document.getElementById("battleShips").innerHTML = battle.ships;
+    document.getElementById("battleAttackerDamaged").innerHTML = battle.attackerDamaged || 0;
     document.getElementById("battleFresh").innerHTML = battle.fresh;
     document.getElementById("battleDamaged").innerHTML = battle.damaged;
     document.getElementById("battleFreshBuildings").innerHTML = battle.freshBuildings;
@@ -644,7 +646,9 @@ function getBestRaidPick(items, keys) {
         }
         if (used > keys) { continue; }
         // Higher on the list breaks a tie: a lower bit set for an earlier item scores a little more
-        const tie = items.slice(0, count).reduce((total, item, index) => total + ((mask & (1 << index)) ? 1 / (1 << (index + 1)) : 0), 0) * 0.001;
+        // Before that, the set that uses more keys: taking from the dearer slot leaves the cheap
+        // one to raid again later (#190)
+        const tie = items.slice(0, count).reduce((total, item, index) => total + ((mask & (1 << index)) ? 1 / (1 << (index + 1)) : 0), 0) * 0.001 + Math.min(used, 50) * 0.002;
         if (value + tie > best.value) { best = { value: value + tie, pick: items.map((item, index) => index < count && (mask & (1 << index)) != 0) }; }
     }
     return best.pick;
@@ -687,7 +691,7 @@ function showBattleRaid() {
 
     // Why it would rather Battle this Rival, and where: the system from the board, or general advice
     const target = !battle.attacker.isHuman ? getBattleTarget(battle.attacker) : null;
-    const where = battle.boardSystem != null ? "At " + battle.boardSystem + ", from the board." : (target != null ? target.where : "");
+    const where = battle.boardSystem != null ? "At " + getSystemName(battle.boardSystem) + ", from the board." : (target != null ? target.where : "");
     let html = (target != null && target.player === battle.defender)
         ? "<div class=\"small text-muted text-center mb-2\" id=\"battleTargetReason\">" + target.why + " " + where + "</div>" : "";
     if (holdsGuildCard(battle.attacker, 8)) {
@@ -918,7 +922,8 @@ function getBattleLosses() {
     // What each side lost since the first roll, from the counts now
     const lost = (before, after) => Math.max(before - after, 0);
     return {
-        attackerShips: lost(battle.start.ships, battle.ships),
+        // A fresh ship turned damaged isn't lost (#189)
+        attackerShips: lost(battle.start.ships + (battle.start.attackerDamaged || 0), battle.ships + (battle.attackerDamaged || 0)),
         defenderShips: lost(battle.start.fresh + battle.start.damaged, battle.fresh + battle.damaged),
         defenderBuildings: lost(battle.start.freshBuildings + battle.start.damagedBuildings, battle.freshBuildings + battle.damagedBuildings)
     };

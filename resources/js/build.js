@@ -325,7 +325,7 @@ function builtPlanned() {
     applyBoardStep(build.player, step.where);
     step.applied = true;
     syncPanelFromBoard(build.player);
-    finishBuild(step.where.kind == "ship" ? "a ship at " + step.where.system : "a " + step.where.kind + " at " + step.where.system);
+    finishBuild(step.where.kind == "ship" ? "a ship at " + getSystemName(step.where.system) : "a " + step.where.kind + " at " + getSystemName(step.where.system));
 }
 
 function finishBuild(what) {

@@ -55,9 +55,28 @@ function getSystemIds() {
     return getAllSystemIds().filter(isSystemInPlay);
 }
 
+// Each planet's ID symbol, as printed on the board (rulebook p.6): an arrowhead, a crescent and a hexagon (#185)
+const planetSymbolPaths = {
+    a: "<path d=\"M8 1.5 L14.5 14.5 L8 10.5 L1.5 14.5 Z\"/>",
+    c: "<path d=\"M7.98 2.02A6.5 6.5 0 1 0 13.79 10.15A5 5 0 0 1 7.98 2.02Z\"/>",
+    h: "<polygon points=\"8,1 14.6,4.6 14.6,11.4 8,15 1.4,11.4 1.4,4.6\"/>"
+};
+
+function getPlanetSymbol(id) {
+    return "<svg class=\"planetsymbol\" viewBox=\"0 0 16 16\" width=\"0.95em\" height=\"0.95em\" style=\"vertical-align:-0.1em\" fill=\"currentColor\" aria-label=\""
+        + planetLetterNames[id.slice(-1)] + "\">" + planetSymbolPaths[id.slice(-1)] + "</svg>";
+}
+
+function getSystemShortName(id) {
+    // e.g. "1 Gate" or "3 ⬢": the cluster number and the planet's symbol (#185)
+    return isGate(id) ? getCluster(id) + " Gate" : getCluster(id) + "&nbsp;" + getPlanetSymbol(id);
+}
+
 function getSystemName(id) {
-    // e.g. "2h (Relic)" or "3 gate"
-    return isGate(id) ? getCluster(id) + " gate" : id + " (" + preludeResourceNames[getPlanetResource(id)] + ")";
+    // e.g. "1 Gate" or "3 ⬢ [icon] Weapon" (#185)
+    if (isGate(id)) { return "<b class=\"text-nowrap\">" + getSystemShortName(id) + "</b>"; }
+    const resource = getPlanetResource(id);
+    return "<span class=\"text-nowrap\"><b>" + getSystemShortName(id) + "</b> " + getGameIcon(resource) + "&nbsp;" + preludeResourceNames[resource] + "</span>";
 }
 
 function nextCluster(cluster, step) {
@@ -189,10 +208,21 @@ function isControlledByOther(id, playerNumber) {
 // keeps going until the ships move into a gate controlled by anyone else, or into any planet.
 // Control is checked before moving in
 
-function getMoveDestinations(from, playerNumber) {
-    // Every system its ships at from could reach with one Move action
+function isGateBlocked(id, playerNumber, movingFresh) {
+    // A gate stops a Catapult if anyone else controls it once the moving ships are in (#184)
+    // Control: strictly more fresh ships than everyone else (a tie means no one)
+    const mine = getShips(id, playerNumber).fresh + movingFresh;
+    const others = Object.entries(getSystem(id).ships).filter(([number]) => Number(number) != playerNumber).map(([, ships]) => ships.fresh);
+    const most = Math.max(0, ...others);
+    return most > mine && others.filter(count => count == most).length == 1;
+}
+
+function getMoveDestinations(from, playerNumber, movingFresh = null) {
+    // Every system its ships at from could reach with one Move action. movingFresh: how many fresh
+    // ships are moving (all of them at from if not given)
     const adjacent = getAdjacent(from);
     if (getBuildings(from, playerNumber, "starport").length == 0) { return adjacent; }
+    const moving = movingFresh != null ? movingFresh : getShips(from, playerNumber).fresh;
     const reached = new Set();
     const queue = [from];
     while (queue.length > 0) {
@@ -200,15 +230,15 @@ function getMoveDestinations(from, playerNumber) {
         getAdjacent(at).forEach(next => {
             if (next == from || reached.has(next)) { return; }
             reached.add(next);
-            // It can keep going only through a gate no one else controls
-            if (isGate(next) && !isControlledByOther(next, playerNumber)) { queue.push(next); }
+            // It can keep going only through a gate no one else controls once it's there (#184)
+            if (isGate(next) && !isGateBlocked(next, playerNumber, moving)) { queue.push(next); }
         });
     }
     return [...reached];
 }
 
-function canMove(from, to, playerNumber) {
-    return getMoveDestinations(from, playerNumber).includes(to);
+function canMove(from, to, playerNumber, movingFresh = null) {
+    return getMoveDestinations(from, playerNumber, movingFresh).includes(to);
 }
 
 // Totals, for the panels and the bots

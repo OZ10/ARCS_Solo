@@ -264,10 +264,10 @@ function placeBoardPlan(player, plan) {
             if (step.action == "move") {
                 where = chooseBoardMove(player, targetNumber, getNewCityResource(player));
                 // Its reason is where it's going and why
-                if (where != null) { step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + where.from + " &rarr; " + where.to + " (" + getMoveWhy(where) + ")"; }
+                if (where != null) { step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
             } else if (step.action == "build") {
                 where = chooseBoardBuild(player);
-                if (where != null) { step.text = step.text.replace(/^Build/, where.kind == "ship" ? "Build a ship at " + where.system : "Build a " + where.kind + " at " + getSystemName(where.system)); }
+                if (where != null) { step.text = step.text.replace(/^Build/, where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system)); }
             } else if (step.action == "battle" && targetNumber != null) {
                 const system = getBattleSystem(player, targetNumber);
                 if (system != null) { where = { system: system, battle: targetNumber }; }
@@ -275,10 +275,10 @@ function placeBoardPlan(player, plan) {
                 const resource = (step.text.match(/Tax its (\w+) city/) || [])[1];
                 const city = getTaxableCities(player.number).find(item => item.owner == player.number && (resource == null || preludeResourceNames[item.resource].toLowerCase() == resource))
                     || getTaxableCities(player.number).find(item => item.owner != player.number);
-                if (city != null) { where = { system: city.system, tax: true, owner: city.owner }; step.text = step.text.replace(/^Tax[^(]*?(?= \(|$)/, match => match + " at " + city.system); }
+                if (city != null) { where = { system: city.system, tax: true, owner: city.owner }; step.text = step.text.replace(/^Tax[^(]*?(?= \(|$)/, match => match + " at " + getSystemName(city.system)); }
             } else if (step.action == "repair") {
                 where = getDamagedPiece(player);
-                if (where != null) { step.text = step.text.replace(/^Repair/, "Repair " + where.piece + " at " + where.system); }
+                if (where != null) { step.text = step.text.replace(/^Repair/, "Repair " + where.piece + " at " + getSystemName(where.system)); }
             }
             step.where = where;
             applyBoardStep(player, where);
@@ -333,7 +333,8 @@ function applyBattleToBoard(losses) {
     if (system == null) { return; }
     const attacker = battle.attacker.number, defender = battle.defender.number;
     const removeOne = (number) => { if (getShips(system, number).damaged > 0) { removeShips(system, number, 1, true); } else { removeShips(system, number, 1); } };
-    for (let lost = 0; lost < losses.attackerShips; lost++) { removeOne(attacker); }
+    // The attacker's ships there: fresh and damaged, as the window says (#189)
+    setShips(system, attacker, battle.ships, battle.attackerDamaged || 0);
     for (let lost = 0; lost < losses.defenderBuildings; lost++) {
         const building = getBuildings(system, defender).sort((a, b) => b.damaged - a.damaged)[0];
         if (building != null) { removeBuilding(system, defender, building.kind); }

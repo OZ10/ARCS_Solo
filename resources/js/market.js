@@ -218,7 +218,7 @@ function showStartingPieces(card) {
     const systems = getSystemIds().filter(id => getPiecesText(id) != "");
     body.innerHTML = "<p class=\"mb-2\">" + (card.outOfPlay.length == 1 ? "Cluster " : "Clusters ") + card.outOfPlay.join(" and ") + " " + (card.outOfPlay.length == 1 ? "is" : "are") + " out of play: cover "
         + (card.outOfPlay.length == 1 ? "its gate with a path marker and its planets" : "their gates with path markers and their planets") + " with out-of-play markers. Place these:</p>"
-        + "<div class=\"mb-2\">" + systems.map(id => "<div class=\"d-flex gap-2 py-1 border-bottom\"><b style=\"min-width:110px\">" + getSystemName(id) + "</b><span class=\"small\">" + tagPlayerNames(getPiecesText(id)) + "</span></div>").join("") + "</div>"
+        + "<div class=\"mb-2\">" + systems.map(id => "<div class=\"d-flex gap-2 py-1 border-bottom\"><span style=\"min-width:130px\">" + getSystemName(id) + " <small class=\"text-secondary\">" + id + "</small></span><span class=\"small\">" + tagPlayerNames(getPiecesText(id)) + "</span></div>").join("") + "</div>"
         + "<p class=\"small text-secondary mb-3\">" + (leadersAndLore ? "Resources, ships and Outrage come from each Leader." : "Each player's 2 starting resources are on their panel.")
         + (players.length == 2 ? " The resources of the out-of-play planets are on the ambition boxes." : "") + "</p>";
 
@@ -266,8 +266,11 @@ function openCourt(playerNumber) {
 
 function changeMarketAgents(number, playerNumber, change) {
     const entry = courtMarket.find(card => card.number == number);
-    entry.agents[playerNumber] = Math.max((entry.agents[playerNumber] || 0) + change, 0);
+    const before = entry.agents[playerNumber] || 0;
+    entry.agents[playerNumber] = Math.max(before + change, 0);
     logManualChange({ type: "marketAgents", number: number, player: playerNumber, amount: change });
+    // A human player's own agent on their turn is an Influence action (#186, boardhuman.js)
+    if (entry.agents[playerNumber] != before) { countHumanInfluence(getPlayer(playerNumber), number, change); }
     SaveAllSettings();
     showCourtWindow();
     refreshTurnSummary();
@@ -440,6 +443,8 @@ function secureMarketCard(number) {
     const card = getCourtCard(number);
     const captured = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
     recordCapturedAgents(entry, player, "agentsCaptive");
+    // A human player's Secure on their turn counts as an action (#186, boardhuman.js)
+    countHumanSecure(player, card.name);
     // Guild cards attached to it come too (#176)
     const attachedNames = takeAttachedCards(player, entry);
     if (attachedNames.length > 0) { showMessageToast("Player " + player.number, "Takes the attached " + attachedNames.join(" and ") + " too."); }

@@ -50,7 +50,8 @@ function renderBoardCheck() {
             : "<div class=\"d-flex gap-1 mt-1\"><button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0\" onclick=\"startBoardAdd('" + id + "', 'ship')\">+ Ships</button>"
                 + (getEmptySlotCount(id) > 0 ? "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0\" onclick=\"startBoardAdd('" + id + "', 'city')\">+ City</button>"
                     + "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0\" onclick=\"startBoardAdd('" + id + "', 'starport')\">+ Starport</button>" : "") + "</div>";
-        const title = isGate(id) ? "Cluster " + cluster + " &middot; gate" : id + " &middot; " + preludeResourceNames[getPlanetResource(id)] + " &middot; " + getPlanetSlots(id) + " slot" + (getPlanetSlots(id) == 1 ? "" : "s");
+        // Its name, with the short code in grey (#185)
+        const title = getSystemName(id) + " <small class=\"text-secondary\">" + id + (isGate(id) ? "" : " &middot; " + getPlanetSlots(id) + " slot" + (getPlanetSlots(id) == 1 ? "" : "s")) + "</small>";
         return "<div class=\"turnsection\"><div class=\"turnlabel\">" + title + "</div>"
             + (ships + buildings == "" ? "<div class=\"small text-secondary\">Empty</div>" : ships + buildings) + adding + "</div>";
     };

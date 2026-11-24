@@ -611,9 +611,10 @@ function describeBuildChange(player) {
 
     const reason = player.playReason;
     const ambition = (reason != null && Object.keys(ambitionResources).includes(reason.ambition)) ? capitalise(reason.ambition) : null;
-    if (ambition != null && reason.type == "chase") { return "You said it could build, but it's chasing " + ambition + " instead."; }
-    if (ambition != null) { return "You said it could build, but it's leading with its best card for " + ambition + " instead."; }
-    return "You said it could build, but another card suited this turn better.";
+    // From the board now, not an answer (#182)
+    if (ambition != null && reason.type == "chase") { return "It could build, but it's chasing " + ambition + " instead."; }
+    if (ambition != null) { return "It could build, but it's leading with its best card for " + ambition + " instead."; }
+    return "It could build, but another card suited this turn better.";
 }
 
 function describeActions(count, actions) {

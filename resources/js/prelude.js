@@ -288,7 +288,7 @@ function getPreludeOffers(player) {
     if (slotFreed) {
         // Already spent to free a slot
     } else if (player.canBuild === true && !play.actions.includes("build")) {
-        offerAction("materials", "Build or Repair", "build", false, "You said it can build or repair this turn, and its card doesn't build.");
+        offerAction("materials", "Build or Repair", "build", false, "The board shows it can build or repair, and its card doesn't build.");
     } else if (battleWhy != null && canBattle && player.canBuild !== false && (player.starportsValue || 0) > 0 && !play.actions.includes("build")) {
         offerAction("materials", "Build a ship at a starport, or repair a damaged ship, ready for its battle", "build", false, battleWhy + ": one more ship, or a repaired one, makes the battle safer.");
     } else if (player.canBuild !== false && wants(preludeChance.spare)) {
@@ -301,7 +301,7 @@ function getPreludeOffers(player) {
         offerAction("fuel", "Move, and free a slot for what it raids", "move", false, slotWhy);
         slotFreed = offered() > before;
     } else if (player.moveGoal != null && !play.actions.includes("move")) {
-        offerAction("fuel", "Move " + player.moveGoal, "move", false, "You said it can reach that this turn, and its card doesn't move.");
+        offerAction("fuel", "Move " + player.moveGoal, "move", false, "The board shows it can reach that this turn, and its card doesn't move.");
     } else if (battleWhy != null && canBattle && !play.actions.includes("move")) {
         offerAction("fuel", "Move more ships into its battle", "move", false, battleWhy + ", and more ships make the battle safer.");
     } else if (wants(preludeChance.spare)) {
@@ -711,8 +711,10 @@ function getGuildPreludeOptions(player) {
 function getPreludeHtml(player) {
     // The Prelude section: what's been spent, with Undo, then what could be
     const button = (label, onclick, style) => "<button type=\"button\" class=\"btn " + style + " btn-sm turnact\" onclick=\"" + onclick + "\">" + label + "</button>";
+    // The prelude comes before your actions: once one is taken, it's closed (#186)
+    const closed = player.isHuman && getBoardActions(player).length > 0;
     const spentRows = getPreludeSpent(player).map((spent, index) => {
-        const undo = spent.seize ? "" : button("Undo", "undoPrelude(" + index + ")", "btn-outline-secondary");
+        const undo = (spent.seize || closed) ? "" : button("Undo", "undoPrelude(" + index + ")", "btn-outline-secondary");
         if (spent.resource != null) {
             const offer = humanPreludeActions[spent.resource];
             return getSpentTurnRow(getGameIcon(spent.resource), "1 " + preludeResourceNames[spent.resource] + ": " + offer.text, "Spent" + (undo ? ". Tap Undo to put it back" : ""), undo);
@@ -726,6 +728,9 @@ function getPreludeHtml(player) {
     });
     const guildRows = getGuildPreludeOptions(player).map(option => getTurnRow("<i class=\"bi bi-person-vcard\"></i>", option.card.name + ": " + option.text, option.note,
         option.use != null ? button("Use", "useGuildPrelude(" + option.card.number + ")", "btn-outline-primary") : ""));
+    if (closed) {
+        return spentRows.join("") + "<div class=\"small text-muted\">The prelude is over: it comes before your actions.</div>";
+    }
     return spentRows.concat(resourceRows, guildRows).join("");
 }
 
@@ -750,6 +755,7 @@ function getPreludeActionRows(player, offered) {
 function spendPrelude(resource) {
     const player = getTurnPlayer();
     if (player == null || !canSpendForPrelude(player, resource)) { return; }
+    if (player.isHuman && getBoardActions(player).length > 0) { return; }
     setPlayerResource(player, resource, player[resource + "Value"] - 1);
     player.preludeSpent = getPreludeSpent(player).concat({ resource: resource });
     SaveAllSettings();

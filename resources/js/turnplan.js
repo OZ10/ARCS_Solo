@@ -250,6 +250,8 @@ function getActionPlanScore(player, action, focus) {
 
         case "battle":
             if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
+            // No Rival its ships can reach this turn on the board (#188). A campaign's own targets aside
+            if (!player.campaignTarget && !players.some(other => other !== player && canReachRival(player, other))) { return { score: planImpossible }; }
             if (chasing("warlord")) { score += weights.battleWarlord; reason = "chasing Warlord"; }
             else if (chasing("tyrant")) { score += weights.battleTyrant; reason = "chasing Tyrant"; }
             if (hasManyShips(player)) { score += weights.battleManyShips; if (reason == "") { reason = "lots of ships on the board"; } }
@@ -322,7 +324,7 @@ function getActionPlanScore(player, action, focus) {
     score += getLeaderPlanBonus(player, action);
 
     // What the player said it can do, in the Yes/No questions
-    if (action == focus) { score += weights.focus; reason = (action == "move" && player.moveGoal != null) ? player.moveGoal : (player.focusReason || "you said it can"); }
+    if (action == focus) { score += weights.focus; reason = (action == "move" && player.moveGoal != null) ? player.moveGoal : (player.focusReason || "the board shows it can"); }
     // In a campaign, what its Fate wants this Act: { avoid, add, reason } (campaignhooks.js)
     const steer = runCampaignHook("planSteer", player, action);
     if (steer != null) {
@@ -417,7 +419,7 @@ function getTurnPlan(player) {
         if (pick.action == "move") {
             const first = movesSeen == 0;
             movesSeen += 1;
-            if (first && hasBattle && reason != "you said it can" && player.moveGoal == null) {
+            if (first && hasBattle && reason != "the board shows it can" && player.moveGoal == null) {
                 reason = "to set up the Battle";
             } else if (!first || focus != "move") {
                 const last = movesSeen == moveCount;

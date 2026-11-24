@@ -62,15 +62,15 @@ function getHumanActionNote(player, type) {
     const number = player.number;
     const list = ids => ids.length > 0 ? ids.join(", ") : "none";
     switch (type) {
-        case "move": return "Your ships: " + list(getSystemsWithShips(number).map(id => { const ships = getShips(id, number); return id + " (" + (ships.fresh + ships.damaged) + ")"; }));
+        case "move": return "Your ships: " + list(getSystemsWithShips(number).map(id => { const ships = getShips(id, number); return getSystemShortName(id) + " (" + (ships.fresh + ships.damaged) + ")"; }));
         case "battle": {
             const places = getHumanBattlePlaces(player);
-            return places.length > 0 ? "Where your ships meet a Rival: " + places.map(place => place.system + " (" + place.rivals.map(rival => "Player " + rival).join(", ") + ")").join(", ") : "None of your ships share a system with a Rival";
+            return places.length > 0 ? "Where your ships meet a Rival: " + places.map(place => getSystemName(place.system) + " (" + place.rivals.map(rival => "Player " + rival).join(", ") + ")").join(", ") : "None of your ships share a system with a Rival";
         }
-        case "build": return getHumanBuildOptions(player).length > 0 ? "Where you can: " + [...new Set(getHumanBuildOptions(player).map(option => option.system))].join(", ") : "Nowhere on the board";
-        case "repair": return getHumanRepairOptions(player).length > 0 ? "Damaged: " + [...new Set(getHumanRepairOptions(player).map(option => option.system))].join(", ") : "Nothing damaged";
-        case "tax": return getHumanTaxOptions(player).length > 0 ? "Cities you can tax: " + getHumanTaxOptions(player).map(option => option.system).join(", ") : "No cities to tax";
-        default: return "In the Court window";
+        case "build": return getHumanBuildOptions(player).length > 0 ? "Where you can: " + [...new Set(getHumanBuildOptions(player).map(option => option.system))].map(getSystemName).join(", ") : "Nowhere on the board";
+        case "repair": return getHumanRepairOptions(player).length > 0 ? "Damaged: " + [...new Set(getHumanRepairOptions(player).map(option => option.system))].map(getSystemName).join(", ") : "Nothing damaged";
+        case "tax": return getHumanTaxOptions(player).length > 0 ? "Cities you can tax: " + getHumanTaxOptions(player).map(option => getSystemName(option.system)).join(", ") : "No cities to tax";
+        default: return "In the Court window: each agent placed or card secured counts";
     }
 }
 
@@ -78,9 +78,9 @@ function getHumanActionButton(type, enabled) {
     const disabled = enabled ? "" : " disabled";
     const icon = "<i class=\"bi " + (humanActionIcons[type] || "bi-dot") + "\"></i> ";
     if (type == "battle") { return "<button type=\"button\" class=\"btn btn-primary btn-sm turnact\" id=\"turnTool_battle\" onclick=\"useTurnTool('battle')\"" + disabled + ">" + icon + "Battle</button>"; }
+    // The Court window counts each agent placed and card secured (#186)
     if (type == "secure" || type == "influence") {
-        return "<span class=\"d-flex flex-column gap-1\"><button type=\"button\" class=\"btn btn-primary btn-sm turnact\" onclick=\"useTurnTool('court')\"" + disabled + ">" + icon + "Court</button>"
-            + "<button type=\"button\" class=\"btn btn-outline-secondary btn-sm turnact\" id=\"humanDone_" + type + "\" onclick=\"recordCourtAction('" + type + "')\"" + disabled + ">Done it</button></span>";
+        return "<button type=\"button\" class=\"btn btn-primary btn-sm turnact\" onclick=\"useTurnTool('court')\"" + disabled + ">" + icon + "Court</button>";
     }
     return "<button type=\"button\" class=\"btn btn-primary btn-sm turnact\" id=\"humanAct_" + type + "\" onclick=\"openHumanBoardAction('" + type + "')\"" + disabled + ">" + icon + humanBoardActionNames[type] + "</button>";
 }
@@ -127,10 +127,34 @@ function recordCourtAction(type) {
     renderTurn(player);
 }
 
+function isHumanTurnOf(player) {
+    return player != null && player.isHuman && getTurnPlayer() === player;
+}
+
+function countHumanInfluence(player, number, change) {
+    // An agent added in the Court window on their own turn is an Influence; taking it off again
+    // takes back the last Influence on that card (#186)
+    if (!isHumanTurnOf(player)) { return; }
+    if (change > 0) {
+        player.boardActions = getBoardActions(player).concat({ action: "influence", card: number, text: "An agent on " + getCourtCard(number).name, undo: false });
+    } else {
+        const actions = getBoardActions(player);
+        const last = actions.map(action => action.action == "influence" && action.card == number).lastIndexOf(true);
+        if (last >= 0) { player.boardActions = actions.filter((action, index) => index != last); }
+    }
+    SaveAllSettings();
+}
+
+function countHumanSecure(player, name) {
+    if (!isHumanTurnOf(player)) { return; }
+    player.boardActions = getBoardActions(player).concat({ action: "secure", text: name, undo: false });
+    SaveAllSettings();
+}
+
 function recordHumanBattle(attacker, defender, system) {
     // From the Battle window, when it updates the panels on the attacker's own turn
     if (!attacker.isHuman || getTurnPlayer() !== attacker || typeof defender.number != "number") { return; }
-    attacker.boardActions = getBoardActions(attacker).concat({ action: "battle", text: "Player " + defender.number + (system != null ? " at " + system : ""), undo: false });
+    attacker.boardActions = getBoardActions(attacker).concat({ action: "battle", text: "Player " + defender.number + (system != null ? " at " + getSystemName(system) : ""), undo: false });
 }
 
 function undoBoardAction(index) {
@@ -236,16 +260,16 @@ function renderHumanOptions(type) {
     let options = [];
     if (type == "build") {
         options = getHumanBuildOptions(player).map((option, index) => getOptionButton(
-            option.kind == "ship" ? "<b>Ship</b> at your starport at " + option.system : "<b>" + capitalise(option.kind) + "</b> at " + getSystemName(option.system),
+            option.kind == "ship" ? "<b>Ship</b> at your starport at " + getSystemName(option.system) : "<b>" + capitalise(option.kind) + "</b> at " + getSystemName(option.system),
             (option.kind == "ship" ? "One per starport each turn" : getEmptySlotCount(option.system) + " empty slot" + (getEmptySlotCount(option.system) == 1 ? "" : "s")) + (option.damaged ? " &middot; damaged: a Rival controls it" : ""),
             "humanBuild(" + index + ")", "humanOption" + index));
     } else if (type == "repair") {
-        options = getHumanRepairOptions(player).map((option, index) => getOptionButton("A damaged " + option.kind + " at " + option.system, "Turn it fresh side up", "humanRepair(" + index + ")", "humanOption" + index));
+        options = getHumanRepairOptions(player).map((option, index) => getOptionButton("A damaged " + option.kind + " at " + getSystemName(option.system), "Turn it fresh side up", "humanRepair(" + index + ")", "humanOption" + index));
     } else if (type == "tax") {
         options = getHumanTaxOptions(player).map((option, index) => {
             const mine = option.owner == player.number;
-            return getOptionButton((mine ? "Your " : "Player " + option.owner + "'s ") + "<b>" + preludeResourceNames[option.resource] + "</b> city at " + option.system,
-                "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : " and capture 1 of their agents (you control " + option.system + ")"), "humanTax(" + index + ")", "humanOption" + index);
+            return getOptionButton((mine ? "Your " : "Player " + option.owner + "'s ") + "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system),
+                "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
         });
     }
     body.innerHTML = options.length > 0 ? "<div class=\"d-grid gap-2\">" + options.join("") + "</div>"
@@ -259,7 +283,7 @@ function humanBuild(index) {
     if (option == null) { return; }
     if (option.kind == "ship") { addShips(option.system, player.number, 1, option.damaged); }
     else if (!placeBuilding(option.system, player.number, option.kind, option.damaged)) { return; }
-    recordBoardAction(player, { action: "build", system: option.system, kind: option.kind, damaged: option.damaged, text: "A " + (option.damaged ? "damaged " : "") + option.kind + " at " + option.system });
+    recordBoardAction(player, { action: "build", system: option.system, kind: option.kind, damaged: option.damaged, text: "A " + (option.damaged ? "damaged " : "") + option.kind + " at " + getSystemName(option.system) });
     closeHumanBoardAction();
 }
 
@@ -269,7 +293,7 @@ function humanRepair(index) {
     if (option == null) { return; }
     if (option.kind == "ship") { removeShips(option.system, player.number, 1, true); addShips(option.system, player.number, 1); }
     else { setBuildingDamaged(option.system, player.number, option.kind, false); }
-    recordBoardAction(player, { action: "repair", system: option.system, kind: option.kind, text: "A " + option.kind + " at " + option.system });
+    recordBoardAction(player, { action: "repair", system: option.system, kind: option.kind, text: "A " + option.kind + " at " + getSystemName(option.system) });
     closeHumanBoardAction();
 }
 
@@ -281,14 +305,16 @@ function humanTax(index) {
     setPlayerResource(player, option.resource, player[option.resource + "Value"] + 1);
     if (captured) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
     recordBoardAction(player, { action: "tax", system: option.system, owner: option.owner, resource: option.resource, captured: captured,
-        text: (captured ? "Player " + option.owner + "'s " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + option.system + ": 1 " + preludeResourceNames[option.resource] + (captured ? " and 1 Captive" : "") });
+        text: (captured ? "Player " + option.owner + "'s " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": 1 " + preludeResourceNames[option.resource] + (captured ? " and 1 Captive" : "") });
     closeHumanBoardAction();
 }
 
 // A Move: where from, where to, how many, and any left on the way
 
-function getMoveRoutes(from, to, playerNumber) {
-    // The shortest routes, through gates its ships can keep going through (a Catapult)
+function getMoveRoutes(from, to, playerNumber, movingFresh = null) {
+    // The shortest routes, through gates its ships can keep going through (a Catapult): those no
+    // one else controls once the moving ships are there (#184)
+    const moving = movingFresh != null ? movingFresh : getShips(from, playerNumber).fresh;
     if (areAdjacent(from, to)) { return [[from, to]]; }
     const routes = [];
     let paths = [[from]];
@@ -299,7 +325,7 @@ function getMoveRoutes(from, to, playerNumber) {
         paths.forEach(path => {
             const at = path[path.length - 1];
             // Only the start, or a gate no one else controls, leads on
-            if (at != from && !(isGate(at) && !isControlledByOther(at, playerNumber))) { return; }
+            if (at != from && !(isGate(at) && !isGateBlocked(at, playerNumber, moving))) { return; }
             getAdjacent(at).filter(id => !seen.has(id)).forEach(id => {
                 if (id == to) { routes.push(path.concat(id)); return; }
                 next.push(path.concat(id));
@@ -328,7 +354,7 @@ function chooseMoveFrom(from, render = true) {
 function chooseMoveTo(to) {
     const player = getTurnPlayer();
     humanMove.to = to;
-    humanMove.routes = getMoveRoutes(humanMove.from, to, player.number);
+    humanMove.routes = getMoveRoutes(humanMove.from, to, player.number, humanMove.fresh);
     humanMove.route = humanMove.routes[0] || [humanMove.from, to];
     humanMove.drops = {};
     humanMove.choosing = false;
@@ -354,6 +380,12 @@ function getMoveDropped() {
 function stepMoveShips(field, change) {
     const ships = getShips(humanMove.from, getTurnPlayer().number);
     humanMove[field] = Math.min(Math.max(humanMove[field] + change, 0), ships[field]);
+    // Fewer fresh ships may not take control of a gate on the way, so check where it can go (#184)
+    if (humanMove.to != null) {
+        const number = getTurnPlayer().number;
+        if (!getMoveDestinations(humanMove.from, number, humanMove.fresh).includes(humanMove.to)) { humanMove.to = null; humanMove.route = null; humanMove.routes = []; humanMove.drops = {}; }
+        else if (field == "fresh") { humanMove.routes = getMoveRoutes(humanMove.from, humanMove.to, number, humanMove.fresh); const same = humanMove.routes.find(route => humanMove.route != null && route.join() == humanMove.route.join()); if (same != null) { humanMove.route = same; } else { humanMove.route = humanMove.routes[0]; humanMove.drops = {}; } }
+    }
     // At least one ship arrives
     while (getMoveDropped() > 0 && getMoveDropped() >= humanMove.fresh + humanMove.damaged) {
         const last = Object.keys(humanMove.drops).filter(id => humanMove.drops[id] > 0).pop();
@@ -378,7 +410,7 @@ function getMoveStepper(value, onminus, onplus) {
 
 function getMoveChip(id, sub, active, onclick) {
     return "<button type=\"button\" class=\"btn btn-sm " + (active ? "btn-secondary" : "btn-outline-secondary") + " text-start movechip\" style=\"min-width:96px\" id=\"moveChip_" + id + "\" onclick=\"" + onclick + "\">"
-        + id + "<small class=\"d-block opacity-75\">" + sub + "</small></button>";
+        + getSystemShortName(id) + "<small class=\"d-block opacity-75\">" + sub + "</small></button>";
 }
 
 function getMoveSystemNote(id, playerNumber) {
@@ -391,8 +423,8 @@ function getMoveSystemNote(id, playerNumber) {
 function getMoveText() {
     const total = humanMove.fresh + humanMove.damaged;
     const drops = Object.entries(humanMove.drops).filter(([, count]) => count > 0);
-    return "Move " + total + " ship" + (total == 1 ? "" : "s") + " " + humanMove.from + " &rarr; " + humanMove.to
-        + (drops.length > 0 ? ", leaving " + drops.map(([id, count]) => count + " at " + id).join(" and ") : "");
+    return "Move " + total + " ship" + (total == 1 ? "" : "s") + " " + getSystemName(humanMove.from) + " &rarr; " + getSystemName(humanMove.to)
+        + (drops.length > 0 ? ", leaving " + drops.map(([id, count]) => count + " at " + getSystemName(id)).join(" and ") : "");
 }
 
 function renderHumanMove() {
@@ -412,8 +444,8 @@ function renderHumanMove() {
         }).join("") + "</div>";
     if (humanMove.from != null) {
         const catapult = getBuildings(humanMove.from, number, "starport").length > 0;
-        html += "<div class=\"small text-secondary mb-1\">To" + (catapult ? " <span class=\"text-body\">(" + humanMove.from + " has your starport: Catapult)</span>" : "") + "</div>"
-            + "<div class=\"d-flex flex-wrap gap-1 mb-2\">" + getMoveDestinations(humanMove.from, number).map(id => getMoveChip(id, getMoveSystemNote(id, number), id == humanMove.to, "chooseMoveTo('" + id + "')")).join("") + "</div>";
+        html += "<div class=\"small text-secondary mb-1\">To" + (catapult ? " <span class=\"text-body\">(" + getSystemShortName(humanMove.from) + " has your starport: Catapult)</span>" : "") + "</div>"
+            + "<div class=\"d-flex flex-wrap gap-1 mb-2\">" + getMoveDestinations(humanMove.from, number, humanMove.fresh).map(id => getMoveChip(id, getMoveSystemNote(id, number), id == humanMove.to, "chooseMoveTo('" + id + "')")).join("") + "</div>";
         const ships = getShips(humanMove.from, number);
         html += "<div class=\"d-flex align-items-center flex-wrap gap-2 mb-2\"><span class=\"small\">Ships</span>"
             + getMoveStepper(humanMove.fresh, "stepMoveShips('fresh', -1)", "stepMoveShips('fresh', 1)") + "<span class=\"small text-secondary\">fresh</span>"
@@ -422,15 +454,15 @@ function renderHumanMove() {
     if (humanMove.to != null && humanMove.route != null) {
         const between = humanMove.route.slice(1, -1);
         if (between.length > 0) {
-            html += "<div class=\"small text-secondary mb-1\">Leave any on the way? <span class=\"text-body\">" + humanMove.route.join(" &rarr; ") + "</span></div>"
-                + "<div class=\"mb-1\">" + between.map(id => "<div class=\"d-flex align-items-center gap-2 py-1 border-bottom\"><b style=\"min-width:40px\">" + id + "</b>"
+            html += "<div class=\"small text-secondary mb-1\">Leave any on the way? <span class=\"text-body\">" + humanMove.route.map(getSystemShortName).join(" &rarr; ") + "</span></div>"
+                + "<div class=\"mb-1\">" + between.map(id => "<div class=\"d-flex align-items-center gap-2 py-1 border-bottom\"><b style=\"min-width:48px\">" + getSystemShortName(id) + "</b>"
                     + "<span class=\"small text-secondary flex-fill\">" + getMoveSystemNote(id, number) + "</span>"
                     + getMoveStepper(humanMove.drops[id] || 0, "stepMoveDrop('" + id + "', -1)", "stepMoveDrop('" + id + "', 1)") + "</div>").join("") + "</div>";
         }
         if (humanMove.routes.length > 1) {
             html += "<div class=\"small text-secondary mb-2\">Went another way? <a href=\"#\" id=\"moveRoutes\" onclick=\"toggleMoveRoutes(); return false;\">Choose the route</a></div>";
             if (humanMove.choosing) {
-                html += "<div class=\"d-grid gap-1 mb-2\">" + humanMove.routes.map((route, index) => "<button type=\"button\" class=\"btn btn-sm " + (route === humanMove.route ? "btn-secondary" : "btn-outline-secondary") + "\" onclick=\"chooseMoveRoute(" + index + ")\">" + route.join(" &rarr; ") + "</button>").join("") + "</div>";
+                html += "<div class=\"d-grid gap-1 mb-2\">" + humanMove.routes.map((route, index) => "<button type=\"button\" class=\"btn btn-sm " + (route === humanMove.route ? "btn-secondary" : "btn-outline-secondary") + "\" onclick=\"chooseMoveRoute(" + index + ")\">" + route.map(getSystemShortName).join(" &rarr; ") + "</button>").join("") + "</div>";
             }
         }
     }
@@ -474,7 +506,7 @@ function showBattleSystems() {
     if (holder == null) { return; }
     const places = getBattlePlacesFor(battle.attacker, battle.defender);
     holder.innerHTML = places.length == 0 ? ""
-        : "<span class=\"small text-secondary\">Where</span>" + places.map(id => "<button type=\"button\" class=\"btn btn-sm " + (id == battle.boardSystem ? "btn-secondary" : "btn-outline-secondary") + "\" id=\"battleSystem_" + id + "\" onclick=\"chooseBattleSystem('" + id + "')\">" + id + "</button>").join("");
+        : "<span class=\"small text-secondary\">Where</span>" + places.map(id => "<button type=\"button\" class=\"btn btn-sm " + (id == battle.boardSystem ? "btn-secondary" : "btn-outline-secondary") + "\" id=\"battleSystem_" + id + "\" onclick=\"chooseBattleSystem('" + id + "')\">" + getSystemName(id) + "</button>").join("");
 }
 
 function chooseBattleSystem(id) {
@@ -491,8 +523,10 @@ function fillBattleFromSystem(system) {
     const mine = getShips(system, attacker.number);
     const ships = getShips(system, defender.number);
     const buildings = getBuildings(system, defender.number);
+    // The attacker's fresh and damaged ships (#189)
+    battle.attackerDamaged = mine.damaged;
     if (attacker.isHuman) {
-        battle.ships = Math.max(mine.fresh + mine.damaged, 1);
+        battle.ships = Math.max(mine.fresh, 1);
         battle.fresh = ships.fresh + ships.damaged;
         battle.damaged = 0;
         battle.freshBuildings = buildings.length;
