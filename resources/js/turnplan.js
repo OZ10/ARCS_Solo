@@ -22,7 +22,17 @@ function getCitiesToTax(player) {
     // Its cities it can gain a resource from: there's one left, and it wasn't told it can't
     const ruledOut = (player.noTax || []).flatMap(ambition => ambitionTaxResources[ambition] || []);
     if (hasLeader(player, 13)) { return getAnarchistTaxTargets(player, ruledOut); }
-    return getTaxTargets(player).filter(resource => getResourceSupply(resource) > 0 && !ruledOut.includes(resource));
+    return getTaxTargets(player).filter(resource => getResourceSupply(resource) > 0 && !ruledOut.includes(resource) && isOutragedTaxWorthIt(player, resource));
+}
+
+function isOutragedTaxWorthIt(player, resource) {
+    // An Outraged resource can't be spent in its prelude, only counted for its ambition (rulebook
+    // p.17). So only when it's chasing that ambition, or holds a card to declare it (#193)
+    if (!(player.outraged || []).includes(resource)) { return true; }
+    const ambition = preludeAmbitions[resource];
+    if (ambition == null) { return false; }
+    if (getResourceNeed(player, resource) == 2) { return true; }
+    return !declaredAmbitions.includes(ambition) && canDeclareAmbition(player) && holdsAmbitionCard(player, ambition);
 }
 
 function getMoveGoal(player) {
@@ -437,7 +447,8 @@ function getTurnPlan(player) {
             // (rulebook p.17, #193)
             if ((player.outraged || []).includes(details.resource)) {
                 const ambition = preludeAmbitions[details.resource];
-                reason = (reason ? reason + "; " : "") + "it's Outraged in " + getResourceWord(details.resource) + ", so it can't spend it, but " + (ambition ? "it still counts for " + capitalise(ambition) : "it can still hold it");
+                const plans = !declaredAmbitions.includes(ambition) ? ": it holds a " + capitalise(ambition) + " card to declare" : "";
+                reason = (reason ? reason + "; " : "") + "it's Outraged in " + getResourceWord(details.resource) + ", so it can't spend it, but it counts for " + capitalise(ambition) + plans;
             }
         }
         if (pick.action == "tax" && reason == rivalTaxReason) {
