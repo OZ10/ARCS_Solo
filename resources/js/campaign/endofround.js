@@ -668,21 +668,47 @@ function enforcePolicy() {
         });
     } else {
         // On the app's board (#85 stage 7c): a bot First Regent chooses an Empire system where it has
-        // pieces if it can; a human player places them and adds them with Check the board
-        const where = !firstRegent.isHuman ? chooseRequisitionSystem(firstRegent) : null;
-        if (where != null) {
-            const imperial = getImperial(where);
-            setImperial(where, imperial.fresh + 2, imperial.damaged);
-            notes.push("Player " + firstRegent.number + " places 2 fresh Imperial ships at " + getSystemName(where));
-        } else {
-            notes.push("Place 2 fresh Imperial ships in an Empire-controlled system (or at a Loyal starport of Player " + firstRegent.number + "'s if there are none)"
-                + (firstRegent.isHuman ? ", then add them with Check the board in Options" : ""));
+        // pieces if it can; a human one chooses in a window (below)
+        if (!firstRegent.isHuman) {
+            const where = chooseRequisitionSystem(firstRegent);
+            if (where != null) {
+                const imperial = getImperial(where);
+                setImperial(where, imperial.fresh + 2, imperial.damaged);
+                notes.push("Player " + firstRegent.number + " places 2 fresh Imperial ships at " + getSystemName(where));
+            }
+            imperialShipsPlaced(2, "Requisition Ships");
         }
-        imperialShipsPlaced(2, "Requisition Ships");
     }
     players.forEach(showCampaignPanel);
     SaveAllSettings();
-    showMessageToast(policyNames[campaign.policy], notes.join("<br>"));
-    // Then the Fates' Edicts (fatebots.js)
+    if (notes.length > 0) { showMessageToast(policyNames[campaign.policy], notes.join("<br>")); }
+    // A human First Regent chooses where the requisitioned ships go, then the Fates' Edicts (fatebots.js)
+    if (campaign.policy == "escalation" && firstRegent.isHuman && getRequisitionPlaces(firstRegent).length > 0) { showRequisition(firstRegent); return; }
+    afterGovern();
+}
+
+function getRequisitionPlaces(player) {
+    // Empire-controlled systems, or with none, its Loyal starports
+    const empire = getSystemIds().filter(isEmpireControlled);
+    return empire.length > 0 ? empire : getBoardBuildings(player.number, "starport").map(port => port.system);
+}
+
+function showRequisition(player) {
+    // Requisition Ships for a human First Regent: where the 2 fresh Imperial ships go (#85 stage 7c)
+    const empire = getSystemIds().some(isEmpireControlled);
+    const places = getRequisitionPlaces(player);
+    const option = id => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" id=\"requisition_" + id + "\" onclick=\"placeRequisition('" + id + "')\">" + getSystemName(id)
+        + "<small class=\"d-block text-secondary\">" + tagPlayerNames(getPiecesText(id) || "Empty") + "</small></button>";
+    showCampaignWindow("Requisition Ships", "<p class=\"mb-2\">Place <b>2 fresh Imperial ships</b> in " + (empire ? "an Empire-controlled system" : "one of your starports (there are no Empire-controlled systems)") + ". Where do they go?</p>"
+        + "<div class=\"d-grid gap-2\">" + places.map(option).join("") + "</div>", player, true);
+}
+
+function placeRequisition(id) {
+    const imperial = getImperial(id);
+    setImperial(id, imperial.fresh + 2, imperial.damaged);
+    imperialShipsPlaced(2, "Requisition Ships");
+    players.forEach(syncPanelFromBoard);
+    SaveAllSettings();
+    showMessageToast(policyNames[campaign.policy], "Player " + campaign.firstRegent + " places 2 fresh Imperial ships at " + getSystemName(id));
     afterGovern();
 }

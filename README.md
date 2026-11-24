@@ -110,7 +110,7 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 
 **The panels:** each player's panel shows their Fate (tap it to read the card), their title (**Regent** or **Outlaw**, tap to change it), the First Regent, their objective marker and Favors. The Imperial Trust has its own panel.
 
-**During a chapter:** Event cards are shuffled into the action deck. When one is played, the app rolls the event die and walks through the end of round: the Imperial Council, Summits, then Crises or Edicts, with the First Regent's Policy. Fate cards are added to the Court and Guild rows like any other card. In a Crisis, the app deals the Blight's hits on its board and lists what changes in each system, for you to match on the table. When a bot First Regent requisitions ships, it places them on the board itself.
+**During a chapter:** Event cards are shuffled into the action deck. When one is played, the app rolls the event die and walks through the end of round: the Imperial Council, Summits, then Crises or Edicts, with the First Regent's Policy. Fate cards are added to the Court and Guild rows like any other card. In a Crisis, the app deals the Blight's hits on its board and lists what changes in each system, for you to match on the table. When a bot First Regent requisitions ships, it places them on the board itself. When you're First Regent, a window lists where they can go, and you tap where you put them.
 
 **The board between Acts:** at the Intermission, the app repairs the Blight and destroys the damaged pieces, and the buildings in systems with Blight and no ships, on its board and lists them. At the start of Acts II and III, it adds the new Blight and says where.
 
