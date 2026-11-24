@@ -72,9 +72,22 @@ function showIntermission() {
         + "<div class=\"turnsection\"><div class=\"turnlabel\">B&ndash;D &middot; On the table</div>"
         + step("Clear the Court", "All cards but the Imperial Council back into the Court deck (with any attached cards), agents home, scrap the Court discard.")
         + step("Clear pieces", "Trophies and Captives home, frozen resources and the Imperial Trust to the supply." + (players.length == 2 ? " The resources on the ambition boxes go to the supply." : "") + " The app clears these on the panels.")
-        + step("Repair all damaged Blight, then destroy every damaged ship, building, Upgrade and Armor", "Also destroy the buildings in systems with Blight and no ships. Change the panels to match.") + "</div>"
+        + getIntermissionBoardHtml(step) + "</div>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">F &middot; Choose Fate</div><div>Players who completed their objective draw 1 \"" + next + "\" Fate and choose between it and their own. The others draw 2 \"" + next + "\" Fates.</div></div>"
         + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"applyIntermission()\">Choose Fates</button>", null, true);
+}
+
+function getIntermissionBoardHtml(step) {
+    // Step D on the app's board, once for each Act (#85 stage 7c), and what to change on the table
+    if (campaign.intermissionBoard == null || campaign.intermissionBoard.act !== campaign.act) {
+        campaign.intermissionBoard = { act: campaign.act, lines: applyIntermissionToBoard() };
+        players.forEach(syncPanelFromBoard);
+        SaveAllSettings();
+    }
+    const lines = campaign.intermissionBoard.lines;
+    return step("Repair all damaged Blight, destroy every damaged ship, building, Upgrade and Armor, and the buildings in systems with Blight and no ships",
+        "The app has done this on its board and the panels. " + (lines.length > 0 ? "On the table: " + tagPlayerNames(lines.join("; ")) + "." : "Nothing changes on the table.")
+        + " Remove damaged Upgrades and Armor from the Flagships yourself.");
 }
 
 function setObjectiveCompleted(playerNumber, completed) {
@@ -97,6 +110,8 @@ function applyIntermission() {
             player.agentsCaptive = 0;
             player.agentsTrophy = 0;
             player.citiesAsTrophies = 0;
+            // Ships held as Trophies go home too (#160)
+            player.shipsTrophy = 0;
         });
         trustResources.forEach(resource => { campaign.trust[resource] = 0; });
         if (players.length == 2) { neutralCounts = {}; }

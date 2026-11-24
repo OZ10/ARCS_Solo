@@ -374,6 +374,15 @@ function rollEvent() {
         + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"" + (roundEvent.dice.crisis ? "startCrises()" : "startEdicts()") + "\">Resolve the " + (roundEvent.dice.crisis ? "Crises" : "Edicts") + "</button>", player, true);
 }
 
+function chooseRequisitionSystem(player) {
+    // An Empire-controlled system, one with its pieces first (it Commands the ships there); with
+    // none, one of its starports
+    const empire = getSystemIds().filter(isEmpireControlled).sort((a, b) => Number(hasLoyalPiece(b, player.number)) - Number(hasLoyalPiece(a, player.number)));
+    if (empire.length > 0) { return empire[0]; }
+    const port = getBoardBuildings(player.number, "starport")[0];
+    return port != null ? port.system : null;
+}
+
 // Crises (rulebook p.18): the Blight, then Fate cards, then the Court's Vox cards left to right
 
 function startCrises() {
@@ -383,9 +392,21 @@ function startCrises() {
     const step = (text, note) => "<label class=\"setstep\"><input class=\"form-check-input\" type=\"checkbox\"><span>" + text + (note ? "<small>" + note + "</small>" : "") + "</span></label>";
     const vox = courtMarket.map(entry => getCourtCard(entry.number)).filter(card => card != null && card.crisis != null);
     const fillDice = text => text.replace(/the rolled cluster/g, "cluster " + dice.cluster).replace(/the rolled symbol/g, "the rolled symbol (" + planetSymbols[dice.symbol] + ")");
+    // The Blight Crises on the app's board, once (#85 stage 7c): what to change on the table
+    const key = campaign.act + ":" + roundNumber + ":" + turnNumber;
+    if (campaign.blightCrisis == null || campaign.blightCrisis.key != key) {
+        campaign.blightCrisis = { key: key, systems: applyBlightCrises() };
+        players.forEach(syncPanelFromBoard);
+        SaveAllSettings();
+    }
+    const hit = campaign.blightCrisis.systems.filter(item => item.lines.length > 0);
+    const blightHtml = hit.length > 0
+        ? hit.map(item => step(getSystemName(item.id) + " &middot; " + item.hits + " hit" + (item.hits == 1 ? "" : "s"), tagPlayerNames(item.lines.join(". ")))).join("")
+        : "<p class=\"small mb-0\">The Blight hits nothing: no ships share a system with it.</p>";
     showCampaignWindow("Crises", "<p class=\"mb-2\">Resolve these in order on the table and tick each one. Dice: " + getDiceHtml(dice) + "</p>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">1 &middot; Blight Crises</div>"
-        + step("In every system with Blight: each fresh Blight deals 3 hits, each damaged Blight 1 hit", "Imperial ships take hits first, then the Loyal ships of every player there, fresh before damaged. (A Flagship only once no other fresh Loyal ships remain.)") + "</div>"
+        + "<div class=\"small text-secondary mb-1\">The app has dealt the hits on its board: each fresh Blight 3, each damaged 1, Imperial ships first, then every player's ships there, fresh before damaged. Change the table to match.</div>"
+        + blightHtml + "</div>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">2 &middot; Fate Crises, in turn order</div>"
         + getTurnOrder().flatMap(player => getPlayerGuildCards(player).filter(card => card.crisis != null).map(card => step(card.name + " (Player " + player.number + ")", card.crisis))).join("")
         + step("Any other cards with Crisis text that players hold", "From their Fates.") + "</div>"
@@ -646,7 +667,17 @@ function enforcePolicy() {
             if (room != null) { notes.push(room); }
         });
     } else {
-        notes.push("Place 2 fresh Imperial ships in an Empire-controlled system (or at a Loyal starport of Player " + firstRegent.number + "'s if there are none)");
+        // On the app's board (#85 stage 7c): a bot First Regent chooses an Empire system where it has
+        // pieces if it can; a human player places them and adds them with Check the board
+        const where = !firstRegent.isHuman ? chooseRequisitionSystem(firstRegent) : null;
+        if (where != null) {
+            const imperial = getImperial(where);
+            setImperial(where, imperial.fresh + 2, imperial.damaged);
+            notes.push("Player " + firstRegent.number + " places 2 fresh Imperial ships at " + getSystemName(where));
+        } else {
+            notes.push("Place 2 fresh Imperial ships in an Empire-controlled system (or at a Loyal starport of Player " + firstRegent.number + "'s if there are none)"
+                + (firstRegent.isHuman ? ", then add them with Check the board in Options" : ""));
+        }
         imperialShipsPlaced(2, "Requisition Ships");
     }
     players.forEach(showCampaignPanel);

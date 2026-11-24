@@ -72,6 +72,91 @@ function getTokens(id) { return getSystem(id).tokens; }
 function addToken(id, kind, owner = null, side = 0) { getSystem(id).tokens.push({ kind: kind, owner: owner, side: side }); }
 function getFlagships(id) { return getSystem(id).flagships; }
 
+function hitPieces(pieces, hits) {
+    // Hits on fresh pieces first (each turns one damaged), then damaged ones (each destroys one).
+    // { damaged, destroyed, left }: left is the hits with nothing to hit
+    const before = { fresh: pieces.fresh, damaged: pieces.damaged };
+    let left = 0;
+    for (let hit = 0; hit < hits; hit++) {
+        if (pieces.fresh > 0) { pieces.fresh--; pieces.damaged++; }
+        else if (pieces.damaged > 0) { pieces.damaged--; }
+        else { left = hits - hit; break; }
+    }
+    return { before: before, after: { fresh: pieces.fresh, damaged: pieces.damaged }, left: left };
+}
+
+function describeHits(label, result) {
+    // e.g. "Player 2's ships: 1 destroyed, now 0 fresh and 2 damaged", or null if nothing changed
+    const { before, after } = result;
+    if (before.fresh == after.fresh && before.damaged == after.damaged) { return null; }
+    const destroyed = before.fresh + before.damaged - after.fresh - after.damaged;
+    return label + ": " + (destroyed > 0 ? destroyed + " destroyed, " : "") + "now " + after.fresh + " fresh and " + after.damaged + " damaged";
+}
+
+function applyBlightCrises() {
+    // Each system with Blight (campaign rulebook p.18): each fresh Blight deals 3 hits, each damaged
+    // one 1. Imperial ships take them first; once none are left, each remaining hit goes to the
+    // Loyal ships of every player there. Fresh before damaged. Buildings aren't hit. Returns what
+    // happened, system by system: [{ id, hits, lines }]
+    return getSystemIds().filter(hasBlight).map(id => {
+        const system = getSystem(id);
+        const hits = system.blight.fresh * 3 + system.blight.damaged;
+        const lines = [];
+        const imperial = hitPieces(system.imperial, hits);
+        const imperialLine = describeHits("Imperial ships", imperial);
+        if (imperialLine != null) { lines.push(imperialLine); }
+        // What's left once the Imperial ships are gone goes to every player there
+        const left = imperial.left;
+        if (left > 0) {
+            Object.keys(system.ships).map(Number).forEach(number => {
+                const ships = { ...getShips(id, number) };
+                const result = hitPieces(ships, left);
+                setShips(id, number, ships.fresh, ships.damaged);
+                const line = describeHits("Player " + number + "'s ships", result);
+                if (line != null) { lines.push(line); }
+            });
+        }
+        if ((system.flagships || []).length > 0) { lines.push("A Flagship is here: it takes hits only once no other fresh Loyal ships remain (rulebook p.24)"); }
+        return { id: id, hits: hits, lines: lines };
+    });
+}
+
+function applyIntermissionToBoard() {
+    // Step D (campaign rulebook p.28): repair all damaged Blight; destroy every damaged ship
+    // (Imperial ones too) and building (Free ones too); then destroy the buildings in systems with
+    // Blight and no ships. A bot left with no ships or starports places 3 fresh ships in a gate.
+    // Returns the lines saying what changed
+    const lines = [];
+    getSystemIds().forEach(id => {
+        const system = getSystem(id);
+        const changes = [];
+        if (system.blight.damaged > 0) { changes.push(system.blight.damaged + " Blight repaired"); system.blight = { fresh: system.blight.fresh + system.blight.damaged, damaged: 0 }; }
+        if (system.imperial.damaged > 0) { changes.push(system.imperial.damaged + " damaged Imperial ship" + (system.imperial.damaged == 1 ? "" : "s") + " destroyed"); system.imperial.damaged = 0; }
+        Object.keys(system.ships).map(Number).forEach(number => {
+            const ships = getShips(id, number);
+            if (ships.damaged > 0) { changes.push("Player " + number + "'s " + ships.damaged + " damaged ship" + (ships.damaged == 1 ? "" : "s") + " destroyed"); setShips(id, number, ships.fresh, 0); }
+        });
+        const damagedBuildings = system.buildings.filter(building => building.damaged);
+        damagedBuildings.forEach(building => changes.push((building.owner == freeOwner ? "a damaged Free " : "Player " + building.owner + "'s damaged ") + building.kind + " destroyed"));
+        system.buildings = system.buildings.filter(building => !building.damaged);
+        const anyShips = Object.keys(system.ships).length > 0 || system.imperial.fresh + system.imperial.damaged > 0;
+        if (hasBlight(id) && !anyShips && system.buildings.length > 0) {
+            system.buildings.forEach(building => changes.push((building.owner == freeOwner ? "a Free " : "Player " + building.owner + "'s ") + building.kind + " destroyed by the Blight"));
+            system.buildings = [];
+        }
+        if (changes.length > 0) { lines.push(getSystemName(id) + ": " + changes.join(", ")); }
+    });
+    // No ships or starports left: 3 fresh ships in a gate (a bot chooses one with no Blight)
+    players.forEach(player => {
+        if (getBoardShips(player.number) > 0 || getBoardBuildings(player.number, "starport").length > 0) { return; }
+        if (player.isHuman) { lines.push("Player " + player.number + " has no ships or starports: place 3 fresh ships in any gate, then add them with Check the board"); return; }
+        const gate = getSystemIds().find(id => isGate(id) && !hasBlight(id)) || getSystemIds().find(isGate);
+        addShips(gate, player.number, 3);
+        lines.push("Player " + player.number + " has no ships or starports: 3 fresh ships at " + getSystemName(gate));
+    });
+    return lines;
+}
+
 function getTokenText(token) {
     // e.g. "Golem (sleeping)" or "Banner (Player 1)"
     const kind = boardTokenKinds[token.kind] || clusterTokenKinds[token.kind] || { name: token.kind };

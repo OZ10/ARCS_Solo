@@ -31,20 +31,32 @@ function showLaterActSetup() {
     const rolls = campaign.setupRolls;
     const symbol = planetSymbols[rolls.symbol];
     const step = (text, note) => "<label class=\"setstep\"><input class=\"form-check-input\" type=\"checkbox\"><span>" + text + (note ? "<small>" + note + "</small>" : "") + "</span></label>";
+    // The new Blight on the app's board, once for each Act (#85 stage 7c)
+    if (campaign.laterSetupBoard == null || campaign.laterSetupBoard.act !== act) {
+        campaign.laterSetupBoard = { act: act, ...addLaterActBlight(rolls.symbol) };
+        SaveAllSettings();
+    }
+    const added = campaign.laterSetupBoard;
+    const list = ids => ids.length > 0 ? "The app has added it on its board: " + ids.map(getSystemName).join(", ") + "." : "None needed.";
     let html = "<p class=\"mb-2\">Everything stays as " + actNames[act - 1] + " ended, including Power. Do each step on the table and tick it.</p>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">The Reach</div>"
         + step(act == 2 ? "Flip the lowest-Power ambition marker to its higher side" : "Flip the two lowest-Power ambition markers to their higher sides", "The others start on their lower sides. The app's markers match.")
         + step("Shuffle the Court deck and deal " + openingCourtCards[players.length] + " cards into the Court, with the Imperial Council In Session", "The cards you've just entered in the Court window.")
-        + step("1 damaged Blight on each gate with no Blight and no ships")
+        + step("1 damaged Blight on each gate with no Blight and no ships", list(added.gates))
         + step("<span class=\"die\">" + symbol + "</span>In each cluster, 1 damaged Blight on the <b>" + symbol + "</b> planet if it has no Blight",
-            "If it does have Blight, 1 damaged Blight on each planet in that cluster with no Blight.");
+            "If it does have Blight, 1 damaged Blight on each planet in that cluster with no Blight. " + list(added.planets));
     if (players.length == 2) {
         neutralCounts = {};
+        // The resources matching the planets in the rolled clusters (#85 stage 7c)
+        [...new Set(rolls.clusters)].forEach(cluster => planetLetters.forEach(letter => {
+            const ambition = outOfPlayAmbitions[getPlanetResource(cluster + letter)];
+            neutralCounts[ambition] = (neutralCounts[ambition] || 0) + 1;
+        }));
         html += "<div class=\"setstep\"><span class=\"setnum\">2p</span><span><span class=\"die\">" + rolls.clusters[0] + "</span><span class=\"die\">" + rolls.clusters[1] + "</span>Put the resources matching the planets in clusters "
             + rolls.clusters[0] + " and " + rolls.clusters[1] + " on the ambition boxes (as much as the supply has). Enter how many:"
             + "<span class=\"neutralsteps\">" + neutralAmbitions.map(ambition => "<span class=\"neutralstep\"><span>" + capitalise(ambition) + "</span>"
                 + "<button type=\"button\" onclick=\"stepNeutral('" + ambition + "', -1)\" aria-label=\"One fewer on " + ambition + "\"><i class=\"bi bi-dash\"></i></button>"
-                + "<b id=\"neutralSetup_" + ambition + "\">0</b>"
+                + "<b id=\"neutralSetup_" + ambition + "\">" + (neutralCounts[ambition] || 0) + "</b>"
                 + "<button type=\"button\" onclick=\"stepNeutral('" + ambition + "', 1)\" aria-label=\"One more on " + ambition + "\"><i class=\"bi bi-plus\"></i></button></span>").join("") + "</span></span></div>";
     }
     html += "</div><div class=\"turnsection\"><div class=\"turnlabel\">The players</div>"
@@ -107,6 +119,24 @@ function showActOneSetup() {
 
     // It has to be finished: the placements, the mulligan and chapter 1 follow (#135)
     showCampaignWindow(actNames[1] + " setup", html, null, true, () => nextActOnePlacement());
+}
+
+function addLaterActBlight(symbolIndex) {
+    // Acts II and III (rulebook p.7): C. damaged Blight on each gate with no Blight and no ships;
+    // D. in each cluster, damaged Blight on the rolled-symbol planet if it has none, otherwise on each
+    // planet there with no Blight. Returns { gates, planets } where it went
+    const noShips = id => Object.keys(getSystem(id).ships).length == 0 && !hasImperialShips(id);
+    const addDamaged = id => { const blight = getBlight(id); setBlight(id, blight.fresh, blight.damaged + 1); };
+    const gates = getSystemIds().filter(id => isGate(id) && !hasBlight(id) && noShips(id));
+    gates.forEach(addDamaged);
+    const letter = planetSymbolLetters[symbolIndex];
+    const planets = [];
+    getClustersInPlay().forEach(cluster => {
+        const rolled = cluster + letter;
+        const targets = !hasBlight(rolled) ? [rolled] : planetLetters.map(other => cluster + other).filter(id => !hasBlight(id));
+        targets.forEach(id => { addDamaged(id); planets.push(id); });
+    });
+    return { gates: gates, planets: planets };
 }
 
 // Act I on the app's board (#85, stage 7a)
