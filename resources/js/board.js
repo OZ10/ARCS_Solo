@@ -208,15 +208,6 @@ function isControlledByOther(id, playerNumber) {
 // keeps going until the ships move into a gate controlled by anyone else, or into any planet.
 // Control is checked before moving in
 
-function isGateBlocked(id, playerNumber, movingFresh) {
-    // A gate stops a Catapult if anyone else controls it once the moving ships are in (#184)
-    // Control: strictly more fresh ships than everyone else (a tie means no one)
-    const mine = getShips(id, playerNumber).fresh + movingFresh;
-    const others = Object.entries(getSystem(id).ships).filter(([number]) => Number(number) != playerNumber).map(([, ships]) => ships.fresh);
-    const most = Math.max(0, ...others);
-    return most > mine && others.filter(count => count == most).length == 1;
-}
-
 function getMoveDestinations(from, playerNumber, movingFresh = null) {
     // Every system its ships at from could reach with one Move action. movingFresh: how many fresh
     // ships are moving (all of them at from if not given)
@@ -230,8 +221,9 @@ function getMoveDestinations(from, playerNumber, movingFresh = null) {
         getAdjacent(at).forEach(next => {
             if (next == from || reached.has(next)) { return; }
             reached.add(next);
-            // It can keep going only through a gate no one else controls once it's there (#184)
-            if (isGate(next) && !isGateBlocked(next, playerNumber, moving)) { queue.push(next); }
+            // It can keep going only through a gate no one else controls, checked before the ships
+            // move in (rulebook p.13; #184 was looked at again and this stands)
+            if (isGate(next) && !isControlledByOther(next, playerNumber)) { queue.push(next); }
         });
     }
     return [...reached];

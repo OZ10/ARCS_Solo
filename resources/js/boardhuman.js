@@ -325,7 +325,8 @@ function getMoveRoutes(from, to, playerNumber, movingFresh = null) {
         paths.forEach(path => {
             const at = path[path.length - 1];
             // Only the start, or a gate no one else controls, leads on
-            if (at != from && !(isGate(at) && !isGateBlocked(at, playerNumber, moving))) { return; }
+            // Control is checked before the ships move in (rulebook p.13)
+            if (at != from && !(isGate(at) && !isControlledByOther(at, playerNumber))) { return; }
             getAdjacent(at).filter(id => !seen.has(id)).forEach(id => {
                 if (id == to) { routes.push(path.concat(id)); return; }
                 next.push(path.concat(id));
