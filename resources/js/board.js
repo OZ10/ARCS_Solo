@@ -149,7 +149,8 @@ function applyIntermissionToBoard() {
     // No ships or starports left: 3 fresh ships in a gate (a bot chooses one with no Blight)
     players.forEach(player => {
         if (getBoardShips(player.number) > 0 || getBoardBuildings(player.number, "starport").length > 0) { return; }
-        if (player.isHuman) { lines.push("Player " + player.number + " has no ships or starports: place 3 fresh ships in any gate, then add them with Check the board"); return; }
+        // A human player chooses a gate in the Intermission window (intermission.js)
+        if (player.isHuman) { return; }
         const gate = getSystemIds().find(id => isGate(id) && !hasBlight(id)) || getSystemIds().find(isGate);
         addShips(gate, player.number, 3);
         lines.push("Player " + player.number + " has no ships or starports: 3 fresh ships at " + getSystemName(gate));
@@ -322,7 +323,10 @@ function hasLoyalPiece(id, playerNumber) {
 // Control (rulebook p.7): more fresh ships than each Rival. On a tie, no one controls it
 
 function getController(id) {
-    const fleets = Object.entries(getSystem(id).ships).map(([number, ships]) => ({ number: parseInt(number), fresh: ships.fresh })).filter(fleet => fleet.fresh > 0);
+    // A Flagship is a fresh Loyal ship (campaign rulebook p.22)
+    const flagships = getSystem(id).flagships || [];
+    const owners = [...new Set(Object.keys(getSystem(id).ships).map(Number).concat(flagships.map(flagship => flagship.owner)))];
+    const fleets = owners.map(number => ({ number: number, fresh: getShips(id, number).fresh + flagships.filter(flagship => flagship.owner == number).length })).filter(fleet => fleet.fresh > 0);
     if (fleets.length == 0) { return null; }
     const most = Math.max(...fleets.map(fleet => fleet.fresh));
     const top = fleets.filter(fleet => fleet.fresh == most);

@@ -87,7 +87,7 @@ function getMarketReason(player, entry) {
     const rivalAgents = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
     if (rivalAgents > 0 && declaredAmbitions.includes("tyrant") && isChasingAmbition(player, "tyrant")) { return "captures for Tyrant"; }
     if (card.resource == "weapons") { return declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord") ? "chasing Warlord" : ""; }
-    if (card.resource != null && getResourceNeed(player, card.resource) == 2) { return "chasing " + capitalise(preludeAmbitions[card.resource]); }
+    if (card.resource != null && getResourceNeed(player, card.resource) == 2) { return "chasing " + capitalise(preludeAmbitions[card.resource] || "warlord"); }
     return "";
 }
 

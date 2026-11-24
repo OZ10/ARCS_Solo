@@ -124,7 +124,7 @@ function getLeadActionDecision(player, lead) {
     if (actions.includes("tax")) {
         const city = getCitiesToTax(player).slice(getPlannedCount(player, "tax"))[0];
         if (city != null && getResourceNeed(player, city) > 0) {
-            const ambition = preludeAmbitions[city];
+            const ambition = preludeAmbitions[city] || "warlord";
             return { text: getTaxStepName(player, city) + ", from the lead card", why: "It needs " + getResourceWord(city) + " for " + capitalise(ambition) + "." };
         }
     }
@@ -411,7 +411,7 @@ function getPreludeOffers(player) {
             .filter(option => option.count > 0).sort((a, b) => b.count - a.count)[0];
         if (target != null) {
             discard(getCourtCard(20), "steal 1 " + preludeResourceNames[target.resource] + " from Player " + target.other.number + " (take it off their panel)", { gains: { [target.resource]: 1 },
-                decided: true, why: "Player " + target.other.number + " holds " + target.count + " " + getResourceWord(target.resource) + ", which it needs for " + capitalise(preludeAmbitions[target.resource]) + "." });
+                decided: true, why: "Player " + target.other.number + " holds " + target.count + " " + getResourceWord(target.resource) + ", which it needs for " + capitalise(preludeAmbitions[target.resource] || "warlord") + "." });
         } else if (wants(preludeChance.steal)) {
             discard(getCourtCard(20), "steal a Guild card or a resource it's chasing an ambition with");
         }

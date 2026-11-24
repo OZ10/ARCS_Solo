@@ -34,6 +34,8 @@ function showLaterActSetup() {
     // The new Blight on the app's board, once for each Act (#85 stage 7c)
     if (campaign.laterSetupBoard == null || campaign.laterSetupBoard.act !== act) {
         campaign.laterSetupBoard = { act: act, ...addLaterActBlight(rolls.symbol) };
+        // Then the Fates' tokens (step F)
+        campaign.laterSetupBoard.fateLines = applyFateSetupsToBoard(act);
         SaveAllSettings();
     }
     const added = campaign.laterSetupBoard;
@@ -66,6 +68,7 @@ function showLaterActSetup() {
             const fate = getFate(getCampaignPlayer(player).fate);
             return step("Player " + player.number + " &middot; " + fate.name, getFateSetupText(fate, act));
         }).join("")
+        + ((campaign.laterSetupBoard.fateLines || []).length > 0 ? step("The Fates' tokens on the map", "The app has placed them on its board: " + campaign.laterSetupBoard.fateLines.join("; ") + ".") : "")
         + step(act == 2 ? "Each player puts their objective marker on its starting space" : "Players with a \"C\" Fate put their objective marker on its starting space",
             (act == 3 ? "\"A\" and \"B\" Fates have grand ambitions instead. " : "") + "The app has set each one on the panels.")
         + "</div><button type=\"button\" class=\"btn btn-primary w-100 mt-2\" data-bs-dismiss=\"modal\">Done: start chapter 1</button>";
@@ -139,6 +142,39 @@ function addLaterActBlight(symbolIndex) {
     return { gates: gates, planets: planets };
 }
 
+function applyFateSetupsToBoard(act) {
+    // The Fates' tokens placed in their setup (#85 stage 7d), as lines saying where
+    const lines = [];
+    const pacifist = players.find(player => hasFate(player, 14));
+    if (act == 2 && pacifist != null) {
+        // A Witness on each Weapon planet, spyglass side up
+        const planets = getSystemIds().filter(id => isPlanet(id) && getPlanetResource(id) == "weapons");
+        planets.forEach(id => addToken(id, "witness", pacifist.number, 0));
+        lines.push("a Witness of Player " + pacifist.number + "'s at " + planets.map(getSystemShortName).join(", "));
+    }
+    const peacekeeper = players.find(player => hasFate(player, 15));
+    if (act == 3 && peacekeeper != null) {
+        // A Ceasefire on each cluster: Peace where it controls any system, otherwise War
+        const peace = [];
+        getClustersInPlay().forEach(cluster => {
+            const controls = [cluster + "g"].concat(planetLetters.map(letter => cluster + letter)).some(id => getControllerFor(id, peacekeeper.number) == peacekeeper.number);
+            board.clusterTokens[cluster] = [{ kind: "ceasefire", owner: null, side: controls ? 1 : 0 }];
+            if (controls) { peace.push(cluster); }
+        });
+        lines.push("a Ceasefire on each cluster: " + (peace.length > 0 ? "Peace in cluster" + (peace.length == 1 ? " " : "s ") + peace.join(", ") + ", War elsewhere" : "War in all of them"));
+    }
+    const pathfinder = players.find(player => hasFate(player, 9));
+    if (act == 3 && pathfinder != null) {
+        // A Pilgrim on each planet of a rolled symbol
+        if (campaign.setupRolls.pilgrimSymbol == null) { campaign.setupRolls.pilgrimSymbol = rollPlanetSymbol(); }
+        const symbol = campaign.setupRolls.pilgrimSymbol;
+        const planets = getSystemIds().filter(id => isPlanet(id) && id.endsWith(planetSymbolLetters[symbol]));
+        planets.forEach(id => addToken(id, "pilgrim", pathfinder.number, 0));
+        lines.push("rolled " + planetSymbols[symbol] + ": a Pilgrim of Player " + pathfinder.number + "'s at " + planets.map(getSystemShortName).join(", "));
+    }
+    return lines;
+}
+
 // Act I on the app's board (#85, stage 7a)
 
 // The event die's symbols, as the planets' letters: arrowhead, hexagon, crescent (planetSymbols' order)
@@ -165,6 +201,10 @@ function setUpReachBoard(rolls) {
             const ambition = outOfPlayAmbitions[getPlanetResource(id)];
             neutralCounts[ambition] = (neutralCounts[ambition] || 0) + 1;
         });
+    }
+    // The Caretaker (#85 stage 7d): a sleeping Golem on each gate in the clusters without Imperial ships
+    if (players.some(player => hasFate(player, 5))) {
+        getAllSystemIds().filter(id => isGate(id) && !imperial.includes(getCluster(id))).forEach(id => addToken(id, "golem", null, 0));
     }
     players.forEach(player => { player.startingCity = 0; syncPanelFromBoard(player); });
     campaign.boardSetUp = true;

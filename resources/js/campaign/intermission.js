@@ -85,9 +85,21 @@ function getIntermissionBoardHtml(step) {
         SaveAllSettings();
     }
     const lines = campaign.intermissionBoard.lines;
+    // A human player left with no ships or starports places 3 fresh ships in a gate of their choice (#85 stage 7d)
+    const stranded = players.filter(player => player.isHuman && getBoardShips(player.number) == 0 && getBoardBuildings(player.number, "starport").length == 0);
+    const gates = getSystemIds().filter(isGate);
+    const choose = stranded.map(player => "<div class=\"mt-2\"><div class=\"small mb-1\">" + getPlayerTag(player) + " has no ships or starports left: place 3 fresh ships in a gate. Which one?</div><div class=\"d-flex flex-wrap gap-1\">"
+        + gates.map(id => "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary\" id=\"strandedGate_" + player.number + "_" + id + "\" onclick=\"placeStrandedShips(" + player.number + ", '" + id + "')\">" + getSystemShortName(id) + (hasBlight(id) ? " <small>(Blight)</small>" : "") + "</button>").join("") + "</div></div>").join("");
     return step("Repair all damaged Blight, destroy every damaged ship, building, Upgrade and Armor, and the buildings in systems with Blight and no ships",
         "The app has done this on its board and the panels. " + (lines.length > 0 ? "On the table: " + tagPlayerNames(lines.join("; ")) + "." : "Nothing changes on the table.")
-        + " Remove damaged Upgrades and Armor from the Flagships yourself.");
+        + " Remove damaged Upgrades and Armor from the Flagships yourself.") + choose;
+}
+
+function placeStrandedShips(playerNumber, id) {
+    addShips(id, playerNumber, 3);
+    syncPanelFromBoard(getPlayer(playerNumber));
+    SaveAllSettings();
+    showIntermission();
 }
 
 function setObjectiveCompleted(playerNumber, completed) {

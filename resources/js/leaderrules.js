@@ -501,7 +501,7 @@ function getLoreActionOffers(player, wants, can) {
     }
     const city = getCitiesToTax(player)[0];
     if (city != null && !hasLeader(player, 13) && getResourceNeed(player, city) == 2 && getEmptySlots(player) > 0) {
-        add(10, "Nurture", "build", loreChance.nurture, "tax its " + preludeResourceNames[city].toLowerCase() + " city", { gains: { [city]: 1 }, decided: true, why: "It's chasing " + capitalise(preludeAmbitions[city]) + ", and has that city." });
+        add(10, "Nurture", "build", loreChance.nurture, "tax its " + preludeResourceNames[city].toLowerCase() + " city", { gains: { [city]: 1 }, decided: true, why: "It's chasing " + capitalise(preludeAmbitions[city] || "warlord") + ", and has that city." });
     } else if (isNearCityBonus(player)) {
         add(10, "Prune", "repair", loreChance.prune, "replace one of its starports with a city, towards the city bonus");
     }
@@ -572,7 +572,7 @@ function getLorePreludeOffers(player, wants, available) {
     if (can(28) && declaredAmbitions.includes("tycoon") && !chasing("tycoon") && wanted != null && spare > 0 && wants(loreChance.charm)) {
         const costs = { materials: available.materials, fuel: available.fuel };
         available.materials = 0; available.fuel = 0;
-        offers.push({ label: "Tycoon's Charm", text: "discard " + spare + " Material and Fuel to gain " + spare + " " + preludeResourceNames[wanted], costs: costs, gains: { [wanted]: spare }, decided: true, why: "It isn't chasing Tycoon, and needs " + getResourceWord(wanted) + " for " + capitalise(preludeAmbitions[wanted]) + "." });
+        offers.push({ label: "Tycoon's Charm", text: "discard " + spare + " Material and Fuel to gain " + spare + " " + preludeResourceNames[wanted], costs: costs, gains: { [wanted]: spare }, decided: true, why: "It isn't chasing Tycoon, and needs " + getResourceWord(wanted) + " for " + capitalise(preludeAmbitions[wanted] || "warlord") + "." });
     }
     return offers;
 }

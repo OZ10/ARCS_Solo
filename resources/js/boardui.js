@@ -53,9 +53,9 @@ function renderBoardCheck() {
         const campaignPieces = !inCampaign ? "" :
             (system.imperial.fresh + system.imperial.damaged > 0 ? counted("Imperial", "imperial") : "")
             + (system.blight.fresh + system.blight.damaged > 0 ? counted("Blight", "blight") : "")
-            + system.flagships.map((flagship, position) => "<div class=\"d-flex align-items-center gap-2 mb-1\">" + getPlayerTag(getPlayer(flagship.owner)) + "<span class=\"small\">Flagship" + (flagship.damaged ? " (damaged)" : "") + " <span class=\"text-secondary\">(Upgrades on the panel)</span></span>"
-                + button(flagship.damaged ? "Repaired" : "Damaged", "toggleBoardFlagship('" + id + "', " + position + ")", " ms-auto")
-                + "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0\" onclick=\"removeBoardFlagship('" + id + "', " + position + ")\" aria-label=\"Remove it\"><i class=\"bi bi-x-lg\"></i></button></div>").join("")
+            // A Flagship is always fresh: its Upgrades and Armor take the hits (campaign rulebook p.22)
+            + system.flagships.map((flagship, position) => "<div class=\"d-flex align-items-center gap-2 mb-1\">" + getPlayerTag(getPlayer(flagship.owner)) + "<span class=\"small\">Flagship <span class=\"text-secondary\">(Upgrades and Armor on its Flagship board)</span></span>"
+                + "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0 ms-auto\" onclick=\"removeBoardFlagship('" + id + "', " + position + ")\" aria-label=\"Remove it\"><i class=\"bi bi-x-lg\"></i></button></div>").join("")
             + (system.tokens.length > 0 ? "<div class=\"d-flex flex-wrap gap-1 mb-1\">" + system.tokens.map((token, position) => "<span class=\"badge rounded-pill text-bg-light border\">" + tagPlayerNames(getTokenText(token))
                 + ((boardTokenKinds[token.kind] || {}).sides ? " <a href=\"#\" onclick=\"flipBoardToken('" + id + "', " + position + "); return false;\">flip</a>" : "")
                 + " <a href=\"#\" class=\"text-secondary\" onclick=\"removeBoardToken('" + id + "', " + position + "); return false;\" aria-label=\"Remove it\"><i class=\"bi bi-x-lg\"></i></a></span>").join("") + "</div>" : "");

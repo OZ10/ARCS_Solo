@@ -78,7 +78,8 @@ function getBuildChoice(player, slotResources) {
         const choices = needed.filter(resource => priority(resource) == best);
         const resource = choices[Math.floor(Math.random() * choices.length)];
         return { build: "city", resource: resource, reason: "It has no city on a " + preludeResourceNames[resource].toLowerCase() + " planet yet"
-            + (best == 2 ? ", and it's chasing " + capitalise(preludeAmbitions[resource]) : "") + "." };
+            // Weapons have no ambition of their own: a Fate may still want them (campaign)
+            + (best == 2 ? ", and it's chasing " + capitalise(preludeAmbitions[resource] || "warlord") : "") + "." };
     }
 
     // Fewer starports than it wants (#142), unless it can add a city for an ambition it's chasing
@@ -100,7 +101,7 @@ function getBuildChoice(player, slotResources) {
         if (citiesLeft) {
             const chased = slotResources.find(resource => getResourceNeed(player, resource) == 2);
             if (chased != null) {
-                return { build: "city", resource: chased, reason: "It's chasing " + capitalise(preludeAmbitions[chased]) + ", and another city means one more Tax each turn." };
+                return { build: "city", resource: chased, reason: "It's chasing " + capitalise(preludeAmbitions[chased] || "warlord") + ", and another city means one more Tax each turn." };
             }
 
             const resource = slotResources[Math.floor(Math.random() * slotResources.length)];
