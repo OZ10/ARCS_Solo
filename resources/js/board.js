@@ -18,7 +18,7 @@ const mapPlanets = {
     "2a": { resource: "psionics", slots: 1 }, "2c": { resource: "weapons", slots: 1 }, "2h": { resource: "relics", slots: 2 },
     "3a": { resource: "materials", slots: 1 }, "3c": { resource: "fuel", slots: 1 }, "3h": { resource: "weapons", slots: 2 },
     "4a": { resource: "relics", slots: 2 }, "4c": { resource: "fuel", slots: 2 }, "4h": { resource: "materials", slots: 1 },
-    "5a": { resource: "weapons", slots: 2 }, "5c": { resource: "relics", slots: 1 }, "5h": { resource: "psionics", slots: 2 },
+    "5a": { resource: "weapons", slots: 1 }, "5c": { resource: "relics", slots: 1 }, "5h": { resource: "psionics", slots: 2 },
     "6a": { resource: "materials", slots: 1 }, "6c": { resource: "fuel", slots: 2 }, "6h": { resource: "psionics", slots: 1 }
 };
 
