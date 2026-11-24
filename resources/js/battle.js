@@ -1092,6 +1092,8 @@ function applyBattleResults() {
     const { attacker, defender } = battle;
     // A campaign's Empire, Free States or Blight as the defender (campaignhooks.js)
     if (runCampaignHook("applyBattle", losses) === true) {
+        // What's left in the battle system goes on the board too (#85 stage 7b)
+        applyBattleToBoard(losses);
         battle.start = null;
         SaveAllSettings();
         refreshTurnSummary();

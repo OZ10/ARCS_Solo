@@ -190,7 +190,7 @@ function undoBoardAction(index) {
 
 function getHumanBattlePlaces(player) {
     // Systems with its ships and a Rival's pieces: [{ system, rivals }]
-    return getSystemsWithShips(player.number).map(id => ({ system: id, rivals: players.filter(other => other.number != player.number && hasLoyalPiece(id, other.number)).map(other => other.number) }))
+    return getSystemsWithShips(player.number).map(id => ({ system: id, rivals: players.filter(other => other.number != player.number && hasLoyalPiece(id, other.number) && canHarmIn(id, player.number, other.number)).map(other => other.number) }))
         .filter(place => place.rivals.length > 0);
 }
 
@@ -328,7 +328,7 @@ function getMoveRoutes(from, to, playerNumber, movingFresh = null) {
             const at = path[path.length - 1];
             // Only the start, or a gate no one else controls, leads on
             // Control is checked before the ships move in (rulebook p.13)
-            if (at != from && !(isGate(at) && !isControlledByOther(at, playerNumber))) { return; }
+            if (at != from && !(isGate(at) && !isCatapultStop(at, playerNumber))) { return; }
             getAdjacent(at).filter(id => !seen.has(id)).forEach(id => {
                 if (id == to) { routes.push(path.concat(id)); return; }
                 next.push(path.concat(id));
@@ -499,8 +499,12 @@ function confirmHumanMove() {
 // The Battle window: where, from the board
 
 function getBattlePlacesFor(attacker, defender) {
-    if (attacker == null || defender == null || typeof defender.number != "number") { return []; }
-    return getSystemsWithShips(attacker.number).filter(id => hasLoyalPiece(id, defender.number));
+    if (attacker == null || defender == null) { return []; }
+    // The Free States, the Blight or the Empire in a campaign (#85 stage 7b)
+    if (defender.campaignDefender != null) { return getSystemsWithShips(attacker.number).filter(id => isSpecialTargetIn(id, { kind: defender.campaignDefender })); }
+    if (typeof defender.number != "number") { return []; }
+    // Not where the Truce Law shields a Rival Regent
+    return getSystemsWithShips(attacker.number).filter(id => hasLoyalPiece(id, defender.number) && canHarmIn(id, attacker.number, defender.number));
 }
 
 function showBattleSystems() {
@@ -524,8 +528,10 @@ function fillBattleFromSystem(system) {
     const { attacker, defender } = battle;
     battle.boardSystem = system;
     const mine = getShips(system, attacker.number);
-    const ships = getShips(system, defender.number);
-    const buildings = getBuildings(system, defender.number);
+    // The Free States' buildings, the Blight or the Imperial ships for a campaign defender (#85 stage 7b)
+    const kind = defender.campaignDefender;
+    const ships = kind == "blight" ? getBlight(system) : kind == "empire" ? getImperial(system) : kind == "free" ? { fresh: 0, damaged: 0 } : getShips(system, defender.number);
+    const buildings = kind == "free" ? getBuildings(system, freeOwner) : kind != null ? [] : getBuildings(system, defender.number);
     // The attacker's fresh and damaged ships (#189)
     battle.attackerDamaged = mine.damaged;
     if (attacker.isHuman) {

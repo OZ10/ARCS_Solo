@@ -14,7 +14,40 @@ function getRivalShipCount(id, playerNumber) {
 }
 
 function hasRivalPieces(id, player) {
-    return getRivalShipCount(id, player.number) > 0 || getBuildings(id).some(building => building.owner != player.number);
+    // In a campaign, Blight, and the Empire's ships for an Outlaw, are something to battle too (#85)
+    return getRivalShipCount(id, player.number) > 0 || getBuildings(id).some(building => building.owner != player.number)
+        || hasBlight(id) || (isOutlawNumber(player.number) && hasImperialShips(id));
+}
+
+// The campaign's own targets on the board (#85 stage 7b): the Free States, the Blight and the Empire
+
+function isSpecialTargetIn(id, option) {
+    if (option.kind == "free") { return getBuildings(id, freeOwner).some(building => option.resource == null || getPlanetResource(id) == option.resource); }
+    if (option.kind == "blight") { return hasBlight(id); }
+    return hasImperialShips(id);
+}
+
+function getSpecialTargetNeeded(id, option) {
+    // Fresh ships it wants there: enough for the Blight's toughness, more than the Imperial ships
+    if (option.kind == "blight") { return blightFleet; }
+    if (option.kind == "empire") { return getImperial(id).fresh + 1; }
+    return 1;
+}
+
+function findSpecialTargetSystem(player, option) {
+    // Where its fresh ships already are with enough, or one Move away (with a card or a Fuel that
+    // can Move), or null: the board answers "Is it in reach?"
+    const here = getSystemIds().filter(id => isSpecialTargetIn(id, option) && getShips(id, player.number).fresh >= getSpecialTargetNeeded(id, option))
+        .sort((a, b) => getShips(b, player.number).fresh - getShips(a, player.number).fresh)[0];
+    if (here != null) { return here; }
+    const canMoveFirst = getBotPlay(player) != null ? canBotTakeAction(player, "move")
+        : getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
+    return canMoveFirst ? (getReachableTargets(player, id => isSpecialTargetIn(id, option), id => getSpecialTargetNeeded(id, option))[0] || null) : null;
+}
+
+function getSpecialTargetSystem(player) {
+    const target = player.campaignTarget;
+    return target != null && target.system != null ? target.system : null;
 }
 
 function getMoveSources(player, to) {
@@ -51,7 +84,8 @@ function getThreatenedCity(player) {
 
 function canReachRival(player, rival) {
     // Its fresh ships already with the Rival's pieces, or one Move away (if it can Move)
-    const hasPieces = id => getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0;
+    // Not where the Truce Law shields a Rival Regent (#85, #180)
+    const hasPieces = id => (getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0) && canHarmIn(id, player.number, rival.number);
     // Once its card is played, only that card (and its prelude) can Move it, not the rest of its hand (#188)
     const canMoveFirst = getBotPlay(player) != null ? canBotTakeAction(player, "move")
         : getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
@@ -177,7 +211,8 @@ function getBattleSystem(player, targetNumber) {
     // building of theirs first (raid dice there)
     const edge = id => getShips(id, player.number).fresh - getShips(id, targetNumber).fresh - getShips(id, targetNumber).damaged
         + (getBuildings(id, targetNumber).length > 0 && getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged == 0 ? exposedBuildingBonus : 0);
-    return getSystemIds().filter(id => getShips(id, player.number).fresh > 0 && (getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged > 0 || getBuildings(id, targetNumber).length > 0))
+    return getSystemIds().filter(id => getShips(id, player.number).fresh > 0 && (getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged > 0 || getBuildings(id, targetNumber).length > 0)
+        && canHarmIn(id, player.number, targetNumber))
         .sort((a, b) => edge(b) - edge(a))[0] || null;
 }
 
@@ -262,7 +297,13 @@ function placeBoardPlan(player, plan) {
         plan.forEach(step => {
             let where = null;
             if (step.action == "move") {
-                where = chooseBoardMove(player, targetNumber, getNewCityResource(player));
+                // To the Free States, the Blight or the Empire it's going after, if it isn't there yet
+                const special = getSpecialTargetSystem(player);
+                if (special != null && targetNumber == null && getShips(special, player.number).fresh == 0) {
+                    const from = getMoveSources(player, special)[0];
+                    if (from != null) { where = { from: from, to: special, count: getShips(from, player.number).fresh, why: "to battle" }; }
+                }
+                if (where == null) { where = chooseBoardMove(player, targetNumber, getNewCityResource(player)); }
                 // Its reason is where it's going and why
                 if (where != null) { step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
             } else if (step.action == "build") {
@@ -271,6 +312,8 @@ function placeBoardPlan(player, plan) {
             } else if (step.action == "battle" && targetNumber != null) {
                 const system = getBattleSystem(player, targetNumber);
                 if (system != null) { where = { system: system, battle: targetNumber }; }
+            } else if (step.action == "battle" && getSpecialTargetSystem(player) != null) {
+                where = { system: getSpecialTargetSystem(player), battle: player.campaignTarget.kind };
             } else if (step.action == "tax") {
                 const resource = (step.text.match(/Tax its (\w+) city/) || [])[1];
                 const city = getTaxableCities(player.number).find(item => item.owner == player.number && (resource == null || preludeResourceNames[item.resource].toLowerCase() == resource))
@@ -323,6 +366,13 @@ function prefillBattleFromBoard() {
             system = step != null ? step.where.system : getBattleSystem(attacker, defender.number);
         }
         if (system != null) { fillBattleFromSystem(system); }
+    } else if (attacker != null && defender != null && defender.campaignDefender != null) {
+        // The Free States, the Blight or the Empire (#85 stage 7b): the bot's chosen system, or the
+        // first where both sides have pieces
+        const places = getBattlePlacesFor(attacker, defender);
+        const chosen = getSpecialTargetSystem(attacker);
+        const system = chosen != null && places.includes(chosen) ? chosen : places[0];
+        if (system != null) { fillBattleFromSystem(system); }
     }
     showBattleSystems();
 }
@@ -331,7 +381,27 @@ function applyBattleToBoard(losses) {
     // What's left on each side in the battle system
     const system = battle.boardSystem;
     if (system == null) { return; }
-    const attacker = battle.attacker.number, defender = battle.defender.number;
+    const attacker = battle.attacker.number;
+    // A campaign defender's pieces are the Blight, the Imperial ships or the Free buildings (#85 stage 7b)
+    const kind = battle.defender.campaignDefender;
+    if (kind != null) {
+        setShips(system, attacker, battle.ships, battle.attackerDamaged || 0);
+        if (kind == "blight") { setBlight(system, battle.fresh, battle.damaged); }
+        if (kind == "empire") { setImperial(system, battle.fresh, battle.damaged); }
+        if (kind == "free") {
+            for (let lost = 0; lost < losses.defenderBuildings; lost++) {
+                const building = getBuildings(system, freeOwner).sort((a, b) => b.damaged - a.damaged)[0];
+                if (building != null) { removeBuilding(system, freeOwner, building.kind); }
+            }
+            let damaged = battle.damagedBuildings;
+            getBuildings(system, freeOwner).forEach(building => { building.damaged = damaged > 0; damaged--; });
+        }
+        const done = (battle.attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.system == system && !item.applied);
+        if (done != null) { done.applied = true; }
+        syncPanelFromBoard(battle.attacker);
+        return;
+    }
+    const defender = battle.defender.number;
     const removeOne = (number) => { if (getShips(system, number).damaged > 0) { removeShips(system, number, 1, true); } else { removeShips(system, number, 1); } };
     // The attacker's ships there: fresh and damaged, as the window says (#189)
     setShips(system, attacker, battle.ships, battle.attackerDamaged || 0);

@@ -88,17 +88,16 @@ registerCampaignHook("botQuestionsFirst", (player, carryOn) => {
     if (!getBotCards(player).some(card => card.actions.includes("battle")) && player.weaponsValue == 0) { return undefined; }
     const option = getCampaignTargetOptions(player).find(item => item.kind == "blight" && item.reason == "noRival");
     if (option == null) { return undefined; }
-    askYesNo("BATTLE", getCampaignTargetQuestion(player, option), inReach => {
-        player.steerAnswers = player.steerAnswers || {};
-        player.steerAnswers.blight = inReach;
-        if (inReach) {
-            player.campaignTarget = option;
-            player.battleTargetNumber = null;
-        }
-        SaveAllSettings();
-        carryOn();
-    });
-    return true;
+    // The board answers whether it's in reach, so it's never asked (#85 stage 7b)
+    const system = findSpecialTargetSystem(player, option);
+    player.steerAnswers = player.steerAnswers || {};
+    player.steerAnswers.blight = system != null;
+    if (system != null) {
+        player.campaignTarget = { ...option, system: system };
+        player.battleTargetNumber = null;
+    }
+    SaveAllSettings();
+    return undefined;
 });
 
 registerCampaignHook("skipFleetQuestion", player => (player.campaignTarget != null && player.campaignTarget.kind == "blight") ? true : undefined);
@@ -114,23 +113,22 @@ registerCampaignHook("botQuestions", (player, carryOn) => {
         player.campaignTarget = null;
         return undefined;
     }
-    askYesNo("BATTLE", getCampaignTargetQuestion(player, option), inReach => {
-        player.campaignTarget = inReach ? option : null;
-        player.battleTargetNumber = null;
-        SaveAllSettings();
-        carryOn();
-    });
-    return true;
+    // The board answers whether it's in reach (#85 stage 7b): the first option it can reach
+    const reachable = getCampaignTargetOptions(player).map(item => ({ ...item, system: findSpecialTargetSystem(player, item) })).find(item => item.system != null);
+    player.campaignTarget = reachable || null;
+    if (reachable != null) { player.battleTargetNumber = null; }
+    SaveAllSettings();
+    return undefined;
 });
 
 registerCampaignHook("knownYes", (ambition, action, player) => {
     // A Yes already answers its ambition's Battle question
     const target = player.campaignTarget;
     if (target == null || action != "battle") { return undefined; }
-    if (ambition == "WARLORD" && target.reason == "warlord") { return "you said " + getSpecialTargetPlace(target) + " is in reach"; }
+    if (ambition == "WARLORD" && target.reason == "warlord") { return "the board shows " + getSpecialTargetPlace(target) + " in reach"; }
     const resources = ambitionTaxResources[ambition];
     if (target.kind == "free" && target.resource != null && resources != null && resources.includes(target.resource)) {
-        return "you said a Free " + preludeResourceNames[target.resource].toLowerCase() + " building is in reach";
+        return "the board shows a Free " + preludeResourceNames[target.resource].toLowerCase() + " building in reach";
     }
     return undefined;
 });
@@ -148,13 +146,15 @@ registerCampaignHook("specialBattleTarget", player => {
         const name = target.resource != null ? preludeResourceNames[target.resource] : null;
         why = name != null ? "It wants " + name + " (it's chasing " + capitalise(target.resource == "weapons" ? "warlord" : preludeAmbitions[target.resource]) + "): a raid takes 1 " + name + " from a Free building on a " + name.toLowerCase() + " planet."
             : "Chasing Warlord: Free buildings destroyed are Trophies.";
-        where = "The Free " + (name != null ? name.toLowerCase() + " " : "") + "building you said is in reach. A starport if there is one: destroying a Free city Provokes Outrage." + regent;
+        where = "A starport if there is one: destroying a Free city Provokes Outrage." + regent;
     } else if (target.kind == "blight") {
         why = target.reason == "warlord" ? "Chasing Warlord: Blight destroyed is a Trophy." : "Every Rival is a Regent, shielded by the Truce Law: clearing the Blight keeps it from hitting its ships in a Crisis.";
-        where = "The system with Blight where it has at least " + blightFleet + " ships. Each Blight takes 2 hits." + regent;
+        where = "Each Blight takes 2 hits." + regent;
     } else {
         why = target.reason == "warlord" ? "Chasing Warlord: Imperial ships destroyed are Trophies." : "Its Fate, the Founder, advances for each system it controls: the Empire holds them now.";
-        where = "Where its ships outnumber the Imperial ships. The First Regent takes any of its ships destroyed as Trophies.";
+        where = "The First Regent takes any of its ships destroyed as Trophies.";
     }
+    // Where, from the board (#85 stage 7b)
+    if (target.system != null) { where = "At " + getSystemName(target.system) + ", from the board. " + where; }
     return { player: getSpecialDefender(target.kind), kind: target.kind, title: specialTargetTitles[target.kind], why: why, where: where };
 });

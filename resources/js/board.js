@@ -245,8 +245,62 @@ function getController(id) {
 }
 
 function isControlledByOther(id, playerNumber) {
+    const controller = getControllerFor(id, playerNumber);
+    return controller != null && controller != playerNumber;
+}
+
+// The campaign's Empire (rulebook pp.10-11; #85 stage 7b). Outside a campaign there are no
+// Imperial ships or Blight, so none of this changes the base game
+
+function isCampaignOn() {
+    return typeof campaign != "undefined" && campaign != null && typeof isRegent == "function";
+}
+
+function isRegentNumber(playerNumber) {
+    const player = typeof playerNumber == "number" ? getPlayer(playerNumber) : null;
+    return isCampaignOn() && player != null && isRegent(player);
+}
+
+function isOutlawNumber(playerNumber) {
+    const player = typeof playerNumber == "number" ? getPlayer(playerNumber) : null;
+    return isCampaignOn() && player != null && !isRegent(player);
+}
+
+function hasImperialShips(id) {
+    const imperial = getSystem(id).imperial;
+    return imperial != null && imperial.fresh + imperial.damaged > 0;
+}
+
+function hasBlight(id) {
+    const blight = getSystem(id).blight;
+    return blight != null && blight.fresh + blight.damaged > 0;
+}
+
+function isEmpireControlled(id) {
+    // Any fresh Imperial ship, whatever players' ships are there
+    const imperial = getSystem(id).imperial;
+    return imperial != null && imperial.fresh > 0;
+}
+
+function getControllerFor(id, playerNumber) {
+    // Who controls it on this player's turn: the Empire's systems are theirs if they're a Regent
+    // with Loyal pieces there (the Presence Law), otherwise "empire"
+    if (isEmpireControlled(id)) { return isRegentNumber(playerNumber) && hasLoyalPiece(id, playerNumber) ? playerNumber : "empire"; }
+    return getController(id);
+}
+
+function isCatapultStop(id, playerNumber) {
+    // A gate that ends a Catapult move: any Blight; the Empire's for an Outlaw; anyone else's
+    // (rulebook p.10, p.19). Control is checked before the ships move in (p.13)
+    if (hasBlight(id)) { return true; }
+    if (isEmpireControlled(id)) { return isOutlawNumber(playerNumber); }
     const controller = getController(id);
     return controller != null && controller != playerNumber;
+}
+
+function canHarmIn(id, attackerNumber, defenderNumber) {
+    // The Truce Law: a Regent can't harm or tax a Rival Regent where there are Imperial ships
+    return !(hasImperialShips(id) && isRegentNumber(attackerNumber) && isRegentNumber(defenderNumber));
 }
 
 // Moving (rulebook p.13): to an adjacent system. From a system with a Loyal starport, a Catapult
@@ -268,7 +322,7 @@ function getMoveDestinations(from, playerNumber, movingFresh = null) {
             reached.add(next);
             // It can keep going only through a gate no one else controls, checked before the ships
             // move in (rulebook p.13; #184 was looked at again and this stands)
-            if (isGate(next) && !isControlledByOther(next, playerNumber)) { queue.push(next); }
+            if (isGate(next) && !isCatapultStop(next, playerNumber)) { queue.push(next); }
         });
     }
     return [...reached];
@@ -307,8 +361,10 @@ function getBuildableSystems(playerNumber) {
 
 function getTaxableCities(playerNumber) {
     // Its Loyal cities, and Rival cities in systems it controls (rulebook p.12)
+    // In a campaign: the Empire's systems where it has Presence, but not a Rival Regent's city where
+    // there are Imperial ships (the Truce Law)
     return getSystemIds().flatMap(id => getBuildings(id, null, "city")
-        .filter(city => city.owner == playerNumber || getController(id) == playerNumber)
+        .filter(city => city.owner == playerNumber || (getControllerFor(id, playerNumber) == playerNumber && canHarmIn(id, playerNumber, city.owner)))
         .map(city => ({ system: id, owner: city.owner, resource: getPlanetResource(id) })));
 }
 
