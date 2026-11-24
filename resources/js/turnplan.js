@@ -433,6 +433,12 @@ function getTurnPlan(player) {
             details.resource = taxTargets.shift();
             if (canTaxCityAgain(player) && taxTargets.length == 0) { taxTargets.push(details.resource); }
             name = getTaxStepName(player, details.resource);
+            // Outraged: it can't spend it in its prelude, but it still counts for its ambition
+            // (rulebook p.17, #193)
+            if ((player.outraged || []).includes(details.resource)) {
+                const ambition = preludeAmbitions[details.resource];
+                reason = (reason ? reason + "; " : "") + "it's Outraged in " + getResourceWord(details.resource) + ", so it can't spend it, but " + (ambition ? "it still counts for " + capitalise(ambition) : "it can still hold it");
+            }
         }
         if (pick.action == "tax" && reason == rivalTaxReason) {
             // Overseer (Ruthless) once a turn

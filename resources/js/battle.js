@@ -470,7 +470,9 @@ function showBattleModal(button) {
     battle.noBuildings = hasNoBuildings(battle.defender);
     // A bot's counts from the board (boardbot.js, #160)
     prefillBattleFromBoard();
-    showBattleCountTiles(battle.attacker.isHuman);
+    // Fresh and damaged for everyone now the board tracks damage (#194): the human player's window
+    // used to count ships and buildings only (#147)
+    showBattleCountTiles(false);
     updateBattleCounts();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).show();
 }

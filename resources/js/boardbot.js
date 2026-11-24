@@ -332,23 +332,17 @@ function applyBattleToBoard(losses) {
     const system = battle.boardSystem;
     if (system == null) { return; }
     const attacker = battle.attacker.number, defender = battle.defender.number;
-    const removeOne = (number) => { if (getShips(system, number).damaged > 0) { removeShips(system, number, 1, true); } else { removeShips(system, number, 1); } };
     // The attacker's ships there: fresh and damaged, as the window says (#189)
     setShips(system, attacker, battle.ships, battle.attackerDamaged || 0);
     for (let lost = 0; lost < losses.defenderBuildings; lost++) {
         const building = getBuildings(system, defender).sort((a, b) => b.damaged - a.damaged)[0];
         if (building != null) { removeBuilding(system, defender, building.kind); }
     }
-    if (battle.attacker.isHuman) {
-        // A human player's window only counts what's left, not fresh and damaged: the destroyed
-        // ones go, damaged first. Which survivors are damaged is put right in the board check
-        for (let lost = 0; lost < losses.defenderShips; lost++) { removeOne(defender); }
-    } else {
-        setShips(system, defender, battle.fresh, battle.damaged);
-        // As many of the defender's buildings damaged as the window says
-        let damaged = battle.damagedBuildings;
-        getBuildings(system, defender).forEach(building => { building.damaged = damaged > 0; damaged--; });
-    }
+    // The defender's fresh and damaged ships, and damaged buildings, as the window says: a human
+    // player's window has them too now (#194)
+    setShips(system, defender, battle.fresh, battle.damaged);
+    let damaged = battle.damagedBuildings;
+    getBuildings(system, defender).forEach(building => { building.damaged = damaged > 0; damaged--; });
     const step = (battle.attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.system == system && !item.applied);
     if (step != null) { step.applied = true; }
     // Both panels follow the board, human players' too now their actions are on it

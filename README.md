@@ -172,7 +172,7 @@ Your hand is listed on your panel. Tap a card to see its pips, ambition and acti
 - **Battle:** opens the Battle window, starting on a Rival you share a system with, and the counts from the board. **Where** lists the systems you could battle in. When it updates the panels, it counts as an action.
 - **Secure and Influence:** **Court** opens the Court window. Each agent you place there and each card you secure counts as an action.
 
-Systems are named as on the board: **1 Gate**, and planets by their cluster number and ID symbol (▲, ☾ or ⬢), then their type, such as **3 ⬢** Weapon. Once you've taken an action, the prelude is over, so its buttons go.
+Systems are named as on the board: **1 Gate**, and planets by their cluster number and ID symbol (▲, ☾ or ⬢), then their type, such as **3 ⬢** Weapon. Once you've taken an action, the prelude is over, so its buttons go. An action your prelude gave you, such as a Move from a Fuel, comes first: it's listed at the top, and your card's actions wait until it's done.
 
 Each action you've taken is listed under **Done**, with **Undo**, which takes it off the board and gives the action back. When none are left, the buttons are greyed out. **Prelude** lists what your resources and Guild cards can do before your actions. **Spend** takes the resource off your panel and adds its action, such as a Move for a Fuel, marked **PRELUDE**. **Use** does the same for a Guild card. Anything your card doesn't have is under **Also**, with **Draw**. Tap **Done** when you've finished. **Back to board** shrinks the window to a bar, as on a bot's turn.
 

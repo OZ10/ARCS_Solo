@@ -100,16 +100,21 @@ function getHumanActionSections(player, offered) {
         return html + getTurnSection("Your actions", "<div class=\"small text-muted\">No actions this turn.</div>");
     }
     // Every kind the card and prelude give, greyed out once there's no action left for it
-    const types = humanBoardActionOrder.filter(type => use.slots.some(slot => slot.types.includes(type)));
+    // Prelude actions come first (#192): while one is left, only its kinds are open, listed at the top
+    const preludeLeft = use.left.filter(slot => slot.prelude);
+    const inPrelude = type => preludeLeft.some(slot => slot.types.includes(type));
+    const types = humanBoardActionOrder.filter(type => use.slots.some(slot => slot.types.includes(type)))
+        .sort((a, b) => Number(inPrelude(b)) - Number(inPrelude(a)));
     const rows = types.map(type => {
-        const open = use.left.some(slot => slot.types.includes(type));
-        const preludeOnly = open && !use.left.some(slot => !slot.prelude && slot.types.includes(type));
+        const open = preludeLeft.length > 0 ? inPrelude(type) : use.left.some(slot => slot.types.includes(type));
+        const tagged = preludeLeft.length > 0 ? inPrelude(type) : false;
         if (type == "battle") { offered.push("battle"); }
         if (type == "secure" || type == "influence") { offered.push("court"); }
-        return getTurnRow("<i class=\"bi " + (humanActionIcons[type] || "bi-dot") + "\"></i>", humanBoardActionNames[type] + (preludeOnly ? "<span class=\"preludetag\">Prelude</span>" : ""),
+        return getTurnRow("<i class=\"bi " + (humanActionIcons[type] || "bi-dot") + "\"></i>", humanBoardActionNames[type] + (tagged ? "<span class=\"preludetag\">Prelude</span>" : ""),
             getHumanActionNote(player, type), getHumanActionButton(type, open));
     }).join("");
-    return html + getTurnSection(getHumanActionsLeftText(player), rows);
+    const first = preludeLeft.length > 0 ? "<div class=\"small text-secondary mb-1\">Your prelude action" + (preludeLeft.length == 1 ? " comes" : "s come") + " first, then your card's.</div>" : "";
+    return html + getTurnSection(getHumanActionsLeftText(player), first + rows);
 }
 
 // Recording and undoing
@@ -526,18 +531,11 @@ function fillBattleFromSystem(system) {
     const buildings = getBuildings(system, defender.number);
     // The attacker's fresh and damaged ships (#189)
     battle.attackerDamaged = mine.damaged;
-    if (attacker.isHuman) {
-        battle.ships = Math.max(mine.fresh, 1);
-        battle.fresh = ships.fresh + ships.damaged;
-        battle.damaged = 0;
-        battle.freshBuildings = buildings.length;
-        battle.damagedBuildings = 0;
-    } else {
-        battle.ships = Math.max(mine.fresh, 1);
-        battle.fresh = ships.fresh;
-        battle.damaged = ships.damaged;
-        battle.freshBuildings = buildings.filter(building => !building.damaged).length;
-        battle.damagedBuildings = buildings.filter(building => building.damaged).length;
-    }
+    // Fresh and damaged, for a human player's window too (#194)
+    battle.ships = Math.max(mine.fresh, 1);
+    battle.fresh = ships.fresh;
+    battle.damaged = ships.damaged;
+    battle.freshBuildings = buildings.filter(building => !building.damaged).length;
+    battle.damagedBuildings = buildings.filter(building => building.damaged).length;
     battle.planet = isPlanet(system) ? getPlanetResource(system) : null;
 }
