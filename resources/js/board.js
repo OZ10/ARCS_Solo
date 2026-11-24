@@ -28,10 +28,55 @@ const blockedPlanetLinks = ["1h-2a", "3h-4a", "4h-5a", "6h-1a"];
 // The board: which clusters are out of play, and each system's pieces:
 // { outOfPlay: [cluster], systems: { id: { ships: { player: { fresh, damaged } }, buildings: [{ owner, kind, damaged }] } } }
 // kind is "city" or "starport"
+function newSystem() {
+    // In a campaign (#85, stage 7a) a system also has Imperial ships, Blight, Flagships and Fate
+    // tokens. Free buildings are buildings owned by "free"
+    return { ships: {}, buildings: [], imperial: { fresh: 0, damaged: 0 }, blight: { fresh: 0, damaged: 0 }, flagships: [], tokens: [] };
+}
+
 function newBoard() {
     const systems = {};
-    getAllSystemIds().forEach(id => { systems[id] = { ships: {}, buildings: [] }; });
-    return { outOfPlay: [], systems: systems };
+    getAllSystemIds().forEach(id => { systems[id] = newSystem(); });
+    // Tokens on a whole cluster, such as the Peacekeeper's Ceasefires: { cluster: [token] }
+    return { outOfPlay: [], systems: systems, clusterTokens: {} };
+}
+
+// The campaign's pieces (#85, stage 7a)
+
+// The owner of Free cities and starports
+const freeOwner = "free";
+
+// The Fates' tokens on the map: a name, whether a player owns it, and its two sides if it has them
+const boardTokenKinds = {
+    golem: { name: "Golem", sides: ["sleeping", "awake"] },
+    banner: { name: "Banner", owned: true },
+    hammer: { name: "Hammer" },
+    brokenWorld: { name: "Broken World" },
+    rumor: { name: "Rumor", sides: ["face down", "face up"] },
+    witness: { name: "Witness", sides: ["spyglass side", "Psionic side"] },
+    seat: { name: "Seat", owned: true },
+    bunker: { name: "Bunker" },
+    clue: { name: "Clue" },
+    portal: { name: "Portal" },
+    pilgrim: { name: "Pilgrim" },
+    passage: { name: "Passage" },
+    twistedPassage: { name: "Twisted Passage" }
+};
+const clusterTokenKinds = { ceasefire: { name: "Ceasefire", sides: ["War", "Peace"] } };
+
+function getImperial(id) { return getSystem(id).imperial; }
+function setImperial(id, fresh, damaged) { getSystem(id).imperial = { fresh: Math.max(fresh, 0), damaged: Math.max(damaged, 0) }; }
+function getBlight(id) { return getSystem(id).blight; }
+function setBlight(id, fresh, damaged) { getSystem(id).blight = { fresh: Math.max(fresh, 0), damaged: Math.max(damaged, 0) }; }
+function getTokens(id) { return getSystem(id).tokens; }
+function addToken(id, kind, owner = null, side = 0) { getSystem(id).tokens.push({ kind: kind, owner: owner, side: side }); }
+function getFlagships(id) { return getSystem(id).flagships; }
+
+function getTokenText(token) {
+    // e.g. "Golem (sleeping)" or "Banner (Player 1)"
+    const kind = boardTokenKinds[token.kind] || clusterTokenKinds[token.kind] || { name: token.kind };
+    const extra = [kind.sides != null ? kind.sides[token.side || 0] : null, token.owner != null ? "Player " + token.owner : null].filter(text => text != null);
+    return kind.name + (extra.length > 0 ? " (" + extra.join(", ") + ")" : "");
 }
 
 // The map
@@ -343,14 +388,25 @@ function syncPanelFromBoard(player) {
 function getPiecesText(id) {
     // e.g. "Player 1: 3 ships, a city. Player 2: 2 ships (1 damaged)"
     const system = getSystem(id);
-    const owners = [...new Set(Object.keys(system.ships).map(Number).concat(system.buildings.map(building => building.owner)))].sort();
-    return owners.map(number => {
+    const count = (pieces, word) => pieces.fresh + pieces.damaged > 0 ? (pieces.fresh + pieces.damaged) + " " + word + (pieces.damaged > 0 ? " (" + pieces.damaged + " damaged)" : "") : null;
+    const owners = [...new Set(Object.keys(system.ships).map(Number).concat(system.buildings.map(building => building.owner).filter(owner => owner != freeOwner), (system.flagships || []).map(flagship => flagship.owner)))].sort();
+    const lines = owners.map(number => {
         const ships = getShips(id, number);
         const parts = [];
         if (ships.fresh + ships.damaged > 0) { parts.push((ships.fresh + ships.damaged) + " ship" + (ships.fresh + ships.damaged == 1 ? "" : "s") + (ships.damaged > 0 ? " (" + ships.damaged + " damaged)" : "")); }
         getBuildings(id, number).forEach(building => parts.push("a " + (building.damaged ? "damaged " : "") + building.kind));
+        (system.flagships || []).filter(flagship => flagship.owner == number).forEach(flagship => parts.push("a " + (flagship.damaged ? "damaged " : "") + "Flagship"));
         return "Player " + number + ": " + parts.join(", ");
-    }).join(". ");
+    });
+    // The campaign's pieces (#85)
+    const imperial = system.imperial != null ? count(system.imperial, "Imperial ship" + (system.imperial.fresh + system.imperial.damaged == 1 ? "" : "s")) : null;
+    if (imperial != null) { lines.push(imperial); }
+    const free = getBuildings(id, freeOwner).map(building => "a " + (building.damaged ? "damaged " : "") + "Free " + building.kind);
+    if (free.length > 0) { lines.push(free.join(", ")); }
+    const blight = system.blight != null ? count(system.blight, "Blight") : null;
+    if (blight != null) { lines.push(blight); }
+    (system.tokens || []).forEach(token => lines.push(getTokenText(token)));
+    return lines.join(". ");
 }
 
 // Saving: with the rest of the game (storage.js)
@@ -361,6 +417,7 @@ board = newBoard();
 function loadBoard() {
     const saved = getSettingObject("board");
     board = (saved != null && saved.systems != null) ? saved : newBoard();
-    // Games saved before a system existed
-    getAllSystemIds().forEach(id => { if (board.systems[id] == null) { board.systems[id] = { ships: {}, buildings: [] }; } });
+    // Games saved before a system, or the campaign's pieces, existed
+    getAllSystemIds().forEach(id => { board.systems[id] = Object.assign(newSystem(), board.systems[id] || {}); });
+    if (board.clusterTokens == null) { board.clusterTokens = {}; }
 }

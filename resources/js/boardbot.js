@@ -299,7 +299,7 @@ function applyBotPlanToBoard(player) {
             const resource = getPlanetResource(step.where.system);
             if (resource != null && getResourceSupply(resource) > 0 && getEmptySlots(player) > 0) {
                 setPlayerResource(player, resource, player[resource + "Value"] + 1);
-                if (step.where.owner != null && step.where.owner != player.number) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
+                if (step.where.owner != null && step.where.owner != player.number && step.where.owner != freeOwner) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
             }
         }
         step.applied = true;

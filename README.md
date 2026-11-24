@@ -104,7 +104,9 @@ The campaign is played over three Acts of up to three chapters each, with the bo
 
 **Choosing Fates:** with the campaign switched on, choose how Fates are given out. **Deal 2** deals two and you (or the bot) choose one. **Pick** lets you choose any "A" Fate, to try a particular one. At the start of Acts II and III, each player keeps their Fate or takes a new one.
 
-**Setting up:** the setup window lists each step to do on the table, with the dice already rolled: the Imperial clusters, Free cities, Blight, the Imperial Council and the starting Policy in Act I; each player's Fate setup and the new Blight in Acts II and III. Tick each step as you go.
+**Setting up:** the setup window lists each step to do on the table, with the dice already rolled: the Imperial clusters, Free cities, Blight, the Imperial Council and the starting Policy in Act I; each player's Fate setup and the new Blight in Acts II and III. Tick each step as you go. In Act I, the app puts the Reach on its board: Imperial ships, Free cities and Blight. Then each player places 3 ships and a building at a planet with an Imperial ship, in turn order and back again. The bots choose for themselves, and a window lists where you can place yours. The app then fills the empty slots on Imperial planets with Free cities and lists what to place on the table.
+
+**The board in the campaign:** the app's board also holds Imperial ships, Blight, Free cities and starports, Flagships (their Upgrades and Armor stay on the panel) and the Fates' tokens, such as Golems, Banners, Seats and Ceasefires. **Check the board** has **+ Imperial**, **+ Blight**, **+ Flagship** and **+ Token** to correct them.
 
 **The panels:** each player's panel shows their Fate (tap it to read the card), their title (**Regent** or **Outlaw**, tap to change it), the First Regent, their objective marker and Favors. The Imperial Trust has its own panel.
 

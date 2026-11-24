@@ -267,9 +267,10 @@ function renderHumanOptions(type) {
         options = getHumanRepairOptions(player).map((option, index) => getOptionButton("A damaged " + option.kind + " at " + getSystemName(option.system), "Turn it fresh side up", "humanRepair(" + index + ")", "humanOption" + index));
     } else if (type == "tax") {
         options = getHumanTaxOptions(player).map((option, index) => {
-            const mine = option.owner == player.number;
-            return getOptionButton((mine ? "Your " : "Player " + option.owner + "'s ") + "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system),
-                "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
+            const mine = option.owner == player.number, free = option.owner == freeOwner;
+            // A Free city: no agent to capture (#85)
+            return getOptionButton((mine ? "Your " : free ? "A Free " : "Player " + option.owner + "'s ") + "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system),
+                "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : free ? " (you control " + getSystemShortName(option.system) + ")" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
         });
     }
     body.innerHTML = options.length > 0 ? "<div class=\"d-grid gap-2\">" + options.join("") + "</div>"
@@ -301,11 +302,12 @@ function humanTax(index) {
     const player = getTurnPlayer();
     const option = getHumanTaxOptions(player)[index];
     if (option == null) { return; }
-    const captured = option.owner != player.number;
+    const free = option.owner == freeOwner;
+    const captured = option.owner != player.number && !free;
     setPlayerResource(player, option.resource, player[option.resource + "Value"] + 1);
     if (captured) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
     recordBoardAction(player, { action: "tax", system: option.system, owner: option.owner, resource: option.resource, captured: captured,
-        text: (captured ? "Player " + option.owner + "'s " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": 1 " + preludeResourceNames[option.resource] + (captured ? " and 1 Captive" : "") });
+        text: (captured ? "Player " + option.owner + "'s " : free ? "a Free " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": 1 " + preludeResourceNames[option.resource] + (captured ? " and 1 Captive" : "") });
     closeHumanBoardAction();
 }
 

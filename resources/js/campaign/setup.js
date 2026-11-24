@@ -73,13 +73,10 @@ function showActOneSetup() {
     if (campaign.setupRolls == null) {
         // Rolled once, so the window shows the same after loading
         campaign.setupRolls = { cluster: rollNumberDie(), symbol: rollPlanetSymbol() };
-        // Each player starts with 6 ships (3 placed twice). A bot places a starport first, then a city
-        players.forEach(player => {
-            adjustCounter(player, "shipsBoard", 6 - player.shipsBoardValue);
-            adjustCounter(player, "starports", (player.isHuman ? 0 : 1) - player.starportsValue);
-        });
         SaveAllSettings();
     }
+    // The Reach on the app's board, once (#85, stage 7a)
+    if (!campaign.boardSetUp) { setUpReachBoard(campaign.setupRolls); }
     const rolls = campaign.setupRolls;
     const second = rolls.cluster % 6 + 1;
     const symbol = planetSymbols[rolls.symbol];
@@ -87,7 +84,7 @@ function showActOneSetup() {
     const order = getTurnOrder();
     const twoPlayers = players.length == 2;
 
-    let html = "<p class=\"mb-2\">Do each step on the table and tick it. The app has rolled the dice for you.</p>"
+    let html = "<p class=\"mb-2\">Do each step on the table and tick it. The app has rolled the dice for you, and put the Reach on its board.</p>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">The Reach</div>"
         + step("<span class=\"die\">" + rolls.cluster + "</span>Imperial clusters: <b>" + rolls.cluster + " and " + second + "</b>", "Place 1 Imperial ship in each system of clusters " + rolls.cluster + " and " + second + " (8 in all).")
         + step("<span class=\"die\">" + symbol + "</span>A Free city on every <b>" + symbol + "</b> planet", "Outside clusters " + rolls.cluster + " and " + second + ".")
@@ -104,17 +101,150 @@ function showActOneSetup() {
                 + "<button type=\"button\" onclick=\"stepNeutral('" + ambition + "', 1)\" aria-label=\"One more on " + ambition + "\"><i class=\"bi bi-plus\"></i></button></span>").join("") + "</span></span></div>";
     }
     html += "</div><div class=\"turnsection\"><div class=\"turnlabel\">The players</div>"
-        + step("Each player places <b>3 ships and 1 building</b> in an empty slot at a planet with an Imperial ship, and gains 1 resource of that planet",
-            "In turn order: " + order.map(player => "Player " + player.number).join(", ") + ". Then again in reverse order. Bots place a starport first, then a city, on a type of planet they have no resource of yet if they can.")
-        + step("Add each player's buildings and 2 resources on their panel", "The app has set 6 ships each, and a starport for each bot. Tap + on the type of planet each city is on.")
-        + step("Free cities in all empty building slots on planets with Imperial ships", players.length == 4 ? "With 4 players there may be none." : "")
-        + "</div><button type=\"button\" class=\"btn btn-primary w-100 mt-2\" data-bs-dismiss=\"modal\">Done: start chapter 1</button>";
+        + "<div class=\"small\">Next, each player places <b>3 ships and 1 building</b> at a planet with an Imperial ship, in turn order (" + order.map(player => "Player " + player.number).join(", ")
+        + ") and then again in reverse. The app places the bots' pieces and asks you where yours go. Then Free cities fill the empty slots on planets with Imperial ships.</div>"
+        + "</div><button type=\"button\" class=\"btn btn-primary w-100 mt-2\" data-bs-dismiss=\"modal\">Done: place the players' pieces</button>";
 
-    // It has to be finished: the mulligan and chapter 1 follow (#135)
-    showCampaignWindow(actNames[1] + " setup", html, null, true, () => {
-        lastAnnouncedLeader = null;
-        startRoundAfterMulligan();
+    // It has to be finished: the placements, the mulligan and chapter 1 follow (#135)
+    showCampaignWindow(actNames[1] + " setup", html, null, true, () => nextActOnePlacement());
+}
+
+// Act I on the app's board (#85, stage 7a)
+
+// The event die's symbols, as the planets' letters: arrowhead, hexagon, crescent (planetSymbols' order)
+const planetSymbolLetters = ["a", "h", "c"];
+
+function getImperialClusters(rolls) {
+    return [rolls.cluster, rolls.cluster % 6 + 1];
+}
+
+function setUpReachBoard(rolls) {
+    // All clusters in play: Imperial ships in the two Imperial clusters, a Free city on each planet
+    // of the rolled symbol elsewhere, and damaged Blight in every other system (rulebook p.5)
+    board = newBoard();
+    const imperial = getImperialClusters(rolls);
+    getAllSystemIds().forEach(id => {
+        if (imperial.includes(getCluster(id))) { setImperial(id, 1, 0); return; }
+        setBlight(id, 0, 1);
+        if (isPlanet(id) && id.endsWith(planetSymbolLetters[rolls.symbol])) { placeBuilding(id, freeOwner, "city"); }
     });
+    // 2 players: the Imperial planets' resources on the ambition boxes
+    if (players.length == 2) {
+        neutralCounts = {};
+        getAllSystemIds().filter(id => isPlanet(id) && imperial.includes(getCluster(id))).forEach(id => {
+            const ambition = outOfPlayAmbitions[getPlanetResource(id)];
+            neutralCounts[ambition] = (neutralCounts[ambition] || 0) + 1;
+        });
+    }
+    players.forEach(player => { player.startingCity = 0; syncPanelFromBoard(player); });
+    campaign.boardSetUp = true;
+    campaign.placeIndex = 0;
+    SaveAllSettings();
+}
+
+function getActOnePlacementOrder() {
+    // In turn order, then again in reverse
+    const order = getTurnOrder();
+    return order.concat(order.slice().reverse());
+}
+
+function getActOnePlaces() {
+    // Planets with an Imperial ship and an empty slot
+    return getSystemIds().filter(id => isPlanet(id) && getImperial(id).fresh + getImperial(id).damaged > 0 && getEmptySlotCount(id) > 0);
+}
+
+function placeActOnePieces(player, id, kind) {
+    addShips(id, player.number, 3);
+    placeBuilding(id, player.number, kind);
+    const resource = getPlanetResource(id);
+    setPlayerResource(player, resource, player[resource + "Value"] + 1);
+    syncPanelFromBoard(player);
+    campaign.placeIndex = (campaign.placeIndex || 0) + 1;
+    SaveAllSettings();
+}
+
+function chooseBotActOnePlace(player) {
+    // A starport first, then a city: on a type of planet it has no resource of yet, with room,
+    // and away from Rivals if it can
+    const places = getActOnePlaces();
+    const placedBefore = getBoardBuildings(player.number).length > 0;
+    const score = id => (player[getPlanetResource(id) + "Value"] == 0 ? 4 : 0) + getEmptySlotCount(id)
+        - players.filter(other => other !== player && hasLoyalPiece(id, other.number)).length * 2 + Math.random();
+    const id = places.sort((a, b) => score(b) - score(a))[0];
+    return id == null ? null : { id: id, kind: placedBefore ? "city" : "starport" };
+}
+
+function nextActOnePlacement() {
+    // The next player to place, until everyone has placed twice
+    const order = getActOnePlacementOrder();
+    while ((campaign.placeIndex || 0) < order.length) {
+        const player = order[campaign.placeIndex];
+        if (player.isHuman) { showActOnePlacement(player); return; }
+        const choice = chooseBotActOnePlace(player);
+        if (choice == null) { campaign.placeIndex++; continue; }
+        placeActOnePieces(player, choice.id, choice.kind);
+    }
+    finishActOnePlacements();
+}
+
+function showActOnePlacement(player, chosen = null, kind = "city") {
+    const places = getActOnePlaces();
+    if (places.length == 0) { campaign.placeIndex++; SaveAllSettings(); nextActOnePlacement(); return; }
+    const id = chosen != null && places.includes(chosen) ? chosen : places[0];
+    const order = getActOnePlacementOrder();
+    const imperial = getImperialClusters(campaign.setupRolls);
+    const option = place => {
+        const others = getPiecesText(place).split(". ").filter(text => /^Player /.test(text)).join(", ");
+        return "<button type=\"button\" class=\"btn " + (place == id ? "btn-secondary" : "btn-outline-secondary") + " text-start\" id=\"actOnePlace_" + place + "\" onclick=\"showActOnePlacement(getPlayer(" + player.number + "), '" + place + "', '" + kind + "')\">"
+            + getSystemName(place) + "<small class=\"d-block " + (place == id ? "" : "text-secondary") + "\">" + getEmptySlotCount(place) + " empty slot" + (getEmptySlotCount(place) == 1 ? "" : "s") + " &middot; 1 Imperial ship"
+            + (others ? " &middot; " + tagPlayerNames(others) : "") + "</small></button>";
+    };
+    const kindButton = value => "<button type=\"button\" class=\"btn " + (value == kind ? "btn-secondary" : "btn-outline-secondary") + "\" id=\"actOneKind_" + value + "\" onclick=\"showActOnePlacement(getPlayer(" + player.number + "), '" + id + "', '" + value + "')\">" + capitalise(value) + "</button>";
+    const next = order[(campaign.placeIndex || 0) + 1];
+    const html = "<p class=\"mb-2\">Place <b>3 ships and 1 building</b> in an empty slot at a planet with an Imperial ship. You gain 1 resource of that planet.</p>"
+        + "<div class=\"small text-secondary mb-1\">Clusters " + imperial.join(" and ") + " are Imperial. Planets with an empty slot:</div>"
+        + "<div class=\"d-grid gap-2 mb-3\">" + places.map(option).join("") + "</div>"
+        + "<div class=\"d-flex align-items-center gap-2 mb-3\"><span class=\"small\">Building</span><div class=\"btn-group btn-group-sm\">" + kindButton("city") + kindButton("starport") + "</div></div>"
+        + "<button type=\"button\" class=\"btn btn-primary w-100\" id=\"actOnePlaceDone\" onclick=\"confirmActOnePlacement(" + player.number + ", '" + id + "', '" + kind + "')\">Place 3 ships and a " + kind + " at " + getSystemName(id) + "</button>"
+        + (next != null ? "<div class=\"small text-secondary mt-2\">Next: " + getPlayerTag(next) + (next.isHuman ? "" : " (bot)") + ".</div>" : "");
+    document.getElementById("guildTitle").innerHTML = actNames[1] + " setup &middot; " + (isYou(player) ? "Your placement" : "Player " + player.number + "'s placement");
+    const header = document.querySelector("#guildModal .modal-header");
+    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    header.classList.add("playerbanner" + getPlayerColour(player));
+    document.getElementById("guildBody").innerHTML = html;
+    const modal = document.getElementById("guildModal");
+    if (!modal.classList.contains("show")) { showLockedModal(modal); }
+}
+
+function confirmActOnePlacement(number, id, kind) {
+    placeActOnePieces(getPlayer(number), id, kind);
+    nextActOnePlacement();
+}
+
+function finishActOnePlacements() {
+    // Free cities in every empty slot on a planet with an Imperial ship, then what to place on the table
+    if (!campaign.freeCitiesPlaced) {
+        getSystemIds().filter(id => isPlanet(id) && getImperial(id).fresh + getImperial(id).damaged > 0)
+            .forEach(id => { while (getEmptySlotCount(id) > 0) { placeBuilding(id, freeOwner, "city"); } });
+        campaign.freeCitiesPlaced = true;
+        SaveAllSettings();
+    }
+    const systems = getSystemIds().filter(id => getPiecesText(id).split(". ").some(text => /^Player /.test(text)) || getBuildings(id, freeOwner).length > 0 && getImperial(id).fresh > 0);
+    const html = "<p class=\"mb-2\">Place the players' pieces, and the Free cities on the Imperial planets:</p>"
+        + "<div class=\"mb-2\">" + systems.map(id => "<div class=\"d-flex gap-2 py-1 border-bottom\"><span style=\"min-width:130px\">" + getSystemName(id) + "</span><span class=\"small\">" + tagPlayerNames(getPiecesText(id)) + "</span></div>").join("") + "</div>"
+        + "<p class=\"small text-secondary mb-3\">Each player's resources are on their panel.</p>"
+        + "<button type=\"button\" class=\"btn btn-primary w-100\" id=\"actOneSetupDone\" onclick=\"closeActOneSetup()\">Done: start chapter 1</button>";
+    document.getElementById("guildTitle").innerHTML = actNames[1] + " setup &middot; The players' pieces";
+    document.querySelector("#guildModal .modal-header").classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    document.getElementById("guildBody").innerHTML = html;
+    const modal = document.getElementById("guildModal");
+    if (!modal.classList.contains("show")) { showLockedModal(modal); }
+}
+
+function closeActOneSetup() {
+    const modal = document.getElementById("guildModal");
+    modal.addEventListener('hidden.bs.modal', () => { lastAnnouncedLeader = null; startRoundAfterMulligan(); }, { once: true });
+    bootstrap.Modal.getOrCreateInstance(modal).hide();
 }
 
 function stepNeutral(ambition, change) {
