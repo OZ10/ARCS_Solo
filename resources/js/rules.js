@@ -235,6 +235,12 @@ const turnPlanWeights = {
     repairWarlord: 1,       // + Warlord is declared, as damaged ships are easy Trophies
     moveForBattle: 1.5,     // + a first Move, when it's also going to Battle
     moveGoal: 1.5,          // + a Move with a goal: a Rival to tax or raid, or a slot for a city it wants
+    // #200 phase 3: from the board
+    moveUseful: 1.5,        // + the board's best Move has a purpose: battle, defend, a Rival's city, build, spread
+    buildSlots: 1.5,        // + a city when its resource slots are full or nearly (a city opens one)
+    buildDefend: 1,         // + ships when Rivals have clearly more ships on the board
+    battleExposed: 1,       // + a Rival's building in reach with no ships guarding it (stop them expanding)
+    taxForHand: 0.5,        // + a resource whose prelude action its hand lacks (Fuel with few Move cards)
     repeat: 1.5,            // - for each time the action is already in the plan
     variation: 1            // + up to this much at random per action, set once a turn
 };

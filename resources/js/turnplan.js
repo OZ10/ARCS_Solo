@@ -255,6 +255,10 @@ function getActionPlanScore(player, action, focus) {
             const goal = getMoveGoal(player);
             if (goal != null) { score += weights.moveGoal; reason = goal; }
             else { reason = getMoveReasons(player)[0]; }
+            // The board's best Move has a purpose (#200 phase 3)
+            const best = chooseBoardMove(player, null, getNewCityResource(player));
+            // Spreading out counts for less than a battle, a defence, a Rival's city or a build
+            if (best != null) { score += /^to spread/.test(best.why) ? weights.moveUseful / 2 : weights.moveUseful; reason = getMoveWhy(best); }
             break;
         }
 
@@ -274,6 +278,11 @@ function getActionPlanScore(player, action, focus) {
                 if (reason == "") { reason = getFleetReason(player); }
             }
             if (isLastCard) { score += weights.battleLastCard; if (reason == "") { reason = "its last card this round"; } }
+            // A Rival's building in reach with no ships guarding it: stop them expanding (#200 phase 3)
+            if (players.some(other => other !== player && getExposedBuildings(player, other).length > 0)) {
+                score += weights.battleExposed;
+                if (reason == "") { reason = "a Rival's building in reach has no ships guarding it"; }
+            }
             break;
 
         case "secure":
@@ -299,6 +308,12 @@ function getActionPlanScore(player, action, focus) {
             if (getEmptySlots(player) == 0) { return { score: planImpossible }; }
             if (action != focus && targets.length == 0 && !player.startingCity) { return { score: planImpossible }; }
             if (targets.length > 0) { score += getResourceNeed(player, targets[0]) * weights.taxPerNeed; }
+            // A resource whose prelude action its hand lacks: Fuel with few Move cards, Material
+            // with few Build cards, a Weapon with few Battle cards (#200 phase 3)
+            const lacks = { fuel: "move", materials: "build", weapons: "battle" };
+            const hand = getUnplayedCards(player.cards);
+            const short = targets.find(resource => lacks[resource] != null && hand.filter(card => card.actions.includes(lacks[resource])).length <= 1 && hand.length >= 2);
+            if (short != null) { score += weights.taxForHand; if (reason == "") { reason = "its hand has few " + capitalise(lacks[short]) + " cards, and a " + preludeResourceNames[short] + " gives one"; } }
             break;
         }
 
@@ -308,6 +323,12 @@ function getActionPlanScore(player, action, focus) {
             if (chooseBoardBuild(player) == null && !canUseGuildActionInsteadOf(player, "build")) { return { score: planImpossible }; }
             if (player.shipsBoardValue < getShipTarget(player)) { score += weights.buildFewShips; reason = "more ships: it wants about " + shipsPerBuilding + " per building, or repair a damaged one"; }
             else if (isNearCityBonus(player)) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
+            // #200 phase 3: a city opens a resource slot when they're full or nearly; ships when
+            // Rivals have clearly more, to defend
+            const planned = chooseBoardBuild(player);
+            if (planned != null && planned.kind == "city" && getEmptySlots(player) <= 1) { score += weights.buildSlots; if (reason == "") { reason = "its resource slots are nearly full, and a city opens another"; } }
+            const rivalShips = Math.max(0, ...players.filter(other => other !== player).map(other => getBoardShips(other.number)));
+            if (rivalShips >= getBoardShips(player.number) + 3) { score += weights.buildDefend; if (reason == "") { reason = "Rivals have more ships: it needs to defend"; } }
             break;
 
         case "repair": {
@@ -384,9 +405,12 @@ function getTurnPlan(player) {
     // No more Moves than the board has useful ones, never back the way it came (#197). A Move to
     // set up a Battle is added later if it needs one
     const usefulMoves = available.includes("move") ? getUsefulMoveCount(player) : 0;
+    // Another Battle isn't worth less when attacking again can clear most or all of a Rival's
+    // pieces at good odds (#200 phase 3, the user)
+    const repeatBattle = available.includes("battle") && hasRepeatableBattle(player);
     while (actionsLeft > 0) {
         const value = action => scores[action].score + player.planVariation[action]
-            - chosen.filter(pick => pick.action == action).length * turnPlanWeights.repeat
+            - (action == "battle" && repeatBattle ? 0 : chosen.filter(pick => pick.action == action).length * turnPlanWeights.repeat)
             + (action == "move" && chosen.some(pick => pick.action == "battle") && !chosen.some(pick => pick.action == "move") ? turnPlanWeights.moveForBattle : 0);
         // No more Taxes than it has cities to tax, unless it's taxing Rivals to capture
         const canTaxAgain = scores.tax == null || scores.tax.reason == rivalTaxReason || canTaxCityAgain(player)

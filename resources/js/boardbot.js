@@ -64,6 +64,17 @@ function hasFavourableBattle(player, rival) {
     });
 }
 
+function hasRepeatableBattle(player) {
+    // A battle at good odds where the Rival has 2 or more pieces: attacking again can clear most or
+    // all of them, so more than one Battle is worth planning (#200 phase 3, the user)
+    return getSystemIds().some(id => players.some(rival => {
+        if (rival === player) { return false; }
+        if (typeof canHarmIn == "function" && !canHarmIn(id, player.number, rival.number)) { return false; }
+        const odds = getBattleOdds(player, rival, id);
+        return odds.mine > 0 && isFavourableBattle(odds) && odds.theirs + getBuildings(id, rival.number).length >= 2;
+    }));
+}
+
 function getBattleTargetBoardBonus(player, rival) {
     if (!canReachRival(player, rival)) { return unreachableTargetPenalty; }
     // Only at poor odds: much less worth it (#198)
@@ -242,13 +253,16 @@ function chooseBoardMove(player, battleTarget, wantsCity, avoid = []) {
         // already with them
         const theirs = id => getShips(id, battleTarget).fresh + getShips(id, battleTarget).damaged > 0 || getBuildings(id, battleTarget).length > 0;
         if (getBattleSystem(player, battleTarget) == null) {
-            const options = getSystemsWithShips(player.number).filter(from => getShips(from, player.number).fresh > 0)
+            const options = getSystemsWithShips(player.number).filter(from => getShips(from, player.number).fresh > 0 && !isSettledSpot(player, from))
                 .flatMap(from => getMoveDestinations(from, player.number).filter(id => theirs(id) && ok(id)).map(to => ({ from: from, to: to, count: getShips(from, player.number).fresh })))
                 .sort((a, b) => b.count - a.count);
             if (options.length > 0) { return { ...options[0], why: "to battle" }; }
         }
     }
-    const move = (to, count) => { if (!ok(to)) { return null; } const from = getMoveSources(player, to)[0]; return from == null ? null : { from: from, to: to, count: count == null ? getShips(from, player.number).fresh : Math.min(count, getShips(from, player.number).fresh) }; };
+    // A guard stays on its buildings when it holds resources worth raiding (#200 phase 3)
+    const holdsLoot = preludeResources.some(resource => player[resource + "Value"] > 0);
+    const canTake = from => getShips(from, player.number).fresh - (holdsLoot && getBuildings(from, player.number).length > 0 && getShips(from, player.number).fresh > 1 ? 1 : 0);
+    const move = (to, count) => { if (!ok(to)) { return null; } const from = getMoveSources(player, to).filter(source => !isSettledSpot(player, source))[0]; return from == null ? null : { from: from, to: to, count: count == null ? canTake(from) : Math.min(count, canTake(from)) }; };
     // Defending one of its cities a Rival's fleet could reach, with enough to hold it
     const threatened = getThreatenedCity(player);
     if (threatened != null) { const found = move(threatened.id, threatened.gap + 1); if (found != null) { return { ...found, why: "to defend its city there from a Rival fleet in reach" }; } }
@@ -260,7 +274,17 @@ function chooseBoardMove(player, battleTarget, wantsCity, avoid = []) {
     }
     const unguarded = getBoardCities(player.number).map(city => city.system).find(id => ok(id) && getShips(id, player.number).fresh == 0 && getMoveSources(player, id).length > 0);
     if (unguarded != null) { const found = move(unguarded, 1); if (found != null) { return { ...found, why: "to guard its city" }; } }
+    // Spread out: an empty planet with a free slot and no Rival pieces, to build on later (#200 phase 3)
+    const open = getSystemIds().find(id => ok(id) && isPlanet(id) && getEmptySlotCount(id) > 0 && !hasRivalPieces(id, player) && !hasLoyalPiece(id, player.number) && getMoveSources(player, id).length > 0);
+    if (open != null) { const found = move(open, 2); if (found != null && found.count > 0) { return { ...found, why: "to spread out to an open planet, to build there later" }; } }
     return null;
+}
+
+function isSettledSpot(player, id) {
+    // A small group of its ships (1 or 2) on an open planet with a free slot and no Rival pieces:
+    // there to build later, so they stay until that changes (#200 phase 3, the user)
+    const ships = getShips(id, player.number);
+    return isPlanet(id) && getEmptySlotCount(id) > 0 && !hasRivalPieces(id, player) && ships.fresh + ships.damaged > 0 && ships.fresh + ships.damaged <= 2;
 }
 
 function getMoveWhy(where) {
