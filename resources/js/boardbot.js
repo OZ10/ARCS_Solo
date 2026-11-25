@@ -292,6 +292,9 @@ function applyBoardStep(player, where) {
     if (where.from != null) { moveShips(where.from, where.to, player.number, where.count); }
     if (where.kind == "city" || where.kind == "starport") { placeBuilding(where.system, player.number, where.kind, isControlledByOther(where.system, player.number)); }
     if (where.kind == "ship") { addShips(where.system, player.number, 1, isControlledByOther(where.system, player.number)); }
+    // Guild cards that place ships (#197): 1 in each gate in play, or some in one system
+    if (where.kind == "gateShips") { getSystemIds().filter(isGate).forEach(id => addShips(id, player.number, 1)); }
+    if (where.kind == "placeShips") { addShips(where.system, player.number, where.count); }
     if (where.kind == "repair") {
         if (getShips(where.system, player.number).damaged > 0) { removeShips(where.system, player.number, 1, true); addShips(where.system, player.number, 1); }
         else { setBuildingDamaged(where.system, player.number, where.building, false); }
@@ -312,8 +315,10 @@ function placeBoardPlan(player, plan) {
     const target = battleStep != null ? getBattleTarget(player) : null;
     const targetNumber = target != null && typeof target.player.number == "number" ? target.player.number : null;
     withBoardCopy(() => {
+        // Its prelude's Moves, Builds and ship placements come first (#197)
+        getBotPreludeSpent(player).filter(offer => offer.where != null && !offer.applied && canCompleteBotStep(offer)).forEach(offer => applyBoardStep(player, offer.where));
         // Systems it has moved ships out of this turn: never back into them (#197)
-        const movedFrom = [];
+        const movedFrom = getBotPreludeSpent(player).filter(offer => offer.where != null && offer.where.from != null).map(offer => offer.where.from);
         plan.forEach(step => {
             let where = null;
             if (step.action == "move") {
@@ -347,15 +352,22 @@ function placeBoardPlan(player, plan) {
 function applyBotPlanToBoard(player) {
     // When its turn is done: its Moves, Builds and Repairs on the real board (a Battle's results
     // come from the Battle window). Any not carried out are put right in the board check
+    // Its prelude's Moves, Builds and ship placements first, as they came first (#197)
+    getBotPreludeSpent(player).forEach(offer => applyBotStep(player, offer));
     (player.turnPlan || []).forEach(step => applyBotStep(player, step));
     syncPanelFromBoard(player);
     SaveAllSettings();
 }
 
+function getBotPreludeSpent(player) {
+    return (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
+}
+
 function applyBotStep(player, step) {
-    // One step on the real board, once: when ticked Completed (#201) or when its turn is done
+    // One step on the real board, once: when ticked Completed (#201) or when its turn is done.
+    // A prelude offer with a place works the same way (#197)
     if (step.where == null || step.applied) { return; }
-    if (step.action == "move" || step.action == "build" || step.action == "repair") { applyBoardStep(player, step.where); }
+    if (step.action == "move" || step.action == "build" || step.action == "repair" || step.where.kind == "gateShips" || step.where.kind == "placeShips") { applyBoardStep(player, step.where); }
     // A Tax: the resource on its panel, if there's one left and room for it, and a Captive
     // from a Rival's city (#187)
     if (step.action == "tax" && step.where.tax) {
@@ -382,7 +394,19 @@ function completeBotStep(index) {
 }
 
 function canCompleteBotStep(step) {
-    return step.where != null && ["move", "build", "repair", "tax"].includes(step.action);
+    return step.where != null && (["move", "build", "repair", "tax"].includes(step.action) || step.where.kind == "gateShips" || step.where.kind == "placeShips");
+}
+
+function completeBotPreludeOffer(index) {
+    // The Completed button beside a prelude spend with a place (#197)
+    const player = getTurnPlayer();
+    if (player == null || player.isHuman) { return; }
+    const offer = getBotPreludeSpent(player)[index];
+    if (offer == null) { return; }
+    applyBotStep(player, offer);
+    syncPanelFromBoard(player);
+    SaveAllSettings();
+    renderTurn(player);
 }
 
 // A bot's Battle window: the counts from the battle system on the board, and its results back on it
@@ -401,6 +425,7 @@ function prefillBattleFromBoard() {
             // so the counts are where its ships are now (#201)
             const plan = attacker.turnPlan || [];
             const upTo = step != null ? plan.indexOf(step) : plan.length;
+            getBotPreludeSpent(attacker).filter(canCompleteBotStep).forEach(offer => applyBotStep(attacker, offer));
             plan.slice(0, upTo).filter(canCompleteBotStep).forEach(item => applyBotStep(attacker, item));
             syncPanelFromBoard(attacker);
             system = step != null ? step.where.system : getBattleSystem(attacker, defender.number);

@@ -291,8 +291,14 @@ function getPreludeOffers(player) {
         offerAction("materials", "Build or Repair", "build", false, "The board shows it can build or repair, and its card doesn't build.");
     } else if (battleWhy != null && canBattle && player.canBuild !== false && (player.starportsValue || 0) > 0 && !play.actions.includes("build")) {
         offerAction("materials", "Build a ship at a starport, or repair a damaged ship, ready for its battle", "build", false, battleWhy + ": one more ship, or a repaired one, makes the battle safer.");
-    } else if (player.canBuild !== false && wants(preludeChance.spare)) {
-        offerAction("materials", usefulIf.materials, "build");
+    } else if (!play.actions.includes("build")) {
+        // The board shows a good spot to build: decided, and where (#197). No longer a guess
+        const where = chooseBoardBuild(player);
+        if (where != null) {
+            const before = offered();
+            offerAction("materials", where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system), "build", false, "The board has a good spot for it, and its card doesn't build.");
+            if (offered() > before) { offers[offers.length - 1].where = where; }
+        }
     }
     // Fuel: decided if the player said it can reach something and its card doesn't move
     // Or, with a battle in mind and a way to battle, to bring more ships to it (#140)
@@ -300,12 +306,18 @@ function getPreludeOffers(player) {
         const before = offered();
         offerAction("fuel", "Move, and free a slot for what it raids", "move", false, slotWhy);
         slotFreed = offered() > before;
-    } else if (player.moveGoal != null && !play.actions.includes("move")) {
-        offerAction("fuel", "Move " + player.moveGoal, "move", false, "The board shows it can reach that this turn, and its card doesn't move.");
-    } else if (battleWhy != null && canBattle && !play.actions.includes("move")) {
-        offerAction("fuel", "Move more ships into its battle", "move", false, battleWhy + ", and more ships make the battle safer.");
-    } else if (wants(preludeChance.spare)) {
-        offerAction("fuel", usefulIf.fuel, "move");
+    } else if (!play.actions.includes("move")) {
+        // The board's best Move: to its battle, a city to defend or take, or a planet to build on.
+        // Decided, and exactly where (#197)
+        const target = battleWhy != null && canBattle ? getBattleTarget(player) : null;
+        const targetNumber = target != null && typeof target.player.number == "number" ? target.player.number : null;
+        const where = chooseBoardMove(player, targetNumber, getNewCityResource(player));
+        if (where != null) {
+            const before = offered();
+            offerAction("fuel", "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")", "move", false,
+                (battleWhy != null && where.why == "to battle" ? battleWhy + ", and" : "The board has a useful Move, and") + " its card doesn't move.");
+            if (offered() > before) { offers[offers.length - 1].where = where; }
+        }
     }
     // Relic: with the market entered it knows what it could secure, so decides. Otherwise the
     // player's call
@@ -320,14 +332,9 @@ function getPreludeOffers(player) {
     // so only when the card has actions and doesn't battle already (rulebook p.17)
     if (play.count > 0 && !play.actions.includes("battle") && battleWhy != null) {
         offerAction("weapons", "Its card's actions can Battle this turn", "battle", true, battleWhy + ", and its card can't Battle.");
-    } else if (play.count > 0 && !play.actions.includes("battle")) {
-        let chance = preludeChance.weaponsHavoc;
-        if (chasingWarlord) { chance += preludeChance.weaponsWarlord; }
-        if (manyShips) {
-            chance += preludeChance.weaponsManyShips;
-            if (!declaredAmbitions.includes("warlord") && declaredAmbitions.length < 3) { chance += preludeChance.weaponsSaveTrophies; }
-        }
-        if (wants(chance)) { offerAction("weapons", "Its card's actions can Battle this turn", "battle", true); }
+    } else if (play.count > 0 && !play.actions.includes("battle") && players.some(other => other !== player && hasFavourableBattle(player, other))) {
+        // The board shows a battle at good odds (#197, #198): decided, not a guess
+        offerAction("weapons", "Its card's actions can Battle this turn", "battle", true, "The board shows a battle it can win the odds in, and its card can't Battle.");
     }
 
     // Psionics give an action from the lead card. When the bot led, that's only worth it for
@@ -335,8 +342,9 @@ function getPreludeOffers(player) {
     const lead = playedCardList[0];
     if (play.leading) {
         const chance = (chasingWarlord ? preludeChance.psionicsWarlord : 0) + (manyShips ? preludeChance.psionicsManyShips : 0);
-        if (play.actions.includes("battle") && battleWhy != null) { offerAction("psionics", "One more Battle than the card allows", "battle", false, battleWhy + "."); }
-        else if (play.actions.includes("battle") && chance > 0 && wants(chance)) { offerAction("psionics", "One more Battle than the card allows", "battle"); }
+        // Only with a battle at good odds on the board (#197, #198)
+        const goodBattle = players.some(other => other !== player && hasFavourableBattle(player, other));
+        if (play.actions.includes("battle") && battleWhy != null && goodBattle) { offerAction("psionics", "One more Battle than the card allows", "battle", false, battleWhy + ", at good odds on the board."); }
     } else {
         // Decided when it knows the lead card's action is worth it, or it has a battle in mind and
         // the lead card can Battle (#140)
@@ -348,8 +356,7 @@ function getPreludeOffers(player) {
             available.psionics -= 1;
             offers.push({ label: "1 Psionic", text: "An action from the lead card (" + lead.actions.split(",").filter(action => action != "battle").join(", ") + ")", costs: { psionics: 1 }, action: "lead", converts: false, decided: true, why: steerWhy });
         } else if (decision != null) { offerAction("psionics", decision.text, "lead", false, decision.why); }
-        else if (battleWhy != null && lead.actions.includes("battle")) { offerAction("psionics", "A Battle, from the lead card", "lead", false, battleWhy + ", and the lead card can Battle."); }
-        else if (wants(chance)) { offerAction("psionics", "An action from the lead card (" + lead.actions.split(",").join(", ") + ")", "lead"); }
+        else if (battleWhy != null && lead.actions.includes("battle") && players.some(other => other !== player && hasFavourableBattle(player, other))) { offerAction("psionics", "A Battle, from the lead card", "lead", false, battleWhy + ", the board shows good odds, and the lead card can Battle."); }
     }
 
     // The bot's own Guild cards
@@ -360,18 +367,19 @@ function getPreludeOffers(player) {
     if (holds(16) && !player.hasInitiative && !hasInitiativeBeenClaimedThisTurn) {
         const toDeclare = ["tycoon", "tyrant", "warlord", "keeper", "empath"].find(ambition => holdsAmbitionCard(player, ambition)
             && getAmbitionPlacePoints(player, ambition, ambitionResources[ambition](player)) == 2);
+        // Only when it knows it's worth it: no guess left to the player (#197)
         if (toDeclare != null) { discard(getCourtCard(16), "seize the initiative", { seize: true, decided: true, why: "Leading next turn lets it declare " + capitalise(toDeclare) + " from its hand, where it would come first." }); }
-        else if (wants(preludeChance.seize)) { discard(getCourtCard(16), "seize the initiative", { seize: true }); }
     }
 
-    // Ships: a ship in each gate, or 3 ships in a system it controls, when keen to battle.
-    // Only one of these a turn
+    // Ships: a ship in each gate, or 3 ships in the system it controls with most of its ships, when
+    // keen to battle. Decided, and put on the board (#197). Only one of these a turn
     if (keenToBattle) {
         const shipCard = guild.find(card => card.placesShips && card.number != 8);
-        if (holds(8) && wants(preludeChance.gateShips)) {
-            discard(getCourtCard(8), "place 1 ship in each gate (unless out of play)");
-        } else if (shipCard != null && wants(preludeChance.placeShips)) {
-            discard(shipCard, "place 3 ships in a system it controls");
+        const controlled = getControlledSystems(player.number).sort((a, b) => getShips(b, player.number).fresh - getShips(a, player.number).fresh)[0];
+        if (holds(8)) {
+            discard(getCourtCard(8), "place 1 ship in each gate", { decided: true, why: "It's keen to battle: more ships across the map.", where: { kind: "gateShips" } });
+        } else if (shipCard != null && controlled != null) {
+            discard(shipCard, "place 3 ships at " + getSystemName(controlled), { decided: true, why: "It's keen to battle: 3 more ships where it's strongest.", where: { kind: "placeShips", system: controlled, count: 3 } });
         }
     }
 
@@ -387,9 +395,6 @@ function getPreludeOffers(player) {
     if (holds(23) && canSpareResource(player, "relics") && getEmptySlots(player) >= 2) {
         discard(getCourtCard(23), "gain 1 Material, 1 Fuel and 1 Weapon", { gains: { materials: 1, fuel: 1, weapons: 1 },
             decided: true, why: "It can spare the card's Relic, and has " + getEmptySlots(player) + " empty resource slots." });
-    } else if (holds(23) && canSpareResource(player, "relics") && wants(preludeChance.elderBroker)) {
-        // Little room for what it gains: the player's call
-        discard(getCourtCard(23), "gain 1 Material, 1 Fuel and 1 Weapon", { gains: { materials: 1, fuel: 1, weapons: 1 } });
     }
 
     // Relic Fence (kept): swap a spare resource for a relic, when chasing Keeper
@@ -412,8 +417,6 @@ function getPreludeOffers(player) {
         if (target != null) {
             discard(getCourtCard(20), "steal 1 " + preludeResourceNames[target.resource] + " from Player " + target.other.number + " (take it off their panel)", { gains: { [target.resource]: 1 },
                 decided: true, why: "Player " + target.other.number + " holds " + target.count + " " + getResourceWord(target.resource) + ", which it needs for " + capitalise(preludeAmbitions[target.resource]) + "." });
-        } else if (wants(preludeChance.steal)) {
-            discard(getCourtCard(20), "steal a Guild card or a resource it's chasing an ambition with");
         }
     }
 

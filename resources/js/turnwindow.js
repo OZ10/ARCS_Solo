@@ -138,7 +138,11 @@ function getSplitPlanStep(step, player) {
 function getOfferRows(offers) {
     // Prelude or Guild actions carried out. Their tiles have already been updated
     const tool = offer => turnActionTools[offer.action] != null ? getToolButton(turnActionTools[offer.action]) : "";
-    return offers.map(offer => getTurnRow("<i class=\"bi bi-check-lg\"></i>", offer.label, capitalise(offer.text), tool(offer))).join("");
+    // A bot's prelude Move, Build or ship placement has a place on the board, and a Completed
+    // button like its plan's steps (#197)
+    const complete = (offer, index) => offers === getBotPreludeSpent(getTurnPlayer() || {}) && canCompleteBotStep(offer)
+        ? (offer.applied ? "<span class=\"small text-secondary\">Done</span>" : "<button type=\"button\" class=\"btn btn-outline-primary btn-sm turnact\" id=\"completeOffer" + index + "\" onclick=\"completeBotPreludeOffer(" + index + ")\"><i class=\"bi bi-check-lg\"></i> Completed</button>") : "";
+    return offers.map((offer, index) => getTurnRow("<i class=\"bi bi-check-lg\"></i>", offer.label, capitalise(offer.text), tool(offer) + complete(offer, index))).join("");
 }
 
 function getCardHtml(player) {
