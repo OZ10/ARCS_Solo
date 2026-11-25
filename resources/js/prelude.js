@@ -30,9 +30,50 @@ function couldGainPlace(player, ambition) {
 }
 
 function isChasingAmbition(player, ambition) {
-    // Placing now, or close to it
+    // Placing now, or likely to with the cards it has left this round (#200: the ambition model)
+    if (ambitionResources[ambition] == null) { return false; }
+    return getAmbitionOutlook(player, ambition).likely > 0;
+}
+
+// The ambition model (#200): where it places now, what its hand could still add this round, and so
+// where it's likely to end up. Late in the round, with few cards left, there's little left to gain
+
+// Set while the model works something out: what it asks (such as whether a Fuel can be spared to
+// Move into a battle) can ask whether it's chasing an ambition again, which counts its place now only
+let ambitionGainBusy = false;
+
+function getAmbitionGain(player, ambition) {
+    // How many more it could gain this round: one for each card left that can get it some
+    if (ambitionGainBusy) { return 0; }
+    ambitionGainBusy = true;
+    try { return countAmbitionGain(player, ambition); } finally { ambitionGainBusy = false; }
+}
+
+function countAmbitionGain(player, ambition) {
+    const cards = getUnplayedCards(player.cards || []);
+    const resources = ambitionTaxResources[ambition.toUpperCase()] || [];
+    // Its own cities of the type (not getTaxTargets: that sorts by need, which asks this again)
+    const canTax = resources.some(resource => player["cities" + capitalise(resource) + "Value"] > 0);
+    const rivals = players.filter(other => other !== player);
+    const goodBattle = typeof hasFavourableBattle == "function" && rivals.some(other => hasFavourableBattle(player, other));
+    const canRaid = resources.length > 0 && goodBattle && rivals.some(other => resources.some(resource => other[resource + "Value"] > 0));
+    const helps = card => {
+        const actions = card.actions || "";
+        if (ambition == "warlord") { return actions.includes("battle") && goodBattle; }
+        if (ambition == "tyrant") { return (actions.includes("tax") && getTaxableCities(player.number).some(city => city.owner != player.number)) || actions.includes("secure"); }
+        return (actions.includes("tax") && canTax) || (actions.includes("battle") && canRaid);
+    };
+    return cards.filter(helps).length;
+}
+
+function getAmbitionOutlook(player, ambition) {
+    // { own, now, gain, likely }: points for where it places now and where it's likely to (2 first,
+    // 1 second or a tie for first)
     const own = ambitionResources[ambition](player);
-    return getAmbitionPlacePoints(player, ambition, own) > 0 || couldGainPlace(player, ambition);
+    const now = getAmbitionPlacePoints(player, ambition, own);
+    const gain = getAmbitionGain(player, ambition);
+    const likely = Math.max(now, getAmbitionPlacePoints(player, ambition, own + gain));
+    return { own: own, now: now, gain: gain, likely: likely };
 }
 
 function isAmbitionInReach(player, ambition) {

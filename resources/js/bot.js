@@ -607,19 +607,13 @@ function prioritiseAndSortAmbitions() {
 }
 
 function getAmbitionStanding() {
-    let amibitions = [];
-    amibitions.push(["empath", currentPlayer.psionicsValue]);
-    amibitions.push(["keeper", currentPlayer.relicsValue]);
-    amibitions.push(["warlord", currentPlayer.trophiesValue]);
-    amibitions.push(["tyrant", currentPlayer.captivesValue]);
-    amibitions.push(["tycoon", currentPlayer.fuelValue + currentPlayer.materialsValue]);
-
-    const ambitionSorted = amibitions.slice().sort((a, b) => {
-        const numA = typeof a === 'object' && a !== null ? a[1] : a[1];
-        const numB = typeof b === 'object' && b !== null ? b[1] : b[1];
-        return numB - numA;
+    // [[ambition, value]], best first: where it's likely to place this round (the ambition model,
+    // #200), then where it places now, then how many it has. 0 for one it isn't likely to place in
+    const ambitions = ["empath", "keeper", "warlord", "tyrant", "tycoon"].map(ambition => {
+        const outlook = getAmbitionOutlook(currentPlayer, ambition);
+        return [ambition, outlook.likely > 0 ? outlook.likely * 100 + outlook.now * 10 + outlook.own : 0];
     });
-    return ambitionSorted;
+    return ambitions.sort((a, b) => b[1] - a[1]);
 }
 
 function answerNo() {
@@ -697,13 +691,13 @@ function declareAmbition(player, playedCard) {
     const resources = instead != null ? instead.resources : ((ambitionResources[ambition] == null) ? 0 : ambitionResources[ambition](player));
     if (resources == 0 && !forShips) { return; }
 
-    // See declareChanceByRound at the top of the file. In a campaign, more when its Fate pays for
-    // winning ambitions (campaignhooks.js)
-    const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource + (runCampaignHook("declareBonus", player, ambition) || 0), declareChanceMax);
-
-    // By the difficulty (#71): on a whim, or when it would come first, or both
-    const wins = instead != null ? instead.wins : wouldWinAmbition(player, ambition);
-    if (forShips || decideAtDifficulty(player, wins, () => Math.random() * 100 < getWhimChance(chance))) {
+    // The ambition model (#200): declared on purpose when it's likely to come first; when it's
+    // likely to come second, sometimes. A campaign Fate that pays for winning ambitions makes it
+    // keener (campaignhooks.js). Hard always follows the model; the others slip and take whims
+    const outlook = instead != null ? { likely: instead.wins ? 2 : 0 } : getAmbitionOutlook(player, ambition);
+    const keener = (runCampaignHook("declareBonus", player, ambition) || 0) > 0;
+    const good = outlook.likely == 2 || (keener && outlook.likely >= 1);
+    if (forShips || decideByModel(good, outlook.likely >= 1)) {
         showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = placesZeroMarker(player, ambition);
 

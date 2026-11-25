@@ -29,6 +29,14 @@ function wouldWinAmbition(player, ambition) {
         && getAmbitionPlacePoints(player, ambition, ambitionResources[ambition](player)) == 2;
 }
 
+function decideByModel(good, maybe = false) {
+    // What the ambition model says (#200), with this difficulty's slips and whims. Hard always
+    // follows it. maybe: worth doing sometimes (a whim twice as likely)
+    const level = getDifficulty();
+    if (!(level.slip > 0) && !(level.whim > 0)) { return good; }
+    return Math.random() < (good ? 1 - level.slip : (maybe ? level.whim * 2 : level.whim));
+}
+
 function decideAtDifficulty(player, smartChoice, whim) {
     // Whether to do something that can be worked out (smartChoice) or left to a chance (whim, a
     // function so the dice are only rolled when they're needed)
