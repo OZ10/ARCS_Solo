@@ -165,6 +165,23 @@ function getBoardAnswer(ambition, action, player) {
 // the next step's ships are. Each step gets where: { from, to, count } for a Move, { system, kind }
 // for a Build, { system } for the others
 
+function getUsefulMoveCount(player, most = 3) {
+    // How many Moves the board has a use for this turn, one after another, never back the way it
+    // came (#197)
+    let count = 0;
+    withBoardCopy(() => {
+        const movedFrom = [];
+        while (count < most) {
+            const where = chooseBoardMove(player, null, getNewCityResource(player), movedFrom);
+            if (where == null) { break; }
+            movedFrom.push(where.from);
+            applyBoardStep(player, where);
+            count++;
+        }
+    });
+    return count;
+}
+
 function withBoardCopy(work) {
     // Runs work on a copy of the board, then puts the real one back
     const real = board;
@@ -181,7 +198,9 @@ function getBattleSystem(player, targetNumber) {
         .sort((a, b) => edge(b) - edge(a))[0] || null;
 }
 
-function chooseBoardMove(player, battleTarget, wantsCity) {
+function chooseBoardMove(player, battleTarget, wantsCity, avoid = []) {
+    // avoid: systems it moved ships out of this turn, never moved back into (#197)
+    const ok = id => !avoid.includes(id);
     // { from, to, count }, or null: to the battle, else a Rival city to tax or raid, a planet to
     // build a city on, or one of its cities with no ships
     if (battleTarget != null) {
@@ -190,22 +209,22 @@ function chooseBoardMove(player, battleTarget, wantsCity) {
         const theirs = id => getShips(id, battleTarget).fresh + getShips(id, battleTarget).damaged > 0 || getBuildings(id, battleTarget).length > 0;
         if (getBattleSystem(player, battleTarget) == null) {
             const options = getSystemsWithShips(player.number).filter(from => getShips(from, player.number).fresh > 0)
-                .flatMap(from => getMoveDestinations(from, player.number).filter(theirs).map(to => ({ from: from, to: to, count: getShips(from, player.number).fresh })))
+                .flatMap(from => getMoveDestinations(from, player.number).filter(id => theirs(id) && ok(id)).map(to => ({ from: from, to: to, count: getShips(from, player.number).fresh })))
                 .sort((a, b) => b.count - a.count);
             if (options.length > 0) { return { ...options[0], why: "to battle" }; }
         }
     }
-    const move = (to, count) => { const from = getMoveSources(player, to)[0]; return from == null ? null : { from: from, to: to, count: count == null ? getShips(from, player.number).fresh : Math.min(count, getShips(from, player.number).fresh) }; };
+    const move = (to, count) => { if (!ok(to)) { return null; } const from = getMoveSources(player, to)[0]; return from == null ? null : { from: from, to: to, count: count == null ? getShips(from, player.number).fresh : Math.min(count, getShips(from, player.number).fresh) }; };
     // Defending one of its cities a Rival's fleet could reach, with enough to hold it
     const threatened = getThreatenedCity(player);
-    if (threatened != null) { const found = move(threatened.id, threatened.gap + 1); if (found != null) { return { ...found, why: "to defend its city at " + threatened.id + " from a Rival fleet in reach" }; } }
-    const rivalCity = getSystemIds().find(id => getBuildings(id, null, "city").some(city => city.owner != player.number) && getMoveSources(player, id).length > 0);
+    if (threatened != null) { const found = move(threatened.id, threatened.gap + 1); if (found != null) { return { ...found, why: "to defend its city there from a Rival fleet in reach" }; } }
+    const rivalCity = getSystemIds().find(id => ok(id) && getBuildings(id, null, "city").some(city => city.owner != player.number) && getMoveSources(player, id).length > 0);
     if (rivalCity != null && battleTarget == null) { const found = move(rivalCity, null); if (found != null) { return { ...found, why: "to a Rival's city" }; } }
     if (wantsCity != null) {
-        const planet = getSystemIds().find(id => isPlanet(id) && getPlanetResource(id) == wantsCity && getEmptySlotCount(id) > 0 && !isControlledByOther(id, player.number) && getMoveSources(player, id).length > 0);
+        const planet = getSystemIds().find(id => ok(id) && isPlanet(id) && getPlanetResource(id) == wantsCity && getEmptySlotCount(id) > 0 && !isControlledByOther(id, player.number) && getMoveSources(player, id).length > 0);
         if (planet != null) { const found = move(planet, 1); if (found != null) { return { ...found, why: "to build a city" }; } }
     }
-    const unguarded = getBoardCities(player.number).map(city => city.system).find(id => getShips(id, player.number).fresh == 0 && getMoveSources(player, id).length > 0);
+    const unguarded = getBoardCities(player.number).map(city => city.system).find(id => ok(id) && getShips(id, player.number).fresh == 0 && getMoveSources(player, id).length > 0);
     if (unguarded != null) { const found = move(unguarded, 1); if (found != null) { return { ...found, why: "to guard its city" }; } }
     return null;
 }
@@ -259,12 +278,16 @@ function placeBoardPlan(player, plan) {
     const target = battleStep != null ? getBattleTarget(player) : null;
     const targetNumber = target != null && typeof target.player.number == "number" ? target.player.number : null;
     withBoardCopy(() => {
+        // Systems it has moved ships out of this turn: never back into them (#197)
+        const movedFrom = [];
         plan.forEach(step => {
             let where = null;
             if (step.action == "move") {
-                where = chooseBoardMove(player, targetNumber, getNewCityResource(player));
+                where = chooseBoardMove(player, targetNumber, getNewCityResource(player), movedFrom);
                 // Its reason is where it's going and why
-                if (where != null) { step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
+                if (where != null) { movedFrom.push(where.from); step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
+                // Nothing useful on the board: say so rather than leave it vague (#197)
+                else { step.text = "No Move: the board has nowhere useful to go, so skip this action"; }
             } else if (step.action == "build") {
                 where = chooseBoardBuild(player);
                 if (where != null) { step.text = step.text.replace(/^Build/, where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system)); }
@@ -290,22 +313,42 @@ function placeBoardPlan(player, plan) {
 function applyBotPlanToBoard(player) {
     // When its turn is done: its Moves, Builds and Repairs on the real board (a Battle's results
     // come from the Battle window). Any not carried out are put right in the board check
-    (player.turnPlan || []).forEach(step => {
-        if (step.where == null || step.applied) { return; }
-        if (step.action == "move" || step.action == "build" || step.action == "repair") { applyBoardStep(player, step.where); }
-        // A Tax: the resource on its panel, if there's one left and room for it, and a Captive
-        // from a Rival's city (#187)
-        if (step.action == "tax" && step.where.tax) {
-            const resource = getPlanetResource(step.where.system);
-            if (resource != null && getResourceSupply(resource) > 0 && getEmptySlots(player) > 0) {
-                setPlayerResource(player, resource, player[resource + "Value"] + 1);
-                if (step.where.owner != null && step.where.owner != player.number) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
-            }
-        }
-        step.applied = true;
-    });
+    (player.turnPlan || []).forEach(step => applyBotStep(player, step));
     syncPanelFromBoard(player);
     SaveAllSettings();
+}
+
+function applyBotStep(player, step) {
+    // One step on the real board, once: when ticked Completed (#201) or when its turn is done
+    if (step.where == null || step.applied) { return; }
+    if (step.action == "move" || step.action == "build" || step.action == "repair") { applyBoardStep(player, step.where); }
+    // A Tax: the resource on its panel, if there's one left and room for it, and a Captive
+    // from a Rival's city (#187)
+    if (step.action == "tax" && step.where.tax) {
+        const resource = getPlanetResource(step.where.system);
+        if (resource != null && getResourceSupply(resource) > 0 && getEmptySlots(player) > 0) {
+            setPlayerResource(player, resource, player[resource + "Value"] + 1);
+            if (step.where.owner != null && step.where.owner != player.number) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
+        }
+    }
+    step.applied = true;
+}
+
+function completeBotStep(index) {
+    // The Completed button beside a step in its turn window (#201): on the board now, so the next
+    // step's window counts from it
+    const player = getTurnPlayer();
+    if (player == null || player.isHuman) { return; }
+    const step = (player.turnPlan || [])[index];
+    if (step == null) { return; }
+    applyBotStep(player, step);
+    syncPanelFromBoard(player);
+    SaveAllSettings();
+    renderTurn(player);
+}
+
+function canCompleteBotStep(step) {
+    return step.where != null && ["move", "build", "repair", "tax"].includes(step.action);
 }
 
 // A bot's Battle window: the counts from the battle system on the board, and its results back on it
@@ -320,6 +363,12 @@ function prefillBattleFromBoard() {
         let system = places[0];
         if (!attacker.isHuman) {
             const step = (attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.battle == defender.number && !item.applied);
+            // Its steps before this Battle go on the board first, such as the Move that sets it up,
+            // so the counts are where its ships are now (#201)
+            const plan = attacker.turnPlan || [];
+            const upTo = step != null ? plan.indexOf(step) : plan.length;
+            plan.slice(0, upTo).filter(canCompleteBotStep).forEach(item => applyBotStep(attacker, item));
+            syncPanelFromBoard(attacker);
             system = step != null ? step.where.system : getBattleSystem(attacker, defender.number);
         }
         if (system != null) { fillBattleFromSystem(system); }

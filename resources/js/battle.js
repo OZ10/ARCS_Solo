@@ -423,6 +423,7 @@ function showBattleModal(button) {
     hideIconTooltip(button, "battleModal");
     battle.ships = 1;
     battle.attackerDamaged = 0;
+    battle.capsAt = null;
     battle.fresh = 1;
     battle.damaged = 0;
     battle.freshBuildings = 0;
@@ -493,9 +494,44 @@ function showBattleCountTiles(simple) {
 function battleStep(field, change) {
     // The -/+ buttons (and the keys for a raid). The attacker needs a ship to start, but can
     // lose them all once it has rolled
-    const minimum = (field == "ships" && battle.start == null) ? 1 : 0;
-    battle[field] = Math.max(minimum, battle[field] + change);
+    // Before the battle it needs at least one attacking ship, fresh or damaged
+    const minimum = (field == "ships" && battle.start == null && !(battle.attackerDamaged > 0)) ? 1 : 0;
+    // Each fresh count and its damaged one (#195)
+    const pairs = { ships: "attackerDamaged", fresh: "damaged", freshBuildings: "damagedBuildings" };
+    const damagedOf = pairs[field];
+    const freshOf = Object.keys(pairs).find(key => pairs[key] == field);
+    // Once the battle has started, a fresh ship or building lost is damaged, and a damaged one lost is destroyed
+    if (change < 0 && battle.start != null && damagedOf != null && battle[field] > minimum) {
+        battle[field] -= 1;
+        battle[damagedOf] = (battle[damagedOf] || 0) + 1;
+        updateBattleCounts();
+        return;
+    }
+    battle[field] = Math.max(minimum, (battle[field] || 0) + change);
+    // Never more than the board has in the battle system, fresh and damaged together (#195)
+    const caps = getBattleCaps();
+    const pairKey = damagedOf != null ? field : freshOf;
+    if (caps != null && pairKey != null && change > 0) {
+        const total = battle[pairKey] + (battle[pairs[pairKey]] || 0);
+        if (total > caps[pairKey]) { battle[field] -= total - caps[pairKey]; }
+    }
     updateBattleCounts();
+}
+
+function getBattleCaps() {
+    // What the board has in the battle system: { ships, fresh, freshBuildings } as totals of fresh and
+    // damaged, or null with no system from the board (#195)
+    const system = battle.boardSystem;
+    if (system == null || battle.attacker == null || battle.defender == null) { return null; }
+    const mine = getShips(system, battle.attacker.number);
+    const kind = battle.defender.campaignDefender;
+    const theirs = kind == "blight" ? getBlight(system) : kind == "empire" ? getImperial(system) : kind == "free" ? { fresh: 0, damaged: 0 } : getShips(system, battle.defender.number);
+    const buildings = kind == "free" ? getBuildings(system, freeOwner) : kind != null ? [] : getBuildings(system, battle.defender.number);
+    // Counted when the window opened, so the caps don't shrink as the board changes after it
+    if (battle.capsAt == null || battle.capsAt.system != system || battle.capsAt.defender != battle.defender.number) {
+        battle.capsAt = { system: system, defender: battle.defender.number, ships: mine.fresh + mine.damaged, fresh: theirs.fresh + theirs.damaged, freshBuildings: buildings.length };
+    }
+    return battle.capsAt;
 }
 
 function updateBattleCounts() {
@@ -536,8 +572,8 @@ function setInGate(inGate) {
 }
 
 function getBattleDiceLimit() {
-    // One die per ship, and 2 more with Gatekeepers in a gate
-    return battle.ships + (battle.inGate && holdsGuildCard(battle.attacker, 8) ? 2 : 0) + getLeaderExtraDice(battle.attacker);
+    // One die per attacking ship, fresh or damaged (rulebook p.14), and 2 more with Gatekeepers in a gate
+    return battle.ships + (battle.attackerDamaged || 0) + (battle.inGate && holdsGuildCard(battle.attacker, 8) ? 2 : 0) + getLeaderExtraDice(battle.attacker);
 }
 
 function getBattleRerolls() {
@@ -753,12 +789,13 @@ function clearBattleDecision() {
             : "Roll your dice, then set the ships and buildings above to what's left. Do the same for any more attacks, then tap Done battling.")
         : (battle.start == null
             ? "Set up the battle, then choose the dice."
-            : (battle.ships == 0
+            // Damaged ships roll dice too (rulebook p.14)
+            : (battle.ships + (battle.attackerDamaged || 0) == 0
                 ? "It has no ships left. Done battling updates the values."
                 : "To attack again, choose the dice. Otherwise, Done battling updates the values."));
     document.getElementById("battleAdvice").innerHTML = "<div class=\"text-muted\">" + advice + "</div>";
     document.getElementById("chooseBattleDice").innerHTML = isHuman ? "Start battle" : "Choose dice";
-    showHideElement([document.getElementById("chooseBattleDice")], !(battle.start != null && (isHuman || battle.ships == 0)));
+    showHideElement([document.getElementById("chooseBattleDice")], !(battle.start != null && (isHuman || battle.ships + (battle.attackerDamaged || 0) == 0)));
     showHideElement([document.getElementById("battleDone")], battle.start != null);
 }
 
@@ -985,7 +1022,8 @@ function showBattleResults() {
     // building here or the defender with none on the board (#128). With no attacking ships left, no
     // one can spend the keys (rulebook p.16)
     const startBuildings = (battle.start != null) ? battle.start.freshBuildings + battle.start.damagedBuildings : 0;
-    if (battle.attacker.isHuman && battle.ships > 0 && isLeaderRaidAllowed(startBuildings > 0 || battle.noBuildings)) {
+    // Raiding needs any attacking ship left, damaged ones too (rulebook: "if any attacking ships remain", #199)
+    if (battle.attacker.isHuman && battle.ships + (battle.attackerDamaged || 0) > 0 && isLeaderRaidAllowed(startBuildings > 0 || battle.noBuildings)) {
         const wants = getRaidWants(battle.attacker, battle.defender);
         if (wants.length > 0) {
             // A resource can be stolen more than once, up to how many they hold (#144). A Guild card is ticked
@@ -1005,7 +1043,7 @@ function showBattleResults() {
     }
 
     // If the bot rolled raid dice: the keys rolled, and what that takes (#159)
-    if (!battle.attacker.isHuman && battle.raidRolled && getBattleRaidItems().length > 0 && battle.ships > 0) {
+    if (!battle.attacker.isHuman && battle.raidRolled && getBattleRaidItems().length > 0 && battle.ships + (battle.attackerDamaged || 0) > 0) {
         html += "<div id=\"battleRaidResult\">" + getRaidResultHtml() + "</div>";
     }
 

@@ -532,7 +532,8 @@ function fillBattleFromSystem(system) {
     // The attacker's fresh and damaged ships (#189)
     battle.attackerDamaged = mine.damaged;
     // Fresh and damaged, for a human player's window too (#194)
-    battle.ships = Math.max(mine.fresh, 1);
+    // Fresh and damaged attacking ships both roll dice (rulebook p.14): no phantom fresh ship
+    battle.ships = mine.fresh + mine.damaged > 0 ? mine.fresh : 1;
     battle.fresh = ships.fresh;
     battle.damaged = ships.damaged;
     battle.freshBuildings = buildings.filter(building => !building.damaged).length;

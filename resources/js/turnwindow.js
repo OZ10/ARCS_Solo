@@ -231,10 +231,16 @@ function renderTurn(player) {
     const offered = [];
     const planRows = plan.map((step, index) => {
         const name = turnActionTools[step.action];
-        const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
+        let button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
         if (name != null) { offered.push(name); }
+        // Completed: the step goes on the board now, so the next one counts from it (#201)
+        const marker = step.applied ? "<i class=\"bi bi-check-lg\"></i>" : index + 1;
+        if (canCompleteBotStep(step)) {
+            button = step.applied ? "<span class=\"small text-secondary\">Done</span>"
+                : button + "<button type=\"button\" class=\"btn btn-outline-primary btn-sm turnact\" id=\"completeStep" + index + "\" onclick=\"completeBotStep(" + index + ")\"><i class=\"bi bi-check-lg\"></i> Completed</button>";
+        }
         // A campaign Fate's tag, on a step its Fate shaped (steering.js)
-        return getTurnRow(index + 1, step.name, step.reason + (step.tag || "") + getLeaderHintsHtml(step.hints), button);
+        return getTurnRow(marker, step.name, step.reason + (step.tag || "") + getLeaderHintsHtml(step.hints), button);
     }).join("");
 
     let html = getNewsSection();

@@ -378,6 +378,9 @@ function getTurnPlan(player) {
     const available = play.actions.split(",").concat(preludeSpent.some(offer => offer.converts) ? ["battle"] : []);
     const scores = {};
     available.forEach(action => { scores[action] = getActionPlanScore(player, action, focus); });
+    // No more Moves than the board has useful ones, never back the way it came (#197). A Move to
+    // set up a Battle is added later if it needs one
+    const usefulMoves = available.includes("move") ? getUsefulMoveCount(player) : 0;
     while (actionsLeft > 0) {
         const value = action => scores[action].score + player.planVariation[action]
             - chosen.filter(pick => pick.action == action).length * turnPlanWeights.repeat
@@ -392,7 +395,8 @@ function getTurnPlan(player) {
         const canInfluenceAgain = agentsLeft == null || chosen.filter(pick => pick.action == "influence").length < agentsLeft;
         // No more Repairs than it has pieces on the board to repair (#145)
         const canRepairAgain = chosen.filter(pick => pick.action == "repair").length < getRepairablePieces(player);
-        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain) && (action != "repair" || canRepairAgain))
+        const canMoveAgain = chosen.filter(pick => pick.action == "move").length < usefulMoves;
+        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain) && (action != "repair" || canRepairAgain) && (action != "move" || canMoveAgain))
             .sort((a, b) => value(b) - value(a))[0];
         if (best == null) { break; }
         chosen.push({ action: best, reason: scores[best].reason, tag: scores[best].tag || "" });
