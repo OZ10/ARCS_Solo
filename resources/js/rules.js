@@ -34,6 +34,11 @@ const ambitionResources = {
 // the round, plus more for each resource it has towards that ambition, up to a maximum.
 // A bot with none of the ambition's resources never declares it. Tune after play testing
 const declareChanceByRound = { 1: 20, 2: 30, 3: 30, 4: 40, 5: 40 };
+// Declaring when not likely to come first (#200, the user): close to first (one more would do it),
+// or likely second when whoever is likely to come first isn't leading on Power. Below Hard only
+// for the second; Hard declares when close and not when only second
+const declareCloseChance = 0.6;
+const declareSecondChance = 0.3;
 const declareChancePerResource = 10;
 const declareChanceMax = 90;
 

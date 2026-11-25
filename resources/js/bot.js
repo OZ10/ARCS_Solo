@@ -697,7 +697,7 @@ function declareAmbition(player, playedCard) {
     const outlook = instead != null ? { likely: instead.wins ? 2 : 0 } : getAmbitionOutlook(player, ambition);
     const keener = (runCampaignHook("declareBonus", player, ambition) || 0) > 0;
     const good = outlook.likely == 2 || (keener && outlook.likely >= 1);
-    if (forShips || decideByModel(good, outlook.likely >= 1)) {
+    if (forShips || shouldDeclare(player, ambition, outlook, good)) {
         showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = placesZeroMarker(player, ambition);
 
@@ -830,6 +830,26 @@ function claim(player, cards, actionToPlay) {
     }
 
     return false;
+}
+
+function shouldDeclare(player, ambition, outlook, good) {
+    // Likely first: declare (below Hard, with the level's slips). Close to first: often, and always
+    // on Hard. Likely second while whoever's likely first isn't leading on Power: sometimes, not on
+    // Hard. Otherwise only a whim (#200, the user)
+    const hard = getDifficulty().smart == "only";
+    if (good) { return decideByModel(true); }
+    if (outlook.own == null || ambitionResources[ambition] == null) { return decideByModel(false); }
+    const close = getAmbitionPlacePoints(player, ambition, outlook.own + outlook.gain + 1) == 2;
+    if (close) { return hard || Math.random() < declareCloseChance; }
+    if (outlook.likely == 1) {
+        const rivals = players.filter(other => other !== player);
+        const top = Math.max(...rivals.map(other => ambitionResources[ambition](other)));
+        const winners = rivals.filter(other => ambitionResources[ambition](other) == top);
+        const powerLeader = Math.max(...players.map(other => other.powerValue || 0));
+        const winnerLeads = winners.some(other => (other.powerValue || 0) >= powerLeader);
+        if (!winnerLeads) { return !hard && Math.random() < declareSecondChance; }
+    }
+    return decideByModel(false);
 }
 
 function getDeclareKeepCards(player) {
