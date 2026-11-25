@@ -296,7 +296,8 @@ const openingCourtCards = { 2: 3, 3: 4, 4: 4 };
 const marketValues = {
     base: 1,
     perNeed: 1.5,           // + a Guild card, for each level of need for its icon (getResourceNeed)
-    captive: 0.25,          // + each Rival agent it would capture
+    captive: 0.5,           // + each Rival agent it would capture (raised from 0.25: #200 phase 4)
+    blocking: 1.5,          // + an agent that stops a Rival securing a card worth a lot to them (#200 phase 4)
     captiveTyrant: 1.5,     // + each Rival agent it would capture, when chasing Tyrant
     // + a Vox card, by what it does: Mass Uprising, Populist Demands, Outrage Spreads,
     // Song of Freedom, Guild Struggle, Call to Action
