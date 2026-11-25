@@ -725,7 +725,14 @@ function canSurpass(player, playedCard, unplayedCards, actionToPlay) {
         return surpass;
     }
 
-    let cardToPlay = getLowestCardtoPlay(surpassCards);
+    // Worth it (#200 phase 2): more actions than a Copy or Pivot's 1, or the initiative for an
+    // ambition it's likely to win and holds a card to declare. Not with the card it's keeping to
+    // declare with, if another will do. Hard always follows this; the others slip and take whims
+    const keep = getDeclareKeepCards(player);
+    const spare = surpassCards.filter(card => !keep.includes(card));
+    let cardToPlay = getLowestCardtoPlay(spare.length > 0 ? spare : surpassCards);
+    const good = (cardToPlay.pips || 1) >= 2 || keep.length > 0;
+    if (!decideByModel(good, true)) { return surpass; }
 
     playCard(player, cardToPlay, actionToPlay, "SURPASS", true);
     surpass = true;
@@ -798,18 +805,24 @@ function claim(player, cards, actionToPlay) {
         totalValueOfCards += card.number;
     })
 
-    // On a whim, rarer on the easier difficulties, or (from Tough) when leading next round lets it declare an ambition from its hand that it would win (#71)
-    const toDeclare = declaredAmbitions.length < 3 && ['tycoon', 'tyrant', 'warlord', 'keeper', 'empath'].some(ambition => holdsAmbitionCard(player, ambition) && wouldWinAmbition(player, ambition));
-    if (decideAtDifficulty(player, toDeclare, () => Math.floor(Math.random() * 16 * getDifficulty().chance) >= totalValueOfCards)) {
+    // Worth it (#200 phase 2): it wants to declare an ambition it's likely to win and holds a card
+    // to do it, and it probably can't take the initiative by surpassing later (few high cards
+    // left). Hard always follows this; the others slip and take whims
+    const keep = getDeclareKeepCards(player);
+    const highCards = unplayedCards.filter(card => !keep.includes(card) && card.number >= 5).length;
+    const good = keep.length > 0 && highCards < 2;
+    if (decideByModel(good, keep.length > 0)) {
         // First play the card for this turn's action, chosen from the cards that have
-        // the action the player is after. It couldn't surpass, so a card of the lead
-        // suit can only COPY and any other card PIVOTs
-        const actionCard = getLowestCardtoPlay(cards);
+        // the action the player is after, not the card it's keeping to declare with. It couldn't
+        // surpass, so a card of the lead suit can only COPY and any other card PIVOTs
+        const actionCards = cards.filter(card => !keep.includes(card));
+        const actionCard = getLowestCardtoPlay(actionCards.length > 0 ? actionCards : cards);
         const actionCardAction = (actionCard.name == playedCardList[0].name) ? "COPY" : "PIVOT";
         playCard(player, actionCard, actionToPlay, actionCardAction);
 
-        // Then play a second card face down to claim the initiative
-        playCard(player, getLowestCardtoPlay(getBotCards(player)), "ANY", "CLAIM");
+        // Then play a second card face down to claim the initiative, again keeping the declaring card
+        const claimCards = getBotCards(player).filter(card => !keep.includes(card));
+        playCard(player, getLowestCardtoPlay(claimCards.length > 0 ? claimCards : getBotCards(player)), "ANY", "CLAIM");
 
         hasInitiativeBeenClaimedThisTurn = true;
         changeInitiative(player);
@@ -817,6 +830,16 @@ function claim(player, cards, actionToPlay) {
     }
 
     return false;
+}
+
+function getDeclareKeepCards(player) {
+    // The cards it's keeping to declare with (#200 phase 2): its highest card for each undeclared
+    // ambition it's likely to win, while a marker is left
+    if (declaredAmbitions.length >= 3 || !canDeclareAmbition(player)) { return []; }
+    return ["tycoon", "tyrant", "warlord", "keeper", "empath"]
+        .filter(ambition => holdsAmbitionCard(player, ambition) && getAmbitionOutlook(player, ambition).likely == 2)
+        .map(ambition => getHighestCard(getBotCards(player).filter(card => card.ambition == ambition)))
+        .filter(card => card != null);
 }
 
 function pivot(player, cards, actionToPlay) {
@@ -827,5 +850,8 @@ function pivot(player, cards, actionToPlay) {
     //      - no: which card to play?
     //          - need to know how many ships are in play
     //          - how many buildings are in play
-    if (cards.length > 0) { playCard(player, cards[0], actionToPlay, "PIVOT", true) }
+    // One action whatever the card: its lowest, keeping any card it means to declare with (#200 phase 2)
+    const keep = getDeclareKeepCards(player);
+    const spare = cards.filter(card => !keep.includes(card));
+    if (cards.length > 0) { playCard(player, getLowestCardtoPlay(spare.length > 0 ? spare : cards), actionToPlay, "PIVOT", true) }
 }
