@@ -340,11 +340,14 @@ function getCourtAdviceHtml(player) {
     const secure = canBotTakeAction(player, "secure") ? getCardsToSecure(player)[0] : null;
     const influence = canBotTakeAction(player, "influence") ? getCardsToInfluence(player)[0] : null;
 
+    // Each with a button that does it for you, as + or the card's Secure would
+    const row = (text, button) => "<div class=\"d-flex align-items-center gap-2\"><span class=\"flex-fill\">" + text + "</span>" + button + "</div>";
+    const button = (id, label, icon, onclick) => "<button type=\"button\" class=\"btn btn-sm btn-primary py-0 text-nowrap\" id=\"" + id + "\" onclick=\"" + onclick + "\"><i class=\"bi " + icon + "\"></i> " + label + "</button>";
     let lines = [];
-    if (secure != null) { lines.push("<b>Secure:</b> " + describe(secure)); }
-    if (influence != null) { lines.push("<b>Influence:</b> " + describe(influence)); }
+    if (secure != null) { lines.push(row("<b>Secure:</b> " + describe(secure), button("courtAdviceSecure", "Secure", "bi-check-lg", "secureMarketCard(" + secure.number + ")"))); }
+    if (influence != null) { lines.push(row("<b>Influence:</b> " + describe(influence), button("courtAdviceAgent", "Add agent", "bi-plus-lg", "changeMarketAgents(" + influence.number + ", " + player.number + ", 1)"))); }
     if (lines.length == 0) { lines.push("Nothing worth doing here this turn."); }
-    return "<div class=\"alert alert-secondary py-2 px-3 small mb-2\" id=\"courtAdvice\">" + lines.join("<br>") + "</div>";
+    return "<div class=\"alert alert-secondary py-2 px-3 small mb-2 d-grid gap-1\" id=\"courtAdvice\">" + lines.join("") + "</div>";
 }
 
 function showCourtWindow() {

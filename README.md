@@ -267,7 +267,7 @@ Tap **Build** in a bot's turn window. The app has already chosen from its board 
 
 Tap **Court** in the turn window, yours or a bot's. It lists the cards in the market with everyone's agents on each in their colours. Use **−** and **+** to keep the agents up to date, **×** to remove a card, and the list at the bottom to add its replacement.
 
-For a bot, the top line says what it would secure or influence. **Secure** takes a card the player can secure, captures any Rival agents on it, and moves it to their Guild row. When a bot secures a Vox card, the app tells you what it does with it.
+For a bot, the top line says what it would secure or influence, with a **Secure** or **Add agent** button that does it for you. **Secure** takes a card the player can secure, captures any Rival agents on it, and moves it to their Guild row. When a bot secures a Vox card, the app tells you what it does with it.
 
 If a card leaves the market, the turn window reminds you to add the replacement.
 
