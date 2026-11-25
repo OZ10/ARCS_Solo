@@ -34,8 +34,40 @@ function getExposedBuildings(player, rival) {
         && (getShips(id, player.number).fresh > 0 || getMoveSources(player, id).length > 0));
 }
 
+// Battles worth fighting (#198): one die per attacking ship, fresh or damaged (rulebook p.14)
+const poorOddsPenalty = -6;
+
+function getBattleOdds(player, rival, id, extra = 0) {
+    // { mine, theirs, theirFresh }: its ships there (plus extra moving in) against the Rival's
+    const ships = getShips(id, player.number), theirs = getShips(id, rival.number);
+    return { mine: ships.fresh + ships.damaged + extra, theirs: theirs.fresh + theirs.damaged, theirFresh: theirs.fresh };
+}
+
+function isFavourableBattle(odds) {
+    // As many ships as theirs, or all of theirs damaged: one hit each takes a Trophy
+    return odds.mine > 0 && (odds.mine >= odds.theirs || odds.theirFresh == 0);
+}
+
+function hasFavourableBattle(player, rival) {
+    // Somewhere it can battle this Rival at good odds: where its ships are, or with its biggest
+    // fleet moved in first when it can Move
+    const hasPieces = id => (getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0)
+        // The campaign's Truce Law, where that branch has it
+        && (typeof canHarmIn != "function" || canHarmIn(id, player.number, rival.number));
+    const canMoveFirst = getBotPlay(player) != null ? canBotTakeAction(player, "move")
+        : getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
+    return getSystemIds().filter(hasPieces).some(id => {
+        if (isFavourableBattle(getBattleOdds(player, rival, id))) { return getShips(id, player.number).fresh + getShips(id, player.number).damaged > 0; }
+        if (!canMoveFirst) { return false; }
+        const fleet = Math.max(0, ...getMoveSources(player, id).map(from => getShips(from, player.number).fresh));
+        return fleet > 0 && isFavourableBattle(getBattleOdds(player, rival, id, fleet));
+    });
+}
+
 function getBattleTargetBoardBonus(player, rival) {
     if (!canReachRival(player, rival)) { return unreachableTargetPenalty; }
+    // Only at poor odds: much less worth it (#198)
+    if (!hasFavourableBattle(player, rival)) { return poorOddsPenalty; }
     return getExposedBuildings(player, rival).length > 0 ? exposedBuildingBonus : 0;
 }
 
@@ -192,7 +224,9 @@ function withBoardCopy(work) {
 function getBattleSystem(player, targetNumber) {
     // Where its fresh ships meet the target's pieces: where it outnumbers them most, an unguarded
     // building of theirs first (raid dice there)
-    const edge = id => getShips(id, player.number).fresh - getShips(id, targetNumber).fresh - getShips(id, targetNumber).damaged
+    // All its ships roll dice, damaged ones too (rulebook p.14); all of theirs damaged is a good edge (#198)
+    const edge = id => getShips(id, player.number).fresh + getShips(id, player.number).damaged - getShips(id, targetNumber).fresh - getShips(id, targetNumber).damaged
+        + (getShips(id, targetNumber).fresh == 0 && getShips(id, targetNumber).damaged > 0 ? 2 : 0)
         + (getBuildings(id, targetNumber).length > 0 && getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged == 0 ? exposedBuildingBonus : 0);
     return getSystemIds().filter(id => getShips(id, player.number).fresh > 0 && (getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged > 0 || getBuildings(id, targetNumber).length > 0))
         .sort((a, b) => edge(b) - edge(a))[0] || null;

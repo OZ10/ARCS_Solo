@@ -262,6 +262,9 @@ function getActionPlanScore(player, action, focus) {
             if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
             // No Rival its ships can reach this turn on the board (#188). A campaign's own targets aside
             if (!player.campaignTarget && !players.some(other => other !== player && canReachRival(player, other))) { return { score: planImpossible }; }
+            // Nowhere it can fight at good odds: as many ships as the defender, or all theirs
+            // damaged. Better to use the action for something else (#198)
+            if (!player.campaignTarget && !players.some(other => other !== player && hasFavourableBattle(player, other))) { return { score: planImpossible }; }
             if (chasing("warlord")) { score += weights.battleWarlord; reason = "chasing Warlord"; }
             else if (chasing("tyrant")) { score += weights.battleTyrant; reason = "chasing Tyrant"; }
             if (hasManyShips(player)) { score += weights.battleManyShips; if (reason == "") { reason = "lots of ships on the board"; } }
