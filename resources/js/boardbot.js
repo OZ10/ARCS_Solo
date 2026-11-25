@@ -359,8 +359,12 @@ function placeBoardPlan(player, plan) {
                 if (system != null) { where = { system: system, battle: targetNumber }; }
             } else if (step.action == "tax") {
                 const resource = (step.text.match(/Tax its (\w+) city/) || [])[1];
+                // A Rival's city: the leader's first, capturing their agent (#200)
+                const leader = getLeader(player);
+                const rivalCities = getTaxableCities(player.number).filter(item => item.owner != player.number)
+                    .sort((a, b) => Number(leader != null && b.owner == leader.number) - Number(leader != null && a.owner == leader.number));
                 const city = getTaxableCities(player.number).find(item => item.owner == player.number && (resource == null || preludeResourceNames[item.resource].toLowerCase() == resource))
-                    || getTaxableCities(player.number).find(item => item.owner != player.number);
+                    || rivalCities[0];
                 if (city != null) { where = { system: city.system, tax: true, owner: city.owner }; step.text = step.text.replace(/^Tax[^(]*?(?= \(|$)/, match => match + " at " + getSystemName(city.system)); }
             } else if (step.action == "repair") {
                 where = getDamagedPiece(player);

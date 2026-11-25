@@ -66,6 +66,38 @@ function countAmbitionGain(player, ambition) {
     return cards.filter(helps).length;
 }
 
+// The leader (#200, the user): the Rival with the most Power, any player, human players too. Bots
+// avoid helping them and go after them, more so the further ahead they are and the nearer the target
+
+function getLeader(player) {
+    // The Rival with the most Power, if they have any and aren't behind this player
+    const rivals = players.filter(other => other !== player);
+    if (rivals.length == 0) { return null; }
+    const leader = rivals.slice().sort((a, b) => (b.powerValue || 0) - (a.powerValue || 0))[0];
+    return (leader.powerValue || 0) > 0 && (leader.powerValue || 0) >= (player.powerValue || 0) ? leader : null;
+}
+
+function isLeaderNearTarget(leader) {
+    // The endgame: within a few Power of winning
+    const target = typeof getPowerTarget == "function" ? (getPowerTarget() || {}).target : null;
+    return leader != null && target != null && (leader.powerValue || 0) >= target - leaderEndgameGap;
+}
+
+function getLeaderThreat(player, rival) {
+    // How much this player should go after this Rival: 0 unless they're the leader; more the further
+    // ahead they are, and more again near the target
+    const leader = getLeader(player);
+    if (leader == null || rival !== leader) { return 0; }
+    const lead = (leader.powerValue || 0) - (player.powerValue || 0);
+    return 1 + lead / 5 + (isLeaderNearTarget(leader) ? 2 : 0);
+}
+
+function getNextMarkerValues() {
+    // [first, second] Power for the next ambition declared this round, or null with none left
+    const markers = getRoundMarkers(roundNumber);
+    return declaredAmbitions.length < markers.length ? markers[declaredAmbitions.length] : null;
+}
+
 function getAmbitionOutlook(player, ambition) {
     // { own, now, gain, likely }: points for where it places now and where it's likely to (2 first,
     // 1 second or a tie for first)
@@ -454,7 +486,8 @@ function getPreludeOffers(player) {
     if (holds(20)) {
         const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2);
         const target = players.filter(other => other !== player).flatMap(other => chased.map(resource => ({ other: other, resource: resource, count: other[resource + "Value"] })))
-            .filter(option => option.count > 0).sort((a, b) => b.count - a.count)[0];
+            // The leader first, unless another Rival holds clearly more (#200)
+            .filter(option => option.count > 0).sort((a, b) => (b.count + (b.other === getLeader(player) ? 1.5 : 0)) - (a.count + (a.other === getLeader(player) ? 1.5 : 0)))[0];
         if (target != null) {
             discard(getCourtCard(20), "steal 1 " + preludeResourceNames[target.resource] + " from Player " + target.other.number + " (take it off their panel)", { gains: { [target.resource]: 1 },
                 decided: true, why: "Player " + target.other.number + " holds " + target.count + " " + getResourceWord(target.resource) + ", which it needs for " + capitalise(preludeAmbitions[target.resource]) + "." });

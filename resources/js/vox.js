@@ -93,7 +93,9 @@ function getBestGuildCardToSteal(player) {
         const cards = (rival.guildCards || []).includes(guardians.number) ? [guardians] : getPlayerGuildCards(rival).filter(card => !card.protected);
         return cards.map(card => ({ card: card, rival: rival, need: getResourceNeed(player, card.resource) }));
     });
-    return options.sort((a, b) => (b.need - a.need) || (b.card.keys - a.card.keys))[0] || null;
+    // From the leader first, when it needs the cards equally (#200)
+    const leader = typeof getLeader == "function" ? getLeader(player) : null;
+    return options.sort((a, b) => (b.need - a.need) || (Number(b.rival === leader) - Number(a.rival === leader)) || (b.card.keys - a.card.keys))[0] || null;
 }
 
 function getCityToReturn(player) {

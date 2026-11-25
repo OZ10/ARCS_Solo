@@ -607,6 +607,13 @@ function getRaidWants(attacker, defender) {
     const guildCards = getPlayerGuildCards(defender).filter(card => !card.protected).map(card => ({
         id: "guild:" + card.number, card: card.number, name: card.name, keys: card.keys, need: getResourceNeed(attacker, card.resource)
     }));
+    // From the leader, what they need for an ambition counts too: taking it denies them (#200). Near
+    // the target, as much as what the attacker itself needs most
+    if (typeof getLeader == "function" && getLeader(attacker) === defender) {
+        const denied = isLeaderNearTarget(defender) ? 2 : 1;
+        resources.forEach(row => { if (getResourceNeed(defender, row.resource) == 2) { row.need = Math.max(row.need, denied); } });
+        guildCards.forEach(row => { const card = getCourtCard(row.card); if (card != null && card.resource != null && getResourceNeed(defender, card.resource) == 2) { row.need = Math.max(row.need, denied); } });
+    }
     return filterLeaderRaidWants(attacker, defender, resources.concat(guildCards)).sort((a, b) => b.need - a.need);
 }
 

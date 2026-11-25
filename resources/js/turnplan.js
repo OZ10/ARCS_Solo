@@ -220,7 +220,9 @@ function getBattleTarget(player) {
             + (runCampaignHook("battleTargetBonus", player, rival) || 0)
             // One its ships can't reach this turn hardly counts, and an unguarded building it can
             // reach counts for more (boardbot.js, #160)
-            + getBattleTargetBoardBonus(player, rival);
+            + getBattleTargetBoardBonus(player, rival)
+            // The leader, more the further ahead and the nearer the target (#200)
+            + getLeaderThreat(player, rival) * leaderWeights.battle;
         target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
         player.battleTargetNumber = target.number;
     }

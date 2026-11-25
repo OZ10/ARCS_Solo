@@ -58,6 +58,13 @@ function getMarketCardValue(player, entry) {
     // What a Guild card does (#200 phase 4): drawing a card (another turn when others have run
     // out), stealing, or a new action
     if (card.type == "guild") { value += getCardAbilityValue(card); }
+    // The leader (#200): capturing their agents, and taking a card they could secure now
+    const leader = typeof getLeader == "function" ? getLeader(player) : null;
+    if (leader != null) {
+        const threat = getLeaderThreat(player, leader);
+        value += getMarketAgents(entry, leader) * leaderWeights.capture * Math.min(threat, 2) / 2;
+        if (canSecureEntry(entry, leader)) { value += leaderWeights.secureDeny * Math.min(threat, 2); }
+    }
     // In a campaign, what the Imperial Council is worth to it (campaignhooks.js)
     return value + rivalAgents * (chasingTyrant ? marketValues.captiveTyrant : marketValues.captive) + (runCampaignHook("marketValue", player, entry) || 0)
         + getAttachedValue(player, entry);
@@ -147,7 +154,11 @@ function getCardsToInfluence(player) {
     const agentsLeft = getAgentsLeft(player);
     const winnable = entry => agentsNeeded(entry) <= Math.min(agentsLeft == null ? 10 : agentsLeft, turnsLeft + 1)
         && !(Math.max(...getRivalAgents(entry, player)) >= 2 && agentsNeeded(entry) >= 3);
-    const score = entry => getMarketCardValue(player, entry) / agentsNeeded(entry) + (block(entry) ? marketValues.blocking : 0);
+    // Blocking the leader comes first (#200)
+    const leader = typeof getLeader == "function" ? getLeader(player) : null;
+    const blocksLeader = entry => leader != null && canSecureEntry(entry, leader);
+    const score = entry => getMarketCardValue(player, entry) / agentsNeeded(entry) + (block(entry) ? marketValues.blocking : 0)
+        + (blocksLeader(entry) ? leaderWeights.blocking * Math.min(getLeaderThreat(player, leader), 2) : 0);
     return courtMarket.filter(entry => agentsNeeded(entry) > 0 && !isMarketCardClosed(entry) && (winnable(entry) || block(entry)))
         .sort((a, b) => score(b) - score(a));
 }
@@ -444,6 +455,7 @@ function showCourtWindow() {
 function getRansackOptions(player, defender) {
     // Ransacking the Court: any card with any of the defender's agents (rulebook p.16), the one
     // the player wants most first
+    // getMarketCardValue counts the leader's agents and a card they could secure (#200)
     return courtMarket.filter(entry => getMarketAgents(entry, defender) > 0)
         .sort((a, b) => getMarketCardValue(player, b) - getMarketCardValue(player, a));
 }

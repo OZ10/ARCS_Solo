@@ -38,6 +38,10 @@ const declareChanceByRound = { 1: 20, 2: 30, 3: 30, 4: 40, 5: 40 };
 // or likely second when whoever is likely to come first isn't leading on Power. Below Hard only
 // for the second; Hard declares when close and not when only second
 const declareCloseChance = 0.6;
+// The leader (#200): the endgame is when the leader is within this much Power of the target, and
+// how much more a bot goes after them (each threat point, see getLeaderThreat)
+const leaderEndgameGap = 6;
+const leaderWeights = { battle: 2, raid: 1.5, capture: 1, blocking: 1.5, secureDeny: 1 };
 const declareSecondChance = 0.3;
 const declareChancePerResource = 10;
 const declareChanceMax = 90;

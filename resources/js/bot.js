@@ -731,7 +731,11 @@ function canSurpass(player, playedCard, unplayedCards, actionToPlay) {
     const keep = getDeclareKeepCards(player);
     const spare = surpassCards.filter(card => !keep.includes(card));
     let cardToPlay = getLowestCardtoPlay(spare.length > 0 ? spare : surpassCards);
-    const good = (cardToPlay.pips || 1) >= 2 || keep.length > 0;
+    // Taking the initiative from the leader, who led and keeps it unless someone surpasses (#200)
+    const leader = getLeader(player);
+    const denyLeader = leader != null && playedCardList[0] != null && playedCardList[0].playedByPlayerNumber == leader.number
+        && !playedCardList.some(card => card.cardAction == "SURPASS");
+    const good = (cardToPlay.pips || 1) >= 2 || keep.length > 0 || denyLeader;
     if (!decideByModel(good, true)) { return surpass; }
 
     playCard(player, cardToPlay, actionToPlay, "SURPASS", true);
@@ -837,6 +841,18 @@ function shouldDeclare(player, ambition, outlook, good) {
     // on Hard. Likely second while whoever's likely first isn't leading on Power: sometimes, not on
     // Hard. Otherwise only a whim (#200, the user)
     const hard = getDifficulty().smart == "only";
+    // The leader (#200, the user): likely first, it declares even if the leader comes second, unless
+    // the leader's second place would take them to the Power target. Not likely first, it doesn't
+    // declare one the leader is likely to place in. Near the end, one the leader isn't in is worth it
+    const leader = getLeader(player);
+    if (leader != null && outlook.own != null && ambitionResources[ambition] != null) {
+        const theirs = getAmbitionOutlook(leader, ambition).likely;
+        const markers = getNextMarkerValues();
+        const target = typeof getPowerTarget == "function" ? (getPowerTarget() || {}).target : null;
+        if (good && theirs >= 1 && markers != null && target != null && (leader.powerValue || 0) + markers[theirs == 2 ? 0 : 1] >= target) { return false; }
+        if (!good && theirs >= 1) { return false; }
+        if (!good && outlook.likely >= 1 && theirs == 0 && isLeaderNearTarget(leader)) { return decideByModel(true); }
+    }
     if (good) { return decideByModel(true); }
     if (outlook.own == null || ambitionResources[ambition] == null) { return decideByModel(false); }
     const close = getAmbitionPlacePoints(player, ambition, outlook.own + outlook.gain + 1) == 2;
