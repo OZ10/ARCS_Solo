@@ -316,6 +316,12 @@ function getBattleSystem(player, targetNumber) {
 }
 
 function chooseBoardMove(player, battleTarget, wantsCity, avoid = []) {
+    // No more ships than its Leader lets it move at a time (Rebel, Disorganized: leaderrules.js)
+    const where = chooseBoardMoveAny(player, battleTarget, wantsCity, avoid);
+    return where == null ? null : { ...where, count: Math.min(where.count, getLeaderMoveLimit(player)) };
+}
+
+function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
     // avoid: systems it moved ships out of this turn, never moved back into (#197)
     const ok = id => !avoid.includes(id);
     // { from, to, count }, or null: to the battle, else a Rival city to tax or raid, a planet to
@@ -431,8 +437,8 @@ function applyBoardStep(player, where) {
     // A step's effect on the board
     if (where == null) { return; }
     if (where.from != null) { moveShips(where.from, where.to, player.number, where.count); }
-    if (where.kind == "city" || where.kind == "starport") { placeBuilding(where.system, player.number, where.kind, isControlledByOther(where.system, player.number)); }
-    if (where.kind == "ship") { addShips(where.system, player.number, 1, isControlledByOther(where.system, player.number)); }
+    if (where.kind == "city" || where.kind == "starport") { placeBuilding(where.system, player.number, where.kind, isBuiltDamaged(where.system, player.number, where.kind)); }
+    if (where.kind == "ship") { addShips(where.system, player.number, 1, isBuiltDamaged(where.system, player.number, "ship")); }
     // Guild cards that place ships (#197): 1 in each gate in play, or some in one system
     if (where.kind == "gateShips") { getSystemIds().filter(isGate).forEach(id => addShips(id, player.number, 1)); }
     if (where.kind == "placeShips") { addShips(where.system, player.number, where.count); }
@@ -476,7 +482,8 @@ function placeBoardPlan(player, plan) {
                 const system = getBattleSystem(player, targetNumber);
                 if (system != null) { where = { system: system, battle: targetNumber }; }
             } else if (step.action == "tax") {
-                const resource = (step.text.match(/Tax its (\w+) city/) || [])[1];
+                // "Tax a Rival's fuel city" for the Anarchist
+                const resource = (step.text.match(/Tax (?:its|a Rival's) (\w+) city/) || [])[1];
                 // A Rival's city: the leader's first, capturing their agent (#200)
                 const leader = getLeader(player);
                 // Each city once a turn, a gate city too whichever type it's taxed for (Gate Stations)
@@ -559,6 +566,8 @@ function applyBotStep(player, step) {
         if (resource != null && getResourceSupply(resource) > 0 && getEmptySlots(player) > 0) {
             setPlayerResource(player, resource, player[resource + "Value"] + 1);
             if (step.where.owner != null && step.where.owner != player.number) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
+            // A Leader's extra resource for a Copy or Pivot Tax (leaderrules.js)
+            applyLeaderTaxBonus(player);
         }
     }
     step.applied = true;
@@ -662,7 +671,8 @@ function applyBattleToBoard(losses) {
 const shipsPerPlayer = 15;
 
 function getShipSupply(player) {
-    return Math.max(shipsPerPlayer - getBoardShips(player.number) - (player.shipsTrophy || 0), 0);
+    // Less any its Leader scrapped in setup (Overseer, Hated: leaderrules.js)
+    return Math.max(shipsPerPlayer - getLeaderScrappedShips(player) - getBoardShips(player.number) - (player.shipsTrophy || 0), 0);
 }
 
 function getBoardYesReason(ambition, action) {

@@ -593,6 +593,58 @@ function getLeaderQuestionHint(player, action) {
     return hint == null ? "" : "<div class=\"small text-muted mt-1\"><i class=\"bi " + hint[0] + "\"></i> " + hint[1] + "</div>";
 }
 
+// The board (#160): what Leaders and Lore change in moving, building and taxing. The board code
+// calls these; without Leaders & Lore they change nothing
+
+function getLeaderCatapult(from, playerNumber, base) {
+    // Shaper (Ancient): Catapults from gates, never from starports
+    const player = players.find(other => other.number == playerNumber);
+    return hasLeader(player, 14) ? isGate(from) : base;
+}
+
+function getLoreBuildDamaged(id, playerNumber, kind, base) {
+    // Hidden Harbors: its ships are always built fresh
+    const player = players.find(other => other.number == playerNumber);
+    return kind == "ship" && hasLore(player, loreNumbers.hiddenHarbors) ? false : base;
+}
+
+function getLeaderMoveLimit(player) {
+    // Rebel (Disorganized): no more than 2 ships at a time
+    return hasLeader(player, leaderNumbers.rebel) ? 2 : Infinity;
+}
+
+function getLeaderScrappedShips(player) {
+    // Overseer (Hated): 2 ships scrapped in setup, so never in its supply
+    return hasLeader(player, 10) ? 2 : 0;
+}
+
+function getLeaderTaxableCities(playerNumber, cities) {
+    // Anarchist: never its own cities (Principled), but Rival cities and empty slots in systems with
+    // its ships, ignoring control (Inspiring). Upstart (Callow): its own cities only where it controls them
+    const player = players.find(other => other.number == playerNumber);
+    if (hasLeader(player, 4)) { return cities.filter(city => city.owner != playerNumber || getController(city.system) == playerNumber); }
+    if (!hasLeader(player, 13)) { return cities; }
+    const list = cities.filter(city => city.owner != playerNumber);
+    const add = item => { if (!list.some(other => other.system == item.system && other.owner == item.owner && other.resource == item.resource)) { list.push(item); } };
+    getSystemIds().filter(id => getShips(id, playerNumber).fresh + getShips(id, playerNumber).damaged > 0).forEach(id => {
+        getBuildings(id, null, "city").filter(city => city.owner != playerNumber).forEach(city => getCityTypes(id).forEach(resource => add({ system: id, owner: city.owner, resource: resource, gate: isGate(id) })));
+        if (isPlanet(id) && getEmptySlotCount(id) > 0) { add({ system: id, owner: playerNumber, resource: getPlanetResource(id), slot: true }); }
+    });
+    return list;
+}
+
+function applyLeaderTaxBonus(player) {
+    // Mystic (Attuned), Fuel-Drinker (Insatiable), Agitator (Firebrand): 1 more resource when it
+    // Copies or Pivots to Tax, if there's one left and room for it
+    const power = getCopyPivotPower(player, "tax");
+    if (power == null) { return; }
+    const resource = { 2: "psionics", 3: "fuel", 15: "weapons" }[power[0]];
+    if (resource == null || getResourceSupply(resource) == 0 || getEmptySlots(player) == 0) { return; }
+    setPlayerResource(player, resource, player[resource + "Value"] + 1);
+    if (player.isHuman) { showMessageToast(power[1], "1 " + preludeResourceNames[resource] + " added too."); }
+    else { addLeaderNote(player, power[1] + ": gained 1 " + preludeResourceNames[resource], "Already added to its tiles."); }
+}
+
 function hasLoreOffers(offers) {
     return (offers || []).some(offer => offer.lore != null);
 }

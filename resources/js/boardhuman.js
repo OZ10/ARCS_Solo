@@ -206,10 +206,10 @@ function getHumanBuildOptions(player) {
     const shipsBuilt = getBoardActions(player).filter(action => action.action == "build" && action.kind == "ship").map(action => action.system);
     const options = [];
     // On a gate, only what Gate Ports or Gate Stations allow
-    getBuildableSystems(number).forEach(id => (isGate(id) ? getGateBuildKinds(id, number) : ["city", "starport"]).forEach(kind => options.push({ system: id, kind: kind, damaged: isControlledByOther(id, number) })));
+    getBuildableSystems(number).forEach(id => (isGate(id) ? getGateBuildKinds(id, number) : ["city", "starport"]).forEach(kind => options.push({ system: id, kind: kind, damaged: isBuiltDamaged(id, number, kind) })));
     // Ships only while some are left in the supply
     getBoardBuildings(number, "starport").map(port => port.system).filter(id => !shipsBuilt.includes(id) && getShipSupply(player) > 0)
-        .forEach(id => options.push({ system: id, kind: "ship", damaged: isControlledByOther(id, number) }));
+        .forEach(id => options.push({ system: id, kind: "ship", damaged: isBuiltDamaged(id, number, "ship") }));
     return options;
 }
 
@@ -275,6 +275,8 @@ function renderHumanOptions(type) {
     } else if (type == "tax") {
         options = getHumanTaxOptions(player).map((option, index) => {
             const mine = option.owner == player.number;
+            // Anarchist (Inspiring): an empty slot where its ships are
+            if (option.slot) { return getOptionButton("An empty <b>" + preludeResourceNames[option.resource] + "</b> slot at " + getSystemName(option.system), "Gain 1 " + preludeResourceNames[option.resource] + " (Anarchist, Inspiring)", "humanTax(" + index + ")", "humanOption" + index); }
             return getOptionButton((mine ? "Your " : "Player " + option.owner + "'s ") + (option.gate ? "gate city at " + getSystemName(option.system) + ", for <b>" + preludeResourceNames[option.resource] + "</b>" : "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system)),
                 "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
         });
@@ -311,6 +313,8 @@ function humanTax(index) {
     const captured = option.owner != player.number;
     setPlayerResource(player, option.resource, player[option.resource + "Value"] + 1);
     if (captured) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
+    // A Leader's extra resource for a Copy or Pivot Tax (leaderrules.js)
+    applyLeaderTaxBonus(player);
     recordBoardAction(player, { action: "tax", system: option.system, owner: option.owner, resource: option.resource, captured: captured,
         text: (captured ? "Player " + option.owner + "'s " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": 1 " + preludeResourceNames[option.resource] + (captured ? " and 1 Captive" : "") });
     closeHumanBoardAction();
@@ -350,8 +354,10 @@ function chooseMoveFrom(from, render = true) {
     const ships = getShips(from, getTurnPlayer().number);
     humanMove.from = from;
     humanMove.to = null;
-    humanMove.fresh = ships.fresh;
-    humanMove.damaged = ships.damaged;
+    // Rebel (Disorganized): no more than 2 ships at a time (leaderrules.js)
+    const most = getLeaderMoveLimit(getTurnPlayer());
+    humanMove.fresh = Math.min(ships.fresh, most);
+    humanMove.damaged = Math.min(ships.damaged, most - humanMove.fresh);
     humanMove.routes = [];
     humanMove.route = null;
     humanMove.drops = {};
@@ -388,6 +394,9 @@ function getMoveDropped() {
 function stepMoveShips(field, change) {
     const ships = getShips(humanMove.from, getTurnPlayer().number);
     humanMove[field] = Math.min(Math.max(humanMove[field] + change, 0), ships[field]);
+    // Rebel (Disorganized): no more than 2 ships at a time
+    const most = getLeaderMoveLimit(getTurnPlayer());
+    if (humanMove.fresh + humanMove.damaged > most) { humanMove[field] -= humanMove.fresh + humanMove.damaged - most; }
     // Fewer fresh ships may not take control of a gate on the way, so check where it can go (#184)
     if (humanMove.to != null) {
         const number = getTurnPlayer().number;
@@ -451,8 +460,8 @@ function renderHumanMove() {
             return getMoveChip(id, (ships.fresh + ships.damaged) + " ship" + (ships.fresh + ships.damaged == 1 ? "" : "s") + (starport ? ", starport" : ""), id == humanMove.from, "chooseMoveFrom('" + id + "')");
         }).join("") + "</div>";
     if (humanMove.from != null) {
-        const catapult = getBuildings(humanMove.from, number, "starport").length > 0;
-        html += "<div class=\"small text-secondary mb-1\">To" + (catapult ? " <span class=\"text-body\">(" + getSystemShortName(humanMove.from) + " has your starport: Catapult)</span>" : "") + "</div>"
+        const catapult = canCatapultFrom(humanMove.from, number);
+        html += "<div class=\"small text-secondary mb-1\">To" + (catapult ? " <span class=\"text-body\">(" + getSystemShortName(humanMove.from) + (isGate(humanMove.from) ? ": Catapult (Shaper, Ancient)" : " has your starport: Catapult") + ")</span>" : "") + "</div>"
             + "<div class=\"d-flex flex-wrap gap-1 mb-2\">" + getMoveDestinations(humanMove.from, number, humanMove.fresh).map(id => getMoveChip(id, getMoveSystemNote(id, number), id == humanMove.to, "chooseMoveTo('" + id + "')")).join("") + "</div>";
         const ships = getShips(humanMove.from, number);
         html += "<div class=\"d-flex align-items-center flex-wrap gap-2 mb-2\"><span class=\"small\">Ships</span>"

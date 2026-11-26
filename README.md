@@ -97,6 +97,8 @@ Every difficulty plans from the app's board, so keep it matching the table.
 - **Battles:** extra dice and dice limits (Rebel, Corsair, Raider Exosuits), raid limits (Hidden Harbors, Keeper's Trust, Keeper's Solidarity), intercepts (Agitator, Mirror Plating, Railgun Arrays) and no Ransack against the Elder. The results list anything else to do, such as repairs.
 - **Ancient Holdings:** its extra resource slot is included when the app says which slot to put a resource in.
 
+**On the board:** Shaper Catapults from gates, not starports; Rebel moves no more than 2 ships at a time (the Move window too); Overseer has 2 ships fewer to build; Hidden Harbors builds ships fresh; Anarchist taxes Rival cities and empty slots where its ships are, never its own; Upstart taxes its own cities only where it controls them; and Mystic, Fuel-Drinker and Agitator gain their extra resource when they Copy or Pivot to Tax. Without Leaders & Lore none of this applies.
+
 **How the bots use them:** a bot's plan has a short line under any step its Leader or Lore changes, such as *Rebel, Disorganized: no more than 2 ships at a time*. Bots lean towards the action their Leader improves when they Copy or Pivot, offer Lore actions in place of normal ones in a **Guild and Lore actions** window, and use Lore in their prelude, such as discarding a card to clear an Outrage.
 
 **What's left to you:** anything that depends on the board, such as where Force Beams moves ships or which planet Mythic changes. The hints say what the bot may do. You decide where it makes sense.

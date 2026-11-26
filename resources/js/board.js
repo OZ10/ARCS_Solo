@@ -217,11 +217,23 @@ function isControlledByOther(id, playerNumber) {
 // keeps going until the ships move into a gate controlled by anyone else, or into any planet.
 // Control is checked before moving in
 
+function canCatapultFrom(from, playerNumber) {
+    // A Catapult starts from a system with a Loyal starport. A Leader can change that (leaderrules.js)
+    const base = getBuildings(from, playerNumber, "starport").length > 0;
+    return typeof getLeaderCatapult == "function" ? getLeaderCatapult(from, playerNumber, base) : base;
+}
+
+function isBuiltDamaged(id, playerNumber, kind) {
+    // A piece built in a system a Rival controls is damaged (rulebook p.12). Lore can change that
+    const base = isControlledByOther(id, playerNumber);
+    return typeof getLoreBuildDamaged == "function" ? getLoreBuildDamaged(id, playerNumber, kind, base) : base;
+}
+
 function getMoveDestinations(from, playerNumber, movingFresh = null) {
     // Every system its ships at from could reach with one Move action. movingFresh: how many fresh
     // ships are moving (all of them at from if not given)
     const adjacent = getAdjacent(from);
-    if (getBuildings(from, playerNumber, "starport").length == 0) { return adjacent; }
+    if (!canCatapultFrom(from, playerNumber)) { return adjacent; }
     const moving = movingFresh != null ? movingFresh : getShips(from, playerNumber).fresh;
     const reached = new Set();
     const queue = [from];
@@ -243,7 +255,7 @@ function getMoveStop(from, to, playerNumber) {
     // on a Catapult route there that someone else controls (the user). null if they can't get
     // anywhere towards it
     if (canMove(from, to, playerNumber)) { return to; }
-    if (getBuildings(from, playerNumber, "starport").length == 0) { return null; }
+    if (!canCatapultFrom(from, playerNumber)) { return null; }
     // The shortest route through gates, whoever controls them
     const parent = { [from]: null };
     const queue = [from];
@@ -309,9 +321,11 @@ function getBuildableSystems(playerNumber) {
 function getTaxableCities(playerNumber) {
     // Its Loyal cities, and Rival cities in systems it controls (rulebook p.12). A gate city once for
     // each of its types, as it can be taxed for any one of them (Gate Stations)
-    return getSystemIds().flatMap(id => getBuildings(id, null, "city")
+    const cities = getSystemIds().flatMap(id => getBuildings(id, null, "city")
         .filter(city => city.owner == playerNumber || getController(id) == playerNumber)
         .flatMap(city => getCityTypes(id).map(resource => ({ system: id, owner: city.owner, resource: resource, gate: isGate(id) }))));
+    // Leaders that change what can be taxed (leaderrules.js)
+    return typeof getLeaderTaxableCities == "function" ? getLeaderTaxableCities(playerNumber, cities) : cities;
 }
 
 // The setup cards (rulebook p.4-5): the clusters out of play, and each seat's A, B and C systems.
