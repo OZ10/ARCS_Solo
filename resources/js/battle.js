@@ -740,7 +740,11 @@ function showBattleRaid() {
     const where = battle.boardSystem != null ? "At " + getSystemName(battle.boardSystem) + ", from the board." : (target != null ? target.where : "");
     let html = (target != null && target.player === battle.defender)
         ? "<div class=\"small text-muted text-center mb-2\" id=\"battleTargetReason\">" + target.why + " " + where + "</div>" : "";
-    if (holdsGuildCard(battle.attacker, 8)) {
+    if (holdsGuildCard(battle.attacker, 8) && battle.boardSystem != null) {
+        // The board knows whether the battle is in a gate (#160)
+        battle.inGate = isGate(battle.boardSystem);
+        if (battle.inGate) { html += "<div class=\"small text-center mb-2\">In a gate: Gatekeepers gives 2 more dice.</div>"; }
+    } else if (holdsGuildCard(battle.attacker, 8)) {
         html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
             + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleInGate\" onchange=\"setInGate(this.checked)\"" + (battle.inGate ? " checked" : "") + ">"
             + "<label class=\"form-check-label\" for=\"battleInGate\">In a gate (Gatekeepers: 2 more dice)</label></div>";

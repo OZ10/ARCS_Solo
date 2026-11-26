@@ -161,8 +161,17 @@ function getEmptySlotCount(id) {
     return Math.max(getPlanetSlots(id) - getSystem(id).buildings.length, 0);
 }
 
+function getGateBuildKinds(id, playerNumber) {
+    // What a player may build on a gate, max 1 of each per gate: starports with Gate Ports (Lore 8),
+    // cities with Gate Stations (Lore 11). Gates have no slots otherwise
+    if (!isGate(id) || typeof hasLore != "function") { return []; }
+    const player = players.find(other => other.number == playerNumber);
+    if (player == null) { return []; }
+    return [[8, "starport"], [11, "city"]].filter(([lore, kind]) => hasLore(player, lore) && getBuildings(id, playerNumber, kind).length == 0).map(([, kind]) => kind);
+}
+
 function placeBuilding(id, playerNumber, kind, damaged = false) {
-    if (getEmptySlotCount(id) <= 0) { return false; }
+    if (isGate(id) ? !getGateBuildKinds(id, playerNumber).includes(kind) : getEmptySlotCount(id) <= 0) { return false; }
     getSystem(id).buildings.push({ owner: playerNumber, kind: kind, damaged: damaged });
     return true;
 }
@@ -229,6 +238,26 @@ function getMoveDestinations(from, playerNumber, movingFresh = null) {
     return [...reached];
 }
 
+function getMoveStop(from, to, playerNumber) {
+    // Where ships heading for to will really stop: to if they can reach it, otherwise the first gate
+    // on a Catapult route there that someone else controls (the user). null if they can't get
+    // anywhere towards it
+    if (canMove(from, to, playerNumber)) { return to; }
+    if (getBuildings(from, playerNumber, "starport").length == 0) { return null; }
+    // The shortest route through gates, whoever controls them
+    const parent = { [from]: null };
+    const queue = [from];
+    while (queue.length > 0 && parent[to] === undefined) {
+        const at = queue.shift();
+        if (at != from && !isGate(at)) { continue; }
+        getAdjacent(at).forEach(next => { if (parent[next] === undefined) { parent[next] = at; queue.push(next); } });
+    }
+    if (parent[to] === undefined) { return null; }
+    const route = [];
+    for (let at = to; at != from; at = parent[at]) { route.unshift(at); }
+    return route.find(id => id == to || (isGate(id) && isControlledByOther(id, playerNumber))) || null;
+}
+
 function canMove(from, to, playerNumber, movingFresh = null) {
     return getMoveDestinations(from, playerNumber, movingFresh).includes(to);
 }
@@ -256,8 +285,9 @@ function getControlledSystems(playerNumber) {
 }
 
 function getBuildableSystems(playerNumber) {
-    // Planets with an empty slot and a Loyal piece (rulebook p.12)
-    return getSystemIds().filter(id => isPlanet(id) && getEmptySlotCount(id) > 0 && hasLoyalPiece(id, playerNumber));
+    // Planets with an empty slot and a Loyal piece (rulebook p.12), and gates it may build on with
+    // Gate Ports or Gate Stations
+    return getSystemIds().filter(id => (isPlanet(id) ? getEmptySlotCount(id) > 0 : getGateBuildKinds(id, playerNumber).length > 0) && hasLoyalPiece(id, playerNumber));
 }
 
 function getTaxableCities(playerNumber) {

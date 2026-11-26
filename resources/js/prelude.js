@@ -399,7 +399,7 @@ function getPreludeOffers(player) {
     const offered = () => offers.length;
     let slotFreed = false;
     // Very useful: worth spending even when a Rival could then catch it in an ambition (#203)
-    const isVitalMove = where => where.why == "to battle" || where.why.startsWith("to defend");
+    const isVitalMove = where => where.vital === true || where.why == "to battle" || where.why.startsWith("to defend");
     const capturesAgents = entry => getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0) > 0;
     // Work on a copy of the board with the Moves and Builds offered so far made, in order (#203)
     const afterOffers = work => withBoardCopy(() => {

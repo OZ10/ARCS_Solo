@@ -205,7 +205,8 @@ function getHumanBuildOptions(player) {
     const number = player.number;
     const shipsBuilt = getBoardActions(player).filter(action => action.action == "build" && action.kind == "ship").map(action => action.system);
     const options = [];
-    getBuildableSystems(number).forEach(id => ["city", "starport"].forEach(kind => options.push({ system: id, kind: kind, damaged: isControlledByOther(id, number) })));
+    // On a gate, only what Gate Ports or Gate Stations allow
+    getBuildableSystems(number).forEach(id => (isGate(id) ? getGateBuildKinds(id, number) : ["city", "starport"]).forEach(kind => options.push({ system: id, kind: kind, damaged: isControlledByOther(id, number) })));
     // Ships only while some are left in the supply
     getBoardBuildings(number, "starport").map(port => port.system).filter(id => !shipsBuilt.includes(id) && getShipSupply(player) > 0)
         .forEach(id => options.push({ system: id, kind: "ship", damaged: isControlledByOther(id, number) }));
@@ -266,7 +267,7 @@ function renderHumanOptions(type) {
     if (type == "build") {
         options = getHumanBuildOptions(player).map((option, index) => getOptionButton(
             option.kind == "ship" ? "<b>Ship</b> at your starport at " + getSystemName(option.system) : "<b>" + capitalise(option.kind) + "</b> at " + getSystemName(option.system),
-            (option.kind == "ship" ? "One per starport each turn" : getEmptySlotCount(option.system) + " empty slot" + (getEmptySlotCount(option.system) == 1 ? "" : "s")) + (option.damaged ? " &middot; damaged: a Rival controls it" : ""),
+            (option.kind == "ship" ? "One per starport each turn" : isGate(option.system) ? (option.kind == "city" ? "Gate Stations" : "Gate Ports") + ": 1 per gate" : getEmptySlotCount(option.system) + " empty slot" + (getEmptySlotCount(option.system) == 1 ? "" : "s")) + (option.damaged ? " &middot; damaged: a Rival controls it" : ""),
             "humanBuild(" + index + ")", "humanOption" + index));
     } else if (type == "repair") {
         options = getHumanRepairOptions(player).map((option, index) => getOptionButton("A damaged " + option.kind + " at " + getSystemName(option.system), "Turn it fresh side up", "humanRepair(" + index + ")", "humanOption" + index));
@@ -539,4 +540,6 @@ function fillBattleFromSystem(system) {
     battle.freshBuildings = buildings.filter(building => !building.damaged).length;
     battle.damagedBuildings = buildings.filter(building => building.damaged).length;
     battle.planet = isPlanet(system) ? getPlanetResource(system) : null;
+    // Gatekeepers' 2 more dice, in a gate (#160)
+    battle.inGate = isGate(system);
 }

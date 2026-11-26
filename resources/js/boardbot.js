@@ -103,6 +103,51 @@ function getThreatenedCity(player) {
         .sort((a, b) => b.gap - a.gap)[0] || null;
 }
 
+function getRivalReach(player) {
+    // Each system Rivals' fresh ships could move into this turn, and the most that could get there
+    const reach = {};
+    getRivalNumbers(player).forEach(number => getSystemsWithShips(number).forEach(from => {
+        const fresh = getShips(from, number).fresh;
+        if (fresh > 0) { getMoveDestinations(from, number).forEach(id => { reach[id] = Math.max(reach[id] || 0, fresh); }); }
+    }));
+    return reach;
+}
+
+function getGateHoldValue(player, gate) {
+    // What holding this gate protects: its buildings a Rival fleet could reach with more fresh ships
+    // than it has there, only by Catapulting through the gate. A Catapult stops in a gate someone
+    // else controls (rulebook p.13). { count, cities, need }: need is the fresh ships it must add
+    const number = player.number;
+    const control = Math.max(0, ...getRivalNumbers(player).map(rival => getShips(gate, rival).fresh)) + 1;
+    const exposed = ships => withBoardCopy(() => {
+        setShips(gate, number, ships, getShips(gate, number).damaged);
+        const reach = getRivalReach(player);
+        return getBoardBuildings(number).filter(building => (reach[building.system] || 0) > getShips(building.system, number).fresh);
+    });
+    const held = exposed(control);
+    const saved = exposed(0).filter(building => !held.some(other => other.system == building.system && other.kind == building.kind));
+    return { count: saved.length, cities: [...new Set(saved.filter(building => building.kind == "city").map(building => building.system))], need: Math.max(control - getShips(gate, number).fresh, 0) };
+}
+
+function getGatesToHold(player) {
+    // The gates it doesn't control whose control protects some of its buildings from Catapults, those
+    // protecting most first, its cities first (the user): [{ id, need, count, cities }]
+    return getSystemIds().filter(isGate).filter(id => getController(id) != player.number)
+        .map(id => ({ id: id, ...getGateHoldValue(player, id) })).filter(item => item.count > 0 && item.need > 0)
+        .sort((a, b) => b.cities.length - a.cities.length || b.count - a.count);
+}
+
+function getHomeGate(player) {
+    // A cluster with 2 or more of its buildings whose gate it doesn't control: holding the gate
+    // guards them (the user). The gate's id, or null
+    const clusters = {};
+    getBoardBuildings(player.number).forEach(building => { const cluster = getCluster(building.system); clusters[cluster] = (clusters[cluster] || 0) + 1; });
+    const gate = Object.keys(clusters).filter(cluster => clusters[cluster] >= 2).map(cluster => cluster + "g")
+        .filter(id => isSystemInPlay(id) && getSystem(id) != null && getController(id) != player.number)
+        .sort((a, b) => clusters[getCluster(b)] - clusters[getCluster(a)])[0];
+    return gate || null;
+}
+
 function canReachRival(player, rival) {
     // Its fresh ships already with the Rival's pieces, or one Move away (if it can Move)
     const hasPieces = id => getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0;
@@ -145,7 +190,7 @@ function setFleetFromBoard(player) {
 
 function getBoardSlotResources(player) {
     // The planet types with an empty slot in a system where it has a piece (rulebook p.12)
-    return [...new Set(getBuildableSystems(player.number).map(getPlanetResource))];
+    return [...new Set(getBuildableSystems(player.number).filter(isPlanet).map(getPlanetResource))];
 }
 
 function canBuildFromBoard(player, intent) {
@@ -290,7 +335,27 @@ function chooseBoardMove(player, battleTarget, wantsCity, avoid = []) {
     const move = (to, count) => { if (!ok(to)) { return null; } const from = getMoveSources(player, to).filter(source => !isSettledSpot(player, source))[0]; return from == null ? null : { from: from, to: to, count: count == null ? canTake(from) : Math.min(count, canTake(from)) }; };
     // Defending one of its cities a Rival's fleet could reach, with enough to hold it
     const threatened = getThreatenedCity(player);
-    if (threatened != null) { const found = move(threatened.id, threatened.gap + 1); if (found != null) { return { ...found, why: "to defend its city there from a Rival fleet in reach" }; } }
+    // Or holding a gate a Rival fleet would Catapult through to reach its buildings (the user): when
+    // that protects more of them, or it hasn't the ships to hold the city itself
+    // The first it can reach with enough ships to take control
+    const gates = getGatesToHold(player);
+    const holdGate = () => {
+        for (const gate of gates) {
+            const found = move(gate.id, gate.need);
+            if (found == null || found.count < gate.need) { continue; }
+            const what = gate.cities.length > 0 ? (gate.cities.length == 1 ? "its city at " + getSystemName(gate.cities[0]) : "its cities") : "its buildings";
+            return { ...found, why: "to hold " + getSystemName(gate.id) + ", so Rival fleets can't Catapult through it to " + what, vital: gate.cities.length > 0, protects: gate.count };
+        }
+        return null;
+    };
+    const gate = gates[0] || null;
+    if (threatened != null) {
+        const found = move(threatened.id, threatened.gap + 1);
+        const direct = found != null && found.count >= threatened.gap + 1;
+        if (!direct || (gate != null && gate.count > 1)) { const held = holdGate(); if (held != null) { return held; } }
+        if (found != null) { return { ...found, why: "to defend its city there from a Rival fleet in reach" }; }
+    }
+    if (gate != null) { const held = holdGate(); if (held != null) { return held; } }
     const rivalCity = getSystemIds().find(id => ok(id) && getBuildings(id, null, "city").some(city => city.owner != player.number) && getMoveSources(player, id).length > 0);
     if (rivalCity != null && battleTarget == null) { const found = move(rivalCity, null); if (found != null) { return { ...found, why: "to a Rival's city" }; } }
     if (wantsCity != null) {
@@ -299,6 +364,13 @@ function chooseBoardMove(player, battleTarget, wantsCity, avoid = []) {
     }
     const unguarded = getBoardCities(player.number).map(city => city.system).find(id => ok(id) && getShips(id, player.number).fresh == 0 && getMoveSources(player, id).length > 0);
     if (unguarded != null) { const found = move(unguarded, 1); if (found != null) { return { ...found, why: "to guard its city" }; } }
+    // Its cluster's gate, with 2 or more of its buildings there (the user)
+    const home = getHomeGate(player);
+    if (home != null && ok(home)) {
+        const need = Math.max(0, ...getRivalNumbers(player).map(rival => getShips(home, rival).fresh)) + 1 - getShips(home, player.number).fresh;
+        const found = move(home, need);
+        if (found != null && need > 0 && found.count >= need) { return { ...found, why: "to hold " + getSystemName(home) + ", guarding its buildings in cluster " + getCluster(home) }; }
+    }
     // Spread out: an empty planet with a free slot and no Rival pieces, to build on later (#200 phase 3)
     const open = getSystemIds().find(id => ok(id) && isPlanet(id) && getEmptySlotCount(id) > 0 && !hasRivalPieces(id, player) && !hasLoyalPiece(id, player.number) && getMoveSources(player, id).length > 0);
     if (open != null) { const found = move(open, 2); if (found != null && found.count > 0) { return { ...found, why: "to spread out to an open planet, to build there later" }; } }
@@ -309,6 +381,8 @@ function isSettledSpot(player, id) {
     // A small group of its ships (1 or 2) on an open planet with a free slot and no Rival pieces:
     // there to build later, so they stay until that changes (#200 phase 3, the user)
     const ships = getShips(id, player.number);
+    // Ships holding a gate that stops Rival Catapults to its buildings stay while that's so (the user)
+    if (isGate(id)) { return getController(id) == player.number && getGateHoldValue(player, id).count > 0; }
     return isPlanet(id) && getEmptySlotCount(id) > 0 && !hasRivalPieces(id, player) && ships.fresh + ships.damaged > 0 && ships.fresh + ships.damaged <= 2;
 }
 
@@ -327,7 +401,9 @@ function chooseBoardBuild(player) {
         if (system != null) { return { system: system, kind: "city", resource: choice.resource, reason: choice.reason }; }
     }
     if (choice.build == "starport" || (choice.build != "ship" && buildable.length > 0)) {
-        const system = buildable.slice().sort((a, b) => mine(b) - mine(a) || getShips(b, player.number).fresh - getShips(a, player.number).fresh)[0];
+        // A gate only with Gate Ports
+        const system = buildable.filter(id => isPlanet(id) || getGateBuildKinds(id, player.number).includes("starport"))
+            .sort((a, b) => mine(b) - mine(a) || getShips(b, player.number).fresh - getShips(a, player.number).fresh)[0];
         if (system != null) { return { system: system, kind: "starport", reason: choice.reason }; }
     }
     // A ship only with one left in its supply (#160)
@@ -400,6 +476,34 @@ function placeBoardPlan(player, plan) {
         });
     });
     return plan;
+}
+
+function refreshBotMoveStops(player) {
+    // Where its Moves not yet carried out will really stop, on the board as it is now, after the
+    // steps before them (the user): a Catapult stops in a gate someone else controls, so a Move
+    // planned past one stops there instead, and says so. Its prelude's first, then its plan
+    let changed = false;
+    const fix = step => {
+        const where = step.where;
+        if (where == null || where.from == null || canMove(where.from, where.to, player.number)) { return; }
+        const stop = getMoveStop(where.from, where.to, player.number);
+        const planned = getSystemName(where.to);
+        changed = true;
+        if (stop == null) {
+            step.where = null;
+            step.text = "No Move: its ships at " + getSystemName(where.from) + " can't reach " + planned + " now, so skip this action";
+            return;
+        }
+        const by = getController(stop);
+        step.where = { ...where, to: stop, why: "stopped" };
+        step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(stop)
+            + " (it can't go on to " + planned + " as " + (by != null ? "Player " + by + " controls " : "someone else controls ") + getSystemName(stop) + ", so its Catapult stops there)";
+    };
+    withBoardCopy(() => {
+        getBotPreludeSpent(player).filter(offer => offer.where != null && !offer.applied).forEach(offer => { if (offer.action == "move") { fix(offer); } applyBoardStep(player, offer.where); });
+        (player.turnPlan || []).filter(step => !step.applied).forEach(step => { if (step.action == "move") { fix(step); } applyBoardStep(player, step.where); });
+    });
+    if (changed) { SaveAllSettings(); }
 }
 
 function applyBotPlanToBoard(player) {

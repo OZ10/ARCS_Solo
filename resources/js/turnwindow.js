@@ -226,6 +226,8 @@ function renderHumanTurn(player) {
 
 function renderTurn(player) {
     if (player.isHuman) { renderHumanTurn(player); return; }
+    // Its Moves where its ships will really stop, on the board as it is now (boardbot.js)
+    if (player.turnPlan != null) { refreshBotMoveStops(player); }
     const plan = getTurnPlan(player).map(step => ({ ...step, ...getSplitPlanStep(step, player) }));
     const prelude = (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
     const guild = (player.guildActions != null && player.guildActions.spent != null) ? player.guildActions.spent : [];
