@@ -193,6 +193,13 @@ Tap the bot's **Play Card** button.
 
 **Its prelude:** before its actions, a bot may offer to spend resources or use Guild cards. The window shows the card it played and its plan without them. Where the app knows enough, such as a Court card it can secure or what you've told it this turn, the bot decides for itself: those are already ticked under **Its decisions**, each with its reason. Untick any that don't make sense on the table. The rest are under **Your call**: tick the ones that make sense on the board. The app updates its resources for you.
 
+A bot can spend several resources in one prelude, one for each useful action, and never one it needs for an ambition it has declared or could declare:
+- **Material:** a Build for each good spot on the board (past the first, only a city, or a ship for its battle), or a Repair of a damaged building, or of a damaged ship before a battle.
+- **Fuel:** a Move for each useful one its card can't cover. With a Copy or Pivot, its one action stays free for something else.
+- **Relic:** a Secure for each Court card worth securing, more so with Rival agents on it.
+- **Weapon:** when the board shows a battle at good odds that it can reach.
+- **Psionic:** any action from the lead card it knows is worth it, its own card too when it led: a card to Secure or Influence, a city to Tax, a Move or a city to Build, or one more Battle at good odds. Several Psionics give several actions.
+
 <br clear="right">
 
 <img src="docs/screenshots/turn-window.png" width="300" align="right" alt="A bot's turn window">

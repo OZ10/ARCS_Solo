@@ -150,8 +150,10 @@ const preludeResources = ["materials", "fuel", "relics", "weapons", "psionics"];
 const preludeResourceNames = { materials: "Material", fuel: "Fuel", relics: "Relic", weapons: "Weapon", psionics: "Psionic" };
 const preludeAmbitions = { materials: "tycoon", fuel: "tycoon", relics: "keeper", psionics: "empath" };
 
-// At most this many of each resource type a turn. Could be raised later
+// Each prelude offer spends one resource. A bot can make several offers of the same type (#203),
+// at most this many of each a turn, and only while it can spare them
 const maxPreludePerResource = 1;
+const preludeMost = { builds: 3, moves: 3, psionics: 3 };
 
 // A bot keeps a resource it could use to chase an ambition: when spending one would cost it a
 // place, or this many more would gain it one
@@ -191,7 +193,7 @@ const outOfShipsBelow = 6;
 // personalities (#71)
 // When a bot decides a prelude spend itself, rather than leaving it to the player (see prelude.js)
 const preludeDecision = {
-    relicCost: [0.5, 1.5, 3],   // what spending a Relic to Secure costs it, by how much it needs relics (getResourceNeed)
+    relicCost: [0, 1.5, 3],   // what spending a Relic to Secure costs it, by how much it needs relics (getResourceNeed)
     rivalCaptives: 3            // a Rival with this many Captives makes Tyrant worth thinking about
 };
 

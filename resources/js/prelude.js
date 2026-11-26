@@ -108,9 +108,10 @@ function getAmbitionOutlook(player, ambition) {
     return { own: own, now: now, gain: gain, likely: likely };
 }
 
-function isAmbitionInReach(player, ambition) {
+function isAmbitionInReach(player, ambition, spent = 0) {
     // Spending one would cost it a place, or a few more would gain it one
-    const own = ambitionResources[ambition](player);
+    // spent: what its prelude already spends towards this ambition, when it spends several (#203)
+    const own = Math.max(ambitionResources[ambition](player) - spent, 0);
     const now = getAmbitionPlacePoints(player, ambition, own);
     return getAmbitionPlacePoints(player, ambition, Math.max(own - 1, 0)) < now || couldGainPlace(player, ambition);
 }
@@ -121,13 +122,13 @@ function isAmbitionInPlay(ambition) {
     return turnNumber > preludeEarlyTurns && declaredAmbitions.length < 3;
 }
 
-function canSpareResource(player, resource) {
+function canSpareResource(player, resource, spent = 0) {
     // In a campaign, never one its Fate keeps (campaignhooks.js)
     if (runCampaignHook("keepsResource", player, resource) === true) { return false; }
     // Never a resource it could use to chase an ambition within reach
     const ambition = preludeAmbitions[resource];
     if (ambition == null || !isAmbitionInPlay(ambition)) { return true; }
-    return !isAmbitionInReach(player, ambition);
+    return !isAmbitionInReach(player, ambition, spent);
 }
 
 function getResourceWord(resource) {
@@ -169,11 +170,11 @@ function getSecureReason(player, entry) {
     return text + ".";
 }
 
-function getRelicDecision(player, spend = "relics") {
+function getRelicDecision(player, spend = "relics", skip = 0) {
     // A Relic (or the resource spent) to Secure a Court card its plan doesn't already secure, if the
     // card is worth more than the resource. Captured agents count for more when Tyrant is declared or
-    // could be. null if not
-    const entry = getCardsToSecure(player).slice(getPlannedCount(player, "secure"))[0];
+    // could be. null if not. skip: cards its prelude already secures (#203)
+    const entry = getCardsToSecure(player).slice(getPlannedCount(player, "secure") + skip)[0];
     if (entry == null) { return null; }
     const captured = getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0);
     const tyrantLikely = declaredAmbitions.includes("tyrant") || holdsAmbitionCard(player, "tyrant")
@@ -186,27 +187,29 @@ function getRelicDecision(player, spend = "relics") {
     return { entry: entry, why: keeper + getSecureReason(player, entry) };
 }
 
-function getLeadActionDecision(player, lead) {
+function getLeadActionDecision(player, lead, done = {}) {
     // A Psionic for an action from the lead card, when it knows that action is worth it: a card
     // to Secure or Influence, or a city to Tax for a resource it needs. null if not
+    // done: how many of each its prelude already takes, so the next one is another card or city (#203)
     const actions = lead.actions.split(",");
+    const already = action => done[action] || 0;
     if (actions.includes("secure") && isMarketKnown()) {
-        const relic = getRelicDecision(player, "psionics");
-        if (relic != null) { return { text: "Secure " + getCourtCard(relic.entry.number).name + ", from the lead card", why: getSecureReason(player, relic.entry) }; }
+        const relic = getRelicDecision(player, "psionics", already("secure"));
+        if (relic != null) { return { action: "secure", text: "Secure " + getCourtCard(relic.entry.number).name + ", from the lead card", why: getSecureReason(player, relic.entry) }; }
     }
     if (actions.includes("tax")) {
         // Not a Psionic city: spending a Psionic to gain one is no gain (#202)
-        const city = getCitiesToTax(player).slice(getPlannedCount(player, "tax")).filter(resource => resource != "psionics")[0];
+        const city = getCitiesToTax(player).slice(getPlannedCount(player, "tax")).filter(resource => resource != "psionics")[already("tax")];
         if (city != null && getResourceNeed(player, city) > 0) {
-            const ambition = preludeAmbitions[city];
-            return { text: getTaxStepName(player, city) + ", from the lead card", why: "It needs " + getResourceWord(city) + " for " + capitalise(ambition) + "." };
+            const ambition = preludeAmbitions[city] || "warlord";
+            return { action: "tax", text: getTaxStepName(player, city) + ", from the lead card", why: "It needs " + getResourceWord(city) + " for " + capitalise(ambition) + "." };
         }
     }
-    if (actions.includes("influence") && isMarketKnown() && getPlannedCount(player, "influence") == 0) {
+    if (actions.includes("influence") && isMarketKnown() && getPlannedCount(player, "influence") + already("influence") == 0) {
         const entry = getCardsToInfluence(player)[0];
         if (entry != null && getMarketCardValue(player, entry) > marketValues.base) {
             const reason = getMarketReason(player, entry);
-            return { text: "Influence " + getCourtCard(entry.number).name + ", from the lead card", why: "It's worth getting ahead on " + getCourtCard(entry.number).name + (reason ? " (" + reason + ")" : "") + "." };
+            return { action: "influence", text: "Influence " + getCourtCard(entry.number).name + ", from the lead card", why: "It's worth getting ahead on " + getCourtCard(entry.number).name + (reason ? " (" + reason + ")" : "") + "." };
         }
     }
     return null;
@@ -318,7 +321,10 @@ function getPreludeOffers(player) {
         // it says to ignore that (rulebook p.16)
         const hasLoyal = guild.some(card => card.spendAnyAs == resource);
         const outraged = (player.outraged || []).includes(resource);
-        const spare = other => canSpareResource(player, other) && !couldScoreFromHand(player, other);
+        // Counting what it's already spending towards the same ambition (#203)
+        const spentFor = other => preludeAmbitions[other] == null ? 0 : preludeResources.filter(item => preludeAmbitions[item] == preludeAmbitions[other])
+            .reduce((total, item) => total + player[item + "Value"] - available[item], 0);
+        const spare = other => canSpareResource(player, other, spentFor(other)) && !couldScoreFromHand(player, other);
         if (available[resource] > 0 && spare(resource) && (!outraged || hasLoyal)) { return resource; }
         if (!hasLoyal) { return null; }
         return preludeResources.filter(other => other != resource && available[other] > 0 && spare(other))
@@ -352,6 +358,16 @@ function getPreludeOffers(player) {
         ? "It's raiding for " + raidFor.map(resource => preludeResourceNames[resource]).join(" or ") + " with every resource slot full: spending this frees one." : null;
     const offered = () => offers.length;
     let slotFreed = false;
+    // Work on a copy of the board with the Moves and Builds offered so far made, in order (#203)
+    const afterOffers = work => withBoardCopy(() => {
+        offers.forEach(offer => applyBoardStep(player, offer.where));
+        return work();
+    });
+    // How many of an action its card covers itself: with one action (Copy, Pivot) none, as that
+    // action is free for something else; otherwise all but one (#203)
+    const cardCovers = action => play.actions.includes(action) ? Math.max(0, play.count - 1) : 0;
+    const target = battleWhy != null && canBattle ? getBattleTarget(player) : null;
+    const targetNumber = target != null && typeof target.player.number == "number" ? target.player.number : null;
     if (slotWhy != null && player.canBuild !== false && !play.actions.includes("build")) {
         const before = offered();
         offerAction("materials", "Build or Repair, and free a slot for what it raids", "build", false, slotWhy);
@@ -365,13 +381,35 @@ function getPreludeOffers(player) {
         offerAction("materials", "Build or Repair", "build", false, "The board shows it can build or repair, and its card doesn't build.");
     } else if (battleWhy != null && canBattle && player.canBuild !== false && (player.starportsValue || 0) > 0 && !play.actions.includes("build")) {
         offerAction("materials", "Build a ship at a starport, or repair a damaged ship, ready for its battle", "build", false, battleWhy + ": one more ship, or a repaired one, makes the battle safer.");
-    } else if (!play.actions.includes("build")) {
-        // The board shows a good spot to build: decided, and where (#197). No longer a guess
-        const where = chooseBoardBuild(player);
-        if (where != null) {
+    } else {
+        // The board's good spots to build, one after another: decided, and where (#197). Several
+        // Materials for several Builds (#203): past the first, only a city (more slots and its
+        // bonus) or a ship for its battle. The card covers some of them itself
+        const builds = afterOffers(() => {
+            const list = [];
+            while (list.length < preludeMost.builds) {
+                const where = chooseBoardBuild(player);
+                if (where == null || (list.length > 0 && where.kind != "city" && !(where.kind == "ship" && battleWhy != null))) { break; }
+                list.push(where);
+                applyBoardStep(player, where);
+            }
+            return list;
+        });
+        const cardBuilds = cardCovers("build");
+        for (const where of builds.slice(0, Math.max(0, builds.length - cardBuilds))) {
             const before = offered();
-            offerAction("materials", where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system), "build", false, "The board has a good spot for it, and its card doesn't build.");
-            if (offered() > before) { offers[offers.length - 1].where = where; }
+            offerAction("materials", where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system), "build", false,
+                "The board has a good spot for it" + (where.reason ? " (" + where.reason + ")" : "") + (play.actions.includes("build") ? ", more than its card's actions can build." : ", and its card doesn't build."));
+            if (offered() == before) { break; }
+            offers[offers.length - 1].where = where;
+        }
+        // A Repair: a damaged building, or a damaged ship with a battle in mind (#203)
+        const damaged = cardBuilds == 0 ? afterOffers(() => getDamagedPiece(player)) : null;
+        if (damaged != null && (damaged.building != null || battleWhy != null)) {
+            const before = offered();
+            offerAction("materials", "Repair " + damaged.piece + " at " + getSystemName(damaged.system), "build", false,
+                damaged.building != null ? "Its damaged " + damaged.building + " is destroyed by the next hit." : battleWhy + ": a repaired ship makes the battle safer.");
+            if (offered() > before) { offers[offers.length - 1].where = damaged; }
         }
     }
     // Fuel: decided if the player said it can reach something and its card doesn't move
@@ -380,24 +418,40 @@ function getPreludeOffers(player) {
         const before = offered();
         offerAction("fuel", "Move, and free a slot for what it raids", "move", false, slotWhy);
         slotFreed = offered() > before;
-    } else if (!play.actions.includes("move")) {
-        // The board's best Move: to its battle, a city to defend or take, or a planet to build on.
-        // Decided, and exactly where (#197)
-        const target = battleWhy != null && canBattle ? getBattleTarget(player) : null;
-        const targetNumber = target != null && typeof target.player.number == "number" ? target.player.number : null;
-        const where = chooseBoardMove(player, targetNumber, getNewCityResource(player));
-        if (where != null) {
+    } else {
+        // The board's useful Moves, one after another, never back the way it came: to its battle, a
+        // city to defend or take, or a planet to build on. Decided, and exactly where (#197). One
+        // Fuel for each the card can't cover, so a Copy or Pivot can move and still act (#203)
+        const moves = afterOffers(() => {
+            const list = [];
+            const movedFrom = offers.filter(offer => offer.where != null && offer.where.from != null).map(offer => offer.where.from);
+            while (list.length < preludeMost.moves) {
+                const where = chooseBoardMove(player, targetNumber, getNewCityResource(player), movedFrom);
+                if (where == null) { break; }
+                list.push(where);
+                movedFrom.push(where.from);
+                applyBoardStep(player, where);
+            }
+            return list;
+        });
+        for (const where of moves.slice(0, Math.max(0, moves.length - cardCovers("move")))) {
             const before = offered();
             offerAction("fuel", "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")", "move", false,
-                (battleWhy != null && where.why == "to battle" ? battleWhy + ", and" : "The board has a useful Move, and") + " its card doesn't move.");
-            if (offered() > before) { offers[offers.length - 1].where = where; }
+                (battleWhy != null && where.why == "to battle" ? battleWhy + ", and" : "The board has a useful Move, and")
+                + (!play.actions.includes("move") ? " its card doesn't move." : play.count == 1 ? " its card's one action is free for something else." : " its card has more useful Moves than actions."));
+            if (offered() == before) { break; }
+            offers[offers.length - 1].where = where;
         }
     }
-    // Relic: with the market entered it knows what it could secure, so decides. Otherwise the
-    // player's call
+    // Relic: with the market entered it knows what it could secure, so decides, one Relic for each
+    // card worth securing (#203). Otherwise the player's call
+    const secured = () => offers.filter(offer => offer.action == "secure").length;
     if (isMarketKnown()) {
-        const relic = getRelicDecision(player);
-        if (relic != null) { offerAction("relics", "Secure " + getCourtCard(relic.entry.number).name, "secure", false, relic.why); }
+        for (let relic = getRelicDecision(player); relic != null; relic = getRelicDecision(player, "relics", secured())) {
+            const before = offered();
+            offerAction("relics", "Secure " + getCourtCard(relic.entry.number).name, "secure", false, relic.why);
+            if (offered() == before) { break; }
+        }
     } else if (wants(preludeChance.spare)) {
         offerAction("relics", usefulIf.relics, "secure");
     }
@@ -415,23 +469,42 @@ function getPreludeOffers(player) {
     // Psionics give an action from the lead card. When the bot led, that's only worth it for
     // more battles than its card allows
     const lead = playedCardList[0];
-    if (play.leading) {
-        const chance = (chasingWarlord ? preludeChance.psionicsWarlord : 0) + (manyShips ? preludeChance.psionicsManyShips : 0);
-        // Only with a battle at good odds on the board (#197, #198)
-        const goodBattle = players.some(other => other !== player && hasFavourableBattle(player, other));
-        if (play.actions.includes("battle") && battleWhy != null && goodBattle) { offerAction("psionics", "One more Battle than the card allows", "battle", false, battleWhy + ", at good odds on the board."); }
+    // In a campaign, its Fate may want it spent (campaignhooks.js)
+    const steerWhy = play.leading ? null : runCampaignHook("spendWhy", player, "psionics", lead);
+    if (steerWhy != null && available.psionics > 0 && !(player.outraged || []).includes("psionics")) {
+        available.psionics -= 1;
+        offers.push({ label: "1 Psionic", text: "An action from the lead card (" + lead.actions.split(",").filter(action => action != "battle").join(", ") + ")", costs: { psionics: 1 }, action: "lead", converts: false, decided: true, why: steerWhy });
     } else {
-        // Decided when it knows the lead card's action is worth it, or it has a battle in mind and
-        // the lead card can Battle (#140)
-        const decision = getLeadActionDecision(player, lead);
-        const chance = preludeChance.psionicsFollowing + ((keenToBattle && lead.actions.includes("battle")) ? preludeChance.psionicsBattle : 0);
-        // In a campaign, its Fate may want it spent (campaignhooks.js)
-        const steerWhy = runCampaignHook("spendWhy", player, "psionics", lead);
-        if (steerWhy != null && available.psionics > 0 && !(player.outraged || []).includes("psionics")) {
-            available.psionics -= 1;
-            offers.push({ label: "1 Psionic", text: "An action from the lead card (" + lead.actions.split(",").filter(action => action != "battle").join(", ") + ")", costs: { psionics: 1 }, action: "lead", converts: false, decided: true, why: steerWhy });
-        } else if (decision != null) { offerAction("psionics", decision.text, "lead", false, decision.why); }
-        else if (battleWhy != null && lead.actions.includes("battle") && players.some(other => other !== player && hasFavourableBattle(player, other))) { offerAction("psionics", "A Battle, from the lead card", "lead", false, battleWhy + ", the board shows good odds, and the lead card can Battle."); }
+        // Any action from the lead card it knows is worth it, its own card too when it led, one
+        // Psionic each (#203): a card to Secure or Influence, a city to Tax, a useful Move or Build
+        // the rest of its turn doesn't cover, or one more Battle at good odds (#197, #198)
+        const leadActions = lead.actions.split(",");
+        const from = play.leading ? ", from its own card" : ", from the lead card";
+        const done = action => offers.filter(offer => offer.action == action).length;
+        let battles = 0;
+        for (let psionic = 0; psionic < preludeMost.psionics; psionic++) {
+            let decision = getLeadActionDecision(player, lead, { secure: done("secure"), tax: done("tax"), influence: done("influence") });
+            if (decision != null) { decision.text = decision.text.replace(/, from the lead card$/, from); }
+            if (decision == null && leadActions.includes("move")) {
+                const where = afterOffers(() => chooseBoardMove(player, targetNumber, getNewCityResource(player), offers.filter(offer => offer.where != null && offer.where.from != null).map(offer => offer.where.from)));
+                // Not just to spread out: too little for a Psionic
+                if (where != null && !play.actions.includes("move") && !where.why.startsWith("to spread")) { decision = { action: "move", where: where, text: "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")" + from, why: "The board has another useful Move." }; }
+            }
+            if (decision == null && leadActions.includes("build") && !play.actions.includes("build")) {
+                const where = afterOffers(() => chooseBoardBuild(player));
+                if (where != null && where.kind == "city") { decision = { action: "build", where: where, text: "Build a city at " + getSystemName(where.system) + from, why: "The board has a spot for another city." }; }
+            }
+            if (decision == null && leadActions.includes("battle") && battles == 0 && battleWhy != null && (!play.leading || play.actions.includes("battle"))
+                && players.some(other => other !== player && hasFavourableBattle(player, other))) {
+                decision = { action: "battle", text: play.leading ? "One more Battle than the card allows" : "A Battle, from the lead card", why: battleWhy + ", at good odds on the board." };
+                battles++;
+            }
+            if (decision == null) { break; }
+            const before = offered();
+            offerAction("psionics", decision.text, decision.action, false, decision.why);
+            if (offered() == before) { break; }
+            if (decision.where != null) { offers[offers.length - 1].where = decision.where; }
+        }
     }
 
     // The bot's own Guild cards

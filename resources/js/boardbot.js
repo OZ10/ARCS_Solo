@@ -224,7 +224,10 @@ function getUsefulMoveCount(player, most = 3) {
     // came (#197)
     let count = 0;
     withBoardCopy(() => {
-        const movedFrom = [];
+        // After its prelude's Moves and Builds, which come first (#203)
+        const spent = getBotPreludeSpent(player).filter(offer => offer.where != null && !offer.applied);
+        spent.forEach(offer => applyBoardStep(player, offer.where));
+        const movedFrom = spent.filter(offer => offer.where.from != null).map(offer => offer.where.from);
         while (count < most) {
             const where = chooseBoardMove(player, null, getNewCityResource(player), movedFrom);
             if (where == null) { break; }
