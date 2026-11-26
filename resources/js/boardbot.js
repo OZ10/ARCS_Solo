@@ -480,7 +480,9 @@ function placeBoardPlan(player, plan) {
                 // A Rival's city: the leader's first, capturing their agent (#200)
                 const leader = getLeader(player);
                 // Each city once a turn, a gate city too whichever type it's taxed for (Gate Stations)
-                const cities = getTaxableCities(player.number).filter(item => !taxedCities.includes(item.system + ":" + item.owner));
+                // Warlord's Cruelty and Overseer (Ruthless) may tax a city again: then the same one will do
+                const again = canTaxCityAgain(player) || hasLeader(player, 10);
+                const cities = getTaxableCities(player.number).filter(item => again || !taxedCities.includes(item.system + ":" + item.owner));
                 const rivalCities = cities.filter(item => item.owner != player.number)
                     .sort((a, b) => Number(leader != null && b.owner == leader.number) - Number(leader != null && a.owner == leader.number) || getResourceNeed(player, b.resource) - getResourceNeed(player, a.resource));
                 // A planet city of that type before a gate city, which it may need for another type
