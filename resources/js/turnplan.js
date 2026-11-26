@@ -257,8 +257,9 @@ function getActionPlanScore(player, action, focus) {
             const goal = getMoveGoal(player);
             if (goal != null) { score += weights.moveGoal; reason = goal; }
             else { reason = getMoveReasons(player)[0]; }
-            // The board's best Move has a purpose (#200 phase 3)
-            const best = chooseBoardMove(player, null, getNewCityResource(player));
+            // The board's best Move has a purpose (#200 phase 3). After its prelude's Moves, so a
+            // card's Move counts only when ANOTHER Move is useful (#203, the user)
+            const best = getNextBoardMove(player);
             // Spreading out counts for less than a battle, a defence, a Rival's city or a build
             if (best != null) { score += /^to spread/.test(best.why) ? weights.moveUseful / 2 : weights.moveUseful; reason = getMoveWhy(best); }
             break;

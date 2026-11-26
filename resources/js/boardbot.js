@@ -239,6 +239,17 @@ function getUsefulMoveCount(player, most = 3) {
     return count;
 }
 
+function getNextBoardMove(player) {
+    // The board's best Move once its prelude's Moves and Builds are made, never back the way
+    // they came. null if there's no other useful one (#203)
+    return withBoardCopy(() => {
+        const spent = getBotPreludeSpent(player).filter(offer => offer.where != null && !offer.applied);
+        spent.forEach(offer => applyBoardStep(player, offer.where));
+        const movedFrom = spent.filter(offer => offer.where.from != null).map(offer => offer.where.from);
+        return chooseBoardMove(player, null, getNewCityResource(player), movedFrom);
+    });
+}
+
 function withBoardCopy(work) {
     // Runs work on a copy of the board, then puts the real one back
     const real = board;

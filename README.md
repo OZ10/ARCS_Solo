@@ -193,7 +193,7 @@ Tap the bot's **Play Card** button.
 
 **Its prelude:** before its actions, a bot may offer to spend resources or use Guild cards. The window shows the card it played and its plan without them. Where the app knows enough, such as a Court card it can secure or what you've told it this turn, the bot decides for itself: those are already ticked under **Its decisions**, each with its reason. Untick any that don't make sense on the table. The rest are under **Your call**: tick the ones that make sense on the board. The app updates its resources for you.
 
-A bot can spend several resources in one prelude, one for each useful action, and never one it needs for an ambition it has declared or could declare:
+A bot can spend several resources in one prelude, one for each useful action, and never one it needs for an ambition it has declared or could declare. When it's first in an ambition, it also keeps a resource if spending it would let a Rival catch up by taxing a city of that resource, as a spent resource goes back to the shared pool. Only a very useful spend goes ahead anyway: a Move to its battle or to defend a city, building a city, a Secure that captures Rival agents, or a Battle at good odds. What it keeps, and why, is listed under **Kept**. A bot's card still Moves after a Fuel Move when another Move is useful.
 - **Material:** a Build for each good spot on the board (past the first, only a city, or a ship for its battle), or a Repair of a damaged building, or of a damaged ship before a battle.
 - **Fuel:** a Move for each useful one its card can't cover. With a Copy or Pivot, its one action stays free for something else.
 - **Relic:** a Secure for each Court card worth securing, more so with Rival agents on it.

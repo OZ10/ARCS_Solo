@@ -131,6 +131,33 @@ function canSpareResource(player, resource, spent = 0) {
     return !isAmbitionInReach(player, ambition, spent);
 }
 
+function getLeadRisk(player, resource, spent) {
+    // When it's first (or tied first) in an ambition this resource counts for, the Rival who could
+    // catch it on their next turn if it spends this many: what they hold, plus a city of that
+    // resource they can tax for each one left in the shared pool, which its spend adds to. A
+    // resource kept on its board is harder for Rivals to get (#203, the user). null if its lead is
+    // safe. Not on Easy, which leaves its prelude to the player
+    if (getDifficulty().decides === false) { return null; }
+    const ambition = preludeAmbitions[resource];
+    if (ambition == null || !isAmbitionInPlay(ambition)) { return null; }
+    const count = ambitionResources[ambition];
+    const own = count(player);
+    const rivals = players.filter(other => other !== player);
+    if (rivals.length == 0 || rivals.some(other => count(other) > own)) { return null; }
+    const resources = preludeResources.filter(item => preludeAmbitions[item] == ambition);
+    const after = own - spent;
+    const pool = resources.reduce((total, item) => total + getResourceSupply(item), 0) + spent;
+    for (const rival of rivals) {
+        const cities = getTaxableCities(rival.number).filter(city => resources.includes(getPlanetResource(city.system)));
+        const reach = count(rival) + Math.min(cities.length, pool);
+        if (cities.length > 0 && pool > 0 && reach >= after) {
+            return { rival: rival, why: "Keeps its " + preludeResourceNames[resource] + ": Player " + rival.number + " could tax a "
+                + preludeResourceNames[getPlanetResource(cities[0].system)] + " city and " + (reach > after ? "pass" : "tie") + " it in " + capitalise(ambition) + "." };
+        }
+    }
+    return null;
+}
+
 function getResourceWord(resource) {
     // e.g. "relics", "fuel"
     return preludeResourceNames[resource].toLowerCase() + (resource == "fuel" ? "" : "s");
@@ -195,7 +222,7 @@ function getLeadActionDecision(player, lead, done = {}) {
     const already = action => done[action] || 0;
     if (actions.includes("secure") && isMarketKnown()) {
         const relic = getRelicDecision(player, "psionics", already("secure"));
-        if (relic != null) { return { action: "secure", text: "Secure " + getCourtCard(relic.entry.number).name + ", from the lead card", why: getSecureReason(player, relic.entry) }; }
+        if (relic != null) { return { action: "secure", entry: relic.entry, text: "Secure " + getCourtCard(relic.entry.number).name + ", from the lead card", why: getSecureReason(player, relic.entry) }; }
     }
     if (actions.includes("tax")) {
         // Not a Psionic city: spending a Psionic to gain one is no gain (#202)
@@ -313,7 +340,11 @@ function getPreludeOffers(player) {
     let available = {};
     preludeResources.forEach(resource => { available[resource] = player[resource + "Value"]; });
 
-    const payFor = resource => {
+    // What it keeps because a Rival could catch it in an ambition, and why: shown in the window
+    const keeps = [];
+    // vital: a very useful spend (a Move to its battle or to defend a city, a city, a Secure that
+    // captures Rival agents, a Battle at good odds), which only has to keep its place now (#203)
+    const payFor = (resource, vital = false) => {
         // The resource to spend for this resource's prelude action: its own if it can spare
         // it, otherwise (with the Loyal card for it) any other resource it can spare, the one
         // it has most of. null if it can't pay
@@ -324,7 +355,13 @@ function getPreludeOffers(player) {
         // Counting what it's already spending towards the same ambition (#203)
         const spentFor = other => preludeAmbitions[other] == null ? 0 : preludeResources.filter(item => preludeAmbitions[item] == preludeAmbitions[other])
             .reduce((total, item) => total + player[item + "Value"] - available[item], 0);
-        const spare = other => canSpareResource(player, other, spentFor(other)) && !couldScoreFromHand(player, other);
+        const safeLead = other => {
+            if (vital) { return true; }
+            const risk = getLeadRisk(player, other, spentFor(other) + 1);
+            if (risk != null && !keeps.includes(risk.why)) { keeps.push(risk.why); }
+            return risk == null;
+        };
+        const spare = other => canSpareResource(player, other, spentFor(other)) && !couldScoreFromHand(player, other) && safeLead(other);
         if (available[resource] > 0 && spare(resource) && (!outraged || hasLoyal)) { return resource; }
         if (!hasLoyal) { return null; }
         return preludeResources.filter(other => other != resource && available[other] > 0 && spare(other))
@@ -336,8 +373,8 @@ function getPreludeOffers(player) {
     // the lead card), so the Build icon can show when the bot can build (see canBotBuild)
     // why: the bot has decided this itself, and why (ticked in the window). Without it, it's the
     // player's call
-    const offerAction = (resource, text, action, converts, why) => {
-        const pay = payFor(resource);
+    const offerAction = (resource, text, action, converts, why, vital = false) => {
+        const pay = payFor(resource, vital);
         if (pay == null) { return; }
         const amount = Math.min(available[pay], maxPreludePerResource);
         available[pay] -= amount;
@@ -358,6 +395,9 @@ function getPreludeOffers(player) {
         ? "It's raiding for " + raidFor.map(resource => preludeResourceNames[resource]).join(" or ") + " with every resource slot full: spending this frees one." : null;
     const offered = () => offers.length;
     let slotFreed = false;
+    // Very useful: worth spending even when a Rival could then catch it in an ambition (#203)
+    const isVitalMove = where => where.why == "to battle" || where.why.startsWith("to defend");
+    const capturesAgents = entry => getRivalAgents(entry, player).reduce((total, agents) => total + agents, 0) > 0;
     // Work on a copy of the board with the Moves and Builds offered so far made, in order (#203)
     const afterOffers = work => withBoardCopy(() => {
         offers.forEach(offer => applyBoardStep(player, offer.where));
@@ -399,7 +439,7 @@ function getPreludeOffers(player) {
         for (const where of builds.slice(0, Math.max(0, builds.length - cardBuilds))) {
             const before = offered();
             offerAction("materials", where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system), "build", false,
-                "The board has a good spot for it" + (where.reason ? " (" + where.reason + ")" : "") + (play.actions.includes("build") ? ", more than its card's actions can build." : ", and its card doesn't build."));
+                "The board has a good spot for it" + (where.reason ? " (" + where.reason + ")" : "") + (play.actions.includes("build") ? ", more than its card's actions can build." : ", and its card doesn't build."), where.kind == "city");
             if (offered() == before) { break; }
             offers[offers.length - 1].where = where;
         }
@@ -438,7 +478,8 @@ function getPreludeOffers(player) {
             const before = offered();
             offerAction("fuel", "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")", "move", false,
                 (battleWhy != null && where.why == "to battle" ? battleWhy + ", and" : "The board has a useful Move, and")
-                + (!play.actions.includes("move") ? " its card doesn't move." : play.count == 1 ? " its card's one action is free for something else." : " its card has more useful Moves than actions."));
+                + (!play.actions.includes("move") ? " its card doesn't move." : play.count == 1 ? " its card's one action is free for something else." : " its card has more useful Moves than actions."),
+                isVitalMove(where));
             if (offered() == before) { break; }
             offers[offers.length - 1].where = where;
         }
@@ -449,7 +490,7 @@ function getPreludeOffers(player) {
     if (isMarketKnown()) {
         for (let relic = getRelicDecision(player); relic != null; relic = getRelicDecision(player, "relics", secured())) {
             const before = offered();
-            offerAction("relics", "Secure " + getCourtCard(relic.entry.number).name, "secure", false, relic.why);
+            offerAction("relics", "Secure " + getCourtCard(relic.entry.number).name, "secure", false, relic.why, capturesAgents(relic.entry));
             if (offered() == before) { break; }
         }
     } else if (wants(preludeChance.spare)) {
@@ -501,7 +542,9 @@ function getPreludeOffers(player) {
             }
             if (decision == null) { break; }
             const before = offered();
-            offerAction("psionics", decision.text, decision.action, false, decision.why);
+            const vital = decision.action == "battle" || (decision.action == "build" && decision.where != null)
+                || (decision.action == "move" && isVitalMove(decision.where)) || (decision.entry != null && capturesAgents(decision.entry));
+            offerAction("psionics", decision.text, decision.action, false, decision.why, vital);
             if (offered() == before) { break; }
             if (decision.where != null) { offers[offers.length - 1].where = decision.where; }
         }
@@ -614,14 +657,19 @@ function getPreludeOffers(player) {
 
     // Lore in its prelude (leaderrules.js). In a campaign, a Fate can make some of them decisions (campaignhooks.js)
     const all = offers.concat(getLorePreludeOffers(player, () => true, available));
+    lastPreludeKeeps = keeps;
     return applyOfferDifficulty(runCampaignHook("preludeOffers", player, all) || all);
 }
+
+// What the last getPreludeOffers kept so a Rival can't catch it in an ambition (#203)
+let lastPreludeKeeps = [];
 
 function startPrelude(player) {
     // Called once the bot's card is played. The offers are decided once and saved, so a
     // reload shows the same window again until it's answered
     if (player.prelude == null) {
         player.prelude = { offers: getPreludeOffers(player), spent: null };
+        player.prelude.keeps = lastPreludeKeeps;
         SaveAllSettings();
     }
     if (player.prelude.offers.length > 0 && player.prelude.spent == null) {
@@ -701,6 +749,12 @@ function showPreludeModal(player, step) {
     offers.forEach((offer, index) => { if (offer.decided) { addRow(offer, index); } });
     if (anyDecided && offers.some(offer => !offer.decided)) { addLabel("Your call", false); }
     offers.forEach((offer, index) => { if (!offer.decided) { addRow(offer, index); } });
+    // What it kept so a Rival can't catch it in an ambition (#203)
+    const keeps = (!isGuild && player.prelude.keeps) || [];
+    if (keeps.length > 0) {
+        addLabel("Kept", offers.length == 0);
+        keeps.forEach(why => { const row = document.createElement("div"); row.classList.add("small", "text-muted", "mb-1"); row.innerHTML = tagPlayerNames(why); list.appendChild(row); });
+    }
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("preludeModal")).show();
 }
