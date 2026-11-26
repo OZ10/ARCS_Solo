@@ -362,7 +362,16 @@ function chooseBoardMove(player, battleTarget, wantsCity, avoid = []) {
     if (rivalCity != null && battleTarget == null) { const found = move(rivalCity, null); if (found != null) { return { ...found, why: "to a Rival's city" }; } }
     if (wantsCity != null) {
         const planet = getSystemIds().find(id => ok(id) && isPlanet(id) && getPlanetResource(id) == wantsCity && getEmptySlotCount(id) > 0 && !isControlledByOther(id, player.number) && getMoveSources(player, id).length > 0);
+        // Or a gate it may build a city on (Gate Stations) that counts as that type, where it has no
+        // piece yet: first when it gives more types it has no city of than the planet would
+        const newTypes = id => getGateCityTypes(id).filter(resource => !hasCityOfType(player, resource));
+        const gate = getSystemIds().filter(id => ok(id) && isGate(id) && !hasLoyalPiece(id, player.number) && getGateBuildKinds(id, player.number).includes("city")
+            && getGateCityTypes(id).includes(wantsCity) && !isControlledByOther(id, player.number) && getMoveSources(player, id).length > 0)
+            .sort((a, b) => newTypes(b).length - newTypes(a).length)[0];
+        const toGate = () => { const found = move(gate, 1); return found == null ? null : { ...found, why: "to build a gate city there (Gate Stations: " + getGateCityTypes(gate).map(resource => preludeResourceNames[resource]).join(", ") + ")" }; };
+        if (gate != null && (planet == null || newTypes(gate).length > 1)) { const found = toGate(); if (found != null) { return found; } }
         if (planet != null) { const found = move(planet, 1); if (found != null) { return { ...found, why: "to build a city" }; } }
+        if (gate != null) { const found = toGate(); if (found != null) { return found; } }
     }
     const unguarded = getBoardCities(player.number).map(city => city.system).find(id => ok(id) && getShips(id, player.number).fresh == 0 && getMoveSources(player, id).length > 0);
     if (unguarded != null) { const found = move(unguarded, 1); if (found != null) { return { ...found, why: "to guard its city" }; } }
