@@ -129,14 +129,16 @@ function getBuildingValue(attacker, defender, type) {
         if (!isMarketKnown()) { gain += weights.ransackUnknown; }
         else if (ransack.length > 0) { gain += getMarketCardValue(attacker, ransack[0]) * weights.ransackFactor; }
 
-        const resource = type.split(":").pop();
-        const need = getOutrageNeed(attacker, resource);
-        const cards = getPlayerGuildCards(attacker).filter(card => card.resource == resource);
-        cost = attacker[resource + "Value"] * weights.resourceLost[need]
-            + cards.filter(card => !card.keepOnOutrage).length * weights.guildCardLost[need];
-
-        // Already Outraged, or a Loyal card ignores it for this resource: no further loss
-        if (!(attacker.outraged || []).includes(resource) && !cards.some(card => card.keepOnOutrage)) { cost += weights.preludeLost; }
+        // A gate city: Outrage of every city type in its cluster (Gate Stations)
+        const resources = type == "gate" ? (battle.boardSystem != null ? getGateCityTypes(battle.boardSystem) : []) : [type.split(":").pop()];
+        resources.forEach(resource => {
+            const need = getOutrageNeed(attacker, resource);
+            const cards = getPlayerGuildCards(attacker).filter(card => card.resource == resource);
+            cost += attacker[resource + "Value"] * weights.resourceLost[need]
+                + cards.filter(card => !card.keepOnOutrage).length * weights.guildCardLost[need];
+            // Already Outraged, or a Loyal card ignores it for this resource: no further loss
+            if (!(attacker.outraged || []).includes(resource) && !cards.some(card => card.keepOnOutrage)) { cost += weights.preludeLost; }
+        });
     }
     return { gain: gain, cost: cost, value: gain - cost };
 }
@@ -321,7 +323,8 @@ function getBattleBuildingTypes() {
     // What each defending building is, fresh ones first. They start as cities on a planet it has a
     // city on, so the bot is careful unless told otherwise
     const options = getPlanetOptions(battle.defender);
-    if (!options.some(option => option.value == battle.planet)) { battle.planet = getFirstPlanet(battle.defender); }
+    // A gate city's battle is known from the board (Gate Stations)
+    if (battle.planet != "gate" && !options.some(option => option.value == battle.planet)) { battle.planet = getFirstPlanet(battle.defender); }
     const count = battle.freshBuildings + battle.damagedBuildings;
     while (battle.buildingKinds.length < count) { battle.buildingKinds.push(options.length > 0 ? "city" : "starport"); }
     battle.buildingKinds.length = count;
@@ -371,6 +374,11 @@ function getBuildingReason(attacker, defender, type) {
     if (type == "starport") {
         return "no Outrage, and " + ((defender.starportsValue || 0) <= 1 ? "it's their last starport" : "they can't build ships there");
     }
+    if (type == "gate") {
+        // A gate city: Outrage of every city type in its cluster (Gate Stations)
+        const types = battle.boardSystem != null ? getGateCityTypes(battle.boardSystem) : [];
+        return types.length > 0 ? "it's a gate city they can tax for " + types.map(resource => getResourceWord(resource)).join(" or ") + ", though destroying it Provokes Outrage of each" : "it's a gate city";
+    }
     const resource = type.split(":").pop();
     const word = getResourceWord(resource);
     const reasons = [];
@@ -387,6 +395,7 @@ function getBuildingReason(attacker, defender, type) {
 
 function getBuildingName(type) {
     if (type == "starport") { return "the starport"; }
+    if (type == "gate") { return "the gate city"; }
     return "the city on " + preludeResourceNames[type.split(":").pop()].toLowerCase();
 }
 
@@ -1004,8 +1013,10 @@ function showBattleResults() {
         // a city and a starport there, not all destroyed, needs asking which went (the user)
         const known = getBoardDestroyed(losses.defenderBuildings);
         if (known != null && !known.ask) {
-            battle.destroyed = { planet: known.planet, kinds: known.kinds, gateTypes: [], planetKnown: true };
-            html += "<div class=\"mt-2\">" + defender + ": " + known.kinds.map(kind => kind == "city" ? "the city on " + getSystemName(battle.boardSystem) : "the starport at " + getSystemName(battle.boardSystem)).join(" and ") + " destroyed.</div>"
+            battle.destroyed = { planet: known.planet, kinds: known.kinds, gateTypes: known.gateTypes, planetKnown: true };
+            html += "<div class=\"mt-2\">" + defender + ": " + known.kinds.map(kind => kind != "city" ? "the starport at " + getSystemName(battle.boardSystem)
+                : known.planet == "gate" ? "the gate city at " + getSystemName(battle.boardSystem) + (known.gateTypes.length > 0 ? " (" + known.gateTypes.map(resource => preludeResourceNames[resource]).join(", ") + ")" : "")
+                : "the city on " + getSystemName(battle.boardSystem)).join(" and ") + " destroyed.</div>"
                 + "<div id=\"battleDestroyed\"></div>";
         } else {
             html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. " + (losses.defenderBuildings == 1 ? "What was it?" : "What were they?") + "</div>";
@@ -1019,7 +1030,7 @@ function showBattleResults() {
             battle.destroyed = {
                 planet: known != null || options.some(option => option.value == planet) ? planet : getFirstPlanet(battle.defender),
                 kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => (battle.attacker.isHuman || options.length == 0 || destroyed[index] == "starport") ? "starport" : "city"),
-                gateTypes: [],
+                gateTypes: known != null ? known.gateTypes : [],
                 // The planet is known from the board: only City or Starport is asked
                 planetKnown: known != null
             };

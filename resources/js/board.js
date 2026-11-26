@@ -272,8 +272,24 @@ function getBoardBuildings(playerNumber, kind) {
     return getSystemIds().flatMap(id => getBuildings(id, playerNumber, kind).map(building => ({ ...building, system: id })));
 }
 
+function getGateCityTypes(gate) {
+    // A gate city (Gate Stations) matches all cities in its cluster: the types of the planets there
+    // with a city on, anyone's (Lore 11). It can be taxed for any of them, and destroying it Provokes
+    // Outrage of all of them
+    const cluster = getCluster(gate);
+    return preludeResources.filter(resource => getSystemIds().some(id => isPlanet(id) && getCluster(id) == cluster && getPlanetResource(id) == resource && getBuildings(id, null, "city").length > 0));
+}
+
+function getCityTypes(id) {
+    // What a city in this system counts as: its planet's type, or a gate city's types
+    if (isGate(id)) { return getGateCityTypes(id); }
+    const resource = getPlanetResource(id);
+    return resource != null ? [resource] : [];
+}
+
 function getBoardCities(playerNumber, resource = null) {
-    return getBoardBuildings(playerNumber, "city").filter(city => resource == null || getPlanetResource(city.system) == resource);
+    // Its cities, or those that count as this type: a gate city counts as each of its types
+    return getBoardBuildings(playerNumber, "city").filter(city => resource == null || getCityTypes(city.system).includes(resource));
 }
 
 function getSystemsWithShips(playerNumber) {
@@ -291,10 +307,11 @@ function getBuildableSystems(playerNumber) {
 }
 
 function getTaxableCities(playerNumber) {
-    // Its Loyal cities, and Rival cities in systems it controls (rulebook p.12)
+    // Its Loyal cities, and Rival cities in systems it controls (rulebook p.12). A gate city once for
+    // each of its types, as it can be taxed for any one of them (Gate Stations)
     return getSystemIds().flatMap(id => getBuildings(id, null, "city")
         .filter(city => city.owner == playerNumber || getController(id) == playerNumber)
-        .map(city => ({ system: id, owner: city.owner, resource: getPlanetResource(id) })));
+        .flatMap(city => getCityTypes(id).map(resource => ({ system: id, owner: city.owner, resource: resource, gate: isGate(id) }))));
 }
 
 // The setup cards (rulebook p.4-5): the clusters out of play, and each seat's A, B and C systems.
@@ -364,8 +381,12 @@ function syncPanelFromBoard(player) {
     // The panel's board tiles follow the board: ships on it, starports and cities by planet type
     setPlayerResource(player, "shipsBoard", getBoardShips(player.number));
     setPlayerResource(player, "starports", getBoardBuildings(player.number, "starport").length);
-    cityCounters.forEach(counter => setPlayerResource(player, counter, getBoardCities(player.number, counter.replace(/^cities/, "").toLowerCase()).length));
-    player.startingCity = 0;
+    // Each city once, by its planet's type. A gate city under its first type, so the total is right;
+    // its other types count through the board (getBoardCities). With no type yet, startingCity holds it
+    const cities = getBoardBuildings(player.number, "city");
+    const counted = resource => cities.filter(city => getCityTypes(city.system)[0] == resource).length;
+    cityCounters.forEach(counter => setPlayerResource(player, counter, counted(counter.replace(/^cities/, "").toLowerCase())));
+    player.startingCity = cities.filter(city => getCityTypes(city.system).length == 0).length;
     const total = document.getElementById("citiestotal" + player.number);
     if (total != null) { total.innerHTML = getCityCount(player); }
 }

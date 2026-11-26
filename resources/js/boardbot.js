@@ -190,7 +190,9 @@ function setFleetFromBoard(player) {
 
 function getBoardSlotResources(player) {
     // The planet types with an empty slot in a system where it has a piece (rulebook p.12)
-    return [...new Set(getBuildableSystems(player.number).filter(isPlanet).map(getPlanetResource))];
+    // A gate it may build a city on (Gate Stations) offers each type of city in its cluster
+    return [...new Set(getBuildableSystems(player.number).flatMap(id => isPlanet(id) ? [getPlanetResource(id)]
+        : (getGateBuildKinds(id, player.number).includes("city") ? getGateCityTypes(id) : [])))];
 }
 
 function canBuildFromBoard(player, intent) {
@@ -397,8 +399,13 @@ function chooseBoardBuild(player) {
     const buildable = getBuildableSystems(player.number);
     const mine = id => (getController(id) == player.number ? 2 : 0) + (isControlledByOther(id, player.number) ? -2 : 0);
     if (choice.build == "city") {
-        const system = buildable.filter(id => getPlanetResource(id) == choice.resource).sort((a, b) => mine(b) - mine(a))[0];
-        if (system != null) { return { system: system, kind: "city", resource: choice.resource, reason: choice.reason }; }
+        // A gate city (Gate Stations) counts as every city type in its cluster: better the more
+        // types it doesn't have a city of yet
+        const cityHere = id => isPlanet(id) ? getPlanetResource(id) == choice.resource : getGateBuildKinds(id, player.number).includes("city") && getGateCityTypes(id).includes(choice.resource);
+        const newTypes = id => getCityTypes(id).filter(resource => !hasCityOfType(player, resource)).length;
+        const system = buildable.filter(cityHere).sort((a, b) => newTypes(b) - newTypes(a) || mine(b) - mine(a))[0];
+        const gateWhy = system != null && isGate(system) ? " A gate city counts as every city type in its cluster (Gate Stations): " + getCityTypes(system).map(resource => preludeResourceNames[resource]).join(", ") + "." : "";
+        if (system != null) { return { system: system, kind: "city", resource: choice.resource, reason: choice.reason + gateWhy }; }
     }
     if (choice.build == "starport" || (choice.build != "ship" && buildable.length > 0)) {
         // A gate only with Gate Ports
@@ -444,6 +451,7 @@ function placeBoardPlan(player, plan) {
         getBotPreludeSpent(player).filter(offer => offer.where != null && !offer.applied && canCompleteBotStep(offer)).forEach(offer => applyBoardStep(player, offer.where));
         // Systems it has moved ships out of this turn: never back into them (#197)
         const movedFrom = getBotPreludeSpent(player).filter(offer => offer.where != null && offer.where.from != null).map(offer => offer.where.from);
+        const taxedCities = [];
         plan.forEach(step => {
             let where = null;
             if (step.action == "move") {
@@ -462,11 +470,18 @@ function placeBoardPlan(player, plan) {
                 const resource = (step.text.match(/Tax its (\w+) city/) || [])[1];
                 // A Rival's city: the leader's first, capturing their agent (#200)
                 const leader = getLeader(player);
-                const rivalCities = getTaxableCities(player.number).filter(item => item.owner != player.number)
-                    .sort((a, b) => Number(leader != null && b.owner == leader.number) - Number(leader != null && a.owner == leader.number));
-                const city = getTaxableCities(player.number).find(item => item.owner == player.number && (resource == null || preludeResourceNames[item.resource].toLowerCase() == resource))
-                    || rivalCities[0];
-                if (city != null) { where = { system: city.system, tax: true, owner: city.owner }; step.text = step.text.replace(/^Tax[^(]*?(?= \(|$)/, match => match + " at " + getSystemName(city.system)); }
+                // Each city once a turn, a gate city too whichever type it's taxed for (Gate Stations)
+                const cities = getTaxableCities(player.number).filter(item => !taxedCities.includes(item.system + ":" + item.owner));
+                const rivalCities = cities.filter(item => item.owner != player.number)
+                    .sort((a, b) => Number(leader != null && b.owner == leader.number) - Number(leader != null && a.owner == leader.number) || getResourceNeed(player, b.resource) - getResourceNeed(player, a.resource));
+                // A planet city of that type before a gate city, which it may need for another type
+                const city = cities.filter(item => item.owner == player.number && (resource == null || preludeResourceNames[item.resource].toLowerCase() == resource))
+                    .sort((a, b) => Number(a.gate) - Number(b.gate))[0] || rivalCities[0];
+                if (city != null) {
+                    taxedCities.push(city.system + ":" + city.owner);
+                    where = { system: city.system, tax: true, owner: city.owner, resource: city.resource };
+                    step.text = step.text.replace(/^Tax[^(]*?(?= \(|$)/, match => (city.gate ? match.replace(/^Tax its \w+ city/, "Tax its gate city") : match) + " at " + getSystemName(city.system) + (city.gate ? " for " + preludeResourceNames[city.resource] : ""));
+                }
             } else if (step.action == "repair") {
                 where = getDamagedPiece(player);
                 if (where != null) { step.text = step.text.replace(/^Repair/, "Repair " + where.piece + " at " + getSystemName(where.system)); }
@@ -528,7 +543,8 @@ function applyBotStep(player, step) {
     // A Tax: the resource on its panel, if there's one left and room for it, and a Captive
     // from a Rival's city (#187)
     if (step.action == "tax" && step.where.tax) {
-        const resource = getPlanetResource(step.where.system);
+        // A gate city's type was chosen with the step (Gate Stations)
+        const resource = step.where.resource || getPlanetResource(step.where.system);
         if (resource != null && getResourceSupply(resource) > 0 && getEmptySlots(player) > 0) {
             setPlayerResource(player, resource, player[resource + "Value"] + 1);
             if (step.where.owner != null && step.where.owner != player.number) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
@@ -595,14 +611,15 @@ function prefillBattleFromBoard() {
 function getBoardDestroyed(count) {
     // What the destroyed buildings were, from the defender's buildings in the battle system:
     // { planet, kinds, ask }. Only a city and a starport there, not all destroyed, needs asking
-    // (the user). null with no board system, or on a gate (Gate Stations), where the window asks
+    // (the user). null with no board system. On a gate, a city is a gate city (Gate Stations), with
+    // gateTypes: every city type in its cluster, each Provoking Outrage
     const system = battle.boardSystem;
-    if (system == null || !isPlanet(system) || battle.defender == null || typeof battle.defender.number != "number") { return null; }
+    if (system == null || battle.defender == null || typeof battle.defender.number != "number") { return null; }
     const buildings = getBuildings(system, battle.defender.number).sort((a, b) => b.damaged - a.damaged);
     if (buildings.length == 0 || count > buildings.length) { return null; }
     const kinds = buildings.map(building => building.kind);
     const ask = new Set(kinds).size > 1 && count < buildings.length;
-    return { planet: getPlanetResource(system), kinds: ask ? null : kinds.slice(0, count), ask: ask };
+    return { planet: isGate(system) ? "gate" : getPlanetResource(system), kinds: ask ? null : kinds.slice(0, count), ask: ask, gateTypes: isGate(system) ? getGateCityTypes(system) : [] };
 }
 
 function applyBattleToBoard(losses) {

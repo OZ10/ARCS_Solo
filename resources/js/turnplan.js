@@ -7,9 +7,15 @@
 const rivalTaxReason = "a Rival's city, to capture";
 
 function getTaxTargets(player) {
-    // The resources it has cities on, the one it needs most first
-    return preludeResources.filter(resource => player["cities" + capitalise(resource) + "Value"] > 0)
+    // The resources it has cities on, the one it needs most first. A gate city counts for each of its
+    // types (Gate Stations)
+    return preludeResources.filter(resource => hasCityOfType(player, resource))
         .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a));
+}
+
+function hasCityOfType(player, resource) {
+    // A city of this type on its panel, or a gate city on the board that counts as it
+    return player["cities" + capitalise(resource) + "Value"] > 0 || getBoardCities(player.number, resource).length > 0;
 }
 
 function getResourceSupply(resource) {
@@ -90,7 +96,7 @@ function getMoveGoals(player) {
 function getNewCityResource(player) {
     // A planet type it has no city on and would like one, the one it needs most. null if none
     if (getUncoveredCities(player) >= maxCities) { return null; }
-    return preludeResources.filter(resource => player["cities" + capitalise(resource) + "Value"] == 0 && getResourceNeed(player, resource) > 0)
+    return preludeResources.filter(resource => !hasCityOfType(player, resource) && getResourceNeed(player, resource) > 0)
         .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a))[0] || null;
 }
 

@@ -148,11 +148,12 @@ function getLeadRisk(player, resource, spent) {
     const after = own - spent;
     const pool = resources.reduce((total, item) => total + getResourceSupply(item), 0) + spent;
     for (const rival of rivals) {
-        const cities = getTaxableCities(rival.number).filter(city => resources.includes(getPlanetResource(city.system)));
-        const reach = count(rival) + Math.min(cities.length, pool);
+        const cities = getTaxableCities(rival.number).filter(city => resources.includes(city.resource));
+        // Each city taxed once, a gate city too though it's listed for each of its types
+        const reach = count(rival) + Math.min(new Set(cities.map(city => city.system + ":" + city.owner)).size, pool);
         if (cities.length > 0 && pool > 0 && reach >= after) {
             return { rival: rival, why: "Keeps its " + preludeResourceNames[resource] + ": Player " + rival.number + " could tax a "
-                + preludeResourceNames[getPlanetResource(cities[0].system)] + " city and " + (reach > after ? "pass" : "tie") + " it in " + capitalise(ambition) + "." };
+                + preludeResourceNames[cities[0].resource] + " city and " + (reach > after ? "pass" : "tie") + " it in " + capitalise(ambition) + "." };
         }
     }
     return null;

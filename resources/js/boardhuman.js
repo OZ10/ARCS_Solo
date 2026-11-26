@@ -223,8 +223,9 @@ function getHumanRepairOptions(player) {
 function getHumanTaxOptions(player) {
     // Each city once a turn
     const taxed = getBoardActions(player).filter(action => action.action == "tax").map(action => action.system + ":" + action.owner);
+    // A gate city once for each of its types: tax it for any one of them (Gate Stations)
     return getTaxableCities(player.number).filter(city => !taxed.includes(city.system + ":" + city.owner))
-        .filter((city, index, cities) => cities.findIndex(other => other.system == city.system && other.owner == city.owner) == index);
+        .filter((city, index, cities) => cities.findIndex(other => other.system == city.system && other.owner == city.owner && other.resource == city.resource) == index);
 }
 
 // The windows
@@ -274,7 +275,7 @@ function renderHumanOptions(type) {
     } else if (type == "tax") {
         options = getHumanTaxOptions(player).map((option, index) => {
             const mine = option.owner == player.number;
-            return getOptionButton((mine ? "Your " : "Player " + option.owner + "'s ") + "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system),
+            return getOptionButton((mine ? "Your " : "Player " + option.owner + "'s ") + (option.gate ? "gate city at " + getSystemName(option.system) + ", for <b>" + preludeResourceNames[option.resource] + "</b>" : "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system)),
                 "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
         });
     }
@@ -539,7 +540,8 @@ function fillBattleFromSystem(system) {
     battle.damaged = ships.damaged;
     battle.freshBuildings = buildings.filter(building => !building.damaged).length;
     battle.damagedBuildings = buildings.filter(building => building.damaged).length;
-    battle.planet = isPlanet(system) ? getPlanetResource(system) : null;
+    // On a gate, its city is a gate city (Gate Stations)
+    battle.planet = isPlanet(system) ? getPlanetResource(system) : (getBuildings(system, defender.number, "city").length > 0 ? "gate" : null);
     // Gatekeepers' 2 more dice, in a gate (#160)
     battle.inGate = isGate(system);
 }
