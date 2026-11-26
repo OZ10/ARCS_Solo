@@ -195,7 +195,8 @@ function getLeadActionDecision(player, lead) {
         if (relic != null) { return { text: "Secure " + getCourtCard(relic.entry.number).name + ", from the lead card", why: getSecureReason(player, relic.entry) }; }
     }
     if (actions.includes("tax")) {
-        const city = getCitiesToTax(player).slice(getPlannedCount(player, "tax"))[0];
+        // Not a Psionic city: spending a Psionic to gain one is no gain (#202)
+        const city = getCitiesToTax(player).slice(getPlannedCount(player, "tax")).filter(resource => resource != "psionics")[0];
         if (city != null && getResourceNeed(player, city) > 0) {
             const ambition = preludeAmbitions[city];
             return { text: getTaxStepName(player, city) + ", from the lead card", why: "It needs " + getResourceWord(city) + " for " + capitalise(ambition) + "." };
@@ -403,7 +404,8 @@ function getPreludeOffers(player) {
 
     // A Weapon lets any of the card's actions Battle this turn (it doesn't give extra actions),
     // so only when the card has actions and doesn't battle already (rulebook p.17)
-    if (play.count > 0 && !play.actions.includes("battle") && battleWhy != null) {
+    // Only with a battle at good odds it can reach this turn (#188), even when chasing Warlord
+    if (play.count > 0 && !play.actions.includes("battle") && battleWhy != null && players.some(other => other !== player && hasFavourableBattle(player, other))) {
         offerAction("weapons", "Its card's actions can Battle this turn", "battle", true, battleWhy + ", and its card can't Battle.");
     } else if (play.count > 0 && !play.actions.includes("battle") && players.some(other => other !== player && hasFavourableBattle(player, other))) {
         // The board shows a battle at good odds (#197, #198): decided, not a guess

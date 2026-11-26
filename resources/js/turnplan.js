@@ -435,10 +435,10 @@ function getTurnPlan(player) {
     // Its fleet needs a Move to reach the battle (boardbot.js, #160): the first step it can spare
     // becomes that Move, if its card can Move
     setFleetFromBoard(player);
-    if (available.includes("move") && player.attackFleetMove != null && chosen.some(pick => pick.action == "battle") && !chosen.some(pick => pick.action == "move")) {
-        const spare = chosen.findIndex(pick => pick.action != "battle");
-        const index = spare >= 0 ? spare : (chosen.filter(pick => pick.action == "battle").length > 1 ? chosen.findIndex(pick => pick.action == "battle") : -1);
-        if (index >= 0) { chosen[index] = { action: "move", reason: "to set up the Battle", tag: "" }; }
+    // A Battle needs a Rival it can fight this turn (#188): who it wants to fight; can it, sharing a
+    // system now, or with a Move first; if not, anyone else it can; and only at good odds
+    if (chosen.some(pick => pick.action == "battle") && !player.campaignTarget) {
+        chosen = makeBattleReachable(player, chosen, available, scores, preludeSpent);
     }
 
     // A move sets up a battle, if there's one
@@ -503,6 +503,49 @@ function getTurnPlan(player) {
         }
         return { action: pick.action, text: name + (reason ? " (" + reason + ")" : ""), tag: pick.tag || "", hints: getLeaderPlanHints(player, pick.action, details) };
     }));
+}
+
+function makeBattleReachable(player, chosen, available, scores, preludeSpent) {
+    // Returns the plan with its Battles against a Rival it can fight this turn (#188):
+    // 1. its target, if it shares a system with them at good odds;
+    // 2. its target, with a Move first if it has one (a spare action becomes the Move);
+    // 3. otherwise the best Rival it can fight now, then one it can Move to;
+    // 4. otherwise no Battle: those actions go to the next best thing
+    const rivals = players.filter(other => other !== player);
+    const canMove = available.includes("move") || preludeSpent.some(offer => offer.action == "move");
+    const hasMove = () => chosen.some(pick => pick.action == "move") || preludeSpent.some(offer => offer.action == "move");
+    const addMove = () => {
+        if (hasMove()) { return true; }
+        if (!available.includes("move")) { return false; }
+        const spare = chosen.findIndex(pick => pick.action != "battle");
+        const index = spare >= 0 ? spare : (chosen.filter(pick => pick.action == "battle").length > 1 ? chosen.findIndex(pick => pick.action == "battle") : -1);
+        if (index < 0) { return false; }
+        chosen[index] = { action: "move", reason: "to set up the Battle", tag: "" };
+        return true;
+    };
+    const target = getBattleTarget(player);
+    const wanted = target != null && typeof target.player.number == "number" ? target.player : null;
+    // Best first by how it rates them as a target (the target itself first)
+    const ranked = [wanted].concat(rivals.filter(rival => rival !== wanted)).filter(rival => rival != null);
+    const now = ranked.find(rival => canFightNow(player, rival));
+    if (wanted != null && now === wanted) { return chosen; }
+    if (wanted != null && canMove && hasFavourableBattle(player, wanted, true) && addMove()) { return chosen; }
+    if (now != null) { player.battleTargetNumber = now.number; return chosen; }
+    const byMoving = canMove ? ranked.find(rival => hasFavourableBattle(player, rival, true)) : null;
+    if (byMoving != null && addMove()) { player.battleTargetNumber = byMoving.number; return chosen; }
+    // Nobody to fight this turn: the card's other actions instead, best first, such as a Secure that's
+    // possible or a Move the board has a use for (no more Moves than it has useful ones)
+    const usefulMoves = available.includes("move") ? getUsefulMoveCount(player) : 0;
+    let moves = chosen.filter(pick => pick.action == "move").length;
+    const others = available.filter(action => action != "battle" && scores[action] != null && scores[action].score > planImpossible)
+        .sort((a, b) => scores[b].score - scores[a].score);
+    return chosen.map(pick => {
+        if (pick.action != "battle") { return pick; }
+        const next = others.find(action => action != "move" || moves < usefulMoves);
+        if (next == null) { return null; }
+        if (next == "move") { moves++; }
+        return { action: next, reason: scores[next].reason || "", tag: "" };
+    }).filter(pick => pick != null);
 }
 
 function describeTurnPlan(player) {

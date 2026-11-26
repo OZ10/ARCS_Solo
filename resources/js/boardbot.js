@@ -48,13 +48,24 @@ function isFavourableBattle(odds) {
     return odds.mine > 0 && (odds.mine >= odds.theirs || odds.theirFresh == 0);
 }
 
-function hasFavourableBattle(player, rival) {
+function canFightNow(player, rival) {
+    // It already shares a system with this Rival, and the odds there are good (#188)
+    return getSystemIds().some(id => {
+        const mine = getShips(id, player.number);
+        if (mine.fresh + mine.damaged == 0) { return false; }
+        if (!(getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0)) { return false; }
+        if (typeof canHarmIn == "function" && !canHarmIn(id, player.number, rival.number)) { return false; }
+        return isFavourableBattle(getBattleOdds(player, rival, id));
+    });
+}
+
+function hasFavourableBattle(player, rival, canMoveOverride = null) {
     // Somewhere it can battle this Rival at good odds: where its ships are, or with its biggest
-    // fleet moved in first when it can Move
+    // fleet moved in first when it can Move (canMoveOverride: whether it can, if already known)
     const hasPieces = id => (getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0)
         // The campaign's Truce Law, where that branch has it
         && (typeof canHarmIn != "function" || canHarmIn(id, player.number, rival.number));
-    const canMoveFirst = getBotPlay(player) != null ? canBotTakeAction(player, "move")
+    const canMoveFirst = canMoveOverride != null ? canMoveOverride : getBotPlay(player) != null ? canBotTakeAction(player, "move")
         : getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
     return getSystemIds().filter(hasPieces).some(id => {
         if (isFavourableBattle(getBattleOdds(player, rival, id))) { return getShips(id, player.number).fresh + getShips(id, player.number).damaged > 0; }
