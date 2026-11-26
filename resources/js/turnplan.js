@@ -447,6 +447,8 @@ function getTurnPlan(player) {
     if (chosen.some(pick => pick.action == "battle") && !player.campaignTarget) {
         chosen = makeBattleReachable(player, chosen, available, scores, preludeSpent);
     }
+    // Free actions its Leader gives with a Copy or Pivot (Noble, Feastbringer: leaderrules.js)
+    chosen = chosen.concat(getLeaderFreeActions(player, chosen));
 
     // A move sets up a battle, if there's one
     const hasBattle = chosen.some(pick => pick.action == "battle");

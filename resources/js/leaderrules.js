@@ -308,9 +308,40 @@ function getLeaderDiceNotes(choice) {
     return lines.map(line => "<div>" + line + "</div>").join("");
 }
 
+function applyGatePortsCapture(mover, route) {
+    // Gate Ports: when Rival ships move into a gate a player controls with a fresh Loyal starport,
+    // that player captures 1 of the mover's agents. route: the systems the move goes through, from
+    // first. Checked before the ships move in
+    if (!leadersAndLore) { return; }
+    route.slice(1).filter(isGate).forEach(id => {
+        const holder = players.find(other => other !== mover && hasLore(other, 8) && getController(id) == other.number && getBuildings(id, other.number, "starport").some(port => !port.damaged));
+        if (holder == null) { return; }
+        setPlayerResource(holder, "captives", (holder.captivesValue || 0) + 1);
+        showMessageToast("Gate Ports", "Player " + holder.number + " captures 1 of Player " + mover.number + "'s agents (moving into " + getSystemShortName(id) + "). Already added to their Captives.");
+    });
+}
+
+function applyPredictiveSensors(system) {
+    // A bot defender with Predictive Sensors moves its fresh ships in from adjacent systems before
+    // the dice, leaving 1 on its buildings there. On the board, once a battle. true if it moved any
+    const defender = battle.defender;
+    if (battle.sensorsDone || defender == null || defender.isHuman || typeof defender.number != "number" || !hasLore(defender, loreNumbers.predictiveSensors)) { return false; }
+    battle.sensorsDone = true;
+    const moved = [];
+    getAdjacent(system).forEach(id => {
+        const take = getShips(id, defender.number).fresh - (getBuildings(id, defender.number).length > 0 ? 1 : 0);
+        if (take > 0) { moveShips(id, system, defender.number, take); moved.push(take + " from " + getSystemName(id)); }
+    });
+    battle.sensorsNote = moved.length > 0 ? moved.join(" and ") : null;
+    return moved.length > 0;
+}
+
 function getLeaderBattleSetupNote() {
     // Before the dice: Predictive Sensors lets the defender move ships in first
-    if (hasLore(battle.defender, loreNumbers.predictiveSensors)) {
+    if (battle.sensorsNote != null) {
+        return "<div class=\"small text-muted text-center mb-2\">Predictive Sensors: " + getPlayerTag(battle.defender) + " moved fresh ships in, " + battle.sensorsNote + ". Already on the app's board and in the counts.</div>";
+    }
+    if (hasLore(battle.defender, loreNumbers.predictiveSensors) && (battle.defender.isHuman || battle.boardSystem == null)) {
         return "<div class=\"small text-muted text-center mb-2\">Predictive Sensors: " + getPlayerTag(battle.defender) + " may first move fresh ships in from adjacent systems. Update the counts before choosing the dice.</div>";
     }
     return "";
@@ -399,6 +430,20 @@ function isCopyOrPivot(player) {
 function getCopyPivotPower(player, action) {
     if (!leadersAndLore || !isCopyOrPivot(player)) { return null; }
     return (copyPivotPowers[action] || []).find(power => hasLeader(player, power[0])) || null;
+}
+
+function getLeaderFreeActions(player, chosen) {
+    // With a Copy or Pivot: Noble (Influential) influences twice; Feastbringer (Charismatic) may
+    // influence before or after it secures. Extra plan steps, not using up its card's action
+    const extra = [];
+    const power = action => getCopyPivotPower(player, action);
+    if (chosen.some(pick => pick.action == "influence") && power("influence") != null && power("influence")[0] == 12) {
+        extra.push({ action: "influence", reason: "a second Influence, free (Noble, Influential)", tag: "" });
+    }
+    if (chosen.some(pick => pick.action == "secure") && power("secure") != null && power("secure")[0] == 7 && (!isMarketKnown() || getCardsToInfluence(player).length > 0)) {
+        extra.push({ action: "influence", reason: "a free Influence with the Secure (Feastbringer, Charismatic)", tag: "" });
+    }
+    return extra;
 }
 
 function getLeaderPlanBonus(player, action) {
@@ -690,14 +735,19 @@ function getLorePreludeOffers(player, wants, available) {
     // Warlord's Terror: Trophies for influence, when Warlord isn't one it's chasing
     if (can(24) && declaredAmbitions.includes("warlord") && !chasing("warlord") && player.trophiesValue > 0 && !lastCard && wants(loreChance.terror)) {
         const count = Math.min(player.trophiesValue, 2);
-        offers.push({ label: "Warlord's Terror", text: "return " + count + " Troph" + (count == 1 ? "y" : "ies") + " to influence " + (count == 1 ? "once" : "twice"), costs: { trophies: count }, decided: true, why: "Warlord is declared, and it isn't chasing it." });
+        // The cards it would influence, with the Court entered (#88 group 4)
+        const cards = isMarketKnown() ? getInfluenceSequence(player, count).map(entry => getCourtCard(entry.number).name) : [];
+        offers.push({ label: "Warlord's Terror", text: "return " + count + " Troph" + (count == 1 ? "y" : "ies") + " to influence " + (cards.length > 0 ? cards.join(" and ") : (count == 1 ? "once" : "twice")),
+            costs: { trophies: count }, action: "influence", decided: true, why: "Warlord is declared, and it isn't chasing it." });
     }
 
     // Tyrant's Ego: Captives to secure, when Tyrant isn't one it's chasing
     const toSecure = isMarketKnown() ? getCardsToSecure(player).length : 1;
     if (can(25) && declaredAmbitions.includes("tyrant") && !chasing("tyrant") && player.captivesValue > 0 && toSecure > 0 && wants(loreChance.ego)) {
         const count = Math.min(player.captivesValue, toSecure, 2);
-        offers.push({ label: "Tyrant's Ego", text: "return " + count + " Captive" + (count == 1 ? "" : "s") + " to secure " + (count == 1 ? "once" : "twice"), costs: { captives: count }, decided: true, why: "Tyrant is declared, and it isn't chasing it." });
+        const cards = isMarketKnown() ? getCardsToSecure(player).slice(0, count).map(entry => getCourtCard(entry.number).name) : [];
+        offers.push({ label: "Tyrant's Ego", text: "return " + count + " Captive" + (count == 1 ? "" : "s") + " to secure " + (cards.length > 0 ? cards.join(" and ") : (count == 1 ? "once" : "twice")),
+            costs: { captives: count }, action: "secure", decided: true, why: "Tyrant is declared, and it isn't chasing it." });
     }
 
     // Tycoon's Ambition: give up its Material and Fuel to declare an ambition it does better in

@@ -573,6 +573,9 @@ function applyBotStep(player, step) {
     // One step on the real board, once: when ticked Completed (#201) or when its turn is done.
     // A prelude offer with a place works the same way (#197)
     if (step.where == null || step.applied) { return; }
+    // Gate Ports: a Rival captures an agent if it moves into their gate (leaderrules.js). Only on
+    // the real board, before the ships move in
+    if (step.action == "move" && step.where.from != null && step.where.to != null) { applyGatePortsCapture(player, [step.where.from, step.where.to]); }
     if (step.action == "move" || step.action == "build" || step.action == "repair" || step.where.kind == "gateShips" || step.where.kind == "placeShips") { applyBoardStep(player, step.where); }
     // A Lore action (leaderrules.js). Fire Rifles only once its hits are known
     if (isLoreBoardStep(step.where)) {
@@ -654,6 +657,8 @@ function prefillBattleFromBoard() {
     // A bot: the system in its plan. A human player: the first where both sides have pieces, and
     // they can choose another (boardhuman.js)
     battle.boardSystem = null;
+    battle.sensorsDone = false;
+    battle.sensorsNote = null;
     const { attacker, defender } = battle;
     if (attacker != null && defender != null && typeof defender.number == "number") {
         const places = getBattlePlacesFor(attacker, defender);

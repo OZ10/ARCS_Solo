@@ -518,6 +518,9 @@ function confirmHumanMove() {
         placed.push({ to: id, fresh: leftFresh, damaged: leftDamaged });
     });
     placed.push({ to: humanMove.to, fresh: fresh, damaged: damaged });
+    // Gate Ports: a Rival captures an agent for each of its gates the move goes into, checked
+    // before the ships move in (leaderrules.js)
+    applyGatePortsCapture(player, humanMove.route || [humanMove.from, humanMove.to]);
     placed.forEach(place => moveShips(humanMove.from, place.to, number, place.fresh, place.damaged));
     recordBoardAction(player, { action: "move", from: humanMove.from, to: humanMove.to, placed: placed, text: getMoveText().replace(/^Move /, "") });
     humanMove = null;
@@ -567,4 +570,6 @@ function fillBattleFromSystem(system) {
     battle.planet = isPlanet(system) ? getPlanetResource(system) : (getBuildings(system, defender.number, "city").length > 0 ? "gate" : null);
     // Gatekeepers' 2 more dice, in a gate (#160)
     battle.inGate = isGate(system);
+    // Predictive Sensors: a bot defender first moves fresh ships in from next door (leaderrules.js)
+    if (applyPredictiveSensors(system)) { fillBattleFromSystem(system); }
 }
