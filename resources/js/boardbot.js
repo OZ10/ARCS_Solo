@@ -488,6 +488,19 @@ function prefillBattleFromBoard() {
     showBattleSystems();
 }
 
+function getBoardDestroyed(count) {
+    // What the destroyed buildings were, from the defender's buildings in the battle system:
+    // { planet, kinds, ask }. Only a city and a starport there, not all destroyed, needs asking
+    // (the user). null with no board system, or on a gate (Gate Stations), where the window asks
+    const system = battle.boardSystem;
+    if (system == null || !isPlanet(system) || battle.defender == null || typeof battle.defender.number != "number") { return null; }
+    const buildings = getBuildings(system, battle.defender.number).sort((a, b) => b.damaged - a.damaged);
+    if (buildings.length == 0 || count > buildings.length) { return null; }
+    const kinds = buildings.map(building => building.kind);
+    const ask = new Set(kinds).size > 1 && count < buildings.length;
+    return { planet: getPlanetResource(system), kinds: ask ? null : kinds.slice(0, count), ask: ask };
+}
+
 function applyBattleToBoard(losses) {
     // What's left on each side in the battle system
     const system = battle.boardSystem;
@@ -495,8 +508,11 @@ function applyBattleToBoard(losses) {
     const attacker = battle.attacker.number, defender = battle.defender.number;
     // The attacker's ships there: fresh and damaged, as the window says (#189)
     setShips(system, attacker, battle.ships, battle.attackerDamaged || 0);
+    // The kinds the results said were destroyed, damaged ones of each first
+    const kinds = battle.destroyed != null && battle.destroyed.kinds != null ? battle.destroyed.kinds : [];
     for (let lost = 0; lost < losses.defenderBuildings; lost++) {
-        const building = getBuildings(system, defender).sort((a, b) => b.damaged - a.damaged)[0];
+        const left = getBuildings(system, defender).sort((a, b) => b.damaged - a.damaged);
+        const building = left.find(item => kinds[lost] == null || item.kind == kinds[lost]) || left[0];
         if (building != null) { removeBuilding(system, defender, building.kind); }
     }
     // The defender's fresh and damaged ships, and damaged buildings, as the window says: a human

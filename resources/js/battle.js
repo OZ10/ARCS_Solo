@@ -349,7 +349,8 @@ function getBuildingChoiceHtml(id, planet, kinds, label, onPlanet, onKind) {
             + "<div class=\"btn-group btn-group-sm\" role=\"group\">" + choice("city", "City") + choice("starport", "Starport") + "</div></div>";
     });
     const cities = kinds.filter(kind => kind == "city").length;
-    if (cities == 0 || options.length == 0) { return html; }
+    // The planet known from the board (#160): only City or Starport is asked
+    if (cities == 0 || options.length == 0 || (id == "battleDestroyed" && battle.destroyed != null && battle.destroyed.planetKnown)) { return html; }
 
     html += "<div class=\"boardgrouplabel mt-3\">Planet (for the " + (cities == 1 ? "city" : "cities") + ")</div>"
         + "<select class=\"form-select form-select-sm\" id=\"" + id + "Planet\" onchange=\"" + onPlanet + "(this.value)\">"
@@ -949,7 +950,7 @@ function showCityEffects() {
     // The Outrage warning and the Ransack choice, only when a destroyed building is a city (#149)
     const effects = document.getElementById("battleCityEffects");
     if (effects == null || battle.destroyed == null) { return; }
-    const cityDestroyed = battle.destroyed.kinds.some(kind => kind != "starport") && getPlanetOptions(battle.defender, true).length > 0;
+    const cityDestroyed = battle.destroyed.kinds.some(kind => kind != "starport") && (battle.destroyed.planetKnown || getPlanetOptions(battle.defender, true).length > 0);
     effects.classList.toggle("d-none", !cityDestroyed);
 }
 
@@ -995,20 +996,31 @@ function showBattleResults() {
     // Each destroyed building is the attacker's Trophy (rulebook p.14). Destroying a city also
     // means Outrage for that resource and Ransacking the Court (p.16), so which was it?
     if (losses.defenderBuildings > 0) {
-        html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. " + (losses.defenderBuildings == 1 ? "What was it?" : "What were they?") + "</div>";
+        // From the board (#160): the defender's buildings in the battle system, and its planet. Only
+        // a city and a starport there, not all destroyed, needs asking which went (the user)
+        const known = getBoardDestroyed(losses.defenderBuildings);
+        if (known != null && !known.ask) {
+            battle.destroyed = { planet: known.planet, kinds: known.kinds, gateTypes: [], planetKnown: true };
+            html += "<div class=\"mt-2\">" + defender + ": " + known.kinds.map(kind => kind == "city" ? "the city on " + getSystemName(battle.boardSystem) : "the starport at " + getSystemName(battle.boardSystem)).join(" and ") + " destroyed.</div>"
+                + "<div id=\"battleDestroyed\"></div>";
+        } else {
+            html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. " + (losses.defenderBuildings == 1 ? "What was it?" : "What were they?") + "</div>";
 
-        // Filled in from what was said before the roll. The human player starts on starports, so
-        // nothing Provokes Outrage by mistake. With no cities, they can only be starports
-        const destroyed = getDestroyedBuildingTypes();
-        const city = destroyed.find(type => type != "starport");
-        const options = getPlanetOptions(battle.defender);
-        const planet = (city != null) ? city.split(":").pop() : battle.planet;
-        battle.destroyed = {
-            planet: options.some(option => option.value == planet) ? planet : getFirstPlanet(battle.defender),
-            kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => (battle.attacker.isHuman || options.length == 0 || destroyed[index] == "starport") ? "starport" : "city"),
-            gateTypes: []
-        };
-        html += "<div id=\"battleDestroyed\">" + (options.length > 0 ? getDestroyedHtml() : "") + "</div>";
+            // Filled in from what was said before the roll. The human player starts on starports, so
+            // nothing Provokes Outrage by mistake. With no cities, they can only be starports
+            const destroyed = getDestroyedBuildingTypes();
+            const city = destroyed.find(type => type != "starport");
+            const options = getPlanetOptions(battle.defender);
+            const planet = known != null ? known.planet : ((city != null) ? city.split(":").pop() : battle.planet);
+            battle.destroyed = {
+                planet: known != null || options.some(option => option.value == planet) ? planet : getFirstPlanet(battle.defender),
+                kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => (battle.attacker.isHuman || options.length == 0 || destroyed[index] == "starport") ? "starport" : "city"),
+                gateTypes: [],
+                // The planet is known from the board: only City or Starport is asked
+                planetKnown: known != null
+            };
+            html += "<div id=\"battleDestroyed\">" + (options.length > 0 || known != null ? getDestroyedHtml() : "") + "</div>";
+        }
         // Only once a city is chosen: a starport doesn't Provoke Outrage or Ransack the Court (#149)
         const canRansack = canRansackAgainst(battle.defender);
         html += "<div id=\"battleCityEffects\"><div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Destroying a city:</b> " + attacker + " Provokes Outrage of that resource, discarding its resources and Guild cards of that type"

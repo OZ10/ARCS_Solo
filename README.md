@@ -256,7 +256,7 @@ The **(i)** beside *Can attack again this turn* explains when to use that switch
 
 <img src="docs/screenshots/battle-results.png" width="300" align="right" alt="Battle results">
 
-**Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. Check them and tap **Update values** to update both players' panels. For a bot's battle, the losses go on the app's board too.
+**Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. The app knows from the board which buildings were destroyed and what planet they were on. It only asks when the defender had a city and a starport there and not both were destroyed. Check them and tap **Update values** to update both players' panels. For a bot's battle, the losses go on the app's board too.
 
 For your own battles, the window doesn't choose dice. It keeps count while you roll, then updates the panels in the same way. For what you stole, use **−** and **+** for each resource, as you can take more than one of a kind, and tick any Guild card.
 
