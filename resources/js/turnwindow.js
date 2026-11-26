@@ -140,8 +140,11 @@ function getOfferRows(offers) {
     const tool = offer => turnActionTools[offer.action] != null ? getToolButton(turnActionTools[offer.action]) : "";
     // A bot's prelude Move, Build or ship placement has a place on the board, and a Completed
     // button like its plan's steps (#197)
-    const complete = (offer, index) => offers === getBotPreludeSpent(getTurnPlayer() || {}) && canCompleteBotStep(offer)
-        ? (offer.applied ? "<span class=\"small text-secondary\">Done</span>" : "<button type=\"button\" class=\"btn btn-outline-primary btn-sm turnact\" id=\"completeOffer" + index + "\" onclick=\"completeBotPreludeOffer(" + index + ")\"><i class=\"bi bi-check-lg\"></i> Completed</button>") : "";
+    // Its Lore actions with a place too (leaderrules.js)
+    const player = getTurnPlayer() || {};
+    const isPrelude = offers === getBotPreludeSpent(player), isGuild = !player.isHuman && offers === getBotGuildSpent(player);
+    const complete = (offer, index) => (isPrelude || isGuild) && canCompleteBotStep(offer)
+        ? (offer.applied ? "<span class=\"small text-secondary\">Done</span>" : "<button type=\"button\" class=\"btn btn-outline-primary btn-sm turnact\" id=\"" + (isGuild ? "completeGuild" : "completeOffer") + index + "\" onclick=\"" + (isGuild ? "completeBotGuildOffer" : "completeBotPreludeOffer") + "(" + index + ")\"><i class=\"bi bi-check-lg\"></i> Completed</button>") : "";
     return offers.map((offer, index) => getTurnRow("<i class=\"bi bi-check-lg\"></i>", offer.label, capitalise(offer.text), tool(offer) + complete(offer, index))).join("");
 }
 

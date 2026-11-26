@@ -464,6 +464,8 @@ function placeBoardPlan(player, plan) {
     withBoardCopy(() => {
         // Its prelude's Moves, Builds and ship placements come first (#197)
         getBotPreludeSpent(player).filter(offer => offer.where != null && !offer.applied && canCompleteBotStep(offer)).forEach(offer => applyBoardStep(player, offer.where));
+        // And its Lore actions that change the board, but Fire Rifles, whose hits aren't known yet
+        getBotGuildSpent(player).filter(offer => isLoreBoardStep(offer.where) && offer.where.kind != "rifles" && !offer.applied).forEach(offer => applyLoreBoardStep(player, offer.where));
         // Systems it has moved ships out of this turn: never back into them (#197)
         const movedFrom = getBotPreludeSpent(player).filter(offer => offer.where != null && offer.where.from != null).map(offer => offer.where.from);
         const taxedCities = [];
@@ -544,6 +546,8 @@ function applyBotPlanToBoard(player) {
     // come from the Battle window). Any not carried out are put right in the board check
     // Its prelude's Moves, Builds and ship placements first, as they came first (#197)
     getBotPreludeSpent(player).forEach(offer => applyBotStep(player, offer));
+    // Its Lore actions with a place (leaderrules.js)
+    getBotGuildSpent(player).forEach(offer => applyBotStep(player, offer));
     (player.turnPlan || []).forEach(step => applyBotStep(player, step));
     syncPanelFromBoard(player);
     SaveAllSettings();
@@ -558,6 +562,11 @@ function applyBotStep(player, step) {
     // A prelude offer with a place works the same way (#197)
     if (step.where == null || step.applied) { return; }
     if (step.action == "move" || step.action == "build" || step.action == "repair" || step.where.kind == "gateShips" || step.where.kind == "placeShips") { applyBoardStep(player, step.where); }
+    // A Lore action (leaderrules.js). Fire Rifles only once its hits are known
+    if (isLoreBoardStep(step.where)) {
+        if (step.where.kind == "rifles" && step.where.hits == null) { return; }
+        applyLoreBoardStep(player, step.where);
+    }
     // A Tax: the resource on its panel, if there's one left and room for it, and a Captive
     // from a Rival's city (#187)
     if (step.action == "tax" && step.where.tax) {
@@ -587,7 +596,29 @@ function completeBotStep(index) {
 }
 
 function canCompleteBotStep(step) {
-    return step.where != null && (["move", "build", "repair", "tax"].includes(step.action) || step.where.kind == "gateShips" || step.where.kind == "placeShips");
+    return step.where != null && (["move", "build", "repair", "tax"].includes(step.action) || step.where.kind == "gateShips" || step.where.kind == "placeShips" || isLoreBoardStep(step.where));
+}
+
+function completeBotGuildOffer(index) {
+    // The Completed button beside a Lore action with a place (leaderrules.js). Fire Rifles asks for
+    // the hits first
+    const player = getTurnPlayer();
+    if (player == null || player.isHuman || player.guildActions == null) { return; }
+    const offer = (player.guildActions.spent || [])[index];
+    if (offer == null) { return; }
+    if (offer.where != null && offer.where.kind == "rifles") {
+        returnToTurnWindow = true;
+        closeTurnWindow(() => queueLeaderWindow(() => showRiflesWindow(index)));
+        return;
+    }
+    applyBotStep(player, offer);
+    syncPanelFromBoard(player);
+    SaveAllSettings();
+    renderTurn(player);
+}
+
+function getBotGuildSpent(player) {
+    return (player.guildActions != null && player.guildActions.spent != null) ? player.guildActions.spent : [];
 }
 
 function completeBotPreludeOffer(index) {
