@@ -745,9 +745,98 @@ function getLeaderQuestionHint(player, action) {
 // calls these; without Leaders & Lore they change nothing
 
 function getLeaderCatapult(from, playerNumber, base) {
-    // Shaper (Ancient): Catapults from gates, never from starports
+    // Shaper (Ancient): Catapults from gates, never from starports. Empath's Bond: from any
+    // starport, like its own, while Empath is declared
     const player = players.find(other => other.number == playerNumber);
-    return hasLeader(player, 14) ? isGate(from) : base;
+    if (hasLeader(player, 14)) { return isGate(from); }
+    return base || (isLoreActive(player, 20, "empath") && getBuildings(from, null, "starport").length > 0);
+}
+
+function getLoreExtraMoves(from, playerNumber, reached) {
+    // Sprinter Drives: fresh ships may move one more time, after any Catapult
+    const player = players.find(other => other.number == playerNumber);
+    if (!hasLore(player, 3)) { return reached; }
+    return [...new Set(reached.concat(reached.flatMap(id => getAdjacent(id))))].filter(id => id != from);
+}
+
+function getShipStarports(player) {
+    // Where it can build ships: its starports, or any starport while Empath's Bond works
+    const own = getBoardBuildings(player.number, "starport").map(port => port.system);
+    if (!isLoreActive(player, 20, "empath")) { return [...new Set(own)]; }
+    return [...new Set(own.concat(getSystemIds().filter(id => getBuildings(id, null, "starport").length > 0)))];
+}
+
+function canBuildCloudCity(id, playerNumber) {
+    // Cloud Cities: a city on a planet outside its slots, 1 per planet, for 1 resource of its type,
+    // where it has a piece
+    const player = players.find(other => other.number == playerNumber);
+    if (!hasLore(player, 9) || !isPlanet(id) || !hasLoyalPiece(id, playerNumber)) { return false; }
+    return !getBuildings(id).some(building => building.cloud) && player[getPlanetResource(id) + "Value"] > 0;
+}
+
+function getCloudCitySystems(player) {
+    // Planets it could build a Cloud City on: only where there's no slot left, with cities to place
+    if (!hasLore(player, 9) || getUncoveredCities(player) >= maxCities) { return []; }
+    return getSystemIds().filter(id => isPlanet(id) && getEmptySlotCount(id) == 0 && canBuildCloudCity(id, player.number));
+}
+
+function hasTacticalMove(player) {
+    // Warrior (Tactical): a Copy or Pivot to Battle may Move before or after it
+    const power = getCopyPivotPower(player, "battle");
+    return power != null && power[0] == 6;
+}
+
+// Shaper (Mythic): a resource placed over a planet it taxes makes that its type from now on
+
+function canMythic(player, system) {
+    return hasLeader(player, 14) && isPlanet(system) && !(board.mythicPlanets || []).includes(system);
+}
+
+function setPlanetType(player, system, resource) {
+    board.planetTypes = Object.assign({}, board.planetTypes, { [system]: resource });
+    board.mythicPlanets = (board.mythicPlanets || []).concat(system);
+    setPlayerResource(player, resource, Math.max(player[resource + "Value"] - 1, 0));
+    // Cities there now count as the new type
+    players.forEach(syncPanelFromBoard);
+    SaveAllSettings();
+}
+
+function botMythic(player, system) {
+    // The type it's chasing an ambition with, if it holds one and the planet isn't that already
+    if (!canMythic(player, system)) { return; }
+    const resource = preludeResources.find(item => item != getPlanetResource(system) && getResourceNeed(player, item) == 2 && player[item + "Value"] > 0);
+    if (resource == null) { return; }
+    setPlanetType(player, system, resource);
+    addLeaderNote(player, "Mythic: " + getSystemShortName(system) + " is now a " + preludeResourceNames[resource] + " planet", "It placed 1 " + preludeResourceNames[resource] + " over the planet. Already on the app's board.");
+}
+
+function offerMythic(player, system) {
+    // A human player chooses, or not
+    if (!canMythic(player, system)) { return; }
+    const held = preludeResources.filter(item => item != getPlanetResource(system) && player[item + "Value"] > 0);
+    if (held.length == 0) { return; }
+    queueLeaderWindow(() => showLeaderWindow(player, "Mythic", "<p class=\"mb-2\"><b>Shaper</b>: you may place 1 resource you have over " + getSystemName(system) + ". It becomes that type of planet from now on, and can't be changed again.</p>"
+        + "<div class=\"d-flex flex-wrap gap-2 mb-3\">" + held.map(item => "<button type=\"button\" class=\"btn btn-outline-secondary flex-fill\" id=\"mythic_" + item + "\" onclick=\"confirmMythic(" + player.number + ", '" + system + "', '" + item + "')\">" + preludeResourceNames[item] + "</button>").join("") + "</div>"
+        + "<button type=\"button\" class=\"btn btn-secondary w-100\" onclick=\"closeLeaderWindow()\">No thanks</button>"));
+}
+
+function confirmMythic(playerNumber, system, resource) {
+    setPlanetType(getPlayer(playerNumber), system, resource);
+    closeLeaderWindow();
+}
+
+function applyLeaderBattleRepairs(system) {
+    // After a battle, on the board: Quartermaster (Resilient) repairs 1 of its ships there per
+    // starport in systems it controls, whichever side it's on; Repair Drones repairs 1 attacking ship
+    const repair = (player, count) => {
+        const ships = getShips(system, player.number);
+        const fixed = Math.min(count, ships.damaged);
+        if (fixed > 0) { setShips(system, player.number, ships.fresh + fixed, ships.damaged - fixed); }
+    };
+    [battle.attacker, battle.defender].filter(player => player != null && typeof player.number == "number" && hasLeader(player, leaderNumbers.quartermaster)).forEach(player => {
+        repair(player, getSystemIds().filter(id => getController(id) == player.number).reduce((total, id) => total + getBuildings(id, null, "starport").length, 0));
+    });
+    if (battle.attacker != null && hasLore(battle.attacker, loreNumbers.repairDrones)) { repair(battle.attacker, 1); }
 }
 
 function getLoreBuildDamaged(id, playerNumber, kind, base) {
@@ -770,6 +859,21 @@ function getLeaderTaxableCities(playerNumber, cities) {
     // Anarchist: never its own cities (Principled), but Rival cities and empty slots in systems with
     // its ships, ignoring control (Inspiring). Upstart (Callow): its own cities only where it controls them
     const player = players.find(other => other.number == playerNumber);
+    const listed = withEmpathsBond(player, getLeaderTaxableCitiesOwn(player, playerNumber, cities));
+    return listed;
+}
+
+function withEmpathsBond(player, cities) {
+    // Empath's Bond, while Empath is declared: any city, like its own, but no Captives
+    if (!isLoreActive(player, 20, "empath")) { return cities; }
+    const list = cities.slice();
+    getSystemIds().forEach(id => getBuildings(id, null, "city").forEach(city => getCityTypes(id).forEach(resource => {
+        if (!list.some(other => other.system == id && other.owner == city.owner && other.resource == resource)) { list.push({ system: id, owner: city.owner, resource: resource, gate: isGate(id), noCapture: true }); }
+    })));
+    return list;
+}
+
+function getLeaderTaxableCitiesOwn(player, playerNumber, cities) {
     if (hasLeader(player, 4)) { return cities.filter(city => city.owner != playerNumber || getController(city.system) == playerNumber); }
     if (!hasLeader(player, 13)) { return cities; }
     const list = cities.filter(city => city.owner != playerNumber);

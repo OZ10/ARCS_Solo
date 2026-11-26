@@ -192,7 +192,9 @@ function getBoardSlotResources(player) {
     // The planet types with an empty slot in a system where it has a piece (rulebook p.12)
     // A gate it may build a city on (Gate Stations) offers each type of city in its cluster
     return [...new Set(getBuildableSystems(player.number).flatMap(id => isPlanet(id) ? [getPlanetResource(id)]
-        : (getGateBuildKinds(id, player.number).includes("city") ? getGateCityTypes(id) : [])))];
+        : (getGateBuildKinds(id, player.number).includes("city") ? getGateCityTypes(id) : []))
+        // Cloud Cities: planets it could build a city on outside the slots (leaderrules.js)
+        .concat(getCloudCitySystems(player).map(getPlanetResource)))];
 }
 
 function canBuildFromBoard(player, intent) {
@@ -418,7 +420,10 @@ function chooseBoardBuild(player) {
         // types it doesn't have a city of yet
         const cityHere = id => isPlanet(id) ? getPlanetResource(id) == choice.resource : getGateBuildKinds(id, player.number).includes("city") && getGateCityTypes(id).includes(choice.resource);
         const newTypes = id => getCityTypes(id).filter(resource => !hasCityOfType(player, resource)).length;
-        const system = buildable.filter(cityHere).sort((a, b) => newTypes(b) - newTypes(a) || mine(b) - mine(a))[0];
+        let system = buildable.filter(cityHere).sort((a, b) => newTypes(b) - newTypes(a) || mine(b) - mine(a))[0];
+        // Cloud Cities, when there's no slot of that type
+        const cloud = system == null ? getCloudCitySystems(player).find(id => getPlanetResource(id) == choice.resource) : null;
+        if (cloud != null) { return { system: cloud, kind: "city", cloud: true, resource: choice.resource, reason: choice.reason + " Outside the slots (Cloud Cities: costs 1 " + preludeResourceNames[choice.resource] + ")." }; }
         const gateWhy = system != null && isGate(system) ? " A gate city counts as every city type in its cluster (Gate Stations): " + getCityTypes(system).map(resource => preludeResourceNames[resource]).join(", ") + "." : "";
         if (system != null) { return { system: system, kind: "city", resource: choice.resource, reason: choice.reason + gateWhy }; }
     }
@@ -429,7 +434,8 @@ function chooseBoardBuild(player) {
         if (system != null) { return { system: system, kind: "starport", reason: choice.reason }; }
     }
     // A ship only with one left in its supply (#160)
-    const starport = getShipSupply(player) > 0 ? getBoardBuildings(player.number, "starport").map(port => port.system)[0] : null;
+    // Empath's Bond: at any starport (leaderrules.js)
+    const starport = getShipSupply(player) > 0 ? getShipStarports(player)[0] : null;
     return starport != null ? { system: starport, kind: "ship", reason: choice.reason } : null;
 }
 
@@ -437,7 +443,13 @@ function applyBoardStep(player, where) {
     // A step's effect on the board
     if (where == null) { return; }
     if (where.from != null) { moveShips(where.from, where.to, player.number, where.count); }
-    if (where.kind == "city" || where.kind == "starport") { placeBuilding(where.system, player.number, where.kind, isBuiltDamaged(where.system, player.number, where.kind)); }
+    if (where.kind == "city" || where.kind == "starport") {
+        // Cloud Cities: outside the slots, for 1 resource of the planet's type (leaderrules.js)
+        if (placeBuilding(where.system, player.number, where.kind, isBuiltDamaged(where.system, player.number, where.kind), where.cloud === true) && where.cloud) {
+            const resource = getPlanetResource(where.system);
+            setPlayerResource(player, resource, Math.max(player[resource + "Value"] - 1, 0));
+        }
+    }
     if (where.kind == "ship") { addShips(where.system, player.number, 1, isBuiltDamaged(where.system, player.number, "ship")); }
     // Guild cards that place ships (#197): 1 in each gate in play, or some in one system
     if (where.kind == "gateShips") { getSystemIds().filter(isGate).forEach(id => addShips(id, player.number, 1)); }
@@ -499,7 +511,7 @@ function placeBoardPlan(player, plan) {
                     .sort((a, b) => Number(a.gate) - Number(b.gate))[0] || rivalCities[0];
                 if (city != null) {
                     taxedCities.push(city.system + ":" + city.owner);
-                    where = { system: city.system, tax: true, owner: city.owner, resource: city.resource };
+                    where = { system: city.system, tax: true, owner: city.owner, resource: city.resource, noCapture: city.noCapture === true };
                     step.text = step.text.replace(/^Tax[^(]*?(?= \(|$)/, match => (city.gate ? match.replace(/^Tax its \w+ city/, "Tax its gate city") : match) + " at " + getSystemName(city.system) + (city.gate ? " for " + preludeResourceNames[city.resource] : ""));
                 }
             } else if (step.action == "repair") {
@@ -574,9 +586,12 @@ function applyBotStep(player, step) {
         const resource = step.where.resource || getPlanetResource(step.where.system);
         if (resource != null && getResourceSupply(resource) > 0 && getEmptySlots(player) > 0) {
             setPlayerResource(player, resource, player[resource + "Value"] + 1);
-            if (step.where.owner != null && step.where.owner != player.number) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
+            // Empath's Bond takes no Captive (leaderrules.js)
+            if (step.where.owner != null && step.where.owner != player.number && !step.where.noCapture) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
             // A Leader's extra resource for a Copy or Pivot Tax (leaderrules.js)
             applyLeaderTaxBonus(player);
+            // Shaper (Mythic): the planet becomes the type it's chasing, if it holds one
+            botMythic(player, step.where.system);
         }
     }
     step.applied = true;
@@ -692,6 +707,8 @@ function applyBattleToBoard(losses) {
     setShips(system, defender, battle.fresh, battle.damaged);
     let damaged = battle.damagedBuildings;
     getBuildings(system, defender).forEach(building => { building.damaged = damaged > 0; damaged--; });
+    // Quartermaster (Resilient) and Repair Drones repair ships there (leaderrules.js)
+    applyLeaderBattleRepairs(system);
     const step = (battle.attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.system == system && !item.applied);
     if (step != null) { step.applied = true; }
     // Both panels follow the board, human players' too now their actions are on it

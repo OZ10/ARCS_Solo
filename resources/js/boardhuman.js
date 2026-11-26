@@ -207,8 +207,10 @@ function getHumanBuildOptions(player) {
     const options = [];
     // On a gate, only what Gate Ports or Gate Stations allow
     getBuildableSystems(number).forEach(id => (isGate(id) ? getGateBuildKinds(id, number) : ["city", "starport"]).forEach(kind => options.push({ system: id, kind: kind, damaged: isBuiltDamaged(id, number, kind) })));
-    // Ships only while some are left in the supply
-    getBoardBuildings(number, "starport").map(port => port.system).filter(id => !shipsBuilt.includes(id) && getShipSupply(player) > 0)
+    // Cloud Cities: a city outside the slots, for 1 resource of the planet's type (leaderrules.js)
+    getCloudCitySystems(player).forEach(id => options.push({ system: id, kind: "city", cloud: true, damaged: isBuiltDamaged(id, number, "city") }));
+    // Ships only while some are left in the supply. Empath's Bond: at any starport (leaderrules.js)
+    getShipStarports(player).filter(id => !shipsBuilt.includes(id) && getShipSupply(player) > 0)
         .forEach(id => options.push({ system: id, kind: "ship", damaged: isBuiltDamaged(id, number, "ship") }));
     return options;
 }
@@ -267,8 +269,10 @@ function renderHumanOptions(type) {
     let options = [];
     if (type == "build") {
         options = getHumanBuildOptions(player).map((option, index) => getOptionButton(
-            option.kind == "ship" ? "<b>Ship</b> at your starport at " + getSystemName(option.system) : "<b>" + capitalise(option.kind) + "</b> at " + getSystemName(option.system),
-            (option.kind == "ship" ? "One per starport each turn" : isGate(option.system) ? (option.kind == "city" ? "Gate Stations" : "Gate Ports") + ": 1 per gate" : getEmptySlotCount(option.system) + " empty slot" + (getEmptySlotCount(option.system) == 1 ? "" : "s")) + (option.damaged ? " &middot; damaged: a Rival controls it" : ""),
+            option.kind == "ship" ? "<b>Ship</b> at " + (getBuildings(option.system, player.number, "starport").length > 0 ? "your starport" : "the starport") + " at " + getSystemName(option.system)
+                : option.cloud ? "<b>City</b> outside the slots at " + getSystemName(option.system) : "<b>" + capitalise(option.kind) + "</b> at " + getSystemName(option.system),
+            (option.kind == "ship" ? "One per starport each turn" + (getBuildings(option.system, player.number, "starport").length > 0 ? "" : " (Empath's Bond)")
+                : option.cloud ? "Cloud Cities: costs 1 " + preludeResourceNames[getPlanetResource(option.system)] : isGate(option.system) ? (option.kind == "city" ? "Gate Stations" : "Gate Ports") + ": 1 per gate" : getEmptySlotCount(option.system) + " empty slot" + (getEmptySlotCount(option.system) == 1 ? "" : "s")) + (option.damaged ? " &middot; damaged: a Rival controls it" : ""),
             "humanBuild(" + index + ")", "humanOption" + index));
     } else if (type == "repair") {
         options = getHumanRepairOptions(player).map((option, index) => getOptionButton("A damaged " + option.kind + " at " + getSystemName(option.system), "Turn it fresh side up", "humanRepair(" + index + ")", "humanOption" + index));
@@ -278,7 +282,7 @@ function renderHumanOptions(type) {
             // Anarchist (Inspiring): an empty slot where its ships are
             if (option.slot) { return getOptionButton("An empty <b>" + preludeResourceNames[option.resource] + "</b> slot at " + getSystemName(option.system), "Gain 1 " + preludeResourceNames[option.resource] + " (Anarchist, Inspiring)", "humanTax(" + index + ")", "humanOption" + index); }
             return getOptionButton((mine ? "Your " : "Player " + option.owner + "'s ") + (option.gate ? "gate city at " + getSystemName(option.system) + ", for <b>" + preludeResourceNames[option.resource] + "</b>" : "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system)),
-                "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
+                "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : option.noCapture ? " (Empath's Bond: no Captive)" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
         });
     }
     body.innerHTML = options.length > 0 ? "<div class=\"d-grid gap-2\">" + options.join("") + "</div>"
@@ -291,7 +295,9 @@ function humanBuild(index) {
     const option = getHumanBuildOptions(player)[index];
     if (option == null) { return; }
     if (option.kind == "ship") { addShips(option.system, player.number, 1, option.damaged); }
-    else if (!placeBuilding(option.system, player.number, option.kind, option.damaged)) { return; }
+    else if (!placeBuilding(option.system, player.number, option.kind, option.damaged, option.cloud === true)) { return; }
+    // Cloud Cities: 1 resource of the planet's type
+    if (option.cloud) { const resource = getPlanetResource(option.system); setPlayerResource(player, resource, player[resource + "Value"] - 1); }
     recordBoardAction(player, { action: "build", system: option.system, kind: option.kind, damaged: option.damaged, text: "A " + (option.damaged ? "damaged " : "") + option.kind + " at " + getSystemName(option.system) });
     closeHumanBoardAction();
 }
@@ -310,11 +316,12 @@ function humanTax(index) {
     const player = getTurnPlayer();
     const option = getHumanTaxOptions(player)[index];
     if (option == null) { return; }
-    const captured = option.owner != player.number;
+    const captured = option.owner != player.number && !option.noCapture;
     setPlayerResource(player, option.resource, player[option.resource + "Value"] + 1);
     if (captured) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
-    // A Leader's extra resource for a Copy or Pivot Tax (leaderrules.js)
+    // A Leader's extra resource for a Copy or Pivot Tax, and Shaper (Mythic) may change the planet (leaderrules.js)
     applyLeaderTaxBonus(player);
+    offerMythic(player, option.system);
     recordBoardAction(player, { action: "tax", system: option.system, owner: option.owner, resource: option.resource, captured: captured,
         text: (captured ? "Player " + option.owner + "'s " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": 1 " + preludeResourceNames[option.resource] + (captured ? " and 1 Captive" : "") });
     closeHumanBoardAction();
@@ -369,6 +376,13 @@ function chooseMoveTo(to) {
     const player = getTurnPlayer();
     humanMove.to = to;
     humanMove.routes = getMoveRoutes(humanMove.from, to, player.number, humanMove.fresh);
+    // Sprinter Drives: one more step for fresh ships only, so no damaged ones that far
+    const once = getMoveDestinations(humanMove.from, player.number, humanMove.fresh, true);
+    if (!once.includes(to)) {
+        humanMove.damaged = 0;
+        const via = getAdjacent(to).find(id => once.includes(id));
+        if (humanMove.routes.length == 0 && via != null) { humanMove.routes = getMoveRoutes(humanMove.from, via, player.number, humanMove.fresh).map(route => route.concat(to)); }
+    }
     humanMove.route = humanMove.routes[0] || [humanMove.from, to];
     humanMove.drops = {};
     humanMove.choosing = false;

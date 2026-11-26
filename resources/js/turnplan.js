@@ -519,10 +519,13 @@ function makeBattleReachable(player, chosen, available, scores, preludeSpent) {
     // 3. otherwise the best Rival it can fight now, then one it can Move to;
     // 4. otherwise no Battle: those actions go to the next best thing
     const rivals = players.filter(other => other !== player);
-    const canMove = available.includes("move") || preludeSpent.some(offer => offer.action == "move");
+    // Warrior (Tactical): a Copy or Pivot to Battle may Move first, for free (leaderrules.js)
+    const tactical = hasTacticalMove(player);
+    const canMove = available.includes("move") || preludeSpent.some(offer => offer.action == "move") || tactical;
     const hasMove = () => chosen.some(pick => pick.action == "move") || preludeSpent.some(offer => offer.action == "move");
     const addMove = () => {
         if (hasMove()) { return true; }
+        if (tactical) { chosen.unshift({ action: "move", reason: "a free Move before the Battle (Warrior, Tactical)", tag: "" }); return true; }
         if (!available.includes("move")) { return false; }
         const spare = chosen.findIndex(pick => pick.action != "battle");
         const index = spare >= 0 ? spare : (chosen.filter(pick => pick.action == "battle").length > 1 ? chosen.findIndex(pick => pick.action == "battle") : -1);

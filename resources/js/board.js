@@ -45,7 +45,11 @@ function getAllSystemIds() {
 function getCluster(id) { return parseInt(id); }
 function isGate(id) { return id.endsWith("g"); }
 function isPlanet(id) { return !isGate(id); }
-function getPlanetResource(id) { return isPlanet(id) ? mapPlanets[id].resource : null; }
+function getPlanetResource(id) {
+    // Shaper (Mythic) can change a planet's type for the rest of the game (board.planetTypes)
+    if (!isPlanet(id)) { return null; }
+    return (board != null && board.planetTypes != null && board.planetTypes[id]) || mapPlanets[id].resource;
+}
 function getPlanetSlots(id) { return isPlanet(id) ? mapPlanets[id].slots : 0; }
 function isClusterInPlay(cluster) { return !board.outOfPlay.includes(cluster); }
 function isSystemInPlay(id) { return isClusterInPlay(getCluster(id)); }
@@ -158,7 +162,8 @@ function getBuildings(id, playerNumber = null, kind = null) {
 }
 
 function getEmptySlotCount(id) {
-    return Math.max(getPlanetSlots(id) - getSystem(id).buildings.length, 0);
+    // A city outside the slots (Cloud Cities) takes none
+    return Math.max(getPlanetSlots(id) - getSystem(id).buildings.filter(building => !building.cloud).length, 0);
 }
 
 function getGateBuildKinds(id, playerNumber) {
@@ -170,9 +175,11 @@ function getGateBuildKinds(id, playerNumber) {
     return [[8, "starport"], [11, "city"]].filter(([lore, kind]) => hasLore(player, lore) && getBuildings(id, playerNumber, kind).length == 0).map(([, kind]) => kind);
 }
 
-function placeBuilding(id, playerNumber, kind, damaged = false) {
-    if (isGate(id) ? !getGateBuildKinds(id, playerNumber).includes(kind) : getEmptySlotCount(id) <= 0) { return false; }
-    getSystem(id).buildings.push({ owner: playerNumber, kind: kind, damaged: damaged });
+function placeBuilding(id, playerNumber, kind, damaged = false, cloud = false) {
+    // cloud: a city outside the building slots (Cloud Cities, leaderrules.js)
+    if (cloud) { if (typeof canBuildCloudCity != "function" || !canBuildCloudCity(id, playerNumber)) { return false; } }
+    else if (isGate(id) ? !getGateBuildKinds(id, playerNumber).includes(kind) : getEmptySlotCount(id) <= 0) { return false; }
+    getSystem(id).buildings.push(cloud ? { owner: playerNumber, kind: kind, damaged: damaged, cloud: true } : { owner: playerNumber, kind: kind, damaged: damaged });
     return true;
 }
 
@@ -229,7 +236,13 @@ function isBuiltDamaged(id, playerNumber, kind) {
     return typeof getLoreBuildDamaged == "function" ? getLoreBuildDamaged(id, playerNumber, kind, base) : base;
 }
 
-function getMoveDestinations(from, playerNumber, movingFresh = null) {
+function getMoveDestinations(from, playerNumber, movingFresh = null, once = false) {
+    // A Lore card can let fresh ships move one more time (Sprinter Drives, leaderrules.js). once: not that
+    const reached = getMoveDestinationsOnce(from, playerNumber, movingFresh);
+    return !once && typeof getLoreExtraMoves == "function" ? getLoreExtraMoves(from, playerNumber, reached) : reached;
+}
+
+function getMoveDestinationsOnce(from, playerNumber, movingFresh = null) {
     // Every system its ships at from could reach with one Move action. movingFresh: how many fresh
     // ships are moving (all of them at from if not given)
     const adjacent = getAdjacent(from);
