@@ -374,6 +374,9 @@ function getPreludeOffers(player) {
     // why: the bot has decided this itself, and why (ticked in the window). Without it, it's the
     // player's call
     const offerAction = (resource, text, action, converts, why, vital = false) => {
+        // At most so many of each resource's actions a prelude, by difficulty: more on Hard, fewer
+        // on Easy and Relaxed (#203, the user)
+        if (offers.filter(offer => offer.spends == resource).length >= (getDifficulty().preludeEach || 1)) { return; }
         const pay = payFor(resource, vital);
         if (pay == null) { return; }
         const amount = Math.min(available[pay], maxPreludePerResource);
@@ -382,7 +385,7 @@ function getPreludeOffers(player) {
         const loyal = guild.find(card => card.spendAnyAs == resource);
         const label = (pay == resource) ? amount + " " + preludeResourceNames[resource]
             : amount + " " + preludeResourceNames[pay] + " as " + preludeResourceNames[resource] + " (" + loyal.name + ")";
-        offers.push({ label: label, text: text, costs: { [pay]: amount }, action: action, converts: converts, decided: why != null, why: why });
+        offers.push({ label: label, text: text, costs: { [pay]: amount }, spends: resource, action: action, converts: converts, decided: why != null, why: why });
     };
 
     const usefulIf = { materials: "Build or Repair, if there's a good spot", fuel: "Move, if there's a useful move", relics: "Secure, if there's a card worth securing" };

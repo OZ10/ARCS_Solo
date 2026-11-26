@@ -117,11 +117,12 @@ const defaultDifficulty = 3;
 const difficultyLevels = {
     // slip: how often it misses what the ambition model says (#200); whim: how often it does something
     // the model wouldn't. Hard always follows the model
-    1: { name: "Easy", text: "Makes plenty of mistakes and takes big gambles.", randomness: 2, moodSwing: 1.6, planVariation: 2, chance: 0.6, decides: false, smart: "none", slip: 0.3, whim: 0.2 },
-    2: { name: "Relaxed", text: "Makes the odd mistake, and plays a little loosely.", randomness: 1.5, moodSwing: 1.3, planVariation: 1.5, chance: 0.8, decides: true, smart: "none", slip: 0.2, whim: 0.12 },
-    3: { name: "Normal", text: "Plays well, with some surprises. (As it plays now.)", randomness: 1, moodSwing: 1, planVariation: 1, chance: 1, decides: true, smart: "none", slip: 0.1, whim: 0.06 },
-    4: { name: "Tough", text: "Rarely strays from its best move.", randomness: 0.5, moodSwing: 0.5, planVariation: 0.5, chance: 1, decides: true, smart: "also", slip: 0.05, whim: 0.03 },
-    5: { name: "Hard", text: "Always takes the best move it can work out.", randomness: 0, moodSwing: 0, planVariation: 0, chance: 0, decides: true, smart: "only", slip: 0, whim: 0 }
+    // preludeEach: the most of each resource it spends in one prelude, one per useful action (#203)
+    1: { name: "Easy", text: "Makes plenty of mistakes and takes big gambles.", randomness: 2, moodSwing: 1.6, planVariation: 2, chance: 0.6, decides: false, smart: "none", slip: 0.3, whim: 0.2, preludeEach: 1 },
+    2: { name: "Relaxed", text: "Makes the odd mistake, and plays a little loosely.", randomness: 1.5, moodSwing: 1.3, planVariation: 1.5, chance: 0.8, decides: true, smart: "none", slip: 0.2, whim: 0.12, preludeEach: 1 },
+    3: { name: "Normal", text: "Plays well, with some surprises. (As it plays now.)", randomness: 1, moodSwing: 1, planVariation: 1, chance: 1, decides: true, smart: "none", slip: 0.1, whim: 0.06, preludeEach: 2 },
+    4: { name: "Tough", text: "Rarely strays from its best move.", randomness: 0.5, moodSwing: 0.5, planVariation: 0.5, chance: 1, decides: true, smart: "also", slip: 0.05, whim: 0.03, preludeEach: 2 },
+    5: { name: "Hard", text: "Always takes the best move it can work out.", randomness: 0, moodSwing: 0, planVariation: 0, chance: 0, decides: true, smart: "only", slip: 0, whim: 0, preludeEach: 3 }
 };
 
 // What destroying a building is worth to the attacker, in hits on ships (see getBuildingValue).
