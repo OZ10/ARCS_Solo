@@ -533,7 +533,7 @@ function showTurnDone(player) {
     // In the order they happen: the prelude, then the card's actions and any Guild actions
     const prelude = describePrelude(player), plan = describeTurnPlan(player), guildActions = describeGuildActions(player);
     document.getElementById("turnsummary" + player.number).innerHTML = (prelude == null ? [] : [prelude])
-        .concat(describePlayerPlays(player), describeBuildChange(player) || [], plan == null ? [] : [plan], guildActions == null ? [] : [guildActions], getMarketReminder(player) || []).join("<br>");
+        .concat(describePlayerPlays(player), plan == null ? [] : [plan], guildActions == null ? [] : [guildActions], getMarketReminder(player) || []).join("<br>");
 
     const next = getNextPlayerToPlay(player);
     document.getElementById("donebutton" + player.number).innerHTML = (next == null) ? "Done: end of turn" : "Done &rarr; Player " + next.number;
@@ -588,7 +588,9 @@ function describePlayerPlays(player) {
         // A campaign's Event card (campaignhooks.js)
         const special = runCampaignHook("describePlay", card, lead);
         if (special != null) { return special; }
-        const focus = (card.playedAction != null && card.playedAction.toUpperCase() != "ANY") ? ", for " + card.playedAction : "";
+        // "for tax": what it played the card for, only while its plan still does that (#217, #222)
+        const planned = action => player.isHuman || !Array.isArray(player.turnPlan) || player.turnPlan.some(step => step.action == action && !step.skip);
+        const focus = (card.playedAction != null && card.playedAction.toUpperCase() != "ANY" && planned(card.playedAction.toLowerCase())) ? ", for " + card.playedAction : "";
         const declared = card.declared ? " and declared an ambition" : "";
 
         switch (card.cardAction) {

@@ -156,8 +156,8 @@ function getCardHtml(player) {
         return "<div><b>" + played.replace(/([A-Za-z])(\d)/, "$1 $2").replace("declared an ambition", declared) + "</b></div>"
             + (actions ? "<div class=\"small text-muted\">" + capitalise(actions) + "</div>" : "");
     });
-    const change = describeBuildChange(player);
-    return lines.join("") + (change != null ? "<div class=\"small fst-italic mt-1\">" + change + "</div>" : "");
+    // (No "It could build, but..." note: the board answers that now, and it cluttered the window, #217)
+    return lines.join("");
 }
 
 function getAlsoTools(player, planned) {

@@ -453,6 +453,20 @@ function getTurnPlan(player) {
         chosen.push({ action: best, reason: scores[best].reason, tag: scores[best].tag || "" });
         actionsLeft -= 1;
     }
+    // Nothing worth doing with its card: say so, and why, rather than show no plan at all (#222)
+    if (chosen.length == 0 && play.count > 0 && !preludeSpent.some(offer => offer.where != null || offer.action != null)) {
+        const why = available.filter((action, index) => available.indexOf(action) == index).map(action => {
+            if (action == "move") { return usefulMoves == 0 ? "no useful Move on the board" : null; }
+            if (action == "influence") { return hasNoAgents(player) ? "no agents left to Influence" : "no Court card worth an agent"; }
+            if (action == "secure") { return "no Court card it can secure"; }
+            if (action == "tax") { return "no city to tax"; }
+            if (action == "build") { return "nowhere to build"; }
+            if (action == "repair") { return "nothing damaged to repair"; }
+            if (action == "battle") { return "no battle worth fighting"; }
+            return null;
+        }).filter(text => text != null);
+        return [{ action: "none", text: "Nothing to do with its card: " + (why.length > 0 ? why.join(", ") : "none of its actions is useful now") + ". Skip its actions", tag: "", hints: [], skip: true }];
+    }
 
     // Its fleet needs a Move to reach the battle (boardbot.js, #160): the first step it can spare
     // becomes that Move, if its card can Move
