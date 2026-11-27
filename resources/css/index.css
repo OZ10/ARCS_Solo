@@ -1584,8 +1584,16 @@ header {
   font-size: 0.88rem;
   line-height: 1.15;
 }
-.turnbarplan b {
+/* Only the "Player 3's turn" title on its own line, not the bold system names in the plan */
+.turnbarplan > b {
   display: block;
+}
+/* The plan in at most 2 lines */
+.turnbarsteps {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 #turnAdvice {

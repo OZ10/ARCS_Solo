@@ -7,9 +7,15 @@
 const rivalTaxReason = "a Rival's city, to capture";
 
 function getTaxTargets(player) {
-    // The resources it has cities on, the one it needs most first
-    return preludeResources.filter(resource => player["cities" + capitalise(resource) + "Value"] > 0)
+    // The resources it has cities on, the one it needs most first. A gate city counts for each of its
+    // types (Gate Stations)
+    return preludeResources.filter(resource => hasCityOfType(player, resource))
         .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a));
+}
+
+function hasCityOfType(player, resource) {
+    // A city of this type on its panel, or a gate city on the board that counts as it
+    return player["cities" + capitalise(resource) + "Value"] > 0 || getBoardCities(player.number, resource).length > 0;
 }
 
 function getResourceSupply(resource) {
@@ -22,7 +28,17 @@ function getCitiesToTax(player) {
     // Its cities it can gain a resource from: there's one left, and it wasn't told it can't
     const ruledOut = (player.noTax || []).flatMap(ambition => ambitionTaxResources[ambition] || []);
     if (hasLeader(player, 13)) { return getAnarchistTaxTargets(player, ruledOut); }
-    return getTaxTargets(player).filter(resource => getResourceSupply(resource) > 0 && !ruledOut.includes(resource));
+    return getTaxTargets(player).filter(resource => getResourceSupply(resource) > 0 && !ruledOut.includes(resource) && isOutragedTaxWorthIt(player, resource));
+}
+
+function isOutragedTaxWorthIt(player, resource) {
+    // An Outraged resource can't be spent in its prelude, only counted for its ambition (rulebook
+    // p.17). So only when it's chasing that ambition, or holds a card to declare it (#193)
+    if (!(player.outraged || []).includes(resource)) { return true; }
+    const ambition = preludeAmbitions[resource];
+    if (ambition == null) { return false; }
+    if (getResourceNeed(player, resource) == 2) { return true; }
+    return !declaredAmbitions.includes(ambition) && canDeclareAmbition(player) && holdsAmbitionCard(player, ambition);
 }
 
 function getMoveGoal(player) {
@@ -80,7 +96,7 @@ function getMoveGoals(player) {
 function getNewCityResource(player) {
     // A planet type it has no city on and would like one, the one it needs most. null if none
     if (getUncoveredCities(player) >= maxCities) { return null; }
-    return preludeResources.filter(resource => player["cities" + capitalise(resource) + "Value"] == 0 && getResourceNeed(player, resource) > 0)
+    return preludeResources.filter(resource => !hasCityOfType(player, resource) && getResourceNeed(player, resource) > 0)
         .sort((a, b) => getResourceNeed(player, b) - getResourceNeed(player, a))[0] || null;
 }
 
@@ -210,7 +226,11 @@ function getBattleTarget(player) {
             + (runCampaignHook("battleTargetBonus", player, rival) || 0)
             // One its ships can't reach this turn hardly counts, and an unguarded building it can
             // reach counts for more (boardbot.js, #160)
-            + getBattleTargetBoardBonus(player, rival);
+            + getBattleTargetBoardBonus(player, rival)
+            // The leader, more the further ahead and the nearer the target (#200)
+            + getLeaderThreat(player, rival) * leaderWeights.battle
+            // Their city it could destroy for little Outrage, with a Loyal card of that type (#208)
+            + getLoyalCityBonus(player, rival);
         target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
         player.battleTargetNumber = target.number;
     }
@@ -245,6 +265,11 @@ function getActionPlanScore(player, action, focus) {
             const goal = getMoveGoal(player);
             if (goal != null) { score += weights.moveGoal; reason = goal; }
             else { reason = getMoveReasons(player)[0]; }
+            // The board's best Move has a purpose (#200 phase 3). After its prelude's Moves, so a
+            // card's Move counts only when ANOTHER Move is useful (#203, the user)
+            const best = getNextBoardMove(player);
+            // Spreading out counts for less than a battle, a defence, a Rival's city or a build
+            if (best != null) { score += /^to spread/.test(best.why) ? weights.moveUseful / 2 : weights.moveUseful; reason = getMoveWhy(best); }
             break;
         }
 
@@ -252,6 +277,9 @@ function getActionPlanScore(player, action, focus) {
             if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
             // No Rival its ships can reach this turn on the board (#188). A campaign's own targets aside
             if (!player.campaignTarget && !players.some(other => other !== player && canReachRival(player, other))) { return { score: planImpossible }; }
+            // Nowhere it can fight at good odds: as many ships as the defender, or all theirs
+            // damaged. Better to use the action for something else (#198)
+            if (!player.campaignTarget && !players.some(other => other !== player && hasFavourableBattle(player, other))) { return { score: planImpossible }; }
             if (chasing("warlord")) { score += weights.battleWarlord; reason = "chasing Warlord"; }
             else if (chasing("tyrant")) { score += weights.battleTyrant; reason = "chasing Tyrant"; }
             if (hasManyShips(player)) { score += weights.battleManyShips; if (reason == "") { reason = "lots of ships on the board"; } }
@@ -261,6 +289,11 @@ function getActionPlanScore(player, action, focus) {
                 if (reason == "") { reason = getFleetReason(player); }
             }
             if (isLastCard) { score += weights.battleLastCard; if (reason == "") { reason = "its last card this round"; } }
+            // A Rival's building in reach with no ships guarding it: stop them expanding (#200 phase 3)
+            if (players.some(other => other !== player && getExposedBuildings(player, other).length > 0)) {
+                score += weights.battleExposed;
+                if (reason == "") { reason = "a Rival's building in reach has no ships guarding it"; }
+            }
             break;
 
         case "secure":
@@ -286,6 +319,12 @@ function getActionPlanScore(player, action, focus) {
             if (getEmptySlots(player) == 0) { return { score: planImpossible }; }
             if (action != focus && targets.length == 0 && !player.startingCity) { return { score: planImpossible }; }
             if (targets.length > 0) { score += getResourceNeed(player, targets[0]) * weights.taxPerNeed; }
+            // A resource whose prelude action its hand lacks: Fuel with few Move cards, Material
+            // with few Build cards, a Weapon with few Battle cards (#200 phase 3)
+            const lacks = { fuel: "move", materials: "build", weapons: "battle" };
+            const hand = getUnplayedCards(player.cards);
+            const short = targets.find(resource => lacks[resource] != null && hand.filter(card => card.actions.includes(lacks[resource])).length <= 1 && hand.length >= 2);
+            if (short != null) { score += weights.taxForHand; if (reason == "") { reason = "its hand has few " + capitalise(lacks[short]) + " cards, and a " + preludeResourceNames[short] + " gives one"; } }
             break;
         }
 
@@ -295,6 +334,12 @@ function getActionPlanScore(player, action, focus) {
             if (chooseBoardBuild(player) == null && !canUseGuildActionInsteadOf(player, "build")) { return { score: planImpossible }; }
             if (player.shipsBoardValue < getShipTarget(player)) { score += weights.buildFewShips; reason = "more ships: it wants about " + shipsPerBuilding + " per building, or repair a damaged one"; }
             else if (isNearCityBonus(player)) { score += weights.buildNearBonus; reason = "towards the city bonus"; }
+            // #200 phase 3: a city opens a resource slot when they're full or nearly; ships when
+            // Rivals have clearly more, to defend
+            const planned = chooseBoardBuild(player);
+            if (planned != null && planned.kind == "city" && getEmptySlots(player) <= 1) { score += weights.buildSlots; if (reason == "") { reason = "its resource slots are nearly full, and a city opens another"; } }
+            const rivalShips = Math.max(0, ...players.filter(other => other !== player).map(other => getBoardShips(other.number)));
+            if (rivalShips >= getBoardShips(player.number) + 3) { score += weights.buildDefend; if (reason == "") { reason = "Rivals have more ships: it needs to defend"; } }
             break;
 
         case "repair": {
@@ -368,9 +413,15 @@ function getTurnPlan(player) {
     const available = play.actions.split(",").concat(preludeSpent.some(offer => offer.converts) ? ["battle"] : []);
     const scores = {};
     available.forEach(action => { scores[action] = getActionPlanScore(player, action, focus); });
+    // No more Moves than the board has useful ones, never back the way it came (#197). A Move to
+    // set up a Battle is added later if it needs one
+    const usefulMoves = available.includes("move") ? getUsefulMoveCount(player) : 0;
+    // Another Battle isn't worth less when attacking again can clear most or all of a Rival's
+    // pieces at good odds (#200 phase 3, the user)
+    const repeatBattle = available.includes("battle") && hasRepeatableBattle(player);
     while (actionsLeft > 0) {
         const value = action => scores[action].score + player.planVariation[action]
-            - chosen.filter(pick => pick.action == action).length * turnPlanWeights.repeat
+            - (action == "battle" && repeatBattle ? 0 : chosen.filter(pick => pick.action == action).length * turnPlanWeights.repeat)
             + (action == "move" && chosen.some(pick => pick.action == "battle") && !chosen.some(pick => pick.action == "move") ? turnPlanWeights.moveForBattle : 0);
         // No more Taxes than it has cities to tax, unless it's taxing Rivals to capture
         const canTaxAgain = scores.tax == null || scores.tax.reason == rivalTaxReason || canTaxCityAgain(player)
@@ -380,9 +431,10 @@ function getTurnPlan(player) {
         // No more Influences than it has agents (#123)
         const agentsLeft = getAgentsLeft(player);
         const canInfluenceAgain = agentsLeft == null || chosen.filter(pick => pick.action == "influence").length < agentsLeft;
-        // No more Repairs than it has pieces on the board to repair (#145)
-        const canRepairAgain = chosen.filter(pick => pick.action == "repair").length < getRepairablePieces(player);
-        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain) && (action != "repair" || canRepairAgain))
+        // No more Repairs than the board has damaged pieces of its, after its prelude (#145, #211)
+        const canRepairAgain = chosen.filter(pick => pick.action == "repair").length < getDamagedPieceCount(player);
+        const canMoveAgain = chosen.filter(pick => pick.action == "move").length < usefulMoves;
+        const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain) && (action != "repair" || canRepairAgain) && (action != "move" || canMoveAgain))
             .sort((a, b) => value(b) - value(a))[0];
         if (best == null) { break; }
         chosen.push({ action: best, reason: scores[best].reason, tag: scores[best].tag || "" });
@@ -392,11 +444,13 @@ function getTurnPlan(player) {
     // Its fleet needs a Move to reach the battle (boardbot.js, #160): the first step it can spare
     // becomes that Move, if its card can Move
     setFleetFromBoard(player);
-    if (available.includes("move") && player.attackFleetMove != null && chosen.some(pick => pick.action == "battle") && !chosen.some(pick => pick.action == "move")) {
-        const spare = chosen.findIndex(pick => pick.action != "battle");
-        const index = spare >= 0 ? spare : (chosen.filter(pick => pick.action == "battle").length > 1 ? chosen.findIndex(pick => pick.action == "battle") : -1);
-        if (index >= 0) { chosen[index] = { action: "move", reason: "to set up the Battle", tag: "" }; }
+    // A Battle needs a Rival it can fight this turn (#188): who it wants to fight; can it, sharing a
+    // system now, or with a Move first; if not, anyone else it can; and only at good odds
+    if (chosen.some(pick => pick.action == "battle") && !player.campaignTarget) {
+        chosen = makeBattleReachable(player, chosen, available, scores, preludeSpent);
     }
+    // Free actions its Leader gives with a Copy or Pivot (Noble, Feastbringer: leaderrules.js)
+    chosen = chosen.concat(getLeaderFreeActions(player, chosen));
 
     // A move sets up a battle, if there's one
     const hasBattle = chosen.some(pick => pick.action == "battle");
@@ -433,6 +487,13 @@ function getTurnPlan(player) {
             details.resource = taxTargets.shift();
             if (canTaxCityAgain(player) && taxTargets.length == 0) { taxTargets.push(details.resource); }
             name = getTaxStepName(player, details.resource);
+            // Outraged: it can't spend it in its prelude, but it still counts for its ambition
+            // (rulebook p.17, #193)
+            if ((player.outraged || []).includes(details.resource)) {
+                const ambition = preludeAmbitions[details.resource];
+                const plans = !declaredAmbitions.includes(ambition) ? ": it holds a " + capitalise(ambition) + " card to declare" : "";
+                reason = (reason ? reason + "; " : "") + "it's Outraged in " + getResourceWord(details.resource) + ", so it can't spend it, but it counts for " + capitalise(ambition) + plans;
+            }
         }
         if (pick.action == "tax" && reason == rivalTaxReason) {
             // Overseer (Ruthless) once a turn
@@ -453,6 +514,52 @@ function getTurnPlan(player) {
         }
         return { action: pick.action, text: name + (reason ? " (" + reason + ")" : ""), tag: pick.tag || "", hints: getLeaderPlanHints(player, pick.action, details) };
     }));
+}
+
+function makeBattleReachable(player, chosen, available, scores, preludeSpent) {
+    // Returns the plan with its Battles against a Rival it can fight this turn (#188):
+    // 1. its target, if it shares a system with them at good odds;
+    // 2. its target, with a Move first if it has one (a spare action becomes the Move);
+    // 3. otherwise the best Rival it can fight now, then one it can Move to;
+    // 4. otherwise no Battle: those actions go to the next best thing
+    const rivals = players.filter(other => other !== player);
+    // Warrior (Tactical): a Copy or Pivot to Battle may Move first, for free (leaderrules.js)
+    const tactical = hasTacticalMove(player);
+    const canMove = available.includes("move") || preludeSpent.some(offer => offer.action == "move") || tactical;
+    const hasMove = () => chosen.some(pick => pick.action == "move") || preludeSpent.some(offer => offer.action == "move");
+    const addMove = () => {
+        if (hasMove()) { return true; }
+        if (tactical) { chosen.unshift({ action: "move", reason: "a free Move before the Battle (Warrior, Tactical)", tag: "" }); return true; }
+        if (!available.includes("move")) { return false; }
+        const spare = chosen.findIndex(pick => pick.action != "battle");
+        const index = spare >= 0 ? spare : (chosen.filter(pick => pick.action == "battle").length > 1 ? chosen.findIndex(pick => pick.action == "battle") : -1);
+        if (index < 0) { return false; }
+        chosen[index] = { action: "move", reason: "to set up the Battle", tag: "" };
+        return true;
+    };
+    const target = getBattleTarget(player);
+    const wanted = target != null && typeof target.player.number == "number" ? target.player : null;
+    // Best first by how it rates them as a target (the target itself first)
+    const ranked = [wanted].concat(rivals.filter(rival => rival !== wanted)).filter(rival => rival != null);
+    const now = ranked.find(rival => canFightNow(player, rival));
+    if (wanted != null && now === wanted) { return chosen; }
+    if (wanted != null && canMove && hasFavourableBattle(player, wanted, true) && addMove()) { return chosen; }
+    if (now != null) { player.battleTargetNumber = now.number; return chosen; }
+    const byMoving = canMove ? ranked.find(rival => hasFavourableBattle(player, rival, true)) : null;
+    if (byMoving != null && addMove()) { player.battleTargetNumber = byMoving.number; return chosen; }
+    // Nobody to fight this turn: the card's other actions instead, best first, such as a Secure that's
+    // possible or a Move the board has a use for (no more Moves than it has useful ones)
+    const usefulMoves = available.includes("move") ? getUsefulMoveCount(player) : 0;
+    let moves = chosen.filter(pick => pick.action == "move").length;
+    const others = available.filter(action => action != "battle" && scores[action] != null && scores[action].score > planImpossible)
+        .sort((a, b) => scores[b].score - scores[a].score);
+    return chosen.map(pick => {
+        if (pick.action != "battle") { return pick; }
+        const next = others.find(action => action != "move" || moves < usefulMoves);
+        if (next == null) { return null; }
+        if (next == "move") { moves++; }
+        return { action: next, reason: scores[next].reason || "", tag: "" };
+    }).filter(pick => pick != null);
 }
 
 function describeTurnPlan(player) {

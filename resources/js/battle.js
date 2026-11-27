@@ -129,14 +129,16 @@ function getBuildingValue(attacker, defender, type) {
         if (!isMarketKnown()) { gain += weights.ransackUnknown; }
         else if (ransack.length > 0) { gain += getMarketCardValue(attacker, ransack[0]) * weights.ransackFactor; }
 
-        const resource = type.split(":").pop();
-        const need = getOutrageNeed(attacker, resource);
-        const cards = getPlayerGuildCards(attacker).filter(card => card.resource == resource);
-        cost = attacker[resource + "Value"] * weights.resourceLost[need]
-            + cards.filter(card => !card.keepOnOutrage).length * weights.guildCardLost[need];
-
-        // Already Outraged, or a Loyal card ignores it for this resource: no further loss
-        if (!(attacker.outraged || []).includes(resource) && !cards.some(card => card.keepOnOutrage)) { cost += weights.preludeLost; }
+        // A gate city: Outrage of every city type in its cluster (Gate Stations)
+        const resources = type == "gate" ? (battle.boardSystem != null ? getGateCityTypes(battle.boardSystem) : []) : [type.split(":").pop()];
+        resources.forEach(resource => {
+            const need = getOutrageNeed(attacker, resource);
+            const cards = getPlayerGuildCards(attacker).filter(card => card.resource == resource);
+            cost += attacker[resource + "Value"] * weights.resourceLost[need]
+                + cards.filter(card => !card.keepOnOutrage).length * weights.guildCardLost[need];
+            // Already Outraged, or a Loyal card ignores it for this resource: no further loss
+            if (!(attacker.outraged || []).includes(resource) && !cards.some(card => card.keepOnOutrage)) { cost += weights.preludeLost; }
+        });
     }
     return { gain: gain, cost: cost, value: gain - cost };
 }
@@ -321,7 +323,8 @@ function getBattleBuildingTypes() {
     // What each defending building is, fresh ones first. They start as cities on a planet it has a
     // city on, so the bot is careful unless told otherwise
     const options = getPlanetOptions(battle.defender);
-    if (!options.some(option => option.value == battle.planet)) { battle.planet = getFirstPlanet(battle.defender); }
+    // A gate city's battle is known from the board (Gate Stations)
+    if (battle.planet != "gate" && !options.some(option => option.value == battle.planet)) { battle.planet = getFirstPlanet(battle.defender); }
     const count = battle.freshBuildings + battle.damagedBuildings;
     while (battle.buildingKinds.length < count) { battle.buildingKinds.push(options.length > 0 ? "city" : "starport"); }
     battle.buildingKinds.length = count;
@@ -349,7 +352,8 @@ function getBuildingChoiceHtml(id, planet, kinds, label, onPlanet, onKind) {
             + "<div class=\"btn-group btn-group-sm\" role=\"group\">" + choice("city", "City") + choice("starport", "Starport") + "</div></div>";
     });
     const cities = kinds.filter(kind => kind == "city").length;
-    if (cities == 0 || options.length == 0) { return html; }
+    // The planet known from the board (#160): only City or Starport is asked
+    if (cities == 0 || options.length == 0 || (id == "battleDestroyed" && battle.destroyed != null && battle.destroyed.planetKnown)) { return html; }
 
     html += "<div class=\"boardgrouplabel mt-3\">Planet (for the " + (cities == 1 ? "city" : "cities") + ")</div>"
         + "<select class=\"form-select form-select-sm\" id=\"" + id + "Planet\" onchange=\"" + onPlanet + "(this.value)\">"
@@ -370,6 +374,11 @@ function getBuildingReason(attacker, defender, type) {
     if (type == "starport") {
         return "no Outrage, and " + ((defender.starportsValue || 0) <= 1 ? "it's their last starport" : "they can't build ships there");
     }
+    if (type == "gate") {
+        // A gate city: Outrage of every city type in its cluster (Gate Stations)
+        const types = battle.boardSystem != null ? getGateCityTypes(battle.boardSystem) : [];
+        return types.length > 0 ? "it's a gate city they can tax for " + types.map(resource => getResourceWord(resource)).join(" or ") + ", though destroying it Provokes Outrage of each" : "it's a gate city";
+    }
     const resource = type.split(":").pop();
     const word = getResourceWord(resource);
     const reasons = [];
@@ -386,6 +395,7 @@ function getBuildingReason(attacker, defender, type) {
 
 function getBuildingName(type) {
     if (type == "starport") { return "the starport"; }
+    if (type == "gate") { return "the gate city"; }
     return "the city on " + preludeResourceNames[type.split(":").pop()].toLowerCase();
 }
 
@@ -423,15 +433,13 @@ function showBattleModal(button) {
     hideIconTooltip(button, "battleModal");
     battle.ships = 1;
     battle.attackerDamaged = 0;
+    battle.capsAt = null;
     battle.fresh = 1;
     battle.damaged = 0;
     battle.freshBuildings = 0;
     battle.damagedBuildings = 0;
     battle.start = null;
     resetBattleRaid();
-    document.getElementById("battleAttackAgain").checked = false;
-    // Only needed for the bot's advice
-    showHideElement([document.getElementById("battleAttackAgain").parentNode], !battle.attacker.isHuman);
 
     const header = document.querySelector("#battleModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
@@ -470,7 +478,9 @@ function showBattleModal(button) {
     battle.noBuildings = hasNoBuildings(battle.defender);
     // A bot's counts from the board (boardbot.js, #160)
     prefillBattleFromBoard();
-    showBattleCountTiles(battle.attacker.isHuman);
+    // Fresh and damaged for everyone now the board tracks damage (#194): the human player's window
+    // used to count ships and buildings only (#147)
+    showBattleCountTiles(false);
     updateBattleCounts();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("battleModal")).show();
 }
@@ -491,9 +501,44 @@ function showBattleCountTiles(simple) {
 function battleStep(field, change) {
     // The -/+ buttons (and the keys for a raid). The attacker needs a ship to start, but can
     // lose them all once it has rolled
-    const minimum = (field == "ships" && battle.start == null) ? 1 : 0;
-    battle[field] = Math.max(minimum, battle[field] + change);
+    // Before the battle it needs at least one attacking ship, fresh or damaged
+    const minimum = (field == "ships" && battle.start == null && !(battle.attackerDamaged > 0)) ? 1 : 0;
+    // Each fresh count and its damaged one (#195)
+    const pairs = { ships: "attackerDamaged", fresh: "damaged", freshBuildings: "damagedBuildings" };
+    const damagedOf = pairs[field];
+    const freshOf = Object.keys(pairs).find(key => pairs[key] == field);
+    // Once the battle has started, a fresh ship or building lost is damaged, and a damaged one lost is destroyed
+    if (change < 0 && battle.start != null && damagedOf != null && battle[field] > minimum) {
+        battle[field] -= 1;
+        battle[damagedOf] = (battle[damagedOf] || 0) + 1;
+        updateBattleCounts();
+        return;
+    }
+    battle[field] = Math.max(minimum, (battle[field] || 0) + change);
+    // Never more than the board has in the battle system, fresh and damaged together (#195)
+    const caps = getBattleCaps();
+    const pairKey = damagedOf != null ? field : freshOf;
+    if (caps != null && pairKey != null && change > 0) {
+        const total = battle[pairKey] + (battle[pairs[pairKey]] || 0);
+        if (total > caps[pairKey]) { battle[field] -= total - caps[pairKey]; }
+    }
     updateBattleCounts();
+}
+
+function getBattleCaps() {
+    // What the board has in the battle system: { ships, fresh, freshBuildings } as totals of fresh and
+    // damaged, or null with no system from the board (#195)
+    const system = battle.boardSystem;
+    if (system == null || battle.attacker == null || battle.defender == null) { return null; }
+    const mine = getShips(system, battle.attacker.number);
+    const kind = battle.defender.campaignDefender;
+    const theirs = kind == "blight" ? getBlight(system) : kind == "empire" ? getImperial(system) : kind == "free" ? { fresh: 0, damaged: 0 } : getShips(system, battle.defender.number);
+    const buildings = kind == "free" ? getBuildings(system, freeOwner) : kind != null ? [] : getBuildings(system, battle.defender.number);
+    // Counted when the window opened, so the caps don't shrink as the board changes after it
+    if (battle.capsAt == null || battle.capsAt.system != system || battle.capsAt.defender != battle.defender.number) {
+        battle.capsAt = { system: system, defender: battle.defender.number, ships: mine.fresh + mine.damaged, fresh: theirs.fresh + theirs.damaged, freshBuildings: buildings.length };
+    }
+    return battle.capsAt;
 }
 
 function updateBattleCounts() {
@@ -534,8 +579,8 @@ function setInGate(inGate) {
 }
 
 function getBattleDiceLimit() {
-    // One die per ship, and 2 more with Gatekeepers in a gate
-    return battle.ships + (battle.inGate && holdsGuildCard(battle.attacker, 8) ? 2 : 0) + getLeaderExtraDice(battle.attacker);
+    // One die per attacking ship, fresh or damaged (rulebook p.14), and 2 more with Gatekeepers in a gate
+    return battle.ships + (battle.attackerDamaged || 0) + (battle.inGate && holdsGuildCard(battle.attacker, 8) ? 2 : 0) + getLeaderExtraDice(battle.attacker);
 }
 
 function getBattleRerolls() {
@@ -569,6 +614,13 @@ function getRaidWants(attacker, defender) {
     const guildCards = getPlayerGuildCards(defender).filter(card => !card.protected).map(card => ({
         id: "guild:" + card.number, card: card.number, name: card.name, keys: card.keys, need: getResourceNeed(attacker, card.resource)
     }));
+    // From the leader, what they need for an ambition counts too: taking it denies them (#200). Near
+    // the target, as much as what the attacker itself needs most
+    if (typeof getLeader == "function" && getLeader(attacker) === defender) {
+        const denied = isLeaderNearTarget(defender) ? 2 : 1;
+        resources.forEach(row => { if (getResourceNeed(defender, row.resource) == 2) { row.need = Math.max(row.need, denied); } });
+        guildCards.forEach(row => { const card = getCourtCard(row.card); if (card != null && card.resource != null && getResourceNeed(defender, card.resource) == 2) { row.need = Math.max(row.need, denied); } });
+    }
     return filterLeaderRaidWants(attacker, defender, resources.concat(guildCards)).sort((a, b) => b.need - a.need);
 }
 
@@ -694,7 +746,11 @@ function showBattleRaid() {
     const where = battle.boardSystem != null ? "At " + getSystemName(battle.boardSystem) + ", from the board." : (target != null ? target.where : "");
     let html = (target != null && target.player === battle.defender)
         ? "<div class=\"small text-muted text-center mb-2\" id=\"battleTargetReason\">" + target.why + " " + where + "</div>" : "";
-    if (holdsGuildCard(battle.attacker, 8)) {
+    if (holdsGuildCard(battle.attacker, 8) && battle.boardSystem != null) {
+        // The board knows whether the battle is in a gate (#160)
+        battle.inGate = isGate(battle.boardSystem);
+        if (battle.inGate) { html += "<div class=\"small text-center mb-2\">In a gate: Gatekeepers gives 2 more dice.</div>"; }
+    } else if (holdsGuildCard(battle.attacker, 8)) {
         html += "<div class=\"form-check form-switch d-flex justify-content-center gap-2\">"
             + "<input class=\"form-check-input\" type=\"checkbox\" id=\"battleInGate\" onchange=\"setInGate(this.checked)\"" + (battle.inGate ? " checked" : "") + ">"
             + "<label class=\"form-check-label\" for=\"battleInGate\">In a gate (Gatekeepers: 2 more dice)</label></div>";
@@ -751,12 +807,13 @@ function clearBattleDecision() {
             : "Roll your dice, then set the ships and buildings above to what's left. Do the same for any more attacks, then tap Done battling.")
         : (battle.start == null
             ? "Set up the battle, then choose the dice."
-            : (battle.ships == 0
+            // Damaged ships roll dice too (rulebook p.14)
+            : (battle.ships + (battle.attackerDamaged || 0) == 0
                 ? "It has no ships left. Done battling updates the values."
                 : "To attack again, choose the dice. Otherwise, Done battling updates the values."));
     document.getElementById("battleAdvice").innerHTML = "<div class=\"text-muted\">" + advice + "</div>";
     document.getElementById("chooseBattleDice").innerHTML = isHuman ? "Start battle" : "Choose dice";
-    showHideElement([document.getElementById("chooseBattleDice")], !(battle.start != null && (isHuman || battle.ships == 0)));
+    showHideElement([document.getElementById("chooseBattleDice")], !(battle.start != null && (isHuman || battle.ships + (battle.attackerDamaged || 0) == 0)));
     showHideElement([document.getElementById("battleDone")], battle.start != null);
 }
 
@@ -812,7 +869,8 @@ function chooseBattleDice() {
     }
     const interceptHits = (limits.interceptHits != null) ? limits.interceptHits : battle.fresh;
     const choice = pickDiceOption(options);
-    const canAttackAgain = document.getElementById("battleAttackAgain").checked;
+    // From its plan: another Battle after this one (#205). No switch to set any more
+    const canAttackAgain = !battle.attacker.isHuman && (battle.attacker.turnPlan || []).filter(step => step.action == "battle" && !step.applied).length >= 2;
     const usefulHits = onPurpose ? buildingHits : getHitsToDestroy(targets.fresh, targets.damaged);
     const wantedBuilding = buildings.find(building => building.value > 0);
     // Which building first, and why (#138). The attacker chooses where its hits go (rulebook p.14)
@@ -903,7 +961,7 @@ function showCityEffects() {
     // The Outrage warning and the Ransack choice, only when a destroyed building is a city (#149)
     const effects = document.getElementById("battleCityEffects");
     if (effects == null || battle.destroyed == null) { return; }
-    const cityDestroyed = battle.destroyed.kinds.some(kind => kind != "starport") && getPlanetOptions(battle.defender, true).length > 0;
+    const cityDestroyed = battle.destroyed.kinds.some(kind => kind != "starport") && (battle.destroyed.planetKnown || getPlanetOptions(battle.defender, true).length > 0);
     effects.classList.toggle("d-none", !cityDestroyed);
 }
 
@@ -949,20 +1007,33 @@ function showBattleResults() {
     // Each destroyed building is the attacker's Trophy (rulebook p.14). Destroying a city also
     // means Outrage for that resource and Ransacking the Court (p.16), so which was it?
     if (losses.defenderBuildings > 0) {
-        html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. " + (losses.defenderBuildings == 1 ? "What was it?" : "What were they?") + "</div>";
+        // From the board (#160): the defender's buildings in the battle system, and its planet. Only
+        // a city and a starport there, not all destroyed, needs asking which went (the user)
+        const known = getBoardDestroyed(losses.defenderBuildings);
+        if (known != null && !known.ask) {
+            battle.destroyed = { planet: known.planet, kinds: known.kinds, gateTypes: known.gateTypes, planetKnown: true };
+            html += "<div class=\"mt-2\">" + defender + ": " + known.kinds.map(kind => kind != "city" ? "the starport at " + getSystemName(battle.boardSystem)
+                : known.planet == "gate" ? "the gate city at " + getSystemName(battle.boardSystem) + (known.gateTypes.length > 0 ? " (" + known.gateTypes.map(resource => preludeResourceNames[resource]).join(", ") + ")" : "")
+                : "the city on " + getSystemName(battle.boardSystem)).join(" and ") + " destroyed.</div>"
+                + "<div id=\"battleDestroyed\"></div>";
+        } else {
+            html += "<div class=\"mt-2\">" + defender + ": " + plural(losses.defenderBuildings, "building") + " destroyed. " + (losses.defenderBuildings == 1 ? "What was it?" : "What were they?") + "</div>";
 
-        // Filled in from what was said before the roll. The human player starts on starports, so
-        // nothing Provokes Outrage by mistake. With no cities, they can only be starports
-        const destroyed = getDestroyedBuildingTypes();
-        const city = destroyed.find(type => type != "starport");
-        const options = getPlanetOptions(battle.defender);
-        const planet = (city != null) ? city.split(":").pop() : battle.planet;
-        battle.destroyed = {
-            planet: options.some(option => option.value == planet) ? planet : getFirstPlanet(battle.defender),
-            kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => (battle.attacker.isHuman || options.length == 0 || destroyed[index] == "starport") ? "starport" : "city"),
-            gateTypes: []
-        };
-        html += "<div id=\"battleDestroyed\">" + (options.length > 0 ? getDestroyedHtml() : "") + "</div>";
+            // Filled in from what was said before the roll. The human player starts on starports, so
+            // nothing Provokes Outrage by mistake. With no cities, they can only be starports
+            const destroyed = getDestroyedBuildingTypes();
+            const city = destroyed.find(type => type != "starport");
+            const options = getPlanetOptions(battle.defender);
+            const planet = known != null ? known.planet : ((city != null) ? city.split(":").pop() : battle.planet);
+            battle.destroyed = {
+                planet: known != null || options.some(option => option.value == planet) ? planet : getFirstPlanet(battle.defender),
+                kinds: Array.from({ length: losses.defenderBuildings }, (_, index) => (battle.attacker.isHuman || options.length == 0 || destroyed[index] == "starport") ? "starport" : "city"),
+                gateTypes: known != null ? known.gateTypes : [],
+                // The planet is known from the board: only City or Starport is asked
+                planetKnown: known != null
+            };
+            html += "<div id=\"battleDestroyed\">" + (options.length > 0 || known != null ? getDestroyedHtml() : "") + "</div>";
+        }
         // Only once a city is chosen: a starport doesn't Provoke Outrage or Ransack the Court (#149)
         const canRansack = canRansackAgainst(battle.defender);
         html += "<div id=\"battleCityEffects\"><div class=\"alert alert-warning py-2 px-3 mt-2 mb-0 small\"><b>Destroying a city:</b> " + attacker + " Provokes Outrage of that resource, discarding its resources and Guild cards of that type"
@@ -983,7 +1054,8 @@ function showBattleResults() {
     // building here or the defender with none on the board (#128). With no attacking ships left, no
     // one can spend the keys (rulebook p.16)
     const startBuildings = (battle.start != null) ? battle.start.freshBuildings + battle.start.damagedBuildings : 0;
-    if (battle.attacker.isHuman && battle.ships > 0 && isLeaderRaidAllowed(startBuildings > 0 || battle.noBuildings)) {
+    // Raiding needs any attacking ship left, damaged ones too (rulebook: "if any attacking ships remain", #199)
+    if (battle.attacker.isHuman && battle.ships + (battle.attackerDamaged || 0) > 0 && isLeaderRaidAllowed(startBuildings > 0 || battle.noBuildings)) {
         const wants = getRaidWants(battle.attacker, battle.defender);
         if (wants.length > 0) {
             // A resource can be stolen more than once, up to how many they hold (#144). A Guild card is ticked
@@ -1003,7 +1075,7 @@ function showBattleResults() {
     }
 
     // If the bot rolled raid dice: the keys rolled, and what that takes (#159)
-    if (!battle.attacker.isHuman && battle.raidRolled && getBattleRaidItems().length > 0 && battle.ships > 0) {
+    if (!battle.attacker.isHuman && battle.raidRolled && getBattleRaidItems().length > 0 && battle.ships + (battle.attackerDamaged || 0) > 0) {
         html += "<div id=\"battleRaidResult\">" + getRaidResultHtml() + "</div>";
     }
 
@@ -1200,10 +1272,12 @@ function applyBattleResults() {
 
     battle.start = null;
 
-    // A bot's Ransacked Vox card resolves once this window has closed
+    // A Ransacked Vox card resolves once this window has closed: a bot's decision, or a human
+    // player's window (#204)
     const battleModal = document.getElementById("battleModal");
-    if (ransacked != null && ransacked.type == "vox" && !attacker.isHuman) {
+    if (ransacked != null && ransacked.type == "vox") {
         battleModal.addEventListener('hidden.bs.modal', () => {
+            if (attacker.isHuman) { showVoxForPlayer(attacker, ransacked); return; }
             showVoxCard(attacker, ransacked);
             bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
         }, { once: true });

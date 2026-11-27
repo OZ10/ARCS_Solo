@@ -176,7 +176,11 @@ function getAllSystemIds() {
 function getCluster(id) { return parseInt(id); }
 function isGate(id) { return id.endsWith("g"); }
 function isPlanet(id) { return !isGate(id); }
-function getPlanetResource(id) { return isPlanet(id) ? mapPlanets[id].resource : null; }
+function getPlanetResource(id) {
+    // Shaper (Mythic) can change a planet's type for the rest of the game (board.planetTypes)
+    if (!isPlanet(id)) { return null; }
+    return (board != null && board.planetTypes != null && board.planetTypes[id]) || mapPlanets[id].resource;
+}
 function getPlanetSlots(id) { return isPlanet(id) ? mapPlanets[id].slots : 0; }
 function isClusterInPlay(cluster) { return !board.outOfPlay.includes(cluster); }
 function isSystemInPlay(id) { return isClusterInPlay(getCluster(id)); }
@@ -289,12 +293,24 @@ function getBuildings(id, playerNumber = null, kind = null) {
 }
 
 function getEmptySlotCount(id) {
-    return Math.max(getPlanetSlots(id) - getSystem(id).buildings.length, 0);
+    // A city outside the slots (Cloud Cities) takes none
+    return Math.max(getPlanetSlots(id) - getSystem(id).buildings.filter(building => !building.cloud).length, 0);
 }
 
-function placeBuilding(id, playerNumber, kind, damaged = false) {
-    if (getEmptySlotCount(id) <= 0) { return false; }
-    getSystem(id).buildings.push({ owner: playerNumber, kind: kind, damaged: damaged });
+function getGateBuildKinds(id, playerNumber) {
+    // What a player may build on a gate, max 1 of each per gate: starports with Gate Ports (Lore 8),
+    // cities with Gate Stations (Lore 11). Gates have no slots otherwise
+    if (!isGate(id) || typeof hasLore != "function") { return []; }
+    const player = players.find(other => other.number == playerNumber);
+    if (player == null) { return []; }
+    return [[8, "starport"], [11, "city"]].filter(([lore, kind]) => hasLore(player, lore) && getBuildings(id, playerNumber, kind).length == 0).map(([, kind]) => kind);
+}
+
+function placeBuilding(id, playerNumber, kind, damaged = false, cloud = false) {
+    // cloud: a city outside the building slots (Cloud Cities, leaderrules.js)
+    if (cloud) { if (typeof canBuildCloudCity != "function" || !canBuildCloudCity(id, playerNumber)) { return false; } }
+    else if (isGate(id) ? !getGateBuildKinds(id, playerNumber).includes(kind) : getEmptySlotCount(id) <= 0) { return false; }
+    getSystem(id).buildings.push(cloud ? { owner: playerNumber, kind: kind, damaged: damaged, cloud: true } : { owner: playerNumber, kind: kind, damaged: damaged });
     return true;
 }
 
@@ -396,11 +412,29 @@ function canHarmIn(id, attackerNumber, defenderNumber) {
 // keeps going until the ships move into a gate controlled by anyone else, or into any planet.
 // Control is checked before moving in
 
-function getMoveDestinations(from, playerNumber, movingFresh = null) {
+function canCatapultFrom(from, playerNumber) {
+    // A Catapult starts from a system with a Loyal starport. A Leader can change that (leaderrules.js)
+    const base = getBuildings(from, playerNumber, "starport").length > 0;
+    return typeof getLeaderCatapult == "function" ? getLeaderCatapult(from, playerNumber, base) : base;
+}
+
+function isBuiltDamaged(id, playerNumber, kind) {
+    // A piece built in a system a Rival controls is damaged (rulebook p.12). Lore can change that
+    const base = isControlledByOther(id, playerNumber);
+    return typeof getLoreBuildDamaged == "function" ? getLoreBuildDamaged(id, playerNumber, kind, base) : base;
+}
+
+function getMoveDestinations(from, playerNumber, movingFresh = null, once = false) {
+    // A Lore card can let fresh ships move one more time (Sprinter Drives, leaderrules.js). once: not that
+    const reached = getMoveDestinationsOnce(from, playerNumber, movingFresh);
+    return !once && typeof getLoreExtraMoves == "function" ? getLoreExtraMoves(from, playerNumber, reached) : reached;
+}
+
+function getMoveDestinationsOnce(from, playerNumber, movingFresh = null) {
     // Every system its ships at from could reach with one Move action. movingFresh: how many fresh
     // ships are moving (all of them at from if not given)
     const adjacent = getAdjacent(from);
-    if (getBuildings(from, playerNumber, "starport").length == 0) { return adjacent; }
+    if (!canCatapultFrom(from, playerNumber)) { return adjacent; }
     const moving = movingFresh != null ? movingFresh : getShips(from, playerNumber).fresh;
     const reached = new Set();
     const queue = [from];
@@ -417,6 +451,26 @@ function getMoveDestinations(from, playerNumber, movingFresh = null) {
     return [...reached];
 }
 
+function getMoveStop(from, to, playerNumber) {
+    // Where ships heading for to will really stop: to if they can reach it, otherwise the first gate
+    // on a Catapult route there that someone else controls (the user). null if they can't get
+    // anywhere towards it
+    if (canMove(from, to, playerNumber)) { return to; }
+    if (!canCatapultFrom(from, playerNumber)) { return null; }
+    // The shortest route through gates, whoever controls them
+    const parent = { [from]: null };
+    const queue = [from];
+    while (queue.length > 0 && parent[to] === undefined) {
+        const at = queue.shift();
+        if (at != from && !isGate(at)) { continue; }
+        getAdjacent(at).forEach(next => { if (parent[next] === undefined) { parent[next] = at; queue.push(next); } });
+    }
+    if (parent[to] === undefined) { return null; }
+    const route = [];
+    for (let at = to; at != from; at = parent[at]) { route.unshift(at); }
+    return route.find(id => id == to || (isGate(id) && isControlledByOther(id, playerNumber))) || null;
+}
+
 function canMove(from, to, playerNumber, movingFresh = null) {
     return getMoveDestinations(from, playerNumber, movingFresh).includes(to);
 }
@@ -431,8 +485,24 @@ function getBoardBuildings(playerNumber, kind) {
     return getSystemIds().flatMap(id => getBuildings(id, playerNumber, kind).map(building => ({ ...building, system: id })));
 }
 
+function getGateCityTypes(gate) {
+    // A gate city (Gate Stations) matches all cities in its cluster: the types of the planets there
+    // with a city on, anyone's (Lore 11). It can be taxed for any of them, and destroying it Provokes
+    // Outrage of all of them
+    const cluster = getCluster(gate);
+    return preludeResources.filter(resource => getSystemIds().some(id => isPlanet(id) && getCluster(id) == cluster && getPlanetResource(id) == resource && getBuildings(id, null, "city").length > 0));
+}
+
+function getCityTypes(id) {
+    // What a city in this system counts as: its planet's type, or a gate city's types
+    if (isGate(id)) { return getGateCityTypes(id); }
+    const resource = getPlanetResource(id);
+    return resource != null ? [resource] : [];
+}
+
 function getBoardCities(playerNumber, resource = null) {
-    return getBoardBuildings(playerNumber, "city").filter(city => resource == null || getPlanetResource(city.system) == resource);
+    // Its cities, or those that count as this type: a gate city counts as each of its types
+    return getBoardBuildings(playerNumber, "city").filter(city => resource == null || getCityTypes(city.system).includes(resource));
 }
 
 function getSystemsWithShips(playerNumber) {
@@ -444,17 +514,21 @@ function getControlledSystems(playerNumber) {
 }
 
 function getBuildableSystems(playerNumber) {
-    // Planets with an empty slot and a Loyal piece (rulebook p.12)
-    return getSystemIds().filter(id => isPlanet(id) && getEmptySlotCount(id) > 0 && hasLoyalPiece(id, playerNumber));
+    // Planets with an empty slot and a Loyal piece (rulebook p.12), and gates it may build on with
+    // Gate Ports or Gate Stations
+    return getSystemIds().filter(id => (isPlanet(id) ? getEmptySlotCount(id) > 0 : getGateBuildKinds(id, playerNumber).length > 0) && hasLoyalPiece(id, playerNumber));
 }
 
 function getTaxableCities(playerNumber) {
-    // Its Loyal cities, and Rival cities in systems it controls (rulebook p.12)
-    // In a campaign: the Empire's systems where it has Presence, but not a Rival Regent's city where
-    // there are Imperial ships (the Truce Law)
-    return getSystemIds().flatMap(id => getBuildings(id, null, "city")
+    // Its Loyal cities, and Rival cities in systems it controls (rulebook p.12). A gate city once for
+    // each of its types, as it can be taxed for any one of them (Gate Stations)
+    const cities = getSystemIds().flatMap(id => getBuildings(id, null, "city")
+        // In a campaign: the Empire's systems where it has Presence, but not a Rival Regent's city where
+        // there are Imperial ships (the Truce Law)
         .filter(city => city.owner == playerNumber || (getControllerFor(id, playerNumber) == playerNumber && canHarmIn(id, playerNumber, city.owner)))
-        .map(city => ({ system: id, owner: city.owner, resource: getPlanetResource(id) })));
+        .flatMap(city => getCityTypes(id).map(resource => ({ system: id, owner: city.owner, resource: resource, gate: isGate(id) }))));
+    // Leaders that change what can be taxed (leaderrules.js)
+    return typeof getLeaderTaxableCities == "function" ? getLeaderTaxableCities(playerNumber, cities) : cities;
 }
 
 // The setup cards (rulebook p.4-5): the clusters out of play, and each seat's A, B and C systems.
@@ -524,8 +598,12 @@ function syncPanelFromBoard(player) {
     // The panel's board tiles follow the board: ships on it, starports and cities by planet type
     setPlayerResource(player, "shipsBoard", getBoardShips(player.number));
     setPlayerResource(player, "starports", getBoardBuildings(player.number, "starport").length);
-    cityCounters.forEach(counter => setPlayerResource(player, counter, getBoardCities(player.number, counter.replace(/^cities/, "").toLowerCase()).length));
-    player.startingCity = 0;
+    // Each city once, by its planet's type. A gate city under its first type, so the total is right;
+    // its other types count through the board (getBoardCities). With no type yet, startingCity holds it
+    const cities = getBoardBuildings(player.number, "city");
+    const counted = resource => cities.filter(city => getCityTypes(city.system)[0] == resource).length;
+    cityCounters.forEach(counter => setPlayerResource(player, counter, counted(counter.replace(/^cities/, "").toLowerCase())));
+    player.startingCity = cities.filter(city => getCityTypes(city.system).length == 0).length;
     const total = document.getElementById("citiestotal" + player.number);
     if (total != null) { total.innerHTML = getCityCount(player); }
 }

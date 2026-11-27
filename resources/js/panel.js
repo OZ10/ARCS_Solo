@@ -2,6 +2,17 @@
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
+function updateCardCounts() {
+    // How many cards each player holds, in their banner (#206). Greyed with none left
+    players.forEach(player => {
+        const element = document.getElementById("playercards" + player.number);
+        if (element == null) { return; }
+        const count = getUnplayedCards(player.cards || []).length;
+        element.innerHTML = "<i class=\"bi bi-file-earmark\"></i> " + count + " card" + (count == 1 ? "" : "s");
+        element.classList.toggle("opacity-50", count == 0);
+    });
+}
+
 function onCollapse(playerNumber, isCollapsed) {
     const el = document.querySelectorAll("#playeroptions" + playerNumber);
 
@@ -41,6 +52,9 @@ function clonePlayerNodeAndSetup(player) {
 
     const playerinitiative = playertemplate.querySelector('#playerinitiative');
     playerinitiative.id = "playerinitiative" + playerNumber.toString();
+
+    // Cards in hand, so everyone can see how many turns each player has left (#206)
+    playertemplate.querySelector('#playercards').id = "playercards" + playerNumber.toString();
 
     const playerpower = playertemplate.querySelector('#playerpower');
     playerpower.id = "playerpower" + playerNumber.toString();

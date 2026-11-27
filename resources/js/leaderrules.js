@@ -308,9 +308,40 @@ function getLeaderDiceNotes(choice) {
     return lines.map(line => "<div>" + line + "</div>").join("");
 }
 
+function applyGatePortsCapture(mover, route) {
+    // Gate Ports: when Rival ships move into a gate a player controls with a fresh Loyal starport,
+    // that player captures 1 of the mover's agents. route: the systems the move goes through, from
+    // first. Checked before the ships move in
+    if (!leadersAndLore) { return; }
+    route.slice(1).filter(isGate).forEach(id => {
+        const holder = players.find(other => other !== mover && hasLore(other, 8) && getController(id) == other.number && getBuildings(id, other.number, "starport").some(port => !port.damaged));
+        if (holder == null) { return; }
+        setPlayerResource(holder, "captives", (holder.captivesValue || 0) + 1);
+        showMessageToast("Gate Ports", "Player " + holder.number + " captures 1 of Player " + mover.number + "'s agents (moving into " + getSystemShortName(id) + "). Already added to their Captives.");
+    });
+}
+
+function applyPredictiveSensors(system) {
+    // A bot defender with Predictive Sensors moves its fresh ships in from adjacent systems before
+    // the dice, leaving 1 on its buildings there. On the board, once a battle. true if it moved any
+    const defender = battle.defender;
+    if (battle.sensorsDone || defender == null || defender.isHuman || typeof defender.number != "number" || !hasLore(defender, loreNumbers.predictiveSensors)) { return false; }
+    battle.sensorsDone = true;
+    const moved = [];
+    getAdjacent(system).forEach(id => {
+        const take = getShips(id, defender.number).fresh - (getBuildings(id, defender.number).length > 0 ? 1 : 0);
+        if (take > 0) { moveShips(id, system, defender.number, take); moved.push(take + " from " + getSystemName(id)); }
+    });
+    battle.sensorsNote = moved.length > 0 ? moved.join(" and ") : null;
+    return moved.length > 0;
+}
+
 function getLeaderBattleSetupNote() {
     // Before the dice: Predictive Sensors lets the defender move ships in first
-    if (hasLore(battle.defender, loreNumbers.predictiveSensors)) {
+    if (battle.sensorsNote != null) {
+        return "<div class=\"small text-muted text-center mb-2\">Predictive Sensors: " + getPlayerTag(battle.defender) + " moved fresh ships in, " + battle.sensorsNote + ". Already on the app's board and in the counts.</div>";
+    }
+    if (hasLore(battle.defender, loreNumbers.predictiveSensors) && (battle.defender.isHuman || battle.boardSystem == null)) {
         return "<div class=\"small text-muted text-center mb-2\">Predictive Sensors: " + getPlayerTag(battle.defender) + " may first move fresh ships in from adjacent systems. Update the counts before choosing the dice.</div>";
     }
     return "";
@@ -401,6 +432,20 @@ function getCopyPivotPower(player, action) {
     return (copyPivotPowers[action] || []).find(power => hasLeader(player, power[0])) || null;
 }
 
+function getLeaderFreeActions(player, chosen) {
+    // With a Copy or Pivot: Noble (Influential) influences twice; Feastbringer (Charismatic) may
+    // influence before or after it secures. Extra plan steps, not using up its card's action
+    const extra = [];
+    const power = action => getCopyPivotPower(player, action);
+    if (chosen.some(pick => pick.action == "influence") && power("influence") != null && power("influence")[0] == 12) {
+        extra.push({ action: "influence", reason: "a second Influence, free (Noble, Influential)", tag: "" });
+    }
+    if (chosen.some(pick => pick.action == "secure") && power("secure") != null && power("secure")[0] == 7 && (!isMarketKnown() || getCardsToInfluence(player).length > 0)) {
+        extra.push({ action: "influence", reason: "a free Influence with the Secure (Feastbringer, Charismatic)", tag: "" });
+    }
+    return extra;
+}
+
 function getLeaderPlanBonus(player, action) {
     return getCopyPivotPower(player, action) != null ? leaderPlanWeights.copyPivotPower : 0;
 }
@@ -489,32 +534,180 @@ function getLoreActionOffers(player, wants, can) {
     const chasing = ambition => isAmbitionInPlay(ambition) && isChasingAmbition(player, ambition);
     const keen = chasing("warlord") || hasManyShips(player);
     let offers = [];
-    const add = (number, name, action, chance, text, extras) => {
-        if (hasLore(player, number) && can(action) && wants(chance)) {
-            offers.push(Object.assign({ label: name + " instead of " + replacedActionNames[action] + " (" + getLoreCard(number).name + ")", text: text, lore: number }, extras));
+    // Decided from the board, with where (#160, the user): no longer left to chance
+    const add = (number, name, action, text, why, where, extras) => {
+        if (hasLore(player, number) && can(action)) {
+            offers.push(Object.assign({ label: name + " instead of " + replacedActionNames[action] + " (" + getLoreCard(number).name + ")", text: text, lore: number, decided: true, why: why, where: where }, extras));
         }
     };
+    const n = player.number;
+    const rivals = players.filter(other => other !== player);
+    const leader = getLeader(player);
+    const shipsOf = (id, number) => getShips(id, number).fresh + getShips(id, number).damaged;
 
-    if (player.shipsBoardValue < fewShipsOnBoard || keen) { add(1, "Summon", "build", loreChance.summon, "build 1 ship at any city it controls, even a Rival's"); }
-    if (keen && player.shipsBoardValue > 0) {
-        add(2, "Fire Rifles", "battle", loreChance.rifles, "roll skirmish dice for its fresh ships in a system, at a Rival in an adjacent system (hit ships before buildings)");
+    // Summon: 1 ship at a city it controls, even a Rival's: the one next to a Rival's ships, or a
+    // threatened one, first
+    if (hasLore(player, 1) && getShipSupply(player) > 0 && (player.shipsBoardValue < fewShipsOnBoard || keen || getThreatenedCity(player) != null)) {
+        const threatened = getThreatenedCity(player);
+        const score = id => (threatened != null && threatened.id == id ? 3 : 0) + (getAdjacent(id).concat(id).some(other => rivals.some(rival => shipsOf(other, rival.number) > 0)) ? 2 : 0) + getShips(id, n).fresh / 10;
+        const system = getSystemIds().filter(id => getBuildings(id, null, "city").length > 0 && getController(id) == n).sort((a, b) => score(b) - score(a))[0];
+        if (system != null) {
+            add(1, "Summon", "build", "build 1 ship at " + getSystemName(system), (threatened != null && threatened.id == system ? "Its city there is threatened" : keen ? "It's keen to battle" : "It's short of ships") + ", and it controls the city at " + getSystemName(system) + ".", { kind: "summon", system: system });
+        }
     }
+
+    // Fire Rifles: skirmish dice (no risk to its ships) at Rival ships next to its fresh ones: the
+    // leader's, or a fleet that's all damaged, first
+    if (hasLore(player, 2)) {
+        const shots = getSystemIds().filter(id => getShips(id, n).fresh > 0).flatMap(from => getAdjacent(from).flatMap(at => rivals.filter(rival => shipsOf(at, rival.number) > 0)
+            .map(rival => ({ from: from, at: at, rival: rival, dice: getShips(from, n).fresh,
+                score: getShips(from, n).fresh + (rival === leader ? 2 : 0) + (getShips(at, rival.number).fresh == 0 ? 2 : 0) }))));
+        const shot = shots.sort((a, b) => b.score - a.score)[0];
+        if (shot != null) {
+            add(2, "Fire Rifles", "battle", shot.dice + " skirmish " + (shot.dice == 1 ? "die" : "dice") + " from " + getSystemName(shot.from) + " at Player " + shot.rival.number + "'s ships in " + getSystemName(shot.at),
+                "No risk to its ships" + (shot.rival === leader ? ", and Player " + shot.rival.number + " leads" : getShips(shot.at, shot.rival.number).fresh == 0 ? ", and their ships there are all damaged" : "") + ".",
+                { kind: "rifles", from: shot.from, at: shot.at, rival: shot.rival.number, dice: shot.dice });
+        }
+    }
+
+    // Living Structures: Nurture taxes a city for a resource it's chasing; Prune turns one of its
+    // starports into a city near the city bonus, or for a city type it wants
     const city = getCitiesToTax(player)[0];
-    if (city != null && !hasLeader(player, 13) && getResourceNeed(player, city) == 2 && getEmptySlots(player) > 0) {
-        add(10, "Nurture", "build", loreChance.nurture, "tax its " + preludeResourceNames[city].toLowerCase() + " city", { gains: { [city]: 1 }, decided: true, why: "It's chasing " + capitalise(preludeAmbitions[city] || "warlord") + ", and has that city." });
-    } else if (isNearCityBonus(player)) {
-        add(10, "Prune", "repair", loreChance.prune, "replace one of its starports with a city, towards the city bonus");
+    const cityAt = city != null ? getTaxableCities(n).find(item => item.owner == n && item.resource == city) : null;
+    const wantsType = getNewCityResource(player);
+    const prunable = getBoardBuildings(n, "starport").map(port => port.system).filter(id => isPlanet(id) && (wantsType == null || getPlanetResource(id) == wantsType));
+    if (city != null && cityAt != null && !hasLeader(player, 13) && getResourceNeed(player, city) == 2 && getEmptySlots(player) > 0) {
+        add(10, "Nurture", "build", "tax its " + preludeResourceNames[city].toLowerCase() + " city at " + getSystemName(cityAt.system), "It's chasing " + capitalise(preludeAmbitions[city] || "warlord") + ", and has that city.", null, { gains: { [city]: 1 } });
+    } else if (getUncoveredCities(player) < maxCities && (player.starportsValue || 0) >= 2 && prunable.length > 0 && (isNearCityBonus(player) || wantsType != null)) {
+        add(10, "Prune", "repair", "replace its starport at " + getSystemName(prunable[0]) + " with a city", isNearCityBonus(player) ? "Towards the city bonus, and it has starports to spare." : "It wants a " + preludeResourceNames[wantsType].toLowerCase() + " city, and has starports to spare.", { kind: "prune", system: prunable[0] });
     }
-    if (player.shipsBoardValue > 0 && getMoveGoal(player) != null) {
-        add(16, "Guide", "move", loreChance.guide, "move any ships, even Rivals', between a system with its fresh starport and an adjacent one: its own towards a target, or Rival ships away from its buildings");
+
+    // Guide: from a system with its fresh starport to an adjacent one or back: Rival ships off its
+    // buildings there, or its own ships onto the Rival it means to battle
+    if (hasLore(player, 16)) {
+        const ports = getBoardBuildings(n, "starport").filter(port => !port.damaged).map(port => port.system);
+        const awayTo = from => getAdjacent(from).filter(id => getBuildings(id, n).length == 0).sort((a, b) => shipsOf(a, n) - shipsOf(b, n))[0];
+        const pushed = ports.flatMap(id => rivals.filter(rival => shipsOf(id, rival.number) > 0).map(rival => ({ from: id, rival: rival, to: awayTo(id) }))).filter(item => item.to != null)
+            .sort((a, b) => shipsOf(b.from, b.rival.number) - shipsOf(a.from, a.rival.number))[0];
+        const target = getBattleTarget(player);
+        const targetNumber = target != null && typeof target.player.number == "number" ? target.player.number : null;
+        const pulled = targetNumber == null ? null : ports.filter(id => getShips(id, n).fresh > 0).flatMap(from => getAdjacent(from).filter(at => shipsOf(at, targetNumber) > 0).map(at => ({ from: from, to: at })))[0];
+        if (pushed != null) {
+            const ships = getShips(pushed.from, pushed.rival.number);
+            add(16, "Guide", "move", "move Player " + pushed.rival.number + "'s " + (ships.fresh + ships.damaged) + " ship" + (ships.fresh + ships.damaged == 1 ? "" : "s") + " " + getSystemName(pushed.from) + " &rarr; " + getSystemName(pushed.to),
+                "Rival ships off its starport at " + getSystemName(pushed.from) + ".", { kind: "guide", from: pushed.from, to: pushed.to, owner: pushed.rival.number, fresh: ships.fresh, damaged: ships.damaged });
+        } else if (pulled != null) {
+            const ships = getShips(pulled.from, n);
+            add(16, "Guide", "move", "move its " + (ships.fresh + ships.damaged) + " ships " + getSystemName(pulled.from) + " &rarr; " + getSystemName(pulled.to),
+                "Onto Player " + targetNumber + ", the Rival it means to battle.", { kind: "guide", from: pulled.from, to: pulled.to, owner: n, fresh: ships.fresh, damaged: ships.damaged });
+        }
     }
-    if (chasing("warlord") && player.shipsBoardValue > 0) {
-        add(18, "Martyr", "move", loreChance.martyr, "destroy 1 of its fresh ships to destroy 1 Rival ship in that system, taking it as a Trophy (update both panels yourself)");
+
+    // Martyr: 1 of its fresh ships for 1 Rival ship, taken as a Trophy: chasing Warlord, or when it
+    // then controls a system with its buildings
+    if (hasLore(player, 18)) {
+        const gainsControl = (id, rival) => withBoardCopy(() => { removeShips(id, n, 1); removeShips(id, rival.number, 1, getShips(id, rival.number).fresh == 0); return getController(id) == n && getBuildings(id, n).length > 0; });
+        const options = getSystemIds().filter(id => getShips(id, n).fresh > 0).flatMap(id => rivals.filter(rival => shipsOf(id, rival.number) > 0).map(rival => ({ id: id, rival: rival, control: gainsControl(id, rival) })))
+            .filter(option => option.control || chasing("warlord")).sort((a, b) => Number(b.control) - Number(a.control) || Number(b.rival === leader) - Number(a.rival === leader));
+        if (options.length > 0) {
+            const option = options[0];
+            add(18, "Martyr", "move", "destroy 1 of its fresh ships at " + getSystemName(option.id) + " to destroy 1 of Player " + option.rival.number + "'s there, taking it as a Trophy",
+                option.control ? "It then controls " + getSystemName(option.id) + ", where its buildings are." : "It's chasing Warlord: a Trophy.", { kind: "martyr", system: option.id, rival: option.rival.number });
+        }
     }
-    if (declaredAmbitions.includes("tyrant")) {
-        add(26, "Annex", "build", loreChance.annex, "replace a Rival's city or starport it controls with its own (their city goes back to their board)");
+
+    // Annex: while Tyrant is declared, a Rival's building in a system it controls becomes its own,
+    // a city first (while it has cities left to place)
+    if (declaredAmbitions.includes("tyrant") && hasLore(player, 26)) {
+        const citiesLeft = getUncoveredCities(player) < maxCities;
+        const options = getSystemIds().filter(id => getController(id) == n).flatMap(id => getBuildings(id).filter(building => building.owner != n && (building.kind != "city" || citiesLeft)).map(building => ({ id: id, building: building })))
+            .sort((a, b) => Number(b.building.kind == "city") - Number(a.building.kind == "city"));
+        if (options.length > 0) {
+            const option = options[0];
+            add(26, "Annex", "build", "replace Player " + option.building.owner + "'s " + option.building.kind + " at " + getSystemName(option.id) + " with its own",
+                "Tyrant is declared, and it controls " + getSystemName(option.id) + (option.building.kind == "city" ? ": their city goes back to their board." : "."), { kind: "annex", system: option.id, owner: option.building.owner, building: option.building.kind });
+        }
     }
     return offers;
+}
+
+// The Lore actions' places on the board, carried out when ticked Completed or when its turn ends
+
+function isLoreBoardStep(where) {
+    return where != null && ["summon", "rifles", "prune", "guide", "martyr", "annex"].includes(where.kind);
+}
+
+function applyLoreBoardStep(player, where) {
+    const n = player.number;
+    if (where.kind == "summon") { addShips(where.system, n, 1); }
+    if (where.kind == "prune" && removeBuilding(where.system, n, "starport")) { placeBuilding(where.system, n, "city"); }
+    if (where.kind == "guide") { moveShips(where.from, where.to, where.owner, where.fresh, where.damaged); }
+    if (where.kind == "martyr") {
+        removeShips(where.system, n, 1);
+        const rival = getPlayer(where.rival);
+        removeShips(where.system, where.rival, 1, getShips(where.system, where.rival).fresh == 0);
+        setPlayerResource(player, "trophies", (player.trophiesValue || 0) + 1);
+        rival.shipsTrophy = (rival.shipsTrophy || 0) + 1;
+        syncPanelFromBoard(rival);
+    }
+    if (where.kind == "annex" && removeBuilding(where.system, where.owner, where.building)) {
+        placeBuilding(where.system, n, where.building);
+        syncPanelFromBoard(getPlayer(where.owner));
+    }
+    if (where.kind == "rifles") { applyRiflesHits(player, where); }
+}
+
+function applyRiflesHits(player, where) {
+    // Ships before buildings: a damaged ship is destroyed (a Trophy), then fresh ones are damaged;
+    // then buildings likewise (the user agreed this order)
+    const rival = getPlayer(where.rival);
+    let trophies = 0;
+    for (let hit = 0; hit < (where.hits || 0); hit++) {
+        const ships = getShips(where.at, where.rival);
+        const fresh = getBuildings(where.at, where.rival).find(building => !building.damaged);
+        const damaged = getBuildings(where.at, where.rival).find(building => building.damaged);
+        if (ships.damaged > 0) { removeShips(where.at, where.rival, 1, true); trophies++; rival.shipsTrophy = (rival.shipsTrophy || 0) + 1; }
+        else if (ships.fresh > 0) { removeShips(where.at, where.rival, 1); addShips(where.at, where.rival, 1, true); }
+        else if (fresh != null) { fresh.damaged = true; }
+        else if (damaged != null) { removeBuilding(where.at, where.rival, damaged.kind); trophies++; }
+    }
+    if (trophies > 0) { setPlayerResource(player, "trophies", (player.trophiesValue || 0) + trophies); }
+    syncPanelFromBoard(rival);
+}
+
+function showRiflesWindow(index) {
+    // The hits can't be known, so the player says (the user's mock-up)
+    const player = getTurnPlayer();
+    const offer = player.guildActions.spent[index];
+    const where = offer.where;
+    riflesHits = Math.min(1, where.dice);
+    const render = () => showLeaderWindow(player, "Fire Rifles", "<p class=\"mb-2\">Roll " + where.dice + " skirmish " + (where.dice == 1 ? "die" : "dice") + ". How many hits?</p>"
+        + "<div class=\"d-flex justify-content-center mb-2\">" + getMoveStepper(riflesHits, "stepRiflesHits(-1, " + index + ")", "stepRiflesHits(1, " + index + ")") + "</div>"
+        + "<p class=\"small text-muted\">Hits go on Player " + where.rival + "'s ships in " + getSystemName(where.at) + ": damaged ones are destroyed first, then fresh ones are damaged. It takes destroyed ships as Trophies.</p>"
+        + "<div class=\"d-flex gap-2\"><button type=\"button\" class=\"btn btn-secondary flex-fill\" onclick=\"closeLeaderWindow()\">Cancel</button>"
+        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"riflesApply\" onclick=\"confirmRifles(" + index + ")\">Apply to the board</button></div>");
+    riflesRender = render;
+    render();
+}
+
+let riflesHits = 0;
+let riflesRender = null;
+
+function stepRiflesHits(change, index) {
+    const where = getTurnPlayer().guildActions.spent[index].where;
+    riflesHits = Math.min(Math.max(riflesHits + change, 0), where.dice);
+    if (riflesRender != null) { riflesRender(); }
+}
+
+function confirmRifles(index) {
+    const player = getTurnPlayer();
+    const offer = player.guildActions.spent[index];
+    offer.where.hits = riflesHits;
+    returnToTurnWindow = true;
+    closeLeaderWindow();
+    applyBotStep(player, offer);
+    syncPanelFromBoard(player);
+    SaveAllSettings();
 }
 
 function getLorePreludeOffers(player, wants, available) {
@@ -542,14 +735,19 @@ function getLorePreludeOffers(player, wants, available) {
     // Warlord's Terror: Trophies for influence, when Warlord isn't one it's chasing
     if (can(24) && declaredAmbitions.includes("warlord") && !chasing("warlord") && player.trophiesValue > 0 && !lastCard && wants(loreChance.terror)) {
         const count = Math.min(player.trophiesValue, 2);
-        offers.push({ label: "Warlord's Terror", text: "return " + count + " Troph" + (count == 1 ? "y" : "ies") + " to influence " + (count == 1 ? "once" : "twice"), costs: { trophies: count }, decided: true, why: "Warlord is declared, and it isn't chasing it." });
+        // The cards it would influence, with the Court entered (#88 group 4)
+        const cards = isMarketKnown() ? getInfluenceSequence(player, count).map(entry => getCourtCard(entry.number).name) : [];
+        offers.push({ label: "Warlord's Terror", text: "return " + count + " Troph" + (count == 1 ? "y" : "ies") + " to influence " + (cards.length > 0 ? cards.join(" and ") : (count == 1 ? "once" : "twice")),
+            costs: { trophies: count }, action: "influence", decided: true, why: "Warlord is declared, and it isn't chasing it." });
     }
 
     // Tyrant's Ego: Captives to secure, when Tyrant isn't one it's chasing
     const toSecure = isMarketKnown() ? getCardsToSecure(player).length : 1;
     if (can(25) && declaredAmbitions.includes("tyrant") && !chasing("tyrant") && player.captivesValue > 0 && toSecure > 0 && wants(loreChance.ego)) {
         const count = Math.min(player.captivesValue, toSecure, 2);
-        offers.push({ label: "Tyrant's Ego", text: "return " + count + " Captive" + (count == 1 ? "" : "s") + " to secure " + (count == 1 ? "once" : "twice"), costs: { captives: count }, decided: true, why: "Tyrant is declared, and it isn't chasing it." });
+        const cards = isMarketKnown() ? getCardsToSecure(player).slice(0, count).map(entry => getCourtCard(entry.number).name) : [];
+        offers.push({ label: "Tyrant's Ego", text: "return " + count + " Captive" + (count == 1 ? "" : "s") + " to secure " + (cards.length > 0 ? cards.join(" and ") : (count == 1 ? "once" : "twice")),
+            costs: { captives: count }, action: "secure", decided: true, why: "Tyrant is declared, and it isn't chasing it." });
     }
 
     // Tycoon's Ambition: give up its Material and Fuel to declare an ambition it does better in
@@ -591,6 +789,162 @@ function getLeaderQuestionHint(player, action) {
     else if (hasLeader(player, 4)) { hint = ["bi-person-badge", "Upstart: only cities it controls, its own included."]; }
     else if (isLoreActive(player, 20, "empath")) { hint = ["bi-book", "Empath's Bond: any city counts, like its own."]; }
     return hint == null ? "" : "<div class=\"small text-muted mt-1\"><i class=\"bi " + hint[0] + "\"></i> " + hint[1] + "</div>";
+}
+
+// The board (#160): what Leaders and Lore change in moving, building and taxing. The board code
+// calls these; without Leaders & Lore they change nothing
+
+function getLeaderCatapult(from, playerNumber, base) {
+    // Shaper (Ancient): Catapults from gates, never from starports. Empath's Bond: from any
+    // starport, like its own, while Empath is declared
+    const player = players.find(other => other.number == playerNumber);
+    if (hasLeader(player, 14)) { return isGate(from); }
+    return base || (isLoreActive(player, 20, "empath") && getBuildings(from, null, "starport").length > 0);
+}
+
+function getLoreExtraMoves(from, playerNumber, reached) {
+    // Sprinter Drives: fresh ships may move one more time, after any Catapult
+    const player = players.find(other => other.number == playerNumber);
+    if (!hasLore(player, 3)) { return reached; }
+    return [...new Set(reached.concat(reached.flatMap(id => getAdjacent(id))))].filter(id => id != from);
+}
+
+function getShipStarports(player) {
+    // Where it can build ships: its starports, or any starport while Empath's Bond works
+    const own = getBoardBuildings(player.number, "starport").map(port => port.system);
+    if (!isLoreActive(player, 20, "empath")) { return [...new Set(own)]; }
+    return [...new Set(own.concat(getSystemIds().filter(id => getBuildings(id, null, "starport").length > 0)))];
+}
+
+function canBuildCloudCity(id, playerNumber) {
+    // Cloud Cities: a city on a planet outside its slots, 1 per planet, for 1 resource of its type,
+    // where it has a piece
+    const player = players.find(other => other.number == playerNumber);
+    if (!hasLore(player, 9) || !isPlanet(id) || !hasLoyalPiece(id, playerNumber)) { return false; }
+    return !getBuildings(id).some(building => building.cloud) && player[getPlanetResource(id) + "Value"] > 0;
+}
+
+function getCloudCitySystems(player) {
+    // Planets it could build a Cloud City on: only where there's no slot left, with cities to place
+    if (!hasLore(player, 9) || getUncoveredCities(player) >= maxCities) { return []; }
+    return getSystemIds().filter(id => isPlanet(id) && getEmptySlotCount(id) == 0 && canBuildCloudCity(id, player.number));
+}
+
+function hasTacticalMove(player) {
+    // Warrior (Tactical): a Copy or Pivot to Battle may Move before or after it
+    const power = getCopyPivotPower(player, "battle");
+    return power != null && power[0] == 6;
+}
+
+// Shaper (Mythic): a resource placed over a planet it taxes makes that its type from now on
+
+function canMythic(player, system) {
+    return hasLeader(player, 14) && isPlanet(system) && !(board.mythicPlanets || []).includes(system);
+}
+
+function setPlanetType(player, system, resource) {
+    board.planetTypes = Object.assign({}, board.planetTypes, { [system]: resource });
+    board.mythicPlanets = (board.mythicPlanets || []).concat(system);
+    setPlayerResource(player, resource, Math.max(player[resource + "Value"] - 1, 0));
+    // Cities there now count as the new type
+    players.forEach(syncPanelFromBoard);
+    SaveAllSettings();
+}
+
+function botMythic(player, system) {
+    // The type it's chasing an ambition with, if it holds one and the planet isn't that already
+    if (!canMythic(player, system)) { return; }
+    const resource = preludeResources.find(item => item != getPlanetResource(system) && getResourceNeed(player, item) == 2 && player[item + "Value"] > 0);
+    if (resource == null) { return; }
+    setPlanetType(player, system, resource);
+    addLeaderNote(player, "Mythic: " + getSystemShortName(system) + " is now a " + preludeResourceNames[resource] + " planet", "It placed 1 " + preludeResourceNames[resource] + " over the planet. Already on the app's board.");
+}
+
+function offerMythic(player, system) {
+    // A human player chooses, or not
+    if (!canMythic(player, system)) { return; }
+    const held = preludeResources.filter(item => item != getPlanetResource(system) && player[item + "Value"] > 0);
+    if (held.length == 0) { return; }
+    queueLeaderWindow(() => showLeaderWindow(player, "Mythic", "<p class=\"mb-2\"><b>Shaper</b>: you may place 1 resource you have over " + getSystemName(system) + ". It becomes that type of planet from now on, and can't be changed again.</p>"
+        + "<div class=\"d-flex flex-wrap gap-2 mb-3\">" + held.map(item => "<button type=\"button\" class=\"btn btn-outline-secondary flex-fill\" id=\"mythic_" + item + "\" onclick=\"confirmMythic(" + player.number + ", '" + system + "', '" + item + "')\">" + preludeResourceNames[item] + "</button>").join("") + "</div>"
+        + "<button type=\"button\" class=\"btn btn-secondary w-100\" onclick=\"closeLeaderWindow()\">No thanks</button>"));
+}
+
+function confirmMythic(playerNumber, system, resource) {
+    setPlanetType(getPlayer(playerNumber), system, resource);
+    closeLeaderWindow();
+}
+
+function applyLeaderBattleRepairs(system) {
+    // After a battle, on the board: Quartermaster (Resilient) repairs 1 of its ships there per
+    // starport in systems it controls, whichever side it's on; Repair Drones repairs 1 attacking ship
+    const repair = (player, count) => {
+        const ships = getShips(system, player.number);
+        const fixed = Math.min(count, ships.damaged);
+        if (fixed > 0) { setShips(system, player.number, ships.fresh + fixed, ships.damaged - fixed); }
+    };
+    [battle.attacker, battle.defender].filter(player => player != null && typeof player.number == "number" && hasLeader(player, leaderNumbers.quartermaster)).forEach(player => {
+        repair(player, getSystemIds().filter(id => getController(id) == player.number).reduce((total, id) => total + getBuildings(id, null, "starport").length, 0));
+    });
+    if (battle.attacker != null && hasLore(battle.attacker, loreNumbers.repairDrones)) { repair(battle.attacker, 1); }
+}
+
+function getLoreBuildDamaged(id, playerNumber, kind, base) {
+    // Hidden Harbors: its ships are always built fresh
+    const player = players.find(other => other.number == playerNumber);
+    return kind == "ship" && hasLore(player, loreNumbers.hiddenHarbors) ? false : base;
+}
+
+function getLeaderMoveLimit(player) {
+    // Rebel (Disorganized): no more than 2 ships at a time
+    return hasLeader(player, leaderNumbers.rebel) ? 2 : Infinity;
+}
+
+function getLeaderScrappedShips(player) {
+    // Overseer (Hated): 2 ships scrapped in setup, so never in its supply
+    return hasLeader(player, 10) ? 2 : 0;
+}
+
+function getLeaderTaxableCities(playerNumber, cities) {
+    // Anarchist: never its own cities (Principled), but Rival cities and empty slots in systems with
+    // its ships, ignoring control (Inspiring). Upstart (Callow): its own cities only where it controls them
+    const player = players.find(other => other.number == playerNumber);
+    const listed = withEmpathsBond(player, getLeaderTaxableCitiesOwn(player, playerNumber, cities));
+    return listed;
+}
+
+function withEmpathsBond(player, cities) {
+    // Empath's Bond, while Empath is declared: any city, like its own, but no Captives
+    if (!isLoreActive(player, 20, "empath")) { return cities; }
+    const list = cities.slice();
+    getSystemIds().forEach(id => getBuildings(id, null, "city").forEach(city => getCityTypes(id).forEach(resource => {
+        if (!list.some(other => other.system == id && other.owner == city.owner && other.resource == resource)) { list.push({ system: id, owner: city.owner, resource: resource, gate: isGate(id), noCapture: true }); }
+    })));
+    return list;
+}
+
+function getLeaderTaxableCitiesOwn(player, playerNumber, cities) {
+    if (hasLeader(player, 4)) { return cities.filter(city => city.owner != playerNumber || getController(city.system) == playerNumber); }
+    if (!hasLeader(player, 13)) { return cities; }
+    const list = cities.filter(city => city.owner != playerNumber);
+    const add = item => { if (!list.some(other => other.system == item.system && other.owner == item.owner && other.resource == item.resource)) { list.push(item); } };
+    getSystemIds().filter(id => getShips(id, playerNumber).fresh + getShips(id, playerNumber).damaged > 0).forEach(id => {
+        getBuildings(id, null, "city").filter(city => city.owner != playerNumber).forEach(city => getCityTypes(id).forEach(resource => add({ system: id, owner: city.owner, resource: resource, gate: isGate(id) })));
+        if (isPlanet(id) && getEmptySlotCount(id) > 0) { add({ system: id, owner: playerNumber, resource: getPlanetResource(id), slot: true }); }
+    });
+    return list;
+}
+
+function applyLeaderTaxBonus(player) {
+    // Mystic (Attuned), Fuel-Drinker (Insatiable), Agitator (Firebrand): 1 more resource when it
+    // Copies or Pivots to Tax, if there's one left and room for it
+    const power = getCopyPivotPower(player, "tax");
+    if (power == null) { return; }
+    const resource = { 2: "psionics", 3: "fuel", 15: "weapons" }[power[0]];
+    if (resource == null || getResourceSupply(resource) == 0 || getEmptySlots(player) == 0) { return; }
+    setPlayerResource(player, resource, player[resource + "Value"] + 1);
+    if (player.isHuman) { showMessageToast(power[1], "1 " + preludeResourceNames[resource] + " added too."); }
+    else { addLeaderNote(player, power[1] + ": gained 1 " + preludeResourceNames[resource], "Already added to its tiles."); }
 }
 
 function hasLoreOffers(offers) {

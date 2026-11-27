@@ -55,9 +55,31 @@ function getMarketCardValue(player, entry) {
     } else {
         value += marketValues.perNeed * getResourceNeed(player, card.resource);
     }
+    // What a Guild card does (#200 phase 4): drawing a card (another turn when others have run
+    // out), stealing, or a new action
+    if (card.type == "guild") { value += getCardAbilityValue(card); }
+    // The leader (#200): capturing their agents, and taking a card they could secure now
+    const leader = typeof getLeader == "function" ? getLeader(player) : null;
+    if (leader != null) {
+        const threat = getLeaderThreat(player, leader);
+        value += getMarketAgents(entry, leader) * leaderWeights.capture * Math.min(threat, 2) / 2;
+        if (canSecureEntry(entry, leader)) { value += leaderWeights.secureDeny * Math.min(threat, 2); }
+    }
     // In a campaign, what the Imperial Council is worth to it (campaignhooks.js)
     return value + rivalAgents * (chasingTyrant ? marketValues.captiveTyrant : marketValues.captive) + (runCampaignHook("marketValue", player, entry) || 0)
         + getAttachedValue(player, entry);
+}
+
+// What a Guild card's ability is worth to a bot (#200 phase 4)
+const cardAbilityValues = { draw: 1.5, steal: 1, action: 0.5 };
+
+function getCardAbilityValue(card) {
+    const text = card.text || "";
+    let value = 0;
+    if (card.drawsPlayed != null || /\bdraw/i.test(text)) { value += cardAbilityValues.draw; }
+    if (/\bsteal/i.test(text) && !/cannot steal/i.test(text)) { value += cardAbilityValues.steal; }
+    if (/\((Build|Move|Tax|Battle|Influence|Secure|Repair)\)/.test(text)) { value += cardAbilityValues.action; }
+    return value;
 }
 
 function getAttachedValue(player, entry) {
@@ -124,8 +146,21 @@ function getCardsToInfluence(player) {
     if (getUnplayedCards(player.cards).length == 0 || hasNoAgents(player)) { return []; }
 
     const agentsNeeded = entry => Math.max(...getRivalAgents(entry, player)) + 1 - getMarketAgents(entry, player);
-    return courtMarket.filter(entry => agentsNeeded(entry) > 0 && !isMarketCardClosed(entry))
-        .sort((a, b) => (getMarketCardValue(player, b) / agentsNeeded(b)) - (getMarketCardValue(player, a) / agentsNeeded(a)));
+    // #200 phase 4: blocking a Rival who could secure a card now that's worth a lot to them (an
+    // agent ties it); leaving alone a card it can't win, or where a Rival has 2 or more agents and
+    // it needs 3 or more, as its agents would likely become their Captives
+    const block = entry => players.some(rival => rival !== player && canSecureEntry(entry, rival) && getMarketCardValue(rival, entry) >= marketValues.base + marketValues.perNeed * 2);
+    const turnsLeft = getUnplayedCards(player.cards).length;
+    const agentsLeft = getAgentsLeft(player);
+    const winnable = entry => agentsNeeded(entry) <= Math.min(agentsLeft == null ? 10 : agentsLeft, turnsLeft + 1)
+        && !(Math.max(...getRivalAgents(entry, player)) >= 2 && agentsNeeded(entry) >= 3);
+    // Blocking the leader comes first (#200)
+    const leader = typeof getLeader == "function" ? getLeader(player) : null;
+    const blocksLeader = entry => leader != null && canSecureEntry(entry, leader);
+    const score = entry => getMarketCardValue(player, entry) / agentsNeeded(entry) + (block(entry) ? marketValues.blocking : 0)
+        + (blocksLeader(entry) ? leaderWeights.blocking * Math.min(getLeaderThreat(player, leader), 2) : 0);
+    return courtMarket.filter(entry => agentsNeeded(entry) > 0 && !isMarketCardClosed(entry) && (winnable(entry) || block(entry)))
+        .sort((a, b) => score(b) - score(a));
 }
 
 function getInfluenceSequence(player, count) {
@@ -303,6 +338,7 @@ function removeMarketCard(number) {
 function refreshTurnSummary() {
     // The plan names market cards and the summary says if the market is short, so keep it up to date
     if (awaitingDone != null) { showTurnDone(getPlayer(awaitingDone)); }
+    updateCardCounts();
 }
 
 function getCourtAdviceHtml(player) {
@@ -316,11 +352,14 @@ function getCourtAdviceHtml(player) {
     const secure = canBotTakeAction(player, "secure") ? getCardsToSecure(player)[0] : null;
     const influence = canBotTakeAction(player, "influence") ? getCardsToInfluence(player)[0] : null;
 
+    // Each with a button that does it for you, as + or the card's Secure would
+    const row = (text, button) => "<div class=\"d-flex align-items-center gap-2\"><span class=\"flex-fill\">" + text + "</span>" + button + "</div>";
+    const button = (id, label, icon, onclick) => "<button type=\"button\" class=\"btn btn-sm btn-primary py-0 text-nowrap\" id=\"" + id + "\" onclick=\"" + onclick + "\"><i class=\"bi " + icon + "\"></i> " + label + "</button>";
     let lines = [];
-    if (secure != null) { lines.push("<b>Secure:</b> " + describe(secure)); }
-    if (influence != null) { lines.push("<b>Influence:</b> " + describe(influence)); }
+    if (secure != null) { lines.push(row("<b>Secure:</b> " + describe(secure), button("courtAdviceSecure", "Secure", "bi-check-lg", "secureMarketCard(" + secure.number + ")"))); }
+    if (influence != null) { lines.push(row("<b>Influence:</b> " + describe(influence), button("courtAdviceAgent", "Add agent", "bi-plus-lg", "changeMarketAgents(" + influence.number + ", " + player.number + ", 1)"))); }
     if (lines.length == 0) { lines.push("Nothing worth doing here this turn."); }
-    return "<div class=\"alert alert-secondary py-2 px-3 small mb-2\" id=\"courtAdvice\">" + lines.join("<br>") + "</div>";
+    return "<div class=\"alert alert-secondary py-2 px-3 small mb-2 d-grid gap-1\" id=\"courtAdvice\">" + lines.join("") + "</div>";
 }
 
 function showCourtWindow() {
@@ -417,6 +456,7 @@ function showCourtWindow() {
 function getRansackOptions(player, defender) {
     // Ransacking the Court: any card with any of the defender's agents (rulebook p.16), the one
     // the player wants most first
+    // getMarketCardValue counts the leader's agents and a card they could secure (#200)
     return courtMarket.filter(entry => getMarketAgents(entry, defender) > 0)
         .sort((a, b) => getMarketCardValue(player, b) - getMarketCardValue(player, a));
 }
@@ -471,7 +511,9 @@ function secureMarketCard(number) {
         showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Add its replacement to the market.");
         modalElement.addEventListener('hidden.bs.modal', () => showOutrageSpreads(player), { once: true });
     } else if (player.isHuman) {
-        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Carry out the card, and add its replacement to the market.");
+        // The app carries out the card in its own window (#204)
+        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Add its replacement to the market.");
+        modalElement.addEventListener('hidden.bs.modal', () => showVoxForPlayer(player, card), { once: true });
     } else {
         // What the bot does with a Vox card, once this window has closed
         modalElement.addEventListener('hidden.bs.modal', () => {
@@ -483,7 +525,7 @@ function secureMarketCard(number) {
     SaveAllSettings();
     refreshTurnSummary();
     // The window stays open to add the replacement (#124), unless a Vox card's window follows
-    if (card.type == "vox" && (!player.isHuman || card.number == 28)) {
+    if (card.type == "vox") {
         bootstrap.Modal.getOrCreateInstance(modalElement).hide();
     } else {
         showCourtWindow();

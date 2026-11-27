@@ -138,7 +138,14 @@ function getSplitPlanStep(step, player) {
 function getOfferRows(offers) {
     // Prelude or Guild actions carried out. Their tiles have already been updated
     const tool = offer => turnActionTools[offer.action] != null ? getToolButton(turnActionTools[offer.action]) : "";
-    return offers.map(offer => getTurnRow("<i class=\"bi bi-check-lg\"></i>", offer.label, capitalise(offer.text), tool(offer))).join("");
+    // A bot's prelude Move, Build or ship placement has a place on the board, and a Completed
+    // button like its plan's steps (#197)
+    // Its Lore actions with a place too (leaderrules.js)
+    const player = getTurnPlayer() || {};
+    const isPrelude = offers === getBotPreludeSpent(player), isGuild = !player.isHuman && offers === getBotGuildSpent(player);
+    const complete = (offer, index) => (isPrelude || isGuild) && canCompleteBotStep(offer)
+        ? (offer.applied ? "<span class=\"small text-secondary\">Done</span>" : "<button type=\"button\" class=\"btn btn-outline-primary btn-sm turnact\" id=\"" + (isGuild ? "completeGuild" : "completeOffer") + index + "\" onclick=\"" + (isGuild ? "completeBotGuildOffer" : "completeBotPreludeOffer") + "(" + index + ")\"><i class=\"bi bi-check-lg\"></i> Completed</button>") : "";
+    return offers.map((offer, index) => getTurnRow("<i class=\"bi bi-check-lg\"></i>", offer.label, capitalise(offer.text), tool(offer) + complete(offer, index))).join("");
 }
 
 function getCardHtml(player) {
@@ -222,6 +229,8 @@ function renderHumanTurn(player) {
 
 function renderTurn(player) {
     if (player.isHuman) { renderHumanTurn(player); return; }
+    // Its Moves where its ships will really stop, on the board as it is now (boardbot.js)
+    if (player.turnPlan != null) { refreshBotMoveStops(player); }
     const plan = getTurnPlan(player).map(step => ({ ...step, ...getSplitPlanStep(step, player) }));
     const prelude = (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
     const guild = (player.guildActions != null && player.guildActions.spent != null) ? player.guildActions.spent : [];
@@ -231,10 +240,16 @@ function renderTurn(player) {
     const offered = [];
     const planRows = plan.map((step, index) => {
         const name = turnActionTools[step.action];
-        const button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
+        let button = (name != null && !offered.includes(name)) ? getToolButton(name) : "";
         if (name != null) { offered.push(name); }
+        // Completed: the step goes on the board now, so the next one counts from it (#201)
+        const marker = step.applied ? "<i class=\"bi bi-check-lg\"></i>" : index + 1;
+        if (canCompleteBotStep(step)) {
+            button = step.applied ? "<span class=\"small text-secondary\">Done</span>"
+                : button + "<button type=\"button\" class=\"btn btn-outline-primary btn-sm turnact\" id=\"completeStep" + index + "\" onclick=\"completeBotStep(" + index + ")\"><i class=\"bi bi-check-lg\"></i> Completed</button>";
+        }
         // A campaign Fate's tag, on a step its Fate shaped (steering.js)
-        return getTurnRow(index + 1, step.name, step.reason + (step.tag || "") + getLeaderHintsHtml(step.hints), button);
+        return getTurnRow(marker, step.name, step.reason + (step.tag || "") + getLeaderHintsHtml(step.hints), button);
     }).join("");
 
     let html = getNewsSection();
@@ -269,12 +284,14 @@ function getBarPlan(player) {
 function updateTurnDock() {
     // The bar and the slot advice above the footer
     const player = getTurnPlayer();
+    // And each player's cards in hand, in their banner (#206)
+    updateCardCounts();
     const bar = document.getElementById("turnBar");
     if (player != null) {
         bar.className = "turnbar playerbanner" + getPlayerColour(player);
         // The human player's bar has the actions their card gives them
         const summary = !player.isHuman ? getBarPlan(player) : getHumanActionsLeftText(player);
-        bar.innerHTML = "<div class=\"turnbarplan\"><b>" + (isYou(player) ? "Your turn" : "Player " + player.number + "'s turn") + "</b>" + summary + "</div>"
+        bar.innerHTML = "<div class=\"turnbarplan\"><b>" + (isYou(player) ? "Your turn" : "Player " + player.number + "'s turn") + "</b><div class=\"turnbarsteps\">" + summary + "</div></div>"
             + "<button type=\"button\" class=\"btn btn-light btn-sm\" id=\"turnBarOpen\" onclick=\"openTurnWindow()\"><i class=\"bi bi-chevron-up\"></i> Open</button>";
     }
     showHideElement([bar], player != null);

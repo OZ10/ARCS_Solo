@@ -34,6 +34,15 @@ const ambitionResources = {
 // the round, plus more for each resource it has towards that ambition, up to a maximum.
 // A bot with none of the ambition's resources never declares it. Tune after play testing
 const declareChanceByRound = { 1: 20, 2: 30, 3: 30, 4: 40, 5: 40 };
+// Declaring when not likely to come first (#200, the user): close to first (one more would do it),
+// or likely second when whoever is likely to come first isn't leading on Power. Below Hard only
+// for the second; Hard declares when close and not when only second
+const declareCloseChance = 0.6;
+// The leader (#200): the endgame is when the leader is within this much Power of the target, and
+// how much more a bot goes after them (each threat point, see getLeaderThreat)
+const leaderEndgameGap = 6;
+const leaderWeights = { battle: 2, raid: 1.5, capture: 1, blocking: 1.5, secureDeny: 1 };
+const declareSecondChance = 0.3;
 const declareChancePerResource = 10;
 const declareChanceMax = 90;
 
@@ -106,11 +115,14 @@ const defaultBotPersonality = { riskWeight: 1, moodSwing: 0.5, randomness: 0.3, 
 // smart: declaring and seizing by working out the scores: "none", "also" (as well as the chance) or "only"
 const defaultDifficulty = 3;
 const difficultyLevels = {
-    1: { name: "Easy", text: "Makes plenty of mistakes and takes big gambles.", randomness: 2, moodSwing: 1.6, planVariation: 2, chance: 0.6, decides: false, smart: "none" },
-    2: { name: "Relaxed", text: "Makes the odd mistake, and plays a little loosely.", randomness: 1.5, moodSwing: 1.3, planVariation: 1.5, chance: 0.8, decides: true, smart: "none" },
-    3: { name: "Normal", text: "Plays well, with some surprises. (As it plays now.)", randomness: 1, moodSwing: 1, planVariation: 1, chance: 1, decides: true, smart: "none" },
-    4: { name: "Tough", text: "Rarely strays from its best move.", randomness: 0.5, moodSwing: 0.5, planVariation: 0.5, chance: 1, decides: true, smart: "also" },
-    5: { name: "Hard", text: "Always takes the best move it can work out.", randomness: 0, moodSwing: 0, planVariation: 0, chance: 0, decides: true, smart: "only" }
+    // slip: how often it misses what the ambition model says (#200); whim: how often it does something
+    // the model wouldn't. Hard always follows the model
+    // preludeEach: the most of each resource it spends in one prelude, one per useful action (#203)
+    1: { name: "Easy", text: "Makes plenty of mistakes and takes big gambles.", randomness: 2, moodSwing: 1.6, planVariation: 2, chance: 0.6, decides: false, smart: "none", slip: 0.3, whim: 0.2, preludeEach: 1 },
+    2: { name: "Relaxed", text: "Makes the odd mistake, and plays a little loosely.", randomness: 1.5, moodSwing: 1.3, planVariation: 1.5, chance: 0.8, decides: true, smart: "none", slip: 0.2, whim: 0.12, preludeEach: 1 },
+    3: { name: "Normal", text: "Plays well, with some surprises. (As it plays now.)", randomness: 1, moodSwing: 1, planVariation: 1, chance: 1, decides: true, smart: "none", slip: 0.1, whim: 0.06, preludeEach: 2 },
+    4: { name: "Tough", text: "Rarely strays from its best move.", randomness: 0.5, moodSwing: 0.5, planVariation: 0.5, chance: 1, decides: true, smart: "also", slip: 0.05, whim: 0.03, preludeEach: 2 },
+    5: { name: "Hard", text: "Always takes the best move it can work out.", randomness: 0, moodSwing: 0, planVariation: 0, chance: 0, decides: true, smart: "only", slip: 0, whim: 0, preludeEach: 3 }
 };
 
 // What destroying a building is worth to the attacker, in hits on ships (see getBuildingValue).
@@ -139,8 +151,10 @@ const preludeResources = ["materials", "fuel", "relics", "weapons", "psionics"];
 const preludeResourceNames = { materials: "Material", fuel: "Fuel", relics: "Relic", weapons: "Weapon", psionics: "Psionic" };
 const preludeAmbitions = { materials: "tycoon", fuel: "tycoon", relics: "keeper", psionics: "empath" };
 
-// At most this many of each resource type a turn. Could be raised later
+// Each prelude offer spends one resource. A bot can make several offers of the same type (#203),
+// at most this many of each a turn, and only while it can spare them
 const maxPreludePerResource = 1;
+const preludeMost = { builds: 3, moves: 3, psionics: 3 };
 
 // A bot keeps a resource it could use to chase an ambition: when spending one would cost it a
 // place, or this many more would gain it one
@@ -180,7 +194,7 @@ const outOfShipsBelow = 6;
 // personalities (#71)
 // When a bot decides a prelude spend itself, rather than leaving it to the player (see prelude.js)
 const preludeDecision = {
-    relicCost: [0.5, 1.5, 3],   // what spending a Relic to Secure costs it, by how much it needs relics (getResourceNeed)
+    relicCost: [0, 1.5, 3],   // what spending a Relic to Secure costs it, by how much it needs relics (getResourceNeed)
     rivalCaptives: 3            // a Rival with this many Captives makes Tyrant worth thinking about
 };
 
@@ -233,6 +247,12 @@ const turnPlanWeights = {
     repairWarlord: 1,       // + Warlord is declared, as damaged ships are easy Trophies
     moveForBattle: 1.5,     // + a first Move, when it's also going to Battle
     moveGoal: 1.5,          // + a Move with a goal: a Rival to tax or raid, or a slot for a city it wants
+    // #200 phase 3: from the board
+    moveUseful: 1.5,        // + the board's best Move has a purpose: battle, defend, a Rival's city, build, spread
+    buildSlots: 1.5,        // + a city when its resource slots are full or nearly (a city opens one)
+    buildDefend: 1,         // + ships when Rivals have clearly more ships on the board
+    battleExposed: 1,       // + a Rival's building in reach with no ships guarding it (stop them expanding)
+    taxForHand: 0.5,        // + a resource whose prelude action its hand lacks (Fuel with few Move cards)
     repeat: 1.5,            // - for each time the action is already in the plan
     variation: 1            // + up to this much at random per action, set once a turn
 };
@@ -288,7 +308,8 @@ const openingCourtCards = { 2: 3, 3: 4, 4: 4 };
 const marketValues = {
     base: 1,
     perNeed: 1.5,           // + a Guild card, for each level of need for its icon (getResourceNeed)
-    captive: 0.25,          // + each Rival agent it would capture
+    captive: 0.5,           // + each Rival agent it would capture (raised from 0.25: #200 phase 4)
+    blocking: 1.5,          // + an agent that stops a Rival securing a card worth a lot to them (#200 phase 4)
     captiveTyrant: 1.5,     // + each Rival agent it would capture, when chasing Tyrant
     // + a Vox card, by what it does: Mass Uprising, Populist Demands, Outrage Spreads,
     // Song of Freedom, Guild Struggle, Call to Action

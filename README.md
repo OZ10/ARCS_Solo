@@ -71,11 +71,13 @@ Tap **Options**, then **New Game**.
 ### Bot difficulty
 In **Options**, under New Game, choose how well the bots play, from **1 (Easy)** to **5 (Hard)**. It applies to every bot from its next decision, so you can change it during a game.
 
-- **1 Easy:** makes plenty of mistakes and takes big gambles. It leaves every prelude spend to you.
-- **2 Relaxed:** makes the odd mistake, and plays a little loosely.
-- **3 Normal:** plays well, with some surprises.
-- **4 Tough:** rarely strays from its best move, and declares an ambition or seizes the initiative when it works out it would win.
-- **5 Hard:** always takes the best move it can work out, and does nothing on a whim. Its prelude spends are still ticked for you to check.
+Bots weigh each ambition by where they place now against their Rivals, and where their remaining cards are likely to take them this round: a Tax card with a city of that type, or a Battle card with a fight at good odds. They lead the ambition they're most likely to place in, and declare one when they're likely to come first. They watch the leader (the player with the most Power, you included): they won't declare an ambition the leader is likely to place in unless they're likely to win it themselves, and not even then if the leader's place would take them to the Power target; they'd rather battle, raid, capture agents from, block and tax the leader, steal from them, and surpass to take the initiative from them, more so the further ahead they are and the nearer the target. They often declare when one more would put them first, and sometimes when they're likely to come second while whoever is likely to come first isn't leading on Power. Late in a round, with few cards left, they stop chasing what they can't reach. When following, a bot surpasses for more actions than a Copy or Pivot gives, or to take the initiative for an ambition it holds a card to declare; it seizes the initiative when it wants to declare one and has too few high cards to surpass later; and it keeps the card it means to declare with. In its plan, a bot builds a city when its resource slots are nearly full, and ships when Rivals have clearly more; it moves with a purpose (a battle, a city to defend or take, a planet to build on), holds a gate that a Rival fleet would Catapult through to reach its buildings (and its own cluster's gate when it has two or more buildings there), and keeps those ships there while the gate still protects something; it spreads out to open planets, and leaves a guard on its buildings when it holds resources worth raiding; a few ships waiting on an open planet to build stay there until something changes; it battles Rivals whose buildings in reach have no guard, and attacks more than once when another attack can clear most of a Rival's pieces; and it taxes for what its hand lacks, such as Fuel with few Move cards. In the Court, it values Guild cards that draw a card, steal or give a new action; it places agents only on cards it can win with the agents and turns it has left, not where a Rival has many agents that would make its own easy Captives, and it places one to stop a Rival securing a card worth a lot to them. Every level below Hard sometimes misses what this says, or acts on a whim, Easy most often; Hard always follows it.
+
+- **1 Easy:** makes plenty of mistakes and takes big gambles. It leaves every prelude spend to you, and spends at most 1 of each resource in a prelude.
+- **2 Relaxed:** makes the odd mistake, and plays a little loosely. At most 1 of each resource in a prelude.
+- **3 Normal:** plays well, with some surprises. At most 2 of each resource in a prelude.
+- **4 Tough:** rarely strays from its best move, and declares an ambition or seizes the initiative when it works out it would win. At most 2 of each resource in a prelude.
+- **5 Hard:** always takes the best move it can work out, and does nothing on a whim. Its prelude spends are still ticked for you to check. At most 3 of each resource in a prelude.
 
 Every difficulty plans from the app's board, so keep it matching the table.
 
@@ -94,6 +96,8 @@ Every difficulty plans from the app's board, so keep it matching the table.
 - **Securing:** a Demagogue can't secure a Guild card with only 1 of its agents on it.
 - **Battles:** extra dice and dice limits (Rebel, Corsair, Raider Exosuits), raid limits (Hidden Harbors, Keeper's Trust, Keeper's Solidarity), intercepts (Agitator, Mirror Plating, Railgun Arrays) and no Ransack against the Elder. The results list anything else to do, such as repairs.
 - **Ancient Holdings:** its extra resource slot is included when the app says which slot to put a resource in.
+
+**On the board:** Shaper Catapults from gates, not starports; Rebel moves no more than 2 ships at a time (the Move window too); Overseer has 2 ships fewer to build; Hidden Harbors builds ships fresh; Anarchist taxes Rival cities and empty slots where its ships are, never its own; Upstart taxes its own cities only where it controls them; and Mystic, Fuel-Drinker and Agitator gain their extra resource when they Copy or Pivot to Tax. Lore actions in place of a normal action are the bot's own decisions from the board, ticked with a reason: Summon (a ship at the city it controls nearest a fight or a threat), Fire Rifles (skirmish dice at Rival ships next door; tap **Completed** and enter the hits, and the board damages or destroys their ships, damaged ones first), Nurture and Prune, Guide (Rival ships off its starport, or its own onto its battle), Martyr and Annex. Each has a **Completed** button in the turn window that puts it on the board. Sprinter Drives lets fresh ships take one more step; Empath's Bond (while Empath is declared) taxes any city without a Captive, and builds ships and Catapults at any starport; Cloud Cities adds a city outside the slots where none is left, for 1 resource of the planet's type (in the Build window too); Warrior's Tactical gives a Copy or Pivot to Battle a free Move to reach it; Shaper's Mythic changes a planet's type for the rest of the game (a bot does it for the type it's chasing, and you get a window after a Tax); and after a battle, Quartermaster's and Repair Drones' repairs go on the board. In the Court, Warlord's Terror and Tyrant's Ego name the cards a bot influences or secures; Noble's Influential and Feastbringer's Charismatic add their free Influence to the plan when it Copies or Pivots. A bot defending with Predictive Sensors moves its fresh ships in from next door (leaving 1 on its buildings) as the Battle window opens, already on the board; and Gate Ports captures an agent when a Rival's ships move into a gate its holder controls with a fresh starport. Without Leaders & Lore none of this applies.
 
 **How the bots use them:** a bot's plan has a short line under any step its Leader or Lore changes, such as *Rebel, Disorganized: no more than 2 ships at a time*. Bots lean towards the action their Leader improves when they Copy or Pivot, offer Lore actions in place of normal ones in a **Guild and Lore actions** window, and use Lore in their prelude, such as discarding a card to clear an Outrage.
 
@@ -176,7 +180,9 @@ Your hand is listed on your panel. Tap a card to see its pips, ambition and acti
 - **Battle:** opens the Battle window, starting on a Rival you share a system with, and the counts from the board. **Where** lists the systems you could battle in. When it updates the panels, it counts as an action.
 - **Secure and Influence:** **Court** opens the Court window. Each agent you place there and each card you secure counts as an action.
 
-Systems are named as on the board: **1 Gate**, and planets by their cluster number and ID symbol (▲, ☾ or ⬢), then their type, such as **3 ⬢** Weapon. Once you've taken an action, the prelude is over, so its buttons go.
+A bot's planned Moves are checked against the board each time its turn window is shown: if a Catapult can't get past a gate someone else controls, the Move stops in that gate and says why. With **Gate Ports** or **Gate Stations**, the Build window offers a starport or city on a gate, 1 per gate. A gate city counts as every type of city in its cluster (the planets there with anyone's city on): it can be taxed for any one of them once a turn, the Tax window lists each type, and destroying it Provokes Outrage of each. Bots with Gate Stations build gate cities, preferring one that gives them types they have no city of yet, move a ship to such a gate to build one there, and tax them; the panel counts a gate city once. In a battle the board knows whether it's in a gate, so **Gatekeepers'** 2 extra dice are added without asking.
+
+Systems are named as on the board: **1 Gate**, and planets by their cluster number and ID symbol (▲, ☾ or ⬢), then their type, such as **3 ⬢** Weapon. Once you've taken an action, the prelude is over, so its buttons go. An action your prelude gave you, such as a Move from a Fuel, comes first: it's listed at the top, and your card's actions wait until it's done.
 
 Each action you've taken is listed under **Done**, with **Undo**, which takes it off the board and gives the action back. When none are left, the buttons are greyed out. **Prelude** lists what your resources and Guild cards can do before your actions. **Spend** takes the resource off your panel and adds its action, such as a Move for a Fuel, marked **PRELUDE**. **Use** does the same for a Guild card. Anything your card doesn't have is under **Also**, with **Draw**. Tap **Done** when you've finished. **Back to board** shrinks the window to a bar, as on a bot's turn.
 
@@ -194,6 +200,13 @@ Tap the bot's **Play Card** button.
 <img src="docs/screenshots/prelude.png" width="300" align="right" alt="A bot's prelude">
 
 **Its prelude:** before its actions, a bot may offer to spend resources or use Guild cards. The window shows the card it played and its plan without them. Where the app knows enough, such as a Court card it can secure or what you've told it this turn, the bot decides for itself: those are already ticked under **Its decisions**, each with its reason. Untick any that don't make sense on the table. The rest are under **Your call**: tick the ones that make sense on the board. The app updates its resources for you.
+
+A bot can spend several resources in one prelude, one for each useful action, and never one it needs for an ambition it has declared or could declare. When it's first in an ambition, it also keeps a resource if spending it would let a Rival catch up by taxing a city of that resource, as a spent resource goes back to the shared pool. Only a very useful spend goes ahead anyway: a Move to its battle or to defend a city, building a city, a Secure that captures Rival agents, or a Battle at good odds. What it keeps, and why, is listed under **Kept**. A bot's card still Moves after a Fuel Move when another Move is useful.
+- **Material:** a Build for each good spot on the board (past the first, only a city, or a ship for its battle), or a Repair of a damaged building, or of a damaged ship before a battle.
+- **Fuel:** a Move for each useful one its card can't cover. With a Copy or Pivot, its one action stays free for something else.
+- **Relic:** a Secure for each Court card worth securing, more so with Rival agents on it.
+- **Weapon:** when the board shows a battle at good odds that it can reach.
+- **Psionic:** any action from the lead card it knows is worth it, its own card too when it led: a card to Secure or Influence, a city to Tax, a Move or a city to Build, or one more Battle at good odds. Several Psionics give several actions.
 
 <br clear="right">
 
@@ -245,13 +258,13 @@ For a bot:
 4. **Choose dice:** tells you which dice to roll and how to assign the hits, including which building to hit first and why. The attacker chooses where its hits go. It weighs up the risk to its ships, what destroying a city would cost in Outrage, any Ransack, and what the defender loses, such as their last starport. **Details** shows the odds.
 5. **After rolling:** set the counts to what's left. Attack again, or tap **Done battling**.
 
-The **(i)** beside *Can attack again this turn* explains when to use that switch.
+When the bot's plan has another Battle after this one, its dice advice damages fresh ships first, so its next attack faces fewer of them. There's no switch to set: it knows from its plan.
 
 <br clear="right">
 
 <img src="docs/screenshots/battle-results.png" width="300" align="right" alt="Battle results">
 
-**Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. Check them and tap **Update values** to update both players' panels. For a bot's battle, the losses go on the app's board too.
+**Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. The app knows from the board which buildings were destroyed and what planet they were on. It only asks when the defender had a city and a starport there and not both were destroyed. Check them and tap **Update values** to update both players' panels. For a bot's battle, the losses go on the app's board too.
 
 For your own battles, the window doesn't choose dice. It keeps count while you roll, then updates the panels in the same way. For what you stole, use **−** and **+** for each resource, as you can take more than one of a kind, and tick any Guild card.
 
@@ -269,7 +282,7 @@ Tap **Build** in a bot's turn window. The app has already chosen from its board 
 
 Tap **Court** in the turn window, yours or a bot's. It lists the cards in the market with everyone's agents on each in their colours. Use **−** and **+** to keep the agents up to date, **×** to remove a card, and the list at the bottom to add its replacement.
 
-For a bot, the top line says what it would secure or influence. **Secure** takes a card the player can secure, captures any Rival agents on it, and moves it to their Guild row. When a bot secures a Vox card, the app tells you what it does with it.
+For a bot, the top line says what it would secure or influence, with a **Secure** or **Add agent** button that does it for you. **Secure** takes a card the player can secure, captures any Rival agents on it, and moves it to their Guild row. When a bot secures a Vox card, the app tells you what it does with it.
 
 If a card leaves the market, the turn window reminds you to add the replacement.
 
@@ -281,6 +294,8 @@ In a campaign, while someone holds Guild Investigators, a Court card with no age
 <img src="docs/screenshots/guild-card.png" width="300" align="right" alt="A Guild card">
 
 Tap a card in a player's Guild row to read it or remove it. Tap **+** to add one, which removes it from the market. For a bot, the list includes the Vox cards so you can record what it secured.
+
+**Vox cards** are carried out by the app. A bot chooses for itself: Mass Uprising's cluster from the board (near a threatened city, its buildings or a battle), with the ships placed on the board; Song of Freedom returns a Rival city it controls, or now and then its least needed city, and seizes the initiative. When you secure or Ransack a Vox card, a window lets you choose: the cluster, the ambition to declare, the city to return, the Guild card to steal, or drawing the bottom card of the discard pile.
 
 Bots use their Guild cards themselves: they offer them in their prelude or instead of actions, and they're included in battles, scoring and the cards they choose. Your **Farseers** card has a **Use its prelude** button, and when you declare with it, you choose one Rival's hand to look at and swap with.
 

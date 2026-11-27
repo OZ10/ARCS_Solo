@@ -70,7 +70,8 @@ function getBuildChoice(player, slotResources) {
 
     // A city on a resource it has no city on yet, so it can tax it. A resource for an
     // ambition it's chasing comes first, then one that could still be declared
-    const needed = citiesLeft ? slotResources.filter(resource => player["cities" + capitalise(resource) + "Value"] == 0) : [];
+    // A gate city counts as each of its types (Gate Stations, turnplan.js hasCityOfType)
+    const needed = citiesLeft ? slotResources.filter(resource => !hasCityOfType(player, resource)) : [];
     if (needed.length > 0) {
         const priority = resource => getResourceNeed(player, resource);
         // Equally good resources are picked at random, as a person might

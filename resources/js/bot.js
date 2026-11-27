@@ -607,19 +607,13 @@ function prioritiseAndSortAmbitions() {
 }
 
 function getAmbitionStanding() {
-    let amibitions = [];
-    amibitions.push(["empath", currentPlayer.psionicsValue]);
-    amibitions.push(["keeper", currentPlayer.relicsValue]);
-    amibitions.push(["warlord", currentPlayer.trophiesValue]);
-    amibitions.push(["tyrant", currentPlayer.captivesValue]);
-    amibitions.push(["tycoon", currentPlayer.fuelValue + currentPlayer.materialsValue]);
-
-    const ambitionSorted = amibitions.slice().sort((a, b) => {
-        const numA = typeof a === 'object' && a !== null ? a[1] : a[1];
-        const numB = typeof b === 'object' && b !== null ? b[1] : b[1];
-        return numB - numA;
+    // [[ambition, value]], best first: where it's likely to place this round (the ambition model,
+    // #200), then where it places now, then how many it has. 0 for one it isn't likely to place in
+    const ambitions = ["empath", "keeper", "warlord", "tyrant", "tycoon"].map(ambition => {
+        const outlook = getAmbitionOutlook(currentPlayer, ambition);
+        return [ambition, outlook.likely > 0 ? outlook.likely * 100 + outlook.now * 10 + outlook.own : 0];
     });
-    return ambitionSorted;
+    return ambitions.sort((a, b) => b[1] - a[1]);
 }
 
 function answerNo() {
@@ -697,13 +691,13 @@ function declareAmbition(player, playedCard) {
     const resources = instead != null ? instead.resources : ((ambitionResources[ambition] == null) ? 0 : ambitionResources[ambition](player));
     if (resources == 0 && !forShips) { return; }
 
-    // See declareChanceByRound at the top of the file. In a campaign, more when its Fate pays for
-    // winning ambitions (campaignhooks.js)
-    const chance = Math.min(declareChanceByRound[roundNumber] + resources * declareChancePerResource + (runCampaignHook("declareBonus", player, ambition) || 0), declareChanceMax);
-
-    // By the difficulty (#71): on a whim, or when it would come first, or both
-    const wins = instead != null ? instead.wins : wouldWinAmbition(player, ambition);
-    if (forShips || decideAtDifficulty(player, wins, () => Math.random() * 100 < getWhimChance(chance))) {
+    // The ambition model (#200): declared on purpose when it's likely to come first; when it's
+    // likely to come second, sometimes. A campaign Fate that pays for winning ambitions makes it
+    // keener (campaignhooks.js). Hard always follows the model; the others slip and take whims
+    const outlook = instead != null ? { likely: instead.wins ? 2 : 0 } : getAmbitionOutlook(player, ambition);
+    const keener = (runCampaignHook("declareBonus", player, ambition) || 0) > 0;
+    const good = outlook.likely == 2 || (keener && outlook.likely >= 1);
+    if (forShips || shouldDeclare(player, ambition, outlook, good)) {
         showMessageToast("Player " + player.number, getAmbitionDeclaredMessage(ambition));
         playedCard.declared = placesZeroMarker(player, ambition);
 
@@ -731,7 +725,18 @@ function canSurpass(player, playedCard, unplayedCards, actionToPlay) {
         return surpass;
     }
 
-    let cardToPlay = getLowestCardtoPlay(surpassCards);
+    // Worth it (#200 phase 2): more actions than a Copy or Pivot's 1, or the initiative for an
+    // ambition it's likely to win and holds a card to declare. Not with the card it's keeping to
+    // declare with, if another will do. Hard always follows this; the others slip and take whims
+    const keep = getDeclareKeepCards(player);
+    const spare = surpassCards.filter(card => !keep.includes(card));
+    let cardToPlay = getLowestCardtoPlay(spare.length > 0 ? spare : surpassCards);
+    // Taking the initiative from the leader, who led and keeps it unless someone surpasses (#200)
+    const leader = getLeader(player);
+    const denyLeader = leader != null && playedCardList[0] != null && playedCardList[0].playedByPlayerNumber == leader.number
+        && !playedCardList.some(card => card.cardAction == "SURPASS");
+    const good = (cardToPlay.pips || 1) >= 2 || keep.length > 0 || denyLeader;
+    if (!decideByModel(good, true)) { return surpass; }
 
     playCard(player, cardToPlay, actionToPlay, "SURPASS", true);
     surpass = true;
@@ -804,18 +809,24 @@ function claim(player, cards, actionToPlay) {
         totalValueOfCards += card.number;
     })
 
-    // On a whim, rarer on the easier difficulties, or (from Tough) when leading next round lets it declare an ambition from its hand that it would win (#71)
-    const toDeclare = declaredAmbitions.length < 3 && ['tycoon', 'tyrant', 'warlord', 'keeper', 'empath'].some(ambition => holdsAmbitionCard(player, ambition) && wouldWinAmbition(player, ambition));
-    if (decideAtDifficulty(player, toDeclare, () => Math.floor(Math.random() * 16 * getDifficulty().chance) >= totalValueOfCards)) {
+    // Worth it (#200 phase 2): it wants to declare an ambition it's likely to win and holds a card
+    // to do it, and it probably can't take the initiative by surpassing later (few high cards
+    // left). Hard always follows this; the others slip and take whims
+    const keep = getDeclareKeepCards(player);
+    const highCards = unplayedCards.filter(card => !keep.includes(card) && card.number >= 5).length;
+    const good = keep.length > 0 && highCards < 2;
+    if (decideByModel(good, keep.length > 0)) {
         // First play the card for this turn's action, chosen from the cards that have
-        // the action the player is after. It couldn't surpass, so a card of the lead
-        // suit can only COPY and any other card PIVOTs
-        const actionCard = getLowestCardtoPlay(cards);
+        // the action the player is after, not the card it's keeping to declare with. It couldn't
+        // surpass, so a card of the lead suit can only COPY and any other card PIVOTs
+        const actionCards = cards.filter(card => !keep.includes(card));
+        const actionCard = getLowestCardtoPlay(actionCards.length > 0 ? actionCards : cards);
         const actionCardAction = (actionCard.name == playedCardList[0].name) ? "COPY" : "PIVOT";
         playCard(player, actionCard, actionToPlay, actionCardAction);
 
-        // Then play a second card face down to claim the initiative
-        playCard(player, getLowestCardtoPlay(getBotCards(player)), "ANY", "CLAIM");
+        // Then play a second card face down to claim the initiative, again keeping the declaring card
+        const claimCards = getBotCards(player).filter(card => !keep.includes(card));
+        playCard(player, getLowestCardtoPlay(claimCards.length > 0 ? claimCards : getBotCards(player)), "ANY", "CLAIM");
 
         hasInitiativeBeenClaimedThisTurn = true;
         changeInitiative(player);
@@ -823,6 +834,48 @@ function claim(player, cards, actionToPlay) {
     }
 
     return false;
+}
+
+function shouldDeclare(player, ambition, outlook, good) {
+    // Likely first: declare (below Hard, with the level's slips). Close to first: often, and always
+    // on Hard. Likely second while whoever's likely first isn't leading on Power: sometimes, not on
+    // Hard. Otherwise only a whim (#200, the user)
+    const hard = getDifficulty().smart == "only";
+    // The leader (#200, the user): likely first, it declares even if the leader comes second, unless
+    // the leader's second place would take them to the Power target. Not likely first, it doesn't
+    // declare one the leader is likely to place in. Near the end, one the leader isn't in is worth it
+    const leader = getLeader(player);
+    if (leader != null && outlook.own != null && ambitionResources[ambition] != null) {
+        const theirs = getAmbitionOutlook(leader, ambition).likely;
+        const markers = getNextMarkerValues();
+        const target = typeof getPowerTarget == "function" ? (getPowerTarget() || {}).target : null;
+        if (good && theirs >= 1 && markers != null && target != null && (leader.powerValue || 0) + markers[theirs == 2 ? 0 : 1] >= target) { return false; }
+        if (!good && theirs >= 1) { return false; }
+        if (!good && outlook.likely >= 1 && theirs == 0 && isLeaderNearTarget(leader)) { return decideByModel(true); }
+    }
+    if (good) { return decideByModel(true); }
+    if (outlook.own == null || ambitionResources[ambition] == null) { return decideByModel(false); }
+    const close = getAmbitionPlacePoints(player, ambition, outlook.own + outlook.gain + 1) == 2;
+    if (close) { return hard || Math.random() < declareCloseChance; }
+    if (outlook.likely == 1) {
+        const rivals = players.filter(other => other !== player);
+        const top = Math.max(...rivals.map(other => ambitionResources[ambition](other)));
+        const winners = rivals.filter(other => ambitionResources[ambition](other) == top);
+        const powerLeader = Math.max(...players.map(other => other.powerValue || 0));
+        const winnerLeads = winners.some(other => (other.powerValue || 0) >= powerLeader);
+        if (!winnerLeads) { return !hard && Math.random() < declareSecondChance; }
+    }
+    return decideByModel(false);
+}
+
+function getDeclareKeepCards(player) {
+    // The cards it's keeping to declare with (#200 phase 2): its highest card for each undeclared
+    // ambition it's likely to win, while a marker is left
+    if (declaredAmbitions.length >= 3 || !canDeclareAmbition(player)) { return []; }
+    return ["tycoon", "tyrant", "warlord", "keeper", "empath"]
+        .filter(ambition => holdsAmbitionCard(player, ambition) && getAmbitionOutlook(player, ambition).likely == 2)
+        .map(ambition => getHighestCard(getBotCards(player).filter(card => card.ambition == ambition)))
+        .filter(card => card != null);
 }
 
 function pivot(player, cards, actionToPlay) {
@@ -833,5 +886,8 @@ function pivot(player, cards, actionToPlay) {
     //      - no: which card to play?
     //          - need to know how many ships are in play
     //          - how many buildings are in play
-    if (cards.length > 0) { playCard(player, cards[0], actionToPlay, "PIVOT", true) }
+    // One action whatever the card: its lowest, keeping any card it means to declare with (#200 phase 2)
+    const keep = getDeclareKeepCards(player);
+    const spare = cards.filter(card => !keep.includes(card));
+    if (cards.length > 0) { playCard(player, getLowestCardtoPlay(spare.length > 0 ? spare : cards), actionToPlay, "PIVOT", true) }
 }
