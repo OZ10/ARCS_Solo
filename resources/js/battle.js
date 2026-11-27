@@ -555,6 +555,8 @@ function updateBattleCounts() {
     if (label != null && battle.defender != null) { label.innerHTML = "Defender " + getDefenderPieces(); }
     showBattleRaid();
     clearBattleDecision();
+    // Predictive Sensors for a human defender, before the dice (leaderrules.js)
+    renderHumanSensors();
 }
 
 // Raid dice: stealing from the defender
@@ -938,6 +940,8 @@ function noteBattleStart() {
     battle.start = {};
     battleCounts.forEach(count => { battle.start[count] = battle[count]; });
     battle.start.buildingTypes = battle.attacker.isHuman ? [] : getBattleBuildingTypes().slice();
+    // The dice are rolling: too late for Predictive Sensors (leaderrules.js)
+    renderHumanSensors();
 }
 
 function getDestroyedBuildingTypes() {

@@ -347,10 +347,75 @@ function undoPredictiveSensors() {
     });
     const owner = (battle.sensorsMoves || [])[0];
     battle.sensorsMoves = [];
+    battle.sensorsPicks = {};
     battle.sensorsSystem = null;
     battle.sensorsDone = false;
     battle.sensorsNote = null;
     if (owner != null && getPlayer(owner.owner) != null) { syncPanelFromBoard(getPlayer(owner.owner)); }
+}
+
+// Predictive Sensors for a human defender (the user's mock-up, 2026-11-27): a box above "Choose
+// dice" to move fresh ships in from next door, then a line with Undo
+
+function getHumanSensorsSources() {
+    // [{ id, fresh }]: next door to the battle, with the defender's fresh ships. null when it doesn't apply
+    const defender = battle.defender, system = battle.boardSystem;
+    if (typeof leadersAndLore == "undefined" || !leadersAndLore || defender == null || !defender.isHuman || typeof defender.number != "number" || system == null || battle.start != null || !hasLore(defender, loreNumbers.predictiveSensors)) { return null; }
+    return getAdjacent(system).map(id => ({ id: id, fresh: getShips(id, defender.number).fresh })).filter(source => source.fresh > 0);
+}
+
+function renderHumanSensors() {
+    const holder = document.getElementById("battleSensors");
+    if (holder == null) { return; }
+    const sources = getHumanSensorsSources();
+    const moved = battle.sensorsMoves || [];
+    if (sources == null || (sources.length == 0 && moved.length == 0)) { holder.innerHTML = ""; return; }
+    const intro = "<div class=\"d-flex align-items-center gap-2 mb-1\"><span class=\"badge rounded-pill text-bg-dark\">Predictive Sensors</span><span class=\"small text-secondary\">before " + getPlayerTag(battle.attacker) + " rolls</span></div>";
+    if (moved.length > 0) {
+        const count = moved.reduce((total, move) => total + move.count, 0);
+        holder.innerHTML = "<div class=\"mb-2\" id=\"sensorsMoved\">" + intro + "<div class=\"small\">You moved " + count + " fresh ship" + (count == 1 ? "" : "s") + " in from " + moved.map(move => getSystemName(move.from)).join(" and ")
+            + ". They're in the counts above. <a href=\"#\" id=\"sensorsUndo\" onclick=\"undoHumanSensors(); return false;\">Undo</a></div></div>";
+        return;
+    }
+    const picks = battle.sensorsPicks || {};
+    const total = sources.reduce((sum, source) => sum + (picks[source.id] || 0), 0);
+    holder.innerHTML = "<div class=\"mb-2\">" + intro + "<p class=\"small mb-1\">Move any of your fresh ships in from next door first?</p>"
+        + sources.map(source => "<div class=\"d-flex align-items-center gap-2 py-1 border-bottom " + getSystemBarClass(source.id) + "\" style=\"padding-left:8px;border-left:4px solid\"><span class=\"flex-fill\">" + getSystemName(source.id).replace(/<b(\s|>)/g, "<span$1").replace(/<\/b>/g, "</span>") + "</span><span class=\"small text-secondary\">" + source.fresh + " fresh</span>"
+            + getMoveStepper(picks[source.id] || 0, "stepHumanSensors('" + source.id + "', -1)", "stepHumanSensors('" + source.id + "', 1)") + "</div>").join("")
+        + "<button type=\"button\" class=\"btn btn-primary btn-sm w-100 mt-2\" id=\"sensorsMove\" onclick=\"moveHumanSensors()\"" + (total > 0 ? "" : " disabled") + ">" + (total > 0 ? "Move " + total + " ship" + (total == 1 ? "" : "s") + " in" : "Set how many to move in") + "</button>"
+        + "<div class=\"small text-secondary text-center mt-1\">Or leave them at 0 and choose the dice.</div></div>";
+}
+
+function stepHumanSensors(id, change) {
+    const source = (getHumanSensorsSources() || []).find(item => item.id == id);
+    if (source == null) { return; }
+    battle.sensorsPicks = battle.sensorsPicks || {};
+    battle.sensorsPicks[id] = Math.min(Math.max((battle.sensorsPicks[id] || 0) + change, 0), source.fresh);
+    renderHumanSensors();
+}
+
+function moveHumanSensors() {
+    const system = battle.boardSystem, number = battle.defender.number;
+    const picks = battle.sensorsPicks || {};
+    battle.sensorsMoves = [];
+    (getHumanSensorsSources() || []).forEach(source => {
+        const count = Math.min(picks[source.id] || 0, source.fresh);
+        if (count > 0) { moveShips(source.id, system, number, count); battle.sensorsMoves.push({ from: source.id, to: system, owner: number, count: count }); }
+    });
+    battle.sensorsPicks = {};
+    if (battle.sensorsMoves.length == 0) { renderHumanSensors(); return; }
+    battle.sensorsSystem = system;
+    battle.sensorsDone = true;
+    syncPanelFromBoard(battle.defender);
+    fillBattleFromSystem(system);
+    updateBattleCounts();
+}
+
+function undoHumanSensors() {
+    const system = battle.boardSystem;
+    undoPredictiveSensors();
+    if (system != null) { fillBattleFromSystem(system); }
+    updateBattleCounts();
 }
 
 function keepPredictiveSensors() {
@@ -364,7 +429,8 @@ function getLeaderBattleSetupNote() {
     if (battle.sensorsNote != null) {
         return "<div class=\"small text-muted text-center mb-2\">Predictive Sensors: " + getPlayerTag(battle.defender) + " moved fresh ships in, " + battle.sensorsNote + ". Already on the app's board and in the counts.</div>";
     }
-    if (hasLore(battle.defender, loreNumbers.predictiveSensors) && (battle.defender.isHuman || battle.boardSystem == null)) {
+    // A human defender with the board has its own box (renderHumanSensors)
+    if (hasLore(battle.defender, loreNumbers.predictiveSensors) && battle.boardSystem == null) {
         return "<div class=\"small text-muted text-center mb-2\">Predictive Sensors: " + getPlayerTag(battle.defender) + " may first move fresh ships in from adjacent systems. Update the counts before choosing the dice.</div>";
     }
     return "";
