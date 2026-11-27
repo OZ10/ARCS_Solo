@@ -50,6 +50,11 @@ const boardObjectiveCounts = {
 
 function getFateMoveTarget(player) {
     if (typeof getSteer != "function") { return null; }
+    // The Pacifist (Act II): carry a Witness it controls to a Psionic planet, to flip and take it
+    if (typeof campaign != "undefined" && campaign != null && campaign.act == 2 && hasFate(player, 14)) {
+        const from = getWitnessSystems(player).find(id => getPlanetResource(id) != "psionics" && getShips(id, player.number).fresh > 0);
+        if (from != null) { return { flagship: false, from: from, test: id => getPlanetResource(id) == "psionics", why: "for its Fate: to carry its Witness to a Psionic planet, to take it" }; }
+    }
     const steer = getSteer(player);
     const text = steer == null ? null : getSteerField(steer, "move", player, null);
     if (text == null) { return null; }
@@ -73,6 +78,24 @@ function getFateMoveTarget(player) {
     ];
     const match = targets.find(([pattern]) => pattern.test(text));
     return match == null ? null : { flagship: match[1], test: match[2], why: "for its Fate: " + text.replace(/^(its Flagship|ships) to /, "to ") };
+}
+
+// The Pacifist's Witnesses: Loyal tokens that move with its ships
+
+function getWitnessSystems(player) {
+    // Where it has a Witness still on its spyglass side, in a system it controls
+    return getSystemIds().filter(id => getTokens(id).some(token => token.kind == "witness" && token.owner == player.number && (token.side || 0) == 0)
+        && getControllerFor(id, player.number) == player.number);
+}
+
+function carryFateTokens(player, from, to) {
+    // Its Witnesses go with its ships (Witnesses: "move Witnesses you control")
+    const tokens = getTokens(from);
+    const moving = tokens.filter(token => token.kind == "witness" && token.owner == player.number);
+    // (Called once its ships have gone, so control was checked when the Move was chosen)
+    if (moving.length == 0 || getShips(to, player.number).fresh + getShips(to, player.number).damaged == 0) { return; }
+    getSystem(from).tokens = tokens.filter(token => !moving.includes(token));
+    moving.forEach(token => getTokens(to).push(token));
 }
 
 // The Fate card actions, decided from the board
@@ -153,6 +176,12 @@ function getFateBoardOffer(player, kind, can) {
             return system == null ? null : { where: { kind: "fate:revolt", system: system }, text: "destroy the " + damagedThere(system) + " damaged Rival and Imperial ship" + (damagedThere(system) == 1 ? "" : "s") + " at " + getSystemName(system) + ", ignoring the Truce Law. No Trophies (Incite Revolt)",
                 why: "The Free city there rises up for the Commonwealth." };
         }
+        case "witness": {
+            // The Pacifist's prelude: flip a Witness at a Psionic planet it controls, and take it
+            const system = getWitnessSystems(player).find(id => getPlanetResource(id) == "psionics");
+            return system == null || getEmptySlots(player) == 0 ? null : { where: { kind: "fate:witness", system: system }, text: "flip its Witness at " + getSystemName(system) + " to its Psionic side and take it (Witnesses)",
+                why: "A Psionic for its Fate: Spread Empathy pays for Psionics spent while Empath is declared." };
+        }
         case "banner": {
             // The Hegemon's Planting Banners: at its Flagship's planet, with no Banner and nothing that isn't Loyal
             const system = typeof getFlagshipSystem == "function" ? getFlagshipSystem(player) : null;
@@ -204,6 +233,12 @@ function applyFateBoardStep(player, where) {
             break;
         }
         case "fate:banner": addToken(system, "banner", n); break;
+        case "fate:witness": {
+            const tokens = getTokens(system);
+            const index = tokens.findIndex(token => token.kind == "witness" && token.owner == n);
+            if (index >= 0) { tokens.splice(index, 1); }
+            break;
+        }
         default: break;
     }
     syncPanelFromBoard(player);

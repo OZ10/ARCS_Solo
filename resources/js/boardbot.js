@@ -464,6 +464,10 @@ function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
         const from = typeof getFlagshipSystem == "function" ? getFlagshipSystem(player) : null;
         const to = from == null ? null : getMoveDestinations(from, player.number).find(id => ok(id) && fateMove.test(id));
         if (to != null) { return { from: from, to: to, count: Math.min(getShips(from, player.number).fresh, 1), why: fateMove.why }; }
+    } else if (fateMove != null && fateMove.from != null) {
+        // From where its Fate's token is, such as a Witness
+        const to = getMoveDestinations(fateMove.from, player.number).find(id => ok(id) && fateMove.test(id));
+        if (to != null) { return { from: fateMove.from, to: to, count: canTake(fateMove.from) > 0 ? canTake(fateMove.from) : getShips(fateMove.from, player.number).fresh, why: fateMove.why }; }
     } else if (fateMove != null) {
         const to = getSystemIds().find(id => ok(id) && fateMove.test(id) && getMoveSources(player, id).length > 0);
         const found = to == null ? null : move(to, 2);
@@ -556,6 +560,8 @@ function applyBoardStep(player, where) {
         moveShips(where.from, where.to, player.number, where.count);
         // Its campaign Flagship goes with its fleet (campaign/flagships.js)
         if (player.flagship != null && hasFlagshipAt(where.from, player.number)) { moveFlagship(player, where.from, where.to); }
+        // Its campaign tokens that go with its ships, such as Witnesses (campaign/fateboard.js)
+        if (typeof carryFateTokens == "function") { carryFateTokens(player, where.from, where.to); }
     }
     if (where.kind == "city" || where.kind == "starport") {
         // Cloud Cities: outside the slots, for 1 resource of the planet's type (leaderrules.js)

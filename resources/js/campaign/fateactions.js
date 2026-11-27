@@ -49,6 +49,11 @@ function getFatePreludeOffers(player) {
         const banner = getFateBoardOffer(player, "banner");
         if (banner != null) { offers.push({ label: "Plant a Banner", text: banner.text, decided: true, why: banner.why, where: banner.where }); }
     }
+    // The Pacifist: a Witness at a Psionic planet it controls, flipped and taken (campaign/fateboard.js)
+    if (isFateActionPlayer(player, 14, [2])) {
+        const witness = getFateBoardOffer(player, "witness");
+        if (witness != null) { offers.push({ label: "Take a Witness", text: witness.text, gains: { psionics: 1 }, decided: true, why: witness.why, where: witness.where }); }
+    }
     // The Pathfinder: Clues to the Portal
     if (isFateActionPlayer(player, 9, [2]) && preludeResources.some(resource => player[resource + "Value"] > 0)) {
         offers.push({ label: "Uncover a Clue", text: "with its Flagship at a planet with no Clue, spend 1 resource different from every planet type in that cluster. The player to its right places a Clue (Uncovering Clues). Take the resource off its panel" });
