@@ -568,6 +568,9 @@ function fillBattleFromSystem(system) {
     battle.damaged = ships.damaged;
     battle.freshBuildings = buildings.filter(building => !building.damaged).length;
     battle.damagedBuildings = buildings.filter(building => building.damaged).length;
+    // What they are, fresh first, so the window needn't ask (#160)
+    battle.boardBuildingKinds = buildings.filter(building => !building.damaged).concat(buildings.filter(building => building.damaged)).map(building => building.kind);
+    battle.buildingKinds = battle.boardBuildingKinds.slice();
     // On a gate, its city is a gate city (Gate Stations)
     battle.planet = isPlanet(system) ? getPlanetResource(system) : (getBuildings(system, defender.number, "city").length > 0 ? "gate" : null);
     // Gatekeepers' 2 more dice, in a gate (#160)

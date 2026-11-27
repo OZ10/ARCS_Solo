@@ -375,7 +375,7 @@ function setPlayerPower(player, power) {
     if (input != null) { input.value = power; }
 
     const header = document.getElementById("playerpower" + player.number);
-    if (header != null) { header.innerHTML = "Power " + power; }
+    if (header != null) { header.innerHTML = getPowerBannerHtml(power); }
     refreshPanelSections(player);
 }
 

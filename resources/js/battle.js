@@ -757,7 +757,11 @@ function showBattleRaid() {
     }
     // What the buildings are, as destroying a city and a starport are very different. With no
     // cities, they can only be starports
-    if (battle.freshBuildings + battle.damagedBuildings > 0 && getPlanetOptions(battle.defender).length > 0) {
+    // From the board, the window knows them (#160): only asked without a board system
+    // (unless the counts were changed by hand from what the board holds)
+    if (battle.freshBuildings + battle.damagedBuildings > 0 && battle.boardSystem != null && battle.boardBuildingKinds != null && battle.boardBuildingKinds.length == battle.freshBuildings + battle.damagedBuildings) {
+        html += "<div class=\"small text-center text-muted mb-2\" id=\"battleBuildingsKnown\">Their buildings here: " + battle.boardBuildingKinds.map((kind, index) => (index < battle.freshBuildings ? "" : "damaged ") + kind).join(", ") + ", from the board.</div>";
+    } else if (battle.freshBuildings + battle.damagedBuildings > 0 && getPlanetOptions(battle.defender).length > 0) {
         getBattleBuildingTypes();
         html += getBuildingChoiceHtml("battleBuilding", battle.planet, battle.buildingKinds,
             index => (index < battle.freshBuildings ? "Fresh" : "Damaged") + " building", "setBattlePlanet", "setBuildingKind");

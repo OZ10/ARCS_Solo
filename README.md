@@ -159,13 +159,7 @@ Each action you've taken is listed under **Done**, with **Undo**, which takes it
 
 <details><summary><b>A bot's turn</b></summary>
 
-Tap the bot's **Play Card** button.
-
-<img src="docs/screenshots/question.png" width="300" align="right" alt="A bot's question">
-
-**Its questions:** the bot works out most things from the app's board: how big a fleet it can bring to a battle, where it can build, which cities it can tax and which Rivals it can reach. It only asks about what the board doesn't hold, such as *"Can I reach a Rival's relic city this turn?"* when that depends on a card. Answer honestly from what you see on the table.
-
-<br clear="right">
+Tap the bot's **Play Card** button. The bot works everything out from the app's board: how big a fleet it can bring to a battle, where it can build, which cities it can tax and which Rivals it can reach.
 
 <img src="docs/screenshots/prelude.png" width="300" align="right" alt="A bot's prelude">
 
@@ -209,7 +203,6 @@ The app plays each bot's cards and makes its choices, but it can't see or touch 
 
 - **Its pieces:** move its ships, and place or remove its buildings, agents and resources on the table, where the plan says.
 - **Its panel:** the ships, starports and cities on its panel come from the app's board, and the app fills in its resources when it knows what happened, such as after a prelude, a tax, a battle, a build, the Court or scoring.
-- **Its answers:** answer its Yes/No questions from what you see on the table.
 - **The board check:** at the end of each round, the **Check the board** window goes through each cluster in play, listing every player's ships and buildings in each system. Correct anything that doesn't match the table with **−** and **+**, **+ Ships**, **+ City**, **+ Starport** and **×**, then tap the next cluster and **Done**, or **It all matches: done**. This catches anything that didn't go through the app, such as a step you skipped. You can open it any time from **Options**, **Check the board**.
 - **Its dice:** roll the dice it chooses, then enter what's left.
 - **The Court:** when a card leaves the market, add its replacement.
@@ -455,3 +448,5 @@ Bots battle the Free States, the Blight and, as Outlaws, the Empire: when one is
 ---
 
 Found a problem or have an idea? [Open an issue](https://github.com/OZ10/ARCS_Solo/issues).
+
+**Credits:** B4RCS was created and originally developed by [OZ10](https://github.com/OZ10), from December 2024. Since 31 October 2026, all the major development has been done by [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant, working with OZ10, who designs, play tests and directs the app.

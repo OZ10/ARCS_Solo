@@ -724,6 +724,7 @@ function prefillBattleFromBoard() {
     // A bot: the system in its plan. A human player: the first where both sides have pieces, and
     // they can choose another (boardhuman.js)
     battle.boardSystem = null;
+    battle.boardBuildingKinds = null;
     battle.sensorsDone = false;
     battle.sensorsNote = null;
     const { attacker, defender } = battle;

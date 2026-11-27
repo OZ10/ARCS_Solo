@@ -392,6 +392,8 @@ function dealCards() {
     discardPile = shuffleCards(currentactioncards.slice());
 
     createCardButtonsForHumanPlayer();
+    // Everyone's cards in hand, in their banners (#206)
+    updateCardCounts();
 
     // The mulligan is offered once the windows before it have closed (see offerMulligan)
 }
