@@ -63,6 +63,8 @@ function getMoveSources(player, to) {
 // reach that no ships guard is a good one (turnplan.js getBattleTarget)
 const unreachableTargetPenalty = -100;
 const exposedBuildingBonus = 2;
+// A battle system where raid dice work, when the Rival holds what it's chasing (#228)
+const raidSystemBonus = 3;
 // A Rival's city it can destroy for little Outrage, holding the Loyal card of that type (#208)
 const loyalCityBonus = 1.5;
 
@@ -117,7 +119,8 @@ function getUsefulRivalBattle(player) {
     for (const rival of players.filter(other => other !== player && hasFavourableBattle(player, other))) {
         if (chasing("warlord")) { return { rival: rival, reason: "chasing Warlord" }; }
         if (chasing("tyrant")) { return { rival: rival, reason: "chasing Tyrant" }; }
-        const held = chased.find(resource => rival[resource + "Value"] + getStealableIconCount(rival, resource) > 0);
+        // Only where raid dice work (#228)
+        const held = canRaidSomewhere(player, rival) ? chased.find(resource => rival[resource + "Value"] + getStealableIconCount(rival, resource) > 0) : null;
         if (held != null) { return { rival: rival, reason: "Player " + rival.number + " holds " + preludeResourceNames[held] + ", which it's chasing" }; }
         if (rival === leader) { return { rival: rival, reason: "to slow the leader, Player " + rival.number }; }
         if (getExposedBuildings(player, rival).length > 0) { return { rival: rival, reason: "Player " + rival.number + "'s building in reach has no ships guarding it" }; }
@@ -125,6 +128,27 @@ function getUsefulRivalBattle(player) {
         if (steer != null && (steer.add || 0) > 0) { return { rival: rival, reason: steer.reason || "for its Fate" }; }
     }
     return null;
+}
+
+function canRaidIn(id, rival) {
+    // Raid dice need a building of theirs in the battle system, unless they have none on the board
+    // (rulebook p.14; #228)
+    if (rival == null || typeof rival.number != "number") { return false; }
+    return getBuildings(id, rival.number).length > 0 || getBoardBuildings(rival.number).length == 0;
+}
+
+function canRaidSomewhere(player, rival) {
+    // A system it could battle them in this turn where raid dice work: its ships there, or able to move in
+    if (rival == null || typeof rival.number != "number") { return false; }
+    return getSystemIds().some(id => canRaidIn(id, rival)
+        && (getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0)
+        && canBattleIn(id, player.number, rival.number)
+        && (getShips(id, player.number).fresh > 0 || getMoveSources(player, id).length > 0));
+}
+
+function wantsToRaid(player, rival) {
+    // They hold what it's chasing
+    return preludeResources.some(resource => getResourceNeed(player, resource) == 2 && rival[resource + "Value"] + getStealableIconCount(rival, resource) > 0);
 }
 
 function isFavourableBattle(odds) {
@@ -435,9 +459,13 @@ function getBattleSystem(player, targetNumber) {
     // Where its fresh ships meet the target's pieces: where it outnumbers them most, an unguarded
     // building of theirs first (raid dice there)
     // All its ships roll dice, damaged ones too (rulebook p.14); all of theirs damaged is a good edge (#198)
+    // Raiding what it's chasing: where raid dice work, with a building of theirs (#228)
+    const rival = getPlayer(targetNumber);
+    const raid = rival != null && wantsToRaid(player, rival);
     const edge = id => getShips(id, player.number).fresh + getShips(id, player.number).damaged - getShips(id, targetNumber).fresh - getShips(id, targetNumber).damaged
         + (getShips(id, targetNumber).fresh == 0 && getShips(id, targetNumber).damaged > 0 ? 2 : 0)
-        + (getBuildings(id, targetNumber).length > 0 && getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged == 0 ? exposedBuildingBonus : 0);
+        + (getBuildings(id, targetNumber).length > 0 && getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged == 0 ? exposedBuildingBonus : 0)
+        + (raid && canRaidIn(id, rival) ? raidSystemBonus : 0);
     return getSystemIds().filter(id => getShips(id, player.number).fresh > 0 && (getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged > 0 || getBuildings(id, targetNumber).length > 0)
         && canBattleIn(id, player.number, targetNumber))
         .sort((a, b) => edge(b) - edge(a))[0] || null;
@@ -1038,6 +1066,62 @@ function applyBattleToBoard(losses) {
     if (step != null) { step.applied = true; }
     // Both panels follow the board, human players' too now their actions are on it
     [battle.attacker, battle.defender].forEach(syncPanelFromBoard);
+    // Its Battles still to come, with nothing left to fight there (#228)
+    rethinkBotBattles(battle.attacker);
+}
+
+function rethinkBotBattles(player) {
+    // A Battle still in its plan whose system has nothing of that Rival's left: battle them
+    // somewhere else, or another Rival worth it; otherwise Secure, then Move, if its card allows;
+    // otherwise skip it (#228, the user)
+    if (player == null || player.isHuman || !Array.isArray(player.turnPlan)) { return; }
+    const steps = player.turnPlan.filter(step => step.action == "battle" && !step.applied && !step.skip && step.where != null && typeof step.where.battle == "number");
+    if (steps.length == 0) { return; }
+    const hasPieces = (id, number) => getShips(id, number).fresh + getShips(id, number).damaged > 0 || getBuildings(id, number).length > 0;
+    const canStillFight = (id, number) => getShips(id, player.number).fresh + getShips(id, player.number).damaged > 0 && hasPieces(id, number) && canBattleIn(id, player.number, number);
+    // Where its ships already are, at good odds
+    const findBattle = number => {
+        const rival = getPlayer(number);
+        const id = rival != null ? getBattleSystem(player, number) : null;
+        return id != null && isFavourableBattle(getBattleOdds(player, rival, id)) ? id : null;
+    };
+    steps.forEach(step => {
+        const was = step.where;
+        if (canStillFight(was.system, was.battle)) { return; }
+        const gone = "nothing of Player " + was.battle + "'s is left at " + getSystemName(was.system);
+        // The same Rival somewhere else
+        let system = findBattle(was.battle), number = was.battle;
+        // Or another Rival: in a campaign only one worth battling (getUsefulRivalBattle)
+        if (system == null) {
+            const useful = campaignMode ? getUsefulRivalBattle(player) : null;
+            const others = players.filter(other => other !== player && other.number != was.battle && (!campaignMode || (useful != null && useful.rival === other)));
+            const other = others.find(rival => findBattle(rival.number) != null);
+            if (other != null) { system = findBattle(other.number); number = other.number; }
+        }
+        if (system != null) {
+            step.where = { system: system, battle: number };
+            step.text = "Battle (" + gone + (number == was.battle ? ", so here instead" : ", so Player " + number + " instead") + ")";
+            return;
+        }
+        // Another action its card allows
+        const play = getBotPlay(player);
+        const actions = play != null ? play.actions.split(",") : [];
+        const planned = player.turnPlan.filter(item => item.card != null).map(item => item.card);
+        const entry = actions.includes("secure") && isMarketKnown() ? getCardsToSecure(player).find(card => !planned.includes(card.number)) : null;
+        if (entry != null) {
+            const why = getMarketReason(player, entry);
+            Object.assign(step, { action: "secure", where: null, card: entry.number, hints: [],
+                text: "Secure " + getCourtCard(entry.number).name + " (instead of a Battle: " + gone + (why ? "; " + why : "") + ")" });
+            return;
+        }
+        const move = actions.includes("move") ? chooseBoardMove(player, null, getNewCityResource(player), []) : null;
+        if (move != null) {
+            Object.assign(step, { action: "move", where: move, hints: [], text: getBotMoveText(player, move) + " (instead of a Battle: " + gone + "; " + getMoveWhy(move) + ")" });
+            return;
+        }
+        Object.assign(step, { where: null, skip: true, text: "No Battle: " + gone + ", and nowhere else is worth a battle, so skip this action" });
+    });
+    SaveAllSettings();
 }
 
 // Each player has 15 ships: those not on the board or held as Rivals' Trophies are in its supply

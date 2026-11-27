@@ -208,6 +208,9 @@ function nextTurn() {
 
     enableDisableButton("nextTurn", true);
 
+    // A new turn: the last turn's "What happened" is cleared (#230, the user)
+    clearNews();
+
     // Union cards placed in a prelude: the turn has ended, so their holders draw the cards
     drawUnionCards();
 
@@ -290,6 +293,8 @@ function startNextRound(afterCampaign = false, boardChecked = false) {
     // Before the next round: check the board against the map (boardui.js, #160)
     if (!boardChecked) { whenWindowsClosed(() => showBoardCheck(() => startNextRound(true, true))); return; }
 
+    // A new round's first turn: the last turn's "What happened" is cleared (#230)
+    clearNews();
     turnNumber = 1;
     roundNumber += 1;
 

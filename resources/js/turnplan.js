@@ -172,11 +172,13 @@ function getFleetReason(player) {
     return "its fleet of " + fleet + " can attack this turn: enough for " + (actions >= 2 ? actions + " Battle actions" : "1 Battle action");
 }
 
-function getBattleTargetReason(player, rival) {
-    // Why this Rival, as { why, where }. The app can't see the map, so where is a rule of thumb:
-    // a defending fresh ship hits back on an intercept, and raid dice need a building there
+function getBattleTargetReason(player, rival, system = null) {
+    // Why this Rival, as { why, where }. where is a rule of thumb for when the board hasn't chosen
+    // the system: a defending fresh ship hits back on an intercept, and raid dice need a building there
     const outnumber = "Choose a system where it outnumbers their fresh ships.";
-    const holding = preludeResources.filter(resource => getResourceNeed(player, resource) == 2)
+    // To raid only where raid dice work: in the battle system, or somewhere it can battle them (#228)
+    const canRaid = system != null ? canRaidIn(system, rival) : canRaidSomewhere(player, rival);
+    const holding = !canRaid ? null : preludeResources.filter(resource => getResourceNeed(player, resource) == 2)
         .map(resource => ({ resource: resource, count: rival[resource + "Value"] + getStealableIconCount(rival, resource) }))
         .filter(held => held.count > 0).sort((a, b) => b.count - a.count)[0];
     if (holding != null) {
@@ -217,7 +219,8 @@ function getBattleTarget(player) {
     if (target == null) {
         const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2);
         const warlord = declaredAmbitions.includes("warlord") && isChasingAmbition(player, "warlord");
-        const score = rival => chased.reduce((total, resource) => total + (rival[resource + "Value"] + getStealableIconCount(rival, resource)) * weights.holding, 0)
+        // What they hold to raid counts only where raid dice work (#228)
+        const score = rival => (canRaidSomewhere(player, rival) ? chased.reduce((total, resource) => total + (rival[resource + "Value"] + getStealableIconCount(rival, resource)) * weights.holding, 0) : 0)
             + (players.filter(other => other !== rival).every(other => rival.powerValue > other.powerValue) ? weights.leader : 0)
             + rival.powerValue * weights.power
             + rival.shipsBoardValue * (warlord ? weights.shipWarlord : weights.ship)

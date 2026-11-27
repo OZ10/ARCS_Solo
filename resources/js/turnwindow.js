@@ -127,12 +127,18 @@ function getSplitPlanStep(step, player) {
     // "Battle (chasing Warlord)" is the step and its reason. A Battle also says who and where
     const parts = /^(.*?) \((.*)\)$/.exec(step.text);
     const split = parts == null ? { name: step.text, reason: "" } : { name: parts[1], reason: capitalise(parts[2]) };
-    const target = (step.action == "battle") ? getBattleTarget(player) : null;
+    // A Battle with nothing left to fight says so as it is (#228)
+    const target = (step.action == "battle" && !step.skip) ? getBattleTarget(player) : null;
     if (target == null) { return split; }
     // Where, from the board (boardbot.js, #160)
     // Once the board has chosen the system, the general advice on where to battle is left out
     const at = step.where != null && step.where.system != null ? " at " + getSystemName(step.where.system) : "";
-    return { name: (target.title || "Battle Player " + target.player.number) + at, reason: [split.reason ? split.reason + "." : "", target.why, at == "" ? target.where : ""].filter(text => text != null && text != "").join(" ") };
+    // Its Rival and why, for the system the board chose: raid dice only where they work (#228). A
+    // later Battle may have moved on to another Rival once the first had nothing left there
+    const rival = step.where != null && typeof step.where.battle == "number" && target.title == null ? getPlayer(step.where.battle) : null;
+    const why = rival != null ? getBattleTargetReason(player, rival, step.where.system).why : target.why;
+    const name = rival != null ? "Battle Player " + rival.number : (target.title || "Battle Player " + target.player.number);
+    return { name: name + at, reason: [split.reason ? split.reason + "." : "", why, at == "" ? target.where : ""].filter(text => text != null && text != "").join(" ") };
 }
 
 function getOfferRows(offers) {
