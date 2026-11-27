@@ -528,7 +528,7 @@ function showGovern() {
     showCampaignWindow("Edicts", intro + "<p class=\"mt-2 mb-1\">Player " + firstRegent.number + " is First Regent: enforce this Policy, or change it (the new one takes effect next time).</p>"
         + "<ul class=\"small mb-2\">" + plan.map(item => "<li>" + describe(item) + "</li>").join("") + "</ul>"
         + (getOutlawChoicesHtml(firstRegent, plan) != "" ? "</div>" + getOutlawChoicesHtml(firstRegent, plan) + "<div class=\"turnsection\">" : "")
-        + "<button type=\"button\" class=\"btn btn-primary w-100 mb-2\" onclick=\"enforcePolicy()\">Enforce " + policyNames[campaign.policy] + "</button>"
+        + "<button type=\"button\" class=\"btn btn-primary w-100 mb-2\" onclick=\"enforcePolicy()\">Enforce " + policyNames[campaign.policy].replace(/^A /, "a ") + "</button>"
         + "<div class=\"brseg\">" + others.map(policy => "<button type=\"button\" class=\"btn btn-outline-secondary\" onclick=\"changePolicy('" + policy + "')\">Change<small>to " + capitalise(policy) + "</small></button>").join("") + "</div></div>"
         + "<p class=\"small\">Then any other Edicts in the rules booklet, in number order.</p>", firstRegent, true);
 }
@@ -625,7 +625,8 @@ function getPolicyValue(firstRegent, policy) {
     if (policy == "peace") {
         const mine = getCityBonus(firstRegent), best = Math.max(0, ...rivals.map(getCityBonus));
         action = mine - best;
-        notes.push("Celebrate Regency gives it " + mine + " Power" + (rivals.length > 0 ? ", and its Rival Regents up to " + best : ""));
+        notes.push(mine == 0 && best == 0 ? "Celebrate Regency gives no one any Power yet (no uncovered city slots with a bonus)"
+            : "Celebrate Regency gives it " + mine + " Power" + (rivals.length > 0 ? ", and its Rival Regents up to " + best : ""));
     } else if (policy == "war") {
         const mine = w.weapon[getResourceNeed(firstRegent, "weapons")], best = Math.max(0, ...rivals.map(rival => w.weapon[getResourceNeed(rival, "weapons")]));
         action = mine - best;
