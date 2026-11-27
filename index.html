@@ -74,10 +74,11 @@
               role="button"
               data-bs-toggle="collapse" data-bs-target="#playerpanel">
               <div class="row">
+                <!-- The initiative first, so it stands out beside the name -->
+                <div class="col-auto d-none pe-0"
+                  id="playerinitiative" title="Has the initiative">&#9733;</div>
                 <div class="col-auto" id="playernumber">Player x</div>
                 <div class="col-auto fw-light playercards" id="playercards" title="Cards in hand"></div>
-                <div class="col-auto d-none"
-                  id="playerinitiative">&#9733;</div>
                 <div class="col-auto fw-light" id="playerpower" title="Power"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> 0</div>
               </div>
             </a>
@@ -533,7 +534,7 @@
               <!-- Version is DDMMYY.NN, matching the commit message. Add .01 for each
                    group of changes made on the same day, start at .01 on a new day -->
               <span class="d-flex align-items-center gap-2 me-auto">
-                <small class="text-muted" id="appVersion">v271126.05</small>
+                <small class="text-muted" id="appVersion">v271126.06</small>
               </span>
               <button type="button" class="btn btn-primary"
                 data-bs-dismiss="modal">Close</button>
