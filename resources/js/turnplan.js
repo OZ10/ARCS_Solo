@@ -228,7 +228,9 @@ function getBattleTarget(player) {
             // reach counts for more (boardbot.js, #160)
             + getBattleTargetBoardBonus(player, rival)
             // The leader, more the further ahead and the nearer the target (#200)
-            + getLeaderThreat(player, rival) * leaderWeights.battle;
+            + getLeaderThreat(player, rival) * leaderWeights.battle
+            // Their city it could destroy for little Outrage, with a Loyal card of that type (#208)
+            + getLoyalCityBonus(player, rival);
         target = rivals.map(rival => ({ rival: rival, score: score(rival) })).sort((a, b) => b.score - a.score)[0].rival;
         player.battleTargetNumber = target.number;
     }
@@ -429,8 +431,8 @@ function getTurnPlan(player) {
         // No more Influences than it has agents (#123)
         const agentsLeft = getAgentsLeft(player);
         const canInfluenceAgain = agentsLeft == null || chosen.filter(pick => pick.action == "influence").length < agentsLeft;
-        // No more Repairs than it has pieces on the board to repair (#145)
-        const canRepairAgain = chosen.filter(pick => pick.action == "repair").length < getRepairablePieces(player);
+        // No more Repairs than the board has damaged pieces of its, after its prelude (#145, #211)
+        const canRepairAgain = chosen.filter(pick => pick.action == "repair").length < getDamagedPieceCount(player);
         const canMoveAgain = chosen.filter(pick => pick.action == "move").length < usefulMoves;
         const best = available.filter(action => scores[action].score > planImpossible && (action != "tax" || canTaxAgain) && (action != "secure" || canSecureAgain) && (action != "influence" || canInfluenceAgain) && (action != "repair" || canRepairAgain) && (action != "move" || canMoveAgain))
             .sort((a, b) => value(b) - value(a))[0];

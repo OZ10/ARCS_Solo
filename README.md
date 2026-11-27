@@ -254,7 +254,7 @@ For a bot:
 4. **Choose dice:** tells you which dice to roll and how to assign the hits, including which building to hit first and why. The attacker chooses where its hits go. It weighs up the risk to its ships, what destroying a city would cost in Outrage, any Ransack, and what the defender loses, such as their last starport. **Details** shows the odds.
 5. **After rolling:** set the counts to what's left. Attack again, or tap **Done battling**.
 
-The **(i)** beside *Can attack again this turn* explains when to use that switch.
+When the bot's plan has another Battle after this one, its dice advice damages fresh ships first, so its next attack faces fewer of them. There's no switch to set: it knows from its plan.
 
 <br clear="right">
 

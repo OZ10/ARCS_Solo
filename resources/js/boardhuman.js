@@ -182,7 +182,7 @@ function undoBoardAction(index) {
         if (action.kind == "ship") { removeShips(action.system, number, 1); addShips(action.system, number, 1, true); }
         else { setBuildingDamaged(action.system, number, action.kind, true); }
     } else if (action.action == "tax") {
-        setPlayerResource(player, action.resource, Math.max(player[action.resource + "Value"] - 1, 0));
+        if (action.gained !== false) { setPlayerResource(player, action.resource, Math.max(player[action.resource + "Value"] - 1, 0)); }
         if (action.captured) { setPlayerResource(player, "captives", Math.max(player.captivesValue - 1, 0)); }
     }
     player.boardActions = getBoardActions(player).filter((other, at) => at != index);
@@ -282,7 +282,7 @@ function renderHumanOptions(type) {
             // Anarchist (Inspiring): an empty slot where its ships are
             if (option.slot) { return getOptionButton("An empty <b>" + preludeResourceNames[option.resource] + "</b> slot at " + getSystemName(option.system), "Gain 1 " + preludeResourceNames[option.resource] + " (Anarchist, Inspiring)", "humanTax(" + index + ")", "humanOption" + index); }
             return getOptionButton((mine ? "Your " : "Player " + option.owner + "'s ") + (option.gate ? "gate city at " + getSystemName(option.system) + ", for <b>" + preludeResourceNames[option.resource] + "</b>" : "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system)),
-                "Gain 1 " + preludeResourceNames[option.resource] + (mine ? "" : option.noCapture ? " (Empath's Bond: no Captive)" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
+                (getResourceSupply(option.resource) > 0 ? "Gain 1 " + preludeResourceNames[option.resource] : "No " + preludeResourceNames[option.resource] + " left to gain") + (mine ? "" : option.noCapture ? " (Empath's Bond: no Captive)" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
         });
     }
     body.innerHTML = options.length > 0 ? "<div class=\"d-grid gap-2\">" + options.join("") + "</div>"
@@ -317,13 +317,15 @@ function humanTax(index) {
     const option = getHumanTaxOptions(player)[index];
     if (option == null) { return; }
     const captured = option.owner != player.number && !option.noCapture;
-    setPlayerResource(player, option.resource, player[option.resource + "Value"] + 1);
+    // None left in the supply: only the Captive (#210)
+    const gained = getResourceSupply(option.resource) > 0;
+    if (gained) { setPlayerResource(player, option.resource, player[option.resource + "Value"] + 1); }
     if (captured) { setPlayerResource(player, "captives", (player.captivesValue || 0) + 1); }
     // A Leader's extra resource for a Copy or Pivot Tax, and Shaper (Mythic) may change the planet (leaderrules.js)
     applyLeaderTaxBonus(player);
     offerMythic(player, option.system);
-    recordBoardAction(player, { action: "tax", system: option.system, owner: option.owner, resource: option.resource, captured: captured,
-        text: (captured ? "Player " + option.owner + "'s " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": 1 " + preludeResourceNames[option.resource] + (captured ? " and 1 Captive" : "") });
+    recordBoardAction(player, { action: "tax", system: option.system, owner: option.owner, resource: option.resource, gained: gained, captured: captured,
+        text: (captured ? "Player " + option.owner + "'s " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": " + (gained ? "1 " + preludeResourceNames[option.resource] : "no " + preludeResourceNames[option.resource] + " left") + (captured ? " and 1 Captive" : "") });
     closeHumanBoardAction();
 }
 

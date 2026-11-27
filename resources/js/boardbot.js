@@ -27,6 +27,8 @@ function getMoveSources(player, to) {
 // reach that no ships guard is a good one (turnplan.js getBattleTarget)
 const unreachableTargetPenalty = -100;
 const exposedBuildingBonus = 2;
+// A Rival's city it can destroy for little Outrage, holding the Loyal card of that type (#208)
+const loyalCityBonus = 1.5;
 
 function getExposedBuildings(player, rival) {
     // The Rival's buildings with none of their ships, in systems its ships are in or can reach
@@ -91,6 +93,32 @@ function getBattleTargetBoardBonus(player, rival) {
     // Only at poor odds: much less worth it (#198)
     if (!hasFavourableBattle(player, rival)) { return poorOddsPenalty; }
     return getExposedBuildings(player, rival).length > 0 ? exposedBuildingBonus : 0;
+}
+
+// Loyal Guild cards (#208): keeping the card and its Prelude action through Outrage makes
+// destroying a Rival city of that type cheap
+
+function getLoyalTypes(player) {
+    return getPlayerGuildCards(player).filter(card => card.keepOnOutrage).map(card => card.resource);
+}
+
+function getLoyalCities(player, rival, fightNow = false) {
+    // The Rival's cities of a type it holds a Loyal card for, where its fresh ships are (or can reach)
+    const types = getLoyalTypes(player);
+    if (types.length == 0 || !canRansackAgainst(rival)) { return []; }
+    return getBoardCities(rival.number).filter(city => getCityTypes(city.system).some(resource => types.includes(resource))
+        && (getShips(city.system, player.number).fresh > 0 || (!fightNow && getMoveSources(player, city.system).length > 0)));
+}
+
+function getLoyalCityBonus(player, rival) {
+    return getLoyalCities(player, rival).length > 0 ? loyalCityBonus : 0;
+}
+
+function isOutrageComing(player, resource) {
+    // It means to battle a Rival with a city of this type where its ships are, holding the Loyal card
+    // for it: Outrage would discard what it holds of it, so it may as well spend it first (#208)
+    const target = typeof player.battleTargetNumber == "number" ? getPlayer(player.battleTargetNumber) : null;
+    return target != null && getLoyalTypes(player).includes(resource) && getLoyalCities(player, target, true).some(city => getCityTypes(city.system).includes(resource));
 }
 
 function getThreatenedCity(player) {
@@ -389,8 +417,15 @@ function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
         if (found != null) { return { ...found, why: "to defend its city there from a Rival fleet in reach" }; }
     }
     if (gate != null) { const held = holdGate(); if (held != null) { return held; } }
-    const rivalCity = getSystemIds().find(id => ok(id) && getBuildings(id, null, "city").some(city => city.owner != player.number) && getMoveSources(player, id).length > 0);
-    if (rivalCity != null && battleTarget == null) { const found = move(rivalCity, null); if (found != null) { return { ...found, why: "to a Rival's city" }; } }
+    // A Rival's city it doesn't control, only with enough fresh ships to control it once they're
+    // there: more than any Rival's (#209). Otherwise it can't tax it, so the Move is no use
+    const controlsAfter = (id, found) => getShips(id, player.number).fresh + found.count > Math.max(0, ...getRivalNumbers(player).map(number => getShips(id, number).fresh));
+    if (battleTarget == null) {
+        for (const id of getSystemIds().filter(id => ok(id) && getController(id) != player.number && getBuildings(id, null, "city").some(city => city.owner != player.number) && getMoveSources(player, id).length > 0)) {
+            const found = move(id, null);
+            if (found != null && found.count > 0 && controlsAfter(id, found)) { return { ...found, why: "to a Rival's city" }; }
+        }
+    }
     if (wantsCity != null) {
         const planet = getSystemIds().find(id => ok(id) && isPlanet(id) && getPlanetResource(id) == wantsCity && getEmptySlotCount(id) > 0 && !isControlledByOther(id, player.number) && getMoveSources(player, id).length > 0);
         // Or a gate it may build a city on (Gate Stations) that counts as that type, where it has no
@@ -481,6 +516,15 @@ function applyBoardStep(player, where) {
         if (getShips(where.system, player.number).damaged > 0) { removeShips(where.system, player.number, 1, true); addShips(where.system, player.number, 1); }
         else { setBuildingDamaged(where.system, player.number, where.building, false); }
     }
+}
+
+function getDamagedPieceCount(player) {
+    // Its damaged ships and buildings on the board once its prelude is done: how many Repairs
+    // are any use (#211)
+    return withBoardCopy(() => {
+        getBotPreludeSpent(player).filter(offer => offer.where != null && !offer.applied).forEach(offer => applyBoardStep(player, offer.where));
+        return getSystemIds().reduce((total, id) => total + getShips(id, player.number).damaged, 0) + getBoardBuildings(player.number).filter(building => building.damaged).length;
+    });
 }
 
 function getDamagedPiece(player) {

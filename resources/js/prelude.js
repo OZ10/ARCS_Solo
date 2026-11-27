@@ -125,6 +125,8 @@ function isAmbitionInPlay(ambition) {
 function canSpareResource(player, resource, spent = 0) {
     // In a campaign, never one its Fate keeps (campaignhooks.js)
     if (runCampaignHook("keepsResource", player, resource) === true) { return false; }
+    // A resource its coming Outrage would discard anyway (Loyal card, boardbot.js #208)
+    if (isOutrageComing(player, resource)) { return true; }
     // Never a resource it could use to chase an ambition within reach
     const ambition = preludeAmbitions[resource];
     if (ambition == null || !isAmbitionInPlay(ambition)) { return true; }

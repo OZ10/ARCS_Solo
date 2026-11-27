@@ -440,11 +440,6 @@ function showBattleModal(button) {
     battle.damagedBuildings = 0;
     battle.start = null;
     resetBattleRaid();
-    // On when the bot's plan has another Battle after this one (#205)
-    const battlesLeft = battle.attacker.isHuman ? 0 : (battle.attacker.turnPlan || []).filter(step => step.action == "battle" && !step.applied).length;
-    document.getElementById("battleAttackAgain").checked = battlesLeft >= 2;
-    // Only needed for the bot's advice
-    showHideElement([document.getElementById("battleAttackAgain").parentNode], !battle.attacker.isHuman);
 
     const header = document.querySelector("#battleModal .modal-header");
     header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
@@ -874,7 +869,8 @@ function chooseBattleDice() {
     }
     const interceptHits = (limits.interceptHits != null) ? limits.interceptHits : battle.fresh;
     const choice = pickDiceOption(options);
-    const canAttackAgain = document.getElementById("battleAttackAgain").checked;
+    // From its plan: another Battle after this one (#205). No switch to set any more
+    const canAttackAgain = !battle.attacker.isHuman && (battle.attacker.turnPlan || []).filter(step => step.action == "battle" && !step.applied).length >= 2;
     const usefulHits = onPurpose ? buildingHits : getHitsToDestroy(targets.fresh, targets.damaged);
     const wantedBuilding = buildings.find(building => building.value > 0);
     // Which building first, and why (#138). The attacker chooses where its hits go (rulebook p.14)
