@@ -145,8 +145,9 @@ const laterFates = {
             ask: [{ text: "If it won Blightkin or Blightkin wasn't declared: how many systems does it control with fresh Blight?", per: 1 }] } },
     22: { act3: { start: startByCount(24, 21, 18), setup: "You may Resettle. Gain Catapult Overdrive (02) and Breaking Gates & Placing Passages (03); put a Passage token on any gate (step 3 of card 03). Roll the event die and put it in the middle of the map. Place The Dead Live (04). Add Passages & the Twisted Passage (05). Put Passage Storms (06) on top of the Court deck.",
             text: "<b>Collapse the Gates:</b> for each ambition you win, 1 for each Passage token on the map. <b>Control the Twisted Passage:</b> at the end of a chapter, before scoring, 1 for each Passage token if you control the Twisted Passage.",
-            auto: [{ reason: "for the Passages on the map (Collapse the Gates)", amount: player => boardObjectiveCounts.passages() * getAmbitionsWonThisChapter(player) }],
-            ask: [{ text: "If it controlled the Twisted Passage before scoring: how many Passage tokens?", per: 1 }] } },
+            // Control is checked from the board after the Crises, before the Dead Live's ships come back (campaign/gatewraith.js)
+            auto: [{ reason: "for the Passages on the map (Collapse the Gates)", amount: player => boardObjectiveCounts.passages() * getAmbitionsWonThisChapter(player) },
+                { reason: "for the Passages: it controls the Twisted Passage (Control the Twisted Passage)", amount: player => hasTwistedPassage() && getChapterController(twistedPassageId) == player.number ? boardObjectiveCounts.passages() : 0 }] } },
     23: { act3: { start: startByCount(12, 9, 6), setup: "You may Resettle. Gain Farseers (02), the 8 Conspiracy tokens (2 in each colour) and Conspiracies (03). Add Scoring Conspiracies (04) and Foiling Conspiracies (05).",
             text: "<b>Control the Proceedings:</b> when scoring, 1 for each correct revealed Conspiracy and each unrevealed one.",
             // A bot Conspirator's are counted by the app (grand.js)

@@ -25,10 +25,13 @@ function openBoardCheckFromOptions() {
 }
 
 function renderBoardCheck() {
-    const clusters = getClustersInPlay();
+    // The Gate Wraith's Twisted Passage has a page of its own after the clusters ("0", campaign/gatewraith.js)
+    const clusters = getClustersInPlay().concat(hasTwistedPassage() ? [0] : []);
+    if (!clusters.includes(boardCheck.cluster)) { boardCheck.cluster = clusters[0]; }
     const index = clusters.indexOf(boardCheck.cluster);
     const cluster = boardCheck.cluster;
-    const ids = [cluster + "g"].concat(planetLetters.map(letter => cluster + letter));
+    const ids = cluster == 0 ? [twistedPassageId] : [cluster + "g"].concat(planetLetters.map(letter => cluster + letter));
+    const pageName = number => number == 0 ? "Twisted Passage" : "Cluster " + number;
     const step = (onclick, value, label) => "<span class=\"favorstep\"><button type=\"button\" onclick=\"" + onclick.replace("CHANGE", "-1") + "\" aria-label=\"One fewer " + label + "\"><i class=\"bi bi-dash\"></i></button><b>" + value + "</b>"
         + "<button type=\"button\" onclick=\"" + onclick.replace("CHANGE", "1") + "\" aria-label=\"One more " + label + "\"><i class=\"bi bi-plus\"></i></button></span>";
     const systemHtml = id => {
@@ -91,14 +94,15 @@ function renderBoardCheck() {
     const clusterTokens = (board.clusterTokens[cluster] || []).map((token, position) => "<div class=\"small text-secondary mb-2\">Cluster " + cluster + " &middot; " + getTokenText(token)
         + " <a href=\"#\" onclick=\"flipClusterToken(" + cluster + ", " + position + "); return false;\">flip</a></div>").join("");
     const tabs = "<div class=\"d-flex flex-wrap gap-1 mb-2\">" + clusters.map(number => "<button type=\"button\" class=\"btn btn-sm " + (number == cluster ? "btn-secondary" : "btn-outline-secondary")
-        + "\" style=\"min-width:44px\" onclick=\"showBoardCluster(" + number + ")\">" + number + "</button>").join("") + "<span class=\"small text-secondary align-self-center ms-1\">clusters in play</span></div>";
-    const previous = index > 0 ? "<button type=\"button\" class=\"btn btn-outline-secondary flex-fill\" onclick=\"showBoardCluster(" + clusters[index - 1] + ")\">&larr; Cluster " + clusters[index - 1] + "</button>" : "";
+        + "\" style=\"min-width:44px\" onclick=\"showBoardCluster(" + number + ")\">" + (number == 0 ? "Twisted Passage" : number) + "</button>").join("") + "<span class=\"small text-secondary align-self-center ms-1\">clusters in play</span></div>";
+    const previous = index > 0 ? "<button type=\"button\" class=\"btn btn-outline-secondary flex-fill\" onclick=\"showBoardCluster(" + clusters[index - 1] + ")\">&larr; " + pageName(clusters[index - 1]) + "</button>" : "";
     const next = index < clusters.length - 1
-        ? "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"boardNext\" onclick=\"showBoardCluster(" + clusters[index + 1] + ")\">Cluster " + clusters[index + 1] + " &rarr;</button>"
+        ? "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"boardNext\" onclick=\"showBoardCluster(" + clusters[index + 1] + ")\">" + pageName(clusters[index + 1]) + " &rarr;</button>"
         : "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"boardDone\" onclick=\"finishBoardCheck()\">Done</button>";
     document.getElementById("boardTitle").innerHTML = "Check the board";
     document.getElementById("boardBody").innerHTML = "<p class=\"small mb-2\">Check what the app has against the map, one cluster at a time. Change anything that's different.</p>"
-        + tabs + ids.map(systemHtml).join("") + clusterTokens
+        + tabs + (cluster == 0 ? getTwistedPassageCheckHtml() : "") + ids.map(systemHtml).join("") + clusterTokens
+        + (cluster == 0 ? getDeadLiveCheckHtml() : "")
         + "<div class=\"d-flex gap-2 mt-2\">" + previous + next + "</div>"
         + (index < clusters.length - 1 ? "<button type=\"button\" class=\"btn btn-link btn-sm w-100 mt-1\" id=\"boardSkip\" onclick=\"finishBoardCheck()\">It all matches: done</button>" : "");
 }

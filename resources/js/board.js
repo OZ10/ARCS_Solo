@@ -36,7 +36,7 @@ function newSystem() {
 
 function newBoard() {
     const systems = {};
-    getAllSystemIds().forEach(id => { systems[id] = newSystem(); });
+    getMapSystemIds().forEach(id => { systems[id] = newSystem(); });
     // Tokens on a whole cluster, such as the Peacekeeper's Ceasefires: { cluster: [token] }
     return { outOfPlay: [], systems: systems, clusterTokens: {} };
 }
@@ -86,6 +86,12 @@ function hitPieces(pieces, hits) {
     return { before: before, after: { fresh: pieces.fresh, damaged: pieces.damaged }, left: left };
 }
 
+function noteDestroyedShips(owner, result, holder = null) {
+    // The Dead Live (campaign/gatewraith.js): ships destroyed this chapter come back on the Twisted Passage
+    const destroyed = result.before.fresh + result.before.damaged - result.after.fresh - result.after.damaged;
+    if (destroyed > 0 && typeof noteDeadShips == "function") { noteDeadShips(owner, destroyed, holder); }
+}
+
 function describeHits(label, result) {
     // e.g. "Player 2's ships: 1 destroyed, now 0 fresh and 2 damaged", or null if nothing changed
     const { before, after } = result;
@@ -104,6 +110,7 @@ function applyBlightCrises() {
         const hits = system.blight.fresh * 3 + system.blight.damaged;
         const lines = [];
         const imperial = hitPieces(system.imperial, hits);
+        noteDestroyedShips("imperial", imperial);
         const imperialLine = describeHits("Imperial ships", imperial);
         if (imperialLine != null) { lines.push(imperialLine); }
         // What's left once the Imperial ships are gone goes to every player there
@@ -114,6 +121,7 @@ function applyBlightCrises() {
                 const ships = { ...getShips(id, number) };
                 const result = hitPieces(ships, left);
                 setShips(id, number, ships.fresh, ships.damaged);
+                noteDestroyedShips(number, result);
                 const line = describeHits("Player " + number + "'s ships", result);
                 if (line != null) { lines.push(line); }
                 // A Flagship takes hits only once no other fresh Loyal ships remain: rightmost Armor,
@@ -181,10 +189,42 @@ function getTokenText(token) {
 
 // The map
 
-function getAllSystemIds() {
+function getMapSystemIds() {
+    // The map's 24 systems
     const ids = [];
     for (let cluster = 1; cluster <= mapClusterCount; cluster++) { ids.push(cluster + "g", ...planetLetters.map(letter => cluster + letter)); }
     return ids;
+}
+
+function getAllSystemIds() {
+    // And the Gate Wraith's Twisted Passage, once it's on the map
+    return hasTwistedPassage() ? getMapSystemIds().concat(twistedPassageId) : getMapSystemIds();
+}
+
+// The Gate Wraith's Twisted Passage (Blighted Reach Act III, campaign/gatewraith.js): a gate in the
+// middle of the map, cluster "0". Only there while board.twistedPassage is { letter }: the ID symbol
+// on the event die, the planets ships can move to from it. Gates with a Passage token are out of play
+const twistedPassageId = "0g";
+
+function hasTwistedPassage() {
+    return typeof board != "undefined" && board != null && board.twistedPassage != null && board.systems != null && board.systems[twistedPassageId] != null;
+}
+
+function hasPassage(id) {
+    return id != twistedPassageId && isGate(id) && board != null && board.systems[id] != null && (board.systems[id].tokens || []).some(token => token.kind == "passage");
+}
+
+function getPassageGates() {
+    // Gates with a Passage, in clusters in play
+    return getMapSystemIds().filter(id => isGate(id) && isClusterInPlay(getCluster(id)) && hasPassage(id));
+}
+
+function isNextToPassage(id) {
+    // A Passage gate's 3 planets and its neighbouring gates, from which ships can move into the Twisted Passage
+    return getPassageGates().some(gate => {
+        const cluster = getCluster(gate);
+        return (isPlanet(id) && getCluster(id) == cluster) || id == getNeighbourGate(cluster, -1) || id == getNeighbourGate(cluster, 1);
+    });
 }
 
 function getCluster(id) { return parseInt(id); }
@@ -201,7 +241,11 @@ function getPlanetSlots(id) {
     return mapPlanets[id].slots;
 }
 function isClusterInPlay(cluster) { return !board.outOfPlay.includes(cluster); }
-function isSystemInPlay(id) { return isClusterInPlay(getCluster(id)); }
+function isSystemInPlay(id) {
+    if (id == twistedPassageId) { return hasTwistedPassage(); }
+    // A gate with a Passage is out of play (Passages & the Twisted Passage)
+    return isClusterInPlay(getCluster(id)) && !hasPassage(id);
+}
 
 function getSystemIds() {
     // The systems in play
@@ -222,6 +266,7 @@ function getPlanetSymbol(id) {
 
 function getSystemShortName(id) {
     // e.g. "1 Gate" or "3 ⬢": the cluster number and the planet's symbol (#185)
+    if (id == twistedPassageId) { return "Twisted Passage"; }
     return isGate(id) ? getCluster(id) + " Gate" : getCluster(id) + "&nbsp;" + getPlanetSymbol(id);
 }
 
@@ -239,8 +284,9 @@ function nextCluster(cluster, step) {
 function getNeighbourGate(cluster, step) {
     // The next gate round the map that's in play. A path marker on an out-of-play gate joins its
     // neighbours (rulebook p.6)
+    // A gate with a Passage is skipped the same way: its neighbours join up (the user, 2026-11-27)
     let next = nextCluster(cluster, step);
-    while (!isClusterInPlay(next) && next != cluster) { next = nextCluster(next, step); }
+    while (!isSystemInPlay(next + "g") && next != cluster) { next = nextCluster(next, step); }
     return next == cluster ? null : next + "g";
 }
 
@@ -248,8 +294,12 @@ function getAdjacent(id) {
     // The systems in play next to this one (rulebook p.6): a gate to its 3 planets and the
     // neighbouring gates; a planet to its gate and the neighbouring planets
     if (!isSystemInPlay(id)) { return []; }
+    // From the Twisted Passage: any planet with the event die's ID symbol
+    if (id == twistedPassageId) { return getSystemIds().filter(other => isPlanet(other) && other.slice(-1) == board.twistedPassage.letter); }
     const cluster = getCluster(id);
     let adjacent;
+    // Into it: from systems next to a gate with a Passage
+    const passage = hasTwistedPassage() && isNextToPassage(id) ? [twistedPassageId] : [];
     if (isGate(id)) {
         adjacent = planetLetters.map(letter => cluster + letter).concat([getNeighbourGate(cluster, -1), getNeighbourGate(cluster, 1)]);
     } else {
@@ -265,7 +315,7 @@ function getAdjacent(id) {
             if (!blockedPlanetLinks.includes(link)) { adjacent.push(across); }
         }
     }
-    return [...new Set(adjacent.filter(other => other != null && other != id && isSystemInPlay(other)))];
+    return [...new Set(adjacent.concat(passage).filter(other => other != null && other != id && isSystemInPlay(other)))];
 }
 
 function areAdjacent(a, b) {
@@ -290,6 +340,8 @@ function setShips(id, playerNumber, fresh, damaged) {
 }
 
 function addShips(id, playerNumber, count, damaged = false) {
+    // Pieces that would be placed on a gate with a Passage go in the Twisted Passage instead
+    if (hasPassage(id) && hasTwistedPassage()) { id = twistedPassageId; }
     const ships = getShips(id, playerNumber);
     setShips(id, playerNumber, ships.fresh + (damaged ? 0 : count), ships.damaged + (damaged ? count : 0));
 }
@@ -304,6 +356,8 @@ function moveShips(from, to, playerNumber, fresh, damaged = 0) {
     removeShips(from, playerNumber, damaged, true);
     addShips(to, playerNumber, fresh);
     addShips(to, playerNumber, damaged, true);
+    // Out of the Twisted Passage: roll the event die again (campaign/gatewraith.js)
+    if (from == twistedPassageId && to != from && fresh + damaged > 0 && typeof rerollTwistedPassage == "function") { rerollTwistedPassage(); }
 }
 
 function getBuildings(id, playerNumber = null, kind = null) {
@@ -415,6 +469,8 @@ function getControllerFor(id, playerNumber) {
 function isCatapultStop(id, playerNumber) {
     // A gate that ends a Catapult move: any Blight; the Empire's for an Outlaw; anyone else's
     // (rulebook p.10, p.19). Control is checked before the ships move in (p.13)
+    // Catapult Overdrive: the Gate Wraith carries on through the Twisted Passage, ignoring control and Blight
+    if (id == twistedPassageId && typeof hasCatapultOverdrive == "function" && hasCatapultOverdrive(playerNumber)) { return false; }
     if (hasBlight(id)) { return true; }
     if (isEmpireControlled(id)) { return isOutlawNumber(playerNumber); }
     const controller = getController(id);
@@ -422,6 +478,8 @@ function isCatapultStop(id, playerNumber) {
 }
 
 function canHarmIn(id, attackerNumber, defenderNumber) {
+    // Players can't harm Rivals in the Twisted Passage (Crises still can)
+    if (id == twistedPassageId && typeof attackerNumber == "number" && typeof defenderNumber == "number") { return false; }
     // The Truce Law: a Regent can't harm or tax a Rival Regent where there are Imperial ships
     return !(hasImperialShips(id) && isRegentNumber(attackerNumber) && isRegentNumber(defenderNumber));
 }
@@ -432,7 +490,8 @@ function canHarmIn(id, attackerNumber, defenderNumber) {
 
 function canCatapultFrom(from, playerNumber) {
     // A Catapult starts from a system with a Loyal starport. A Leader can change that (leaderrules.js)
-    const base = getBuildings(from, playerNumber, "starport").length > 0;
+    // Catapult Overdrive: the Gate Wraith Catapults with Rival starports it controls too (campaign/gatewraith.js)
+    const base = getBuildings(from, playerNumber, "starport").length > 0 || (typeof canOverdriveFrom == "function" && canOverdriveFrom(from, playerNumber));
     return typeof getLeaderCatapult == "function" ? getLeaderCatapult(from, playerNumber, base) : base;
 }
 
@@ -506,7 +565,8 @@ function getBoardBuildings(playerNumber, kind) {
 function getGateCityTypes(gate) {
     // A gate city (Gate Stations) matches all cities in its cluster: the types of the planets there
     // with a city on, anyone's (Lore 11). It can be taxed for any of them, and destroying it Provokes
-    // Outrage of all of them
+    // Outrage of all of them. Cities in the Twisted Passage are Psionic
+    if (gate == twistedPassageId) { return ["psionics"]; }
     const cluster = getCluster(gate);
     return preludeResources.filter(resource => getSystemIds().some(id => isPlanet(id) && getCluster(id) == cluster && getPlanetResource(id) == resource && getBuildings(id, null, "city").length > 0));
 }
@@ -661,6 +721,7 @@ function loadBoard() {
     const saved = getSettingObject("board");
     board = (saved != null && saved.systems != null) ? saved : newBoard();
     // Games saved before a system, or the campaign's pieces, existed
-    getAllSystemIds().forEach(id => { board.systems[id] = Object.assign(newSystem(), board.systems[id] || {}); });
+    getMapSystemIds().forEach(id => { board.systems[id] = Object.assign(newSystem(), board.systems[id] || {}); });
+    if (board.twistedPassage != null) { board.systems[twistedPassageId] = Object.assign(newSystem(), board.systems[twistedPassageId] || {}); }
     if (board.clusterTokens == null) { board.clusterTokens = {}; }
 }

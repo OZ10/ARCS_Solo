@@ -95,6 +95,8 @@ function runSetupSteps(then) {
     if (step.kind == "flagship") { showFlagshipPlacement(getPlayer(step.player)); }
     // Their ships, as their Fate's setup says (campaign/fatehuman.js)
     if (step.kind == "fateShips") { showFateShipsWindow(getPlayer(step.player), step.setup); }
+    // The Gate Wraith's first Passage (campaign/gatewraith.js)
+    if (step.kind == "passage") { showPassageSetupWindow(getPlayer(step.player)); }
 }
 
 function finishSetupStep() {
@@ -238,6 +240,8 @@ function applyFateSetupsToBoard(act) {
         });
         lines.push("a Ceasefire on each cluster: " + (peace.length > 0 ? "Peace in cluster" + (peace.length == 1 ? " " : "s ") + peace.join(", ") + ", War elsewhere" : "War in all of them"));
     }
+    // The Gate Wraith: the Twisted Passage, and its first Passage (campaign/gatewraith.js)
+    if (act == 3) { lines.push(...setUpTwistedPassage()); }
     const pathfinder = players.find(player => hasFate(player, 9));
     if (act == 3 && pathfinder != null) {
         // A Pilgrim on each planet of a rolled symbol

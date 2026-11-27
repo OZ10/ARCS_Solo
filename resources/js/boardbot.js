@@ -467,6 +467,8 @@ function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
     } else if (fateMove != null && fateMove.from != null) {
         // From where its Fate's token is, such as a Witness
         const to = getMoveDestinations(fateMove.from, player.number).find(id => ok(id) && fateMove.test(id));
+        // The Gate Wraith collapses the gate it Catapults into, with all its fresh ships there (campaign/gatewraith.js)
+        if (to != null && fateMove.breakGate) { return { from: fateMove.from, to: to, count: getShips(fateMove.from, player.number).fresh, why: fateMove.why, breakGate: to }; }
         if (to != null) { return { from: fateMove.from, to: to, count: canTake(fateMove.from) > 0 ? canTake(fateMove.from) : getShips(fateMove.from, player.number).fresh, why: fateMove.why }; }
     } else if (fateMove != null) {
         const to = getSystemIds().find(id => ok(id) && fateMove.test(id) && getMoveSources(player, id).length > 0);
@@ -562,6 +564,8 @@ function applyBoardStep(player, where) {
         if (player.flagship != null && hasFlagshipAt(where.from, player.number)) { moveFlagship(player, where.from, where.to); }
         // Its campaign tokens that go with its ships, such as Witnesses (campaign/fateboard.js)
         if (typeof carryFateTokens == "function") { carryFateTokens(player, where.from, where.to); }
+        // The Gate Wraith's Catapult into its cluster's gate collapses it (campaign/gatewraith.js)
+        if (where.breakGate != null && typeof breakGate == "function") { where.breakText = breakGate(player, where.from, where.breakGate); }
     }
     if (where.kind == "city" || where.kind == "starport") {
         // Cloud Cities: outside the slots, for 1 resource of the planet's type (leaderrules.js)
@@ -714,6 +718,8 @@ function applyBotStep(player, step) {
     // the real board, before the ships move in
     if (step.action == "move" && step.where.from != null && step.where.to != null) { applyGatePortsCapture(player, [step.where.from, step.where.to]); }
     if (step.action == "move" || step.action == "build" || step.action == "repair" || step.where.kind == "gateShips" || step.where.kind == "placeShips") { applyBoardStep(player, step.where); }
+    // A gate collapsed: everyone's panels, and what to do at the table
+    if (step.where.breakText != null) { players.forEach(syncPanelFromBoard); showMessageToast("Player " + player.number + ": Breaking Gates", tagPlayerNames(step.where.breakText)); }
     // A Lore action (leaderrules.js). Fire Rifles only once its hits are known
     // A Fate card action (campaign/fateboard.js)
     if (typeof isFateBoardStep == "function" && isFateBoardStep(step.where)) { applyFateBoardStep(player, step.where); }
@@ -848,10 +854,17 @@ function applyBattleToBoard(losses) {
     const attacker = battle.attacker.number;
     // A campaign defender's pieces are the Blight, the Imperial ships or the Free buildings (#85 stage 7b)
     const kind = battle.defender.campaignDefender;
+    // The Dead Live (campaign/gatewraith.js): the ships destroyed, and who holds them as Trophies
+    const before = number => ({ ...getShips(system, number) });
+    const attackerBefore = before(attacker);
+    const firstRegent = typeof campaign != "undefined" && campaign != null && campaign.firstRegent != null && campaign.firstRegent != attacker ? campaign.firstRegent : null;
+    const imperialBefore = { ...getImperial(system) };
+    const noteDead = (owner, was, now, holder) => noteDestroyedShips(owner, { before: was, after: now }, holder);
     if (kind != null) {
         setShips(system, attacker, battle.ships, battle.attackerDamaged || 0);
         if (kind == "blight") { setBlight(system, battle.fresh, battle.damaged); }
-        if (kind == "empire") { setImperial(system, battle.fresh, battle.damaged); }
+        if (kind == "empire") { setImperial(system, battle.fresh, battle.damaged); noteDead("imperial", imperialBefore, getImperial(system), attacker); }
+        noteDead(attacker, attackerBefore, getShips(system, attacker), kind == "empire" ? firstRegent : null);
         if (kind == "free") {
             for (let lost = 0; lost < losses.defenderBuildings; lost++) {
                 const building = getBuildings(system, freeOwner).sort((a, b) => b.damaged - a.damaged)[0];
@@ -866,6 +879,7 @@ function applyBattleToBoard(losses) {
         return;
     }
     const defender = battle.defender.number;
+    const defenderBefore = before(defender);
     const removeOne = (number) => { if (getShips(system, number).damaged > 0) { removeShips(system, number, 1, true); } else { removeShips(system, number, 1); } };
     // The attacker's ships there: fresh and damaged, as the window says (#189)
     setShips(system, attacker, battle.ships, battle.attackerDamaged || 0);
@@ -879,6 +893,9 @@ function applyBattleToBoard(losses) {
     // The defender's fresh and damaged ships, and damaged buildings, as the window says: a human
     // player's window has them too now (#194)
     setShips(system, defender, battle.fresh, battle.damaged);
+    // Each side's destroyed ships are the other's Trophies
+    noteDead(attacker, attackerBefore, getShips(system, attacker), defender);
+    noteDead(defender, defenderBefore, getShips(system, defender), attacker);
     let damaged = battle.damagedBuildings;
     getBuildings(system, defender).forEach(building => { building.damaged = damaged > 0; damaged--; });
     // A Ceasefire at Peace flips to War, for a Weapon (campaign/fateboard.js)
@@ -897,7 +914,9 @@ const shipsPerPlayer = 15;
 function getShipSupply(player) {
     // Less any its Leader scrapped in setup (Overseer, Hated: leaderrules.js)
     // And any its campaign Fate scrapped (campaign/fateboard.js)
-    return Math.max(shipsPerPlayer - getLeaderScrappedShips(player) - (player.scrappedShips || 0) - getBoardShips(player.number) - (player.shipsTrophy || 0), 0);
+    // And any on The Dead Live, till they come back on the Twisted Passage (campaign/gatewraith.js)
+    const dead = typeof getDeadLiveShips == "function" ? getDeadLiveShips(player.number) : 0;
+    return Math.max(shipsPerPlayer - getLeaderScrappedShips(player) - (player.scrappedShips || 0) - getBoardShips(player.number) - (player.shipsTrophy || 0) - dead, 0);
 }
 
 function getBoardYesReason(ambition, action) {

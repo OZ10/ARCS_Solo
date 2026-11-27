@@ -458,7 +458,8 @@ function getMoveChip(id, sub, active, onclick) {
 
 function getMoveSystemNote(id, playerNumber) {
     // Its type, and anyone else's pieces there
-    const kind = isGate(id) ? "gate" : preludeResourceNames[getPlanetResource(id)];
+    // The Twisted Passage: where ships go from it (campaign/gatewraith.js)
+    const kind = id == twistedPassageId ? "out to " + getTwistedPassageSymbol() + " planets" : isGate(id) ? "gate" : preludeResourceNames[getPlanetResource(id)];
     const others = players.filter(other => other.number != playerNumber && hasLoyalPiece(id, other.number)).map(other => "Player " + other.number);
     return kind + (others.length > 0 ? " &middot; " + others.join(", ") : "");
 }
@@ -467,7 +468,8 @@ function getMoveText() {
     const total = humanMove.fresh + humanMove.damaged;
     const drops = Object.entries(humanMove.drops).filter(([, count]) => count > 0);
     return "Move " + (humanMove.flagship ? "the Flagship" + (total > 0 ? " and " : "") : "") + (total > 0 || !humanMove.flagship ? total + " ship" + (total == 1 ? "" : "s") : "") + " " + getSystemName(humanMove.from) + " &rarr; " + getSystemName(humanMove.to)
-        + (drops.length > 0 ? ", leaving " + drops.map(([id, count]) => count + " at " + getSystemName(id)).join(" and ") : "");
+        + (drops.length > 0 ? ", leaving " + drops.map(([id, count]) => count + " at " + getSystemName(id)).join(" and ") : "")
+        + (humanMove.breakGate ? " and break it" : "");
 }
 
 function renderHumanMove() {
@@ -511,6 +513,8 @@ function renderHumanMove() {
             }
         }
     }
+    // The Gate Wraith: a Catapult into its cluster's gate may collapse it (campaign/gatewraith.js)
+    if (typeof getMoveBreakHtml == "function") { html += getMoveBreakHtml(player, humanMove.from, humanMove.to); }
     if (humanMove.from != null && hasFlagshipAt(humanMove.from, number)) {
         html += "<div class=\"form-check form-switch mb-2\"><input class=\"form-check-input\" type=\"checkbox\" id=\"moveFlagship\"" + (humanMove.flagship ? " checked" : "") + " onchange=\"humanMove.flagship = this.checked; renderHumanMove()\"><label class=\"form-check-label\" for=\"moveFlagship\">Flagship moves too</label></div>";
     }
@@ -540,7 +544,15 @@ function confirmHumanMove() {
     applyGatePortsCapture(player, humanMove.route || [humanMove.from, humanMove.to]);
     placed.forEach(place => moveShips(humanMove.from, place.to, number, place.fresh, place.damaged));
     if (humanMove.flagship) { moveFlagship(player, humanMove.from, humanMove.to); }
-    recordBoardAction(player, { action: "move", from: humanMove.from, to: humanMove.to, placed: placed, flagship: !!humanMove.flagship, text: getMoveText().replace(/^Move /, "") });
+    // The Gate Wraith collapsed the gate (campaign/gatewraith.js): that can't be undone here
+    const broken = humanMove.breakGate && typeof getBreakableGate == "function" && getBreakableGate(player, humanMove.from) == humanMove.to;
+    const text = getMoveText().replace(/^Move /, "");
+    if (broken) {
+        const result = breakGate(player, humanMove.from, humanMove.to);
+        players.forEach(syncPanelFromBoard);
+        showMessageToast("Breaking Gates", tagPlayerNames(result));
+    }
+    recordBoardAction(player, { action: "move", from: humanMove.from, to: humanMove.to, placed: placed, flagship: !!humanMove.flagship, text: text, undo: broken ? false : undefined });
     humanMove = null;
     closeHumanBoardAction();
 }

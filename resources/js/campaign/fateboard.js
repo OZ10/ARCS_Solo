@@ -61,7 +61,8 @@ const boardObjectiveCounts = {
     // The Survivalist: the lower of its Captives and its Bunkers
     bunkersOrCaptives: player => Math.min(player.captivesValue || 0, countTokens("bunker")),
     // The Gate Wraith: Passages on the map
-    passages: () => countTokens("passage")
+    // (their gates are out of play, so not among getSystemIds)
+    passages: () => typeof getPassageGates == "function" ? getPassageGates().length : 0
 };
 
 // Act III grand ambitions the board can check: how many of the two are fulfilled
@@ -90,6 +91,8 @@ const boardGrandCounts = {
 
 function getFateMoveTarget(player) {
     if (typeof getSteer != "function") { return null; }
+    // The Gate Wraith (Act III): collapse a gate, or hold the Twisted Passage (campaign/gatewraith.js)
+    if (typeof getGateWraithMove == "function" && getGateWraith() === player) { return getGateWraithMove(player); }
     // The Pacifist (Act II): carry a Witness it controls to a Psionic planet, to flip and take it
     if (typeof campaign != "undefined" && campaign != null && campaign.act == 2 && hasFate(player, 14)) {
         const from = getWitnessSystems(player).find(id => getPlanetResource(id) != "psionics" && getShips(id, player.number).fresh > 0);
@@ -113,7 +116,6 @@ function getFateMoveTarget(player) {
         [/cluster with no Seat/, false, id => getBuildings(id, n, "city").length > 0 && !getSystemIds().some(other => getCluster(other) == getCluster(id) && has(other, "seat"))],
         [/cluster with none of its ships/, false, id => !getSystemIds().some(other => getCluster(other) == getCluster(id) && getShips(other, n).fresh + getShips(other, n).damaged > 0)],
         [/Fuel or Material planet/, false, id => ["fuel", "materials"].includes(getPlanetResource(id)) && notMine(id)],
-        [/to a gate, to Catapult/, false, id => isGate(id) && !has(id, "passage")],
         [/gate with a Golem/, false, id => isGate(id) && has(id, "golem") && notMine(id)]
     ];
     const match = targets.find(([pattern]) => pattern.test(text));
@@ -295,8 +297,9 @@ function applyFateBoardStep(player, where) {
         }
         case "fate:seed": { const blight = getBlight(system); setBlight(system, blight.fresh, blight.damaged + 1); break; }
         case "fate:revolt": {
-            players.filter(other => other !== player).forEach(other => { const ships = getShips(system, other.number); if (ships.damaged > 0) { setShips(system, other.number, ships.fresh, 0); syncPanelFromBoard(other); } });
-            const imperial = getImperial(system); setImperial(system, imperial.fresh, 0);
+            players.filter(other => other !== player).forEach(other => { const ships = getShips(system, other.number); if (ships.damaged > 0) { setShips(system, other.number, ships.fresh, 0); noteDestroyedShips(other.number, { before: ships, after: { fresh: ships.fresh, damaged: 0 } }); syncPanelFromBoard(other); } });
+            const imperial = { ...getImperial(system) }; setImperial(system, imperial.fresh, 0);
+            noteDestroyedShips("imperial", { before: imperial, after: { fresh: imperial.fresh, damaged: 0 } });
             break;
         }
         case "fate:banner": addToken(system, "banner", n); break;

@@ -145,6 +145,8 @@ registerCampaignHook("afterScoring", carryOn => {
     // What moved this chapter, and what the app needs to be told, then on. Nothing: carry straight on.
     // Acts II and III first count what they can (laterfates.js)
     applyLaterAutoObjectives();
+    // Then The Dead Live's ships come back on the Twisted Passage (campaign/gatewraith.js)
+    if (typeof applyDeadLive == "function") { applyDeadLive(); }
     const moved = players.filter(player => (getCampaignPlayer(player).objectiveLog || []).length > 0);
     chapterQuestions = getChapterQuestions().concat(getLaterChapterQuestions()).map(question => ({ ...question, answer: 0 }));
     if (moved.length == 0 && chapterQuestions.length == 0) { resetChapterCounts(); return undefined; }

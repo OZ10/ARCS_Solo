@@ -412,6 +412,8 @@ function startCrises() {
         + step("Any other cards with Crisis text that players hold", "From their Fates.") + "</div>"
         + "<div class=\"turnsection\"><div class=\"turnlabel\">3 &middot; Court Crises, left to right</div>"
         + (vox.length > 0 ? vox.map(card => step(card.name, fillDice(card.crisis))).join("") : "<p class=\"small mb-0\">No Vox cards in the Court (that the app knows of).</p>")
+        // The Gate Wraith's Passage Storms, on the app's board (campaign/gatewraith.js)
+        + tagPlayerNames(getPassageStormsCrisisHtml())
         + "<p class=\"small text-secondary mt-1 mb-0\">A card that leaves the Court returns its agents, and the Court is refilled.</p></div>"
         + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"finishCrises()\">Done: on to scoring</button>", roundEvent.player, true);
 }
