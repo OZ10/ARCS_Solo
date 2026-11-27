@@ -660,8 +660,8 @@ function choosePolicyForBot(firstRegent) {
         .map(policy => getPolicyValue(firstRegent, policy)).sort((a, b) => b.value - a.value);
     const enforce = current.value * (1 + future);
     const change = others[0].value * future;
-    const score = result => " (worth " + Math.round(result.value * 10) / 10 + ")";
-    const lines = [current].concat(others).map(result => "<b>" + capitalise(result.policy) + "</b>" + (result.policy == campaign.policy ? " now" : " next time") + score(result) + ": " + result.actionNote + ".");
+    // Its reasons in words: the worths stay hidden (the user, 2026-11-27)
+    const lines = [current].concat(others).map(result => "<b>" + capitalise(result.policy) + "</b>" + (result.policy == campaign.policy ? " now" : " next time") + ": " + result.actionNote + ".");
     if (change > enforce + policyWeights.changeMargin) {
         return { change: others[0].policy, reasons: lines.concat("Changing gives up this chapter's Demand, but " + capitalise(others[0].policy) + " serves it better for the rest of the Act.") };
     }

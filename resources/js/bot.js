@@ -158,16 +158,21 @@ function withoutConstruction(cards) {
 // A one-off Yes/No question that isn't about an ambition (see askYesNo)
 let yesNoCallback = null;
 
-function askYesNo(focus, question, onAnswer, player = null) {
+function askYesNo(focus, question, onAnswer, player = null, labels = null) {
     // Ask in the Yes/No window, then call onAnswer(true or false) once it has closed. Closed
     // with its X, nothing happens (tapping Play Card asks again). player: who it's for, if not
-    // the current player
+    // the current player. labels: { yes, no } for the buttons instead of Yes and No (the mulligan)
     let answer = null;
     yesNoCallback = value => { answer = value; };
     yesNoPlayer = player;
+    const yesButton = document.querySelector("#yesNo [onclick='answerYes()']");
+    const noButton = document.querySelector("#yesNo [onclick='answerNo()']");
+    if (labels != null) { yesButton.innerHTML = labels.yes; noButton.innerHTML = labels.no; }
     document.getElementById("yesNo").addEventListener('hidden.bs.modal', () => {
         yesNoCallback = null;
         yesNoPlayer = null;
+        yesButton.innerHTML = "Yes";
+        noButton.innerHTML = "No";
         if (answer != null) { onAnswer(answer); }
     }, { once: true });
 

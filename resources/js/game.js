@@ -428,7 +428,9 @@ function offerMulligan(then) {
         // Your hand in the question, so you can decide (#122)
         const hand = "<div class=\"mullhand\">" + getUnplayedCards(player.cards).map(card => "<div class=\"mullcard\"><b>" + card.number + "</b><span class=\"mullname\">" + card.name + "</span>"
             + "<small>" + (card.ambition == "null" ? "&nbsp;" : card.ambition) + "</small></div>").join("") + "</div>";
-        askYesNo("", "The other player has the initiative. Below is your hand of cards. Do you want to discard them and draw 6 new cards? You must keep the new hand." + getCoveredHandHtml(player, hand), yes => { if (yes) { takeMulligan(player); } }, player);
+        askYesNo("", "The other player has the initiative. Below is your hand of cards. Do you want to discard them and draw 6 new cards? You must keep the new hand." + getCoveredHandHtml(player, hand), yes => { if (yes) { takeMulligan(player); } }, player,
+            // Buttons that say what they do (the user, 2026-11-27)
+            { yes: "Swap my hand", no: "Keep it" });
         // Carry on once it has closed, answered or not (after askYesNo's own handler)
         document.getElementById("yesNo").addEventListener('hidden.bs.modal', () => then(), { once: true });
         return;

@@ -1085,7 +1085,7 @@ function showBattleResults() {
 
     html += "<div class=\"d-flex gap-2 mt-3\">"
         + "<button type=\"button\" class=\"btn btn-secondary flex-fill\" onclick=\"clearBattleDecision()\">Back</button>"
-        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"battleUpdate\" onclick=\"applyBattleResults()\">Update values</button>"
+        + "<button type=\"button\" class=\"btn btn-primary flex-fill\" id=\"battleUpdate\" onclick=\"applyBattleResults()\">Save the results</button>"
         + "</div>";
 
     document.getElementById("battleAdvice").innerHTML = html;
@@ -1117,7 +1117,7 @@ function getRaidResultHtml() {
         + "<div id=\"battleRaidTaken\">" + items.map((row, index) => "<div class=\"raidrow\"><input class=\"form-check-input m-0\" type=\"checkbox\" id=\"battleTaken" + index + "\"" + (battle.raidTaken[index] ? " checked" : "") + " onchange=\"toggleRaidTaken(" + index + ")\">"
             + "<label class=\"raidname\" for=\"battleTaken" + index + "\">" + (row.resource != null ? getGameIcon(row.resource) + " " : "") + getRaidRowName(row) + "<small>" + row.keys + " key" + (row.keys == 1 ? "" : "s")
             + (!battle.raidTaken[index] && row.keys > battle.keysRolled - used ? ": no keys left" : "") + "</small></label></div>").join("") + "</div>"
-        + "<div class=\"raidtotal\">" + (taken.length > 0 ? "Steals <b>" + getRaidItemsText(taken) + "</b> (" + used + " of " + battle.keysRolled + " keys). Update values moves them on the panels." : "Steals nothing.") + "</div>";
+        + "<div class=\"raidtotal\">" + (taken.length > 0 ? "Steals <b>" + getRaidItemsText(taken) + "</b> (" + used + " of " + battle.keysRolled + " keys). Save the results moves them on the panels." : "Steals nothing.") + "</div>";
 }
 
 function stepKeysRolled(change) {

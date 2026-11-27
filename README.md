@@ -99,7 +99,7 @@ A game of Arcs is played over up to five chapters, each a round of turns. B4RCS 
 
 **A bot's turn:** the bot may spend resources first (its prelude), then shows its plan: numbered steps, each with its reason and the place on the board, such as *"Battle Player 3 at 3 ▲"*. Carry each step out on the table, tap **Completed**, and the app updates its board. Windows help with battles, building and the Court.
 
-**Ending a turn and a round:** tap **Next Turn** when everyone has played, and **Next Round** when hands are empty. At the end of a round, the app scores the declared ambitions and asks you to check its board against the table.
+**Ending a turn and a round:** tap **Next turn** when everyone has played, and **Next round** when hands are empty. At the end of a round, the app scores the declared ambitions and asks you to check its board against the table.
 
 **Winning:** the game ends when someone reaches the Power target, or after the fifth chapter.
 
@@ -122,7 +122,7 @@ The sections below explain each part in detail.
 - **Tiles:** each panel has **−** and **+** tiles for resources, Captives, Trophies, Power, ships and starports on the board, and cities on each planet type. Resources and cities show only an icon, after the game's tokens, and the ambitions in the top bar use the same ones. Bots use them to make their choices, and they're filled in for you when the app knows what happened. Ships, starports and cities follow the app's board, so correct those with **Check the board** in **Options**: a change on the tile alone is replaced the next time the board changes.
 - **Outrage:** under the tiles, the resources that player is Outraged in are marked red. It's filled in when a city is destroyed or Outrage Spreads is played, and you can tap one to mark or clear it. A bot won't spend an Outraged resource in its prelude.
 - **Guild row:** the Guild cards each player holds. Tap **+** to add one, or tap a card to read it or remove it.
-- **Footer:** **Undo**, **Next Turn** and **Next Round**, with the cards played this turn listed above them.
+- **Footer:** **Undo**, **Next turn** and **Next round**, with the cards played this turn listed above them.
 - **System names:** systems are named as on the board: **1 Gate**, and planets by their cluster number and ID symbol (▲, ☾ or ⬢), then their type, such as **3 ⬢** Weapon.
 
 </details>
@@ -228,7 +228,7 @@ For a bot:
 
 <img src="docs/screenshots/battle-results.png" width="300" align="right" alt="Battle results">
 
-**Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. The app knows from the board which buildings were destroyed and what planet they were on. It only asks when the defender had a city and a starport there and not both were destroyed. Check them and tap **Update values** to update both players' panels and the board.
+**Done battling** shows the results: ships destroyed and taken as Trophies, which buildings were destroyed, Outrage and Ransack, and anything stolen. The app knows from the board which buildings were destroyed and what planet they were on. It only asks when the defender had a city and a starport there and not both were destroyed. Check them and tap **Save the results** to update both players' panels and the board.
 
 For your own battles, the window doesn't choose dice. It keeps count while you roll, then updates the panels in the same way. For what you stole, use **−** and **+** for each resource, as you can take more than one of a kind, and tick any Guild card. In a gate, **Gatekeepers'** 2 extra dice are added without asking.
 
@@ -291,11 +291,11 @@ To declare outside your turn's card, tap the ambition in the top bar. Bots seize
 
 <details><summary><b>Ending a turn and a round</b></summary>
 
-When everyone has played, tap **Next Turn**. When nobody has cards left, tap **Next Round**. Before the next round starts, the app asks you to check its board against the table (see **What you handle for the bots**).
+When everyone has played, tap **Next turn**. When nobody has cards left, tap **Next round**. Before the next round starts, the app asks you to check its board against the table (see **What you handle for the bots**).
 
 <img src="docs/screenshots/scoring.png" width="300" align="right" alt="Round scoring">
 
-**Scoring** shows each declared ambition as a card with the Power for 1st and 2nd place, and every player's count, filled in from their panels, with their place and the Power they'd gain. Underneath, everyone's Power after scoring is shown against the Power that wins. Check the counts against the table, using **−** and **+** to correct them, and tap **Confirm Scores**. Trophies and Captives go back to their owners after Warlord and Tyrant are scored.
+**Scoring** shows each declared ambition as a card with the Power for 1st and 2nd place, and every player's count, filled in from their panels, with their place and the Power they'd gain. Underneath, everyone's Power after scoring is shown against the Power that wins. Check the counts against the table, using **−** and **+** to correct them, and tap **Confirm scores**. Trophies and Captives go back to their owners after Warlord and Tyrant are scored.
 
 The game ends when someone reaches the Power target, or at the end of round 5, and the app shows who won.
 
