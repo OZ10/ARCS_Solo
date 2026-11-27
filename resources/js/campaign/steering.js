@@ -256,7 +256,7 @@ const actThreeSteers = {
         notes: ["<b>No battles</b>, and <b>can't declare Warlord</b> or enforce or change to War (Oath of Peace).",
             "It keeps its ships spread over the clusters, to hold them at Peace (A Peaceful Reach)."],
         move: "ships to a cluster with none of its ships, to hold it at Peace",
-        table: "<b>Ceasefires:</b> a Ceasefire token in each cluster. Follow the cards." },
+        table: "<b>Ceasefires:</b> a Ceasefire token in each cluster, on the app's board. To battle in a cluster at Peace, a player spends 1 Weapon and flips it to War: bots only plan battles there with a Weapon, and the app flips it after the battle." },
     16: { ...fateSteers[16][2],
         notes: ["<b>Moves to clusters with no Seat</b>, Claims Fiefs and builds cities, as in Act II (Return to the Old Ways)."],
         table: "<b>Feudal Courts</b> and <b>Lords Gain Power:</b> follow the cards." },

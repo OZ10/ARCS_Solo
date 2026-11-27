@@ -83,13 +83,19 @@ function isFavourableBattle(odds) {
     return odds.mine > 0 && (odds.mine >= odds.theirs || odds.theirFresh == 0);
 }
 
+function canBattleIn(id, attackerNumber, defenderNumber) {
+    // The campaign's Truce Law, and its Ceasefires (campaign/fateboard.js): at Peace only with a Weapon to spend
+    if (typeof canHarmIn == "function" && !canHarmIn(id, attackerNumber, defenderNumber)) { return false; }
+    return !(typeof isCeasefireBlocked == "function" && board.clusterTokens != null && isCeasefireBlocked(id, attackerNumber));
+}
+
 function canFightNow(player, rival) {
     // It already shares a system with this Rival, and the odds there are good (#188)
     return getSystemIds().some(id => {
         const mine = getShips(id, player.number);
         if (mine.fresh + mine.damaged == 0) { return false; }
         if (!(getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0)) { return false; }
-        if (typeof canHarmIn == "function" && !canHarmIn(id, player.number, rival.number)) { return false; }
+        if (!canBattleIn(id, player.number, rival.number)) { return false; }
         return isFavourableBattle(getBattleOdds(player, rival, id));
     });
 }
@@ -99,7 +105,7 @@ function hasFavourableBattle(player, rival, canMoveOverride = null) {
     // fleet moved in first when it can Move (canMoveOverride: whether it can, if already known)
     const hasPieces = id => (getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0)
         // The campaign's Truce Law, where that branch has it
-        && (typeof canHarmIn != "function" || canHarmIn(id, player.number, rival.number));
+        && canBattleIn(id, player.number, rival.number);
     const canMoveFirst = canMoveOverride != null ? canMoveOverride : getBotPlay(player) != null ? canBotTakeAction(player, "move")
         : getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
     return getSystemIds().filter(hasPieces).some(id => {
@@ -115,7 +121,7 @@ function hasRepeatableBattle(player) {
     // all of them, so more than one Battle is worth planning (#200 phase 3, the user)
     return getSystemIds().some(id => players.some(rival => {
         if (rival === player) { return false; }
-        if (typeof canHarmIn == "function" && !canHarmIn(id, player.number, rival.number)) { return false; }
+        if (!canBattleIn(id, player.number, rival.number)) { return false; }
         const odds = getBattleOdds(player, rival, id);
         return odds.mine > 0 && isFavourableBattle(odds) && odds.theirs + getBuildings(id, rival.number).length >= 2;
     }));
@@ -220,7 +226,7 @@ function getHomeGate(player) {
 function canReachRival(player, rival) {
     // Its fresh ships already with the Rival's pieces, or one Move away (if it can Move)
     // Not where the Truce Law shields a Rival Regent (#85, #180)
-    const hasPieces = id => (getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0) && canHarmIn(id, player.number, rival.number);
+    const hasPieces = id => (getShips(id, rival.number).fresh + getShips(id, rival.number).damaged > 0 || getBuildings(id, rival.number).length > 0) && canBattleIn(id, player.number, rival.number);
     // Once its card is played, only that card (and its prelude) can Move it, not the rest of its hand (#188)
     const canMoveFirst = getBotPlay(player) != null ? canBotTakeAction(player, "move")
         : getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
@@ -384,7 +390,7 @@ function getBattleSystem(player, targetNumber) {
         + (getShips(id, targetNumber).fresh == 0 && getShips(id, targetNumber).damaged > 0 ? 2 : 0)
         + (getBuildings(id, targetNumber).length > 0 && getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged == 0 ? exposedBuildingBonus : 0);
     return getSystemIds().filter(id => getShips(id, player.number).fresh > 0 && (getShips(id, targetNumber).fresh + getShips(id, targetNumber).damaged > 0 || getBuildings(id, targetNumber).length > 0)
-        && canHarmIn(id, player.number, targetNumber))
+        && canBattleIn(id, player.number, targetNumber))
         .sort((a, b) => edge(b) - edge(a))[0] || null;
 }
 
@@ -869,6 +875,8 @@ function applyBattleToBoard(losses) {
     setShips(system, defender, battle.fresh, battle.damaged);
     let damaged = battle.damagedBuildings;
     getBuildings(system, defender).forEach(building => { building.damaged = damaged > 0; damaged--; });
+    // A Ceasefire at Peace flips to War, for a Weapon (campaign/fateboard.js)
+    if (typeof applyCeasefireAfterBattle == "function" && board.clusterTokens != null) { applyCeasefireAfterBattle(system, battle.attacker); }
     // Quartermaster (Resilient) and Repair Drones repair ships there (leaderrules.js)
     applyLeaderBattleRepairs(system);
     const step = (battle.attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.system == system && !item.applied);

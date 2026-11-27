@@ -271,6 +271,28 @@ function applyBotFateShips(player, act) {
     return lines.length > 0 ? "Player " + n + " " + lines.join(", then ") + ", on the app's board" : null;
 }
 
+// The Peacekeeper's Ceasefires (Act III): to harm anything in a cluster at Peace, other than Loyal
+// pieces and Blight, spend 1 Weapon and flip it to War
+
+function isPeaceCluster(cluster) {
+    return (board.clusterTokens[cluster] || []).some(token => token.kind == "ceasefire" && token.side == 1);
+}
+
+function isCeasefireBlocked(id, attackerNumber) {
+    // At Peace, and no Weapon to spend
+    const attacker = players.find(other => other.number == attackerNumber);
+    return isPeaceCluster(getCluster(id)) && (attacker == null || (attacker.weaponsValue || 0) == 0);
+}
+
+function applyCeasefireAfterBattle(system, attacker) {
+    // A battle in a cluster at Peace spent a Weapon and flipped it to War
+    const cluster = getCluster(system);
+    if (!isPeaceCluster(cluster)) { return; }
+    board.clusterTokens[cluster].forEach(token => { if (token.kind == "ceasefire") { token.side = 0; } });
+    if ((attacker.weaponsValue || 0) > 0) { setPlayerResource(attacker, "weapons", attacker.weaponsValue - 1); }
+    showMessageToast("Ceasefire", "Cluster " + cluster + " flipped to War: Player " + attacker.number + " spent 1 Weapon to battle there. Already on the app's board and panel.");
+}
+
 // The Planet Breaker's Hammer Fragments, at the start of Act II: one on each planet of a rolled symbol
 
 function placeHammerFragments(player) {
