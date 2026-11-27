@@ -46,14 +46,14 @@ function animatePower(player, from) {
     if (header == null) { return; }
     const to = player.powerValue;
     replayAnimation(header, "powerglow");
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { header.innerHTML = "Power " + to; return; }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { header.innerHTML = getPowerBannerHtml(to); return; }
     let value = from;
     const step = () => {
         value += 1;
-        header.innerHTML = "Power " + Math.min(value, to);
+        header.innerHTML = getPowerBannerHtml(Math.min(value, to));
         if (value < to && player.powerValue == to) { setTimeout(step, Math.max(60, 700 / (to - from))); }
     };
-    header.innerHTML = "Power " + from;
+    header.innerHTML = getPowerBannerHtml(from);
     setTimeout(step, 250);
 }
 

@@ -2,13 +2,20 @@
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
+function getPowerBannerHtml(power) {
+    // A player's Power in their banner: the Power icon and the number, to save space
+    return "<i class=\"bi bi-lightning-charge-fill\" aria-hidden=\"true\"></i> " + power;
+}
+
 function updateCardCounts() {
     // How many cards each player holds, in their banner (#206). Greyed with none left
     players.forEach(player => {
         const element = document.getElementById("playercards" + player.number);
         if (element == null) { return; }
         const count = getUnplayedCards(player.cards || []).length;
-        element.innerHTML = "<i class=\"bi bi-file-earmark\"></i> " + count + " card" + (count == 1 ? "" : "s");
+        // Just the icon and the number, to save space
+        element.innerHTML = "<i class=\"bi bi-file-earmark\" aria-hidden=\"true\"></i> " + count;
+        element.setAttribute("aria-label", count + " card" + (count == 1 ? "" : "s") + " in hand");
         element.classList.toggle("opacity-50", count == 0);
     });
 }
@@ -58,7 +65,7 @@ function clonePlayerNodeAndSetup(player) {
 
     const playerpower = playertemplate.querySelector('#playerpower');
     playerpower.id = "playerpower" + playerNumber.toString();
-    playerpower.innerHTML = "Power " + player.powerValue;
+    playerpower.innerHTML = getPowerBannerHtml(player.powerValue);
 
     const playcardbutton = playertemplate.querySelector('#playcard');
     playcardbutton.id = "playcard" + playerNumber.toString();
