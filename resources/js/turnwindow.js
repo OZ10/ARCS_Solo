@@ -284,12 +284,14 @@ function getBarPlan(player) {
 function updateTurnDock() {
     // The bar and the slot advice above the footer
     const player = getTurnPlayer();
+    // And each player's cards in hand, in their banner (#206)
+    updateCardCounts();
     const bar = document.getElementById("turnBar");
     if (player != null) {
         bar.className = "turnbar playerbanner" + getPlayerColour(player);
         // The human player's bar has the actions their card gives them
         const summary = !player.isHuman ? getBarPlan(player) : getHumanActionsLeftText(player);
-        bar.innerHTML = "<div class=\"turnbarplan\"><b>" + (isYou(player) ? "Your turn" : "Player " + player.number + "'s turn") + "</b>" + summary + "</div>"
+        bar.innerHTML = "<div class=\"turnbarplan\"><b>" + (isYou(player) ? "Your turn" : "Player " + player.number + "'s turn") + "</b><div class=\"turnbarsteps\">" + summary + "</div></div>"
             + "<button type=\"button\" class=\"btn btn-light btn-sm\" id=\"turnBarOpen\" onclick=\"openTurnWindow()\"><i class=\"bi bi-chevron-up\"></i> Open</button>";
     }
     showHideElement([bar], player != null);

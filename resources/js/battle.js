@@ -440,7 +440,9 @@ function showBattleModal(button) {
     battle.damagedBuildings = 0;
     battle.start = null;
     resetBattleRaid();
-    document.getElementById("battleAttackAgain").checked = false;
+    // On when the bot's plan has another Battle after this one (#205)
+    const battlesLeft = battle.attacker.isHuman ? 0 : (battle.attacker.turnPlan || []).filter(step => step.action == "battle" && !step.applied).length;
+    document.getElementById("battleAttackAgain").checked = battlesLeft >= 2;
     // Only needed for the bot's advice
     showHideElement([document.getElementById("battleAttackAgain").parentNode], !battle.attacker.isHuman);
 

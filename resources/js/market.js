@@ -338,6 +338,7 @@ function removeMarketCard(number) {
 function refreshTurnSummary() {
     // The plan names market cards and the summary says if the market is short, so keep it up to date
     if (awaitingDone != null) { showTurnDone(getPlayer(awaitingDone)); }
+    updateCardCounts();
 }
 
 function getCourtAdviceHtml(player) {

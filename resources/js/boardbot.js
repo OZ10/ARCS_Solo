@@ -103,6 +103,14 @@ function getThreatenedCity(player) {
         .sort((a, b) => b.gap - a.gap)[0] || null;
 }
 
+function getCityWorth(player, id) {
+    // What its city here is worth to it (#207): 1, plus how much it needs that type (2 for an ambition
+    // it's chasing, so a Relic city with Keeper declared). 0 if it has no city here. A gate city
+    // counts its best type
+    if (getBuildings(id, player.number, "city").length == 0) { return 0; }
+    return 1 + Math.max(0, ...getCityTypes(id).map(resource => getOutrageNeed(player, resource)));
+}
+
 function getRivalReach(player) {
     // Each system Rivals' fresh ships could move into this turn, and the most that could get there
     const reach = {};
@@ -341,8 +349,23 @@ function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
     }
     // A guard stays on its buildings when it holds resources worth raiding (#200 phase 3)
     const holdsLoot = preludeResources.some(resource => player[resource + "Value"] > 0);
-    const canTake = from => getShips(from, player.number).fresh - (holdsLoot && getBuildings(from, player.number).length > 0 && getShips(from, player.number).fresh > 1 ? 1 : 0);
-    const move = (to, count) => { if (!ok(to)) { return null; } const from = getMoveSources(player, to).filter(source => !isSettledSpot(player, source))[0]; return from == null ? null : { from: from, to: to, count: count == null ? canTake(from) : Math.min(count, canTake(from)) }; };
+    // Guards stay on its cities (#207): enough to hold one a Rival fleet could reach, at least 1
+    // otherwise; on other buildings 1 when it holds resources worth raiding
+    const reach = getRivalReach(player);
+    const guards = from => {
+        const fresh = getShips(from, player.number).fresh;
+        if (getBuildings(from, player.number, "city").length > 0) { return Math.min(fresh, Math.max(1, reach[from] > 0 ? reach[from] + 1 : 0)); }
+        return holdsLoot && getBuildings(from, player.number).length > 0 && fresh > 1 ? 1 : 0;
+    };
+    const canTake = from => Math.max(getShips(from, player.number).fresh - guards(from), 0);
+    // to: where; count: how many it wants there; worth: what the city it's defending there is worth.
+    // A city worth more keeps its guards, up to 2, rather than lose them to defend one worth less (#207)
+    const move = (to, count, worth = null) => {
+        if (!ok(to)) { return null; }
+        const spare = from => worth != null && getCityWorth(player, from) > worth ? Math.max(getShips(from, player.number).fresh - Math.max(guards(from), 2), 0) : canTake(from);
+        const from = getMoveSources(player, to).filter(source => !isSettledSpot(player, source) && spare(source) > 0)[0];
+        return from == null ? null : { from: from, to: to, count: count == null ? spare(from) : Math.min(count, spare(from)) };
+    };
     // Defending one of its cities a Rival's fleet could reach, with enough to hold it
     const threatened = getThreatenedCity(player);
     // Or holding a gate a Rival fleet would Catapult through to reach its buildings (the user): when
@@ -360,7 +383,7 @@ function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
     };
     const gate = gates[0] || null;
     if (threatened != null) {
-        const found = move(threatened.id, threatened.gap + 1);
+        const found = move(threatened.id, threatened.gap + 1, getCityWorth(player, threatened.id));
         const direct = found != null && found.count >= threatened.gap + 1;
         if (!direct || (gate != null && gate.count > 1)) { const held = holdGate(); if (held != null) { return held; } }
         if (found != null) { return { ...found, why: "to defend its city there from a Rival fleet in reach" }; }
@@ -382,7 +405,7 @@ function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
         if (gate != null) { const found = toGate(); if (found != null) { return found; } }
     }
     const unguarded = getBoardCities(player.number).map(city => city.system).find(id => ok(id) && getShips(id, player.number).fresh == 0 && getMoveSources(player, id).length > 0);
-    if (unguarded != null) { const found = move(unguarded, 1); if (found != null) { return { ...found, why: "to guard its city" }; } }
+    if (unguarded != null) { const found = move(unguarded, 1, getCityWorth(player, unguarded)); if (found != null) { return { ...found, why: "to guard its city" }; } }
     // Its cluster's gate, with 2 or more of its buildings there (the user)
     const home = getHomeGate(player);
     if (home != null && ok(home)) {
