@@ -236,6 +236,8 @@ function renderHumanTurn(player) {
     if (typeof getHumanFateSectionHtml == "function") { html += getHumanFateSectionHtml(player); }
     // Leaders & Lore: your Lore cards' own actions (lorehuman.js, #221)
     if (typeof getHumanLoreSectionHtml == "function") { html += getHumanLoreSectionHtml(player); }
+    // Your Guild cards' actions instead of one of your card's (guildhuman.js, #232)
+    if (typeof getHumanGuildSectionHtml == "function" && player.isHuman) { html += getHumanGuildSectionHtml(player); }
     const shortfall = getMarketShortfallSection(offered);
     if (shortfall != "") { html += shortfall; offered.push("court"); }
     html += getTurnSection("Also", "<div class=\"turntools\">" + ["battle", "court"].filter(name => !offered.includes(name)).concat("draw").map(getAlsoButton).join("") + "</div>");
