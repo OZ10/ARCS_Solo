@@ -385,6 +385,8 @@ function showFatesChosen() {
 function showCampaignPanel(player) {
     const panel = document.getElementById("playerpanel" + player.number);
     if (panel == null || campaign == null || campaign.players[player.number] == null) { return; }
+    // Its Flagship, in the Board section (flagships.js)
+    renderFlagshipSection(player);
     let holder = document.getElementById("campaignpanel" + player.number);
     if (holder == null) {
         holder = document.createElement("div");

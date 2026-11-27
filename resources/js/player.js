@@ -126,7 +126,9 @@ function getCityCount(player) {
 function getUncoveredCities(player) {
     // How many city slots are open on a player's board: their cities on the map, and any held
     // as a Rival's Trophies
-    return getCityCount(player) + (player.citiesAsTrophies || 0) + (player.scrappedCities || 0);
+    // In a campaign, cities in a Flagship's Upgrade and Armor slots open slots too (#85)
+    const flagshipCities = typeof getFlagshipCities == "function" ? getFlagshipCities(player) : 0;
+    return getCityCount(player) + (player.citiesAsTrophies || 0) + (player.scrappedCities || 0) + flagshipCities;
 }
 
 function hasPlayerGotCardsToPlay(player) {

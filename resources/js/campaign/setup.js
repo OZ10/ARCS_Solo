@@ -73,10 +73,57 @@ function showLaterActSetup() {
             (act == 3 ? "\"A\" and \"B\" Fates have grand ambitions instead. " : "") + "The app has set each one on the panels.")
         + "</div><button type=\"button\" class=\"btn btn-primary w-100 mt-2\" data-bs-dismiss=\"modal\">Done: start chapter 1</button>";
     showCampaignWindow(actNames[act] + " setup", html, null, true, () => {
-        // The Act has started: a reload now carries on the game
-        if (campaign.stage == "actSetup") { campaign.stage = null; SaveAllSettings(); }
-        startRoundAfterMulligan();
+        // A human player's own setup steps on the board first, such as placing a new Flagship (#85 stage 7d)
+        runSetupSteps(() => {
+            // The Act has started: a reload now carries on the game
+            if (campaign.stage == "actSetup") { campaign.stage = null; SaveAllSettings(); }
+            startRoundAfterMulligan();
+        });
     });
+}
+
+// Human players' own setup steps on the board, one window at a time (#85 stage 7d). Saved, so a
+// reload carries on: campaign.setupSteps = [{ kind, player, ... }]
+
+let setupStepsThen = null;
+
+function runSetupSteps(then) {
+    setupStepsThen = then;
+    const steps = campaign.setupSteps || [];
+    if (steps.length == 0) { setupStepsThen = null; then(); return; }
+    const step = steps[0];
+    if (step.kind == "flagship") { showFlagshipPlacement(getPlayer(step.player)); }
+}
+
+function finishSetupStep() {
+    campaign.setupSteps = (campaign.setupSteps || []).slice(1);
+    SaveAllSettings();
+    const modal = document.getElementById("guildModal");
+    const next = () => runSetupSteps(setupStepsThen || (() => startRoundAfterMulligan()));
+    if (modal.classList.contains("show")) { modal.addEventListener('hidden.bs.modal', next, { once: true }); bootstrap.Modal.getOrCreateInstance(modal).hide(); }
+    else { next(); }
+}
+
+function showFlagshipPlacement(player) {
+    // A new Flagship goes in a system with Loyal pieces
+    const step = campaign.setupSteps[0];
+    const places = getSystemIds().filter(id => hasLoyalPiece(id, player.number));
+    const option = id => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" id=\"flagshipPlace_" + id + "\" onclick=\"placeNewFlagship(" + player.number + ", '" + id + "')\">" + getSystemName(id)
+        + "<small class=\"d-block text-secondary\">" + tagPlayerNames(getPiecesText(id)) + "</small></button>";
+    document.getElementById("guildTitle").innerHTML = "Your Flagship";
+    const header = document.querySelector("#guildModal .modal-header");
+    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    header.classList.add("playerbanner" + getPlayerColour(player));
+    document.getElementById("guildBody").innerHTML = "<p class=\"mb-2\">You gain a <b>Flagship</b>, starting with " + Object.entries(step.pieces).map(([slot, kind]) => "a " + kind + " on " + flagshipSlots.find(item => item.key == slot).name).join(" and ")
+        + ". Your cities and starports on the map become Free ones. Place the Flagship in a system with your pieces:</p>"
+        + "<div class=\"d-grid gap-2\">" + places.map(option).join("") + "</div>";
+    const modal = document.getElementById("guildModal");
+    if (!modal.classList.contains("show")) { showLockedModal(modal); }
+}
+
+function placeNewFlagship(number, id) {
+    gainFlagship(getPlayer(number), id, campaign.setupSteps[0].pieces);
+    finishSetupStep();
 }
 
 function ensureCouncilInCourt() {
@@ -145,6 +192,18 @@ function addLaterActBlight(symbolIndex) {
 function applyFateSetupsToBoard(act) {
     // The Fates' tokens placed in their setup (#85 stage 7d), as lines saying where
     const lines = [];
+    // A Flagship for the Hegemon and the Pathfinder in Act II (rulebook p.22): a bot places it where
+    // it has most pieces; a human player chooses after the setup window (runSetupSteps)
+    const flagshipPieces = { 10: { defense: "starport", slipstream: "starport" }, 9: { slipstream: "starport", hull: "city" } };
+    if (act == 2) {
+        campaign.setupSteps = [];
+        players.filter(player => hasFate(player, 10) || hasFate(player, 9)).forEach(player => {
+            const pieces = flagshipPieces[hasFate(player, 10) ? 10 : 9];
+            if (player.isHuman) { campaign.setupSteps.push({ kind: "flagship", player: player.number, pieces: pieces }); lines.push("Player " + player.number + " places their new Flagship after this window"); return; }
+            const system = chooseBotFlagshipSystem(player);
+            if (system != null) { gainFlagship(player, system, pieces); lines.push("Player " + player.number + "'s Flagship at " + getSystemShortName(system) + ", and their cities and starports on the map are now Free"); }
+        });
+    }
     const pacifist = players.find(player => hasFate(player, 14));
     if (act == 2 && pacifist != null) {
         // A Witness on each Weapon planet, spyglass side up

@@ -108,15 +108,22 @@ function applyBlightCrises() {
         // What's left once the Imperial ships are gone goes to every player there
         const left = imperial.left;
         if (left > 0) {
-            Object.keys(system.ships).map(Number).forEach(number => {
+            const flagshipOwners = (system.flagships || []).map(flagship => flagship.owner);
+            [...new Set(Object.keys(system.ships).map(Number).concat(flagshipOwners))].forEach(number => {
                 const ships = { ...getShips(id, number) };
                 const result = hitPieces(ships, left);
                 setShips(id, number, ships.fresh, ships.damaged);
                 const line = describeHits("Player " + number + "'s ships", result);
                 if (line != null) { lines.push(line); }
+                // A Flagship takes hits only once no other fresh Loyal ships remain: rightmost Armor,
+                // then the rightmost Upgrade (campaign rulebook p.24; campaign/flagships.js)
+                const player = getPlayer(number);
+                if (flagshipOwners.includes(number) && result.left > 0 && ships.fresh == 0 && player != null && player.flagship != null) {
+                    const hit = hitFlagship(player, result.left);
+                    if (hit.length > 0) { lines.push("Player " + number + "'s Flagship: " + hit.join(", ")); }
+                }
             });
         }
-        if ((system.flagships || []).length > 0) { lines.push("A Flagship is here: it takes hits only once no other fresh Loyal ships remain (rulebook p.24)"); }
         return { id: id, hits: hits, lines: lines };
     });
 }
@@ -146,9 +153,15 @@ function applyIntermissionToBoard() {
         }
         if (changes.length > 0) { lines.push(getSystemName(id) + ": " + changes.join(", ")); }
     });
+    // Damaged Upgrades and Armor on Flagships (campaign/flagships.js)
+    players.forEach(player => {
+        const cleared = typeof clearDamagedFlagshipPieces == "function" ? clearDamagedFlagshipPieces(player) : [];
+        if (cleared.length > 0) { lines.push("Player " + player.number + "'s Flagship: damaged " + cleared.join(", ") + " destroyed"); }
+    });
     // No ships or starports left: 3 fresh ships in a gate (a bot chooses one with no Blight)
     players.forEach(player => {
-        if (getBoardShips(player.number) > 0 || getBoardBuildings(player.number, "starport").length > 0) { return; }
+        // A Flagship can't be removed from the map, so its player always has a piece there
+        if (getBoardShips(player.number) > 0 || getBoardBuildings(player.number, "starport").length > 0 || player.flagship != null) { return; }
         // A human player chooses a gate in the Intermission window (intermission.js)
         if (player.isHuman) { return; }
         const gate = getSystemIds().find(id => isGate(id) && !hasBlight(id)) || getSystemIds().find(isGate);
@@ -606,6 +619,8 @@ function syncPanelFromBoard(player) {
     player.startingCity = cities.filter(city => getCityTypes(city.system).length == 0).length;
     const total = document.getElementById("citiestotal" + player.number);
     if (total != null) { total.innerHTML = getCityCount(player); }
+    // A campaign Flagship's section (campaign/flagships.js)
+    if (typeof renderFlagshipSection == "function" && player.flagship != null) { renderFlagshipSection(player); }
 }
 
 function getPiecesText(id) {

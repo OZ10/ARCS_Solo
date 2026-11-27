@@ -175,6 +175,7 @@ function undoBoardAction(index) {
             take(place.fresh, false);
             take(place.damaged, true);
         });
+        if (action.flagship) { moveFlagship(player, action.to, action.from); }
     } else if (action.action == "build") {
         if (action.kind == "ship") { removeShips(action.system, number, 1, action.damaged); }
         else { removeBuilding(action.system, number, action.kind); }
@@ -333,6 +334,11 @@ function humanTax(index) {
 
 // A Move: where from, where to, how many, and any left on the way
 
+function hasFlagshipAt(id, playerNumber) {
+    // Its campaign Flagship is in this system (#85 stage 7d)
+    return (getSystem(id).flagships || []).some(flagship => flagship.owner == playerNumber);
+}
+
 function getMoveRoutes(from, to, playerNumber, movingFresh = null) {
     // The shortest routes, through gates its ships can keep going through (a Catapult): those no
     // one else controls once the moving ships are there (#184)
@@ -369,6 +375,8 @@ function chooseMoveFrom(from, render = true) {
     const most = getLeaderMoveLimit(getTurnPlayer());
     humanMove.fresh = Math.min(ships.fresh, most);
     humanMove.damaged = Math.min(ships.damaged, most - humanMove.fresh);
+    // Its Flagship there moves too, unless untoggled (#85 stage 7d)
+    humanMove.flagship = hasFlagshipAt(from, getTurnPlayer().number);
     humanMove.routes = [];
     humanMove.route = null;
     humanMove.drops = {};
@@ -458,7 +466,7 @@ function getMoveSystemNote(id, playerNumber) {
 function getMoveText() {
     const total = humanMove.fresh + humanMove.damaged;
     const drops = Object.entries(humanMove.drops).filter(([, count]) => count > 0);
-    return "Move " + total + " ship" + (total == 1 ? "" : "s") + " " + getSystemName(humanMove.from) + " &rarr; " + getSystemName(humanMove.to)
+    return "Move " + (humanMove.flagship ? "the Flagship" + (total > 0 ? " and " : "") : "") + (total > 0 || !humanMove.flagship ? total + " ship" + (total == 1 ? "" : "s") : "") + " " + getSystemName(humanMove.from) + " &rarr; " + getSystemName(humanMove.to)
         + (drops.length > 0 ? ", leaving " + drops.map(([id, count]) => count + " at " + getSystemName(id)).join(" and ") : "");
 }
 
@@ -466,7 +474,9 @@ function renderHumanMove() {
     const player = getTurnPlayer();
     const number = player.number;
     const body = document.getElementById("boardActionBody");
-    const sources = getSystemsWithShips(number);
+    // Systems with its ships, and its Flagship's (#85 stage 7d)
+    const flagshipSystem = typeof getFlagshipSystem == "function" && player.flagship != null ? getFlagshipSystem(player) : null;
+    const sources = getSystemsWithShips(number).concat(flagshipSystem != null && !getSystemsWithShips(number).includes(flagshipSystem) ? [flagshipSystem] : []);
     if (sources.length == 0) {
         body.innerHTML = "<p class=\"text-muted mb-0\">You have no ships on the app's board. If the table is different, fix it with Check the board in Options.</p>";
         return;
@@ -501,7 +511,10 @@ function renderHumanMove() {
             }
         }
     }
-    const ready = humanMove.to != null && humanMove.fresh + humanMove.damaged > 0;
+    if (humanMove.from != null && hasFlagshipAt(humanMove.from, number)) {
+        html += "<div class=\"form-check form-switch mb-2\"><input class=\"form-check-input\" type=\"checkbox\" id=\"moveFlagship\"" + (humanMove.flagship ? " checked" : "") + " onchange=\"humanMove.flagship = this.checked; renderHumanMove()\"><label class=\"form-check-label\" for=\"moveFlagship\">Flagship moves too</label></div>";
+    }
+    const ready = humanMove.to != null && (humanMove.fresh + humanMove.damaged > 0 || humanMove.flagship);
     html += "<button type=\"button\" class=\"btn btn-primary w-100\" id=\"moveConfirm\" onclick=\"confirmHumanMove()\"" + (ready ? "" : " disabled") + ">"
         + (ready ? getMoveText() : humanMove.to == null ? "Choose where to" : "Choose how many ships") + "</button>";
     body.innerHTML = tagPlayerNames(html);
@@ -510,7 +523,7 @@ function renderHumanMove() {
 function confirmHumanMove() {
     const player = getTurnPlayer();
     const number = player.number;
-    if (humanMove == null || humanMove.to == null || humanMove.fresh + humanMove.damaged == 0) { return; }
+    if (humanMove == null || humanMove.to == null || (humanMove.fresh + humanMove.damaged == 0 && !humanMove.flagship)) { return; }
     // Fresh ships are left first, then damaged ones
     let fresh = humanMove.fresh, damaged = humanMove.damaged;
     const placed = [];
@@ -526,7 +539,8 @@ function confirmHumanMove() {
     // before the ships move in (leaderrules.js)
     applyGatePortsCapture(player, humanMove.route || [humanMove.from, humanMove.to]);
     placed.forEach(place => moveShips(humanMove.from, place.to, number, place.fresh, place.damaged));
-    recordBoardAction(player, { action: "move", from: humanMove.from, to: humanMove.to, placed: placed, text: getMoveText().replace(/^Move /, "") });
+    if (humanMove.flagship) { moveFlagship(player, humanMove.from, humanMove.to); }
+    recordBoardAction(player, { action: "move", from: humanMove.from, to: humanMove.to, placed: placed, flagship: !!humanMove.flagship, text: getMoveText().replace(/^Move /, "") });
     humanMove = null;
     closeHumanBoardAction();
 }
@@ -549,6 +563,14 @@ function showBattleSystems() {
     const places = getBattlePlacesFor(battle.attacker, battle.defender);
     holder.innerHTML = places.length == 0 ? ""
         : "<span class=\"small text-secondary\">Where</span>" + places.map(id => "<button type=\"button\" class=\"btn btn-sm " + (id == battle.boardSystem ? "btn-secondary" : "btn-outline-secondary") + "\" id=\"battleSystem_" + id + "\" onclick=\"chooseBattleSystem('" + id + "')\">" + getSystemName(id) + "</button>").join("");
+    // A campaign Flagship in the battle (campaign rulebook pp.23-24): what it adds, to count in by hand
+    const system = battle.boardSystem;
+    if (system != null && typeof hasFlagship == "function") {
+        const notes = [battle.attacker, battle.defender].filter(player => player != null && typeof player.number == "number" && hasFlagship(player) && hasFlagshipAt(system, player.number)).map(player => player === battle.attacker
+            ? getPlayerTag(player) + "'s Flagship attacks too: " + getFlagshipFreshStarports(player) + " more dice (fresh starports). Its Upgrades and Armor take hits like ships."
+            : getPlayerTag(player) + "'s Flagship defends: its Upgrades and Armor take hits like buildings, and it intercepts only with a Defense Array.");
+        if (notes.length > 0) { holder.innerHTML += "<div class=\"small text-secondary w-100 text-center\">" + notes.join("<br>") + " Change its slots on the panel after the battle.</div>"; }
+    }
 }
 
 function chooseBattleSystem(id) {

@@ -535,7 +535,11 @@ function chooseBoardBuild(player) {
 function applyBoardStep(player, where) {
     // A step's effect on the board
     if (where == null) { return; }
-    if (where.from != null) { moveShips(where.from, where.to, player.number, where.count); }
+    if (where.from != null) {
+        moveShips(where.from, where.to, player.number, where.count);
+        // Its campaign Flagship goes with its fleet (campaign/flagships.js)
+        if (player.flagship != null && hasFlagshipAt(where.from, player.number)) { moveFlagship(player, where.from, where.to); }
+    }
     if (where.kind == "city" || where.kind == "starport") {
         // Cloud Cities: outside the slots, for 1 resource of the planet's type (leaderrules.js)
         if (placeBuilding(where.system, player.number, where.kind, isBuiltDamaged(where.system, player.number, where.kind), where.cloud === true) && where.cloud) {
@@ -594,7 +598,7 @@ function placeBoardPlan(player, plan) {
                 }
                 if (where == null) { where = chooseBoardMove(player, targetNumber, getNewCityResource(player), movedFrom); }
                 // Its reason is where it's going and why
-                if (where != null) { movedFrom.push(where.from); step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
+                if (where != null) { movedFrom.push(where.from); step.text = "Move " + (player.flagship != null && hasFlagshipAt(where.from, player.number) ? "its Flagship and " : "") + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
                 // Nothing useful on the board: say so rather than leave it vague (#197)
                 else { step.text = "No Move: the board has nowhere useful to go, so skip this action"; }
             } else if (step.action == "build") {
@@ -653,7 +657,7 @@ function refreshBotMoveStops(player) {
         }
         const by = getController(stop);
         step.where = { ...where, to: stop, why: "stopped" };
-        step.text = "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(stop)
+        step.text = "Move " + (player.flagship != null && hasFlagshipAt(where.from, player.number) ? "its Flagship and " : "") + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(stop)
             + " (it can't go on to " + planned + " as " + (by != null ? "Player " + by + " controls " : "someone else controls ") + getSystemName(stop) + ", so its Catapult stops there)";
     };
     withBoardCopy(() => {
