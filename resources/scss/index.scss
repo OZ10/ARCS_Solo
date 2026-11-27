@@ -2364,6 +2364,29 @@ $empire: #5b2a86;
     }
 }
 
+// In a window, a stepper is boxed like the scoring window's (the user, 2026-11-27: Check the board,
+// the Move window, Fate-setup ships). The panels keep theirs
+.modal .favorstep {
+    gap: 0;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+
+    button {
+        background: #f8f9fa;
+        border-radius: 0;
+        width: 30px;
+        height: 30px;
+    }
+
+    b {
+        min-width: 34px;
+        text-align: center;
+        font-weight: 600;
+    }
+}
+
 .trust {
     margin: 0 12px 10px;
     border-radius: 12px;

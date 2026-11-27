@@ -158,8 +158,7 @@ function refreshTooltips() {
 let newsItems = [];
 let newsExpanded = false;
 let newsCount = 0;
-// How many show before "earlier" ones are folded away
-const newsShown = 3;
+// How many are kept (they show folded to one line until tapped, #219)
 const newsKept = 40;
 
 function showMessageToast(headerValue, bodyValue) {
@@ -176,18 +175,22 @@ function showMessageToast(headerValue, bodyValue) {
 function getNewsHtml() {
     // The newest first, with a close button each; older ones folded away
     if (newsItems.length == 0) { return ""; }
-    // Only the newest on a short screen, such as a device held sideways
-    const count = window.innerHeight < 500 ? 1 : newsShown;
-    const shown = newsExpanded ? newsItems : newsItems.slice(0, count);
-    const hidden = newsItems.length - shown.length;
-    return "<div class=\"d-flex align-items-center mb-1\"><span class=\"small fw-bold flex-fill\">What happened</span>"
-        + "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0\" onclick=\"clearNews()\">Clear all</button></div>"
-        + shown.map(item => "<div class=\"slotadvice newsitem\"><div class=\"d-flex align-items-start\"><b class=\"flex-fill\">" + item.title + "</b>"
+    // Folded to one line until tapped: the newest, and how many there are (#219, the user)
+    if (!newsExpanded) {
+        const newest = newsItems[0];
+        const plain = text => text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        return "<div class=\"d-flex align-items-center gap-2 newsline\" role=\"button\" id=\"newsLine\" onclick=\"toggleNews()\" aria-label=\"Show what happened\">"
+            + "<span class=\"small fw-bold text-nowrap\">What happened</span><span class=\"badge rounded-pill text-bg-secondary\">" + newsItems.length + "</span>"
+            + "<span class=\"small text-truncate flex-fill\" style=\"min-width:0\">" + newest.title + "<span class=\"text-secondary\">: " + plain(newest.body) + "</span></span>"
+            + "<i class=\"bi bi-chevron-up\"></i></div>";
+    }
+    return "<div class=\"d-flex align-items-center gap-2 mb-1\"><span class=\"small fw-bold flex-fill\">What happened</span>"
+        + "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0\" onclick=\"clearNews()\">Clear all</button>"
+        + "<button type=\"button\" class=\"btn btn-sm btn-link py-0\" onclick=\"toggleNews()\" aria-label=\"Fold it away\"><i class=\"bi bi-chevron-down\"></i></button></div>"
+        + newsItems.map(item => "<div class=\"slotadvice newsitem\"><div class=\"d-flex align-items-start\"><b class=\"flex-fill\">" + item.title + "</b>"
             + "<span class=\"small text-secondary me-2 text-nowrap\">" + item.when + "</span>"
             + "<button type=\"button\" class=\"btn-close btn-sm\" aria-label=\"Close\" onclick=\"closeNews(" + item.id + ")\"></button></div>"
-            + "<div class=\"small\">" + item.body + "</div></div>").join("")
-        + (hidden > 0 ? "<button type=\"button\" class=\"btn btn-link btn-sm p-0\" onclick=\"toggleNews()\">+" + hidden + " earlier</button>"
-            : (newsExpanded && newsItems.length > count ? "<button type=\"button\" class=\"btn btn-link btn-sm p-0\" onclick=\"toggleNews()\">Show fewer</button>" : ""));
+            + "<div class=\"small\">" + item.body + "</div></div>").join("");
 }
 
 function refreshNews() {
