@@ -215,6 +215,62 @@ function removeToken(id, kind) {
     if (index >= 0) { tokens.splice(index, 1); }
 }
 
+// A bot's ships in its Fate's setup (#85 stage 7d part 2b): making up its Loyal ships on the map,
+// scrapping some, or the Pirate's ship on each gate. A human player does theirs on the table
+// makeUp: Loyal ships on the map it makes up to (besides its Flagship); scrapBefore/After: ships scrapped
+const fateShipSetups = {
+    10: { act: 2, makeUp: 6, scrapAfter: 4 },
+    13: { act: 2, scrapBefore: 2, makeUp: 8 },
+    14: { act: 2, makeUp: 8 },
+    15: { act: 2, makeUp: 8 },
+    16: { act: 2, makeUp: 8 },
+    12: { act: 2, gateShips: true }
+};
+
+function applyBotFateShips(player, act) {
+    const setup = fateShipSetups[getFateNumber(player)];
+    if (setup == null || setup.act != act || player.isHuman) { return null; }
+    const n = player.number;
+    const lines = [];
+    const shipsOn = id => getShips(id, n).fresh + getShips(id, n).damaged;
+    const scrap = count => {
+        // Where they matter least: no buildings of its own, fewest ships, damaged ones first
+        let scrapped = 0;
+        while (scrapped < count) {
+            const id = getSystemIds().filter(other => shipsOn(other) > 0).sort((a, b) => getBuildings(a, n).length - getBuildings(b, n).length || shipsOn(a) - shipsOn(b))[0];
+            if (id == null) { break; }
+            removeShips(id, n, 1, getShips(id, n).damaged > 0);
+            scrapped++;
+        }
+        player.scrappedShips = (player.scrappedShips || 0) + scrapped;
+        if (scrapped > 0) { lines.push("scrapped " + scrapped + " ship" + (scrapped == 1 ? "" : "s")); }
+    };
+    if (setup.scrapBefore) { scrap(setup.scrapBefore); }
+    if (setup.makeUp) {
+        // Into systems with its Loyal pieces: its buildings first, then where it has most ships
+        const places = getSystemIds().filter(id => hasLoyalPiece(id, n)).sort((a, b) => getBuildings(b, n).length - getBuildings(a, n).length || shipsOn(b) - shipsOn(a));
+        const added = {};
+        let index = 0;
+        while (getBoardShips(n) < setup.makeUp && getShipSupply(player) > 0 && places.length > 0) {
+            const id = places[index % places.length];
+            addShips(id, n, 1);
+            added[id] = (added[id] || 0) + 1;
+            index++;
+        }
+        const list = Object.entries(added).map(([id, count]) => count + " at " + getSystemShortName(id));
+        if (list.length > 0) { lines.push("made up its ships to " + setup.makeUp + ": " + list.join(", ")); }
+    }
+    if (setup.scrapAfter) { scrap(setup.scrapAfter); }
+    if (setup.gateShips) {
+        // The Pirate: 1 ship on the gate of each cluster with no Loyal ships
+        const gates = getClustersInPlay().filter(cluster => !getSystemIds().some(id => getCluster(id) == cluster && getShips(id, n).fresh + getShips(id, n).damaged > 0)).map(cluster => cluster + "g").filter(id => getSystem(id) != null);
+        gates.forEach(id => { if (getShipSupply(player) > 0) { addShips(id, n, 1); } });
+        if (gates.length > 0) { lines.push("placed 1 ship at " + gates.map(getSystemShortName).join(", ")); }
+    }
+    syncPanelFromBoard(player);
+    return lines.length > 0 ? "Player " + n + " " + lines.join(", then ") + ", on the app's board" : null;
+}
+
 // The Planet Breaker's Hammer Fragments, at the start of Act II: one on each planet of a rolled symbol
 
 function placeHammerFragments(player) {

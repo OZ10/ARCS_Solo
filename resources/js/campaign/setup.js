@@ -207,6 +207,8 @@ function applyFateSetupsToBoard(act) {
     // The Planet Breaker: a Hammer Fragment on each planet of a rolled symbol (campaign/fateboard.js)
     const breaker = players.find(player => hasFate(player, 11));
     if (act == 2 && breaker != null) { lines.push(placeHammerFragments(breaker)); }
+    // Bots make up or scrap their ships as their Fate's setup says (campaign/fateboard.js)
+    players.forEach(player => { const line = applyBotFateShips(player, act); if (line != null) { lines.push(line); } });
     const pacifist = players.find(player => hasFate(player, 14));
     if (act == 2 && pacifist != null) {
         // A Witness on each Weapon planet, spyglass side up

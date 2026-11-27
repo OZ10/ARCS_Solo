@@ -42,6 +42,8 @@ class player {
     leader = null;
     lore = [];
     scrappedCities = 0;
+    // Ships a campaign Fate scrapped (campaign/fateboard.js): never back in its supply
+    scrappedShips = 0;
     // Cities a Rival has destroyed and holds as Trophies. They don't go back on the player board
     // until those Trophies are returned, so the slots they uncovered stay open
     citiesAsTrophies = 0;

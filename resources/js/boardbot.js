@@ -882,7 +882,8 @@ const shipsPerPlayer = 15;
 
 function getShipSupply(player) {
     // Less any its Leader scrapped in setup (Overseer, Hated: leaderrules.js)
-    return Math.max(shipsPerPlayer - getLeaderScrappedShips(player) - getBoardShips(player.number) - (player.shipsTrophy || 0), 0);
+    // And any its campaign Fate scrapped (campaign/fateboard.js)
+    return Math.max(shipsPerPlayer - getLeaderScrappedShips(player) - (player.scrappedShips || 0) - getBoardShips(player.number) - (player.shipsTrophy || 0), 0);
 }
 
 function getBoardYesReason(ambition, action) {
