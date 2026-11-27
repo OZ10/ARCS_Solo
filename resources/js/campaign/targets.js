@@ -6,7 +6,7 @@
 // they are loaded as plain scripts, in order, by index.html
 
 // How much each reason is worth, to choose which to ask about
-const campaignTargetWeights = { chased: 2, warlordEmpire: 2.5, warlordBlight: 2, warlordFree: 1.5, noRival: 1, founder: 1.5, clear: 1.75 };
+const campaignTargetWeights = { chased: 2, warlordEmpire: 2.5, warlordBlight: 2, warlordFree: 1.5, noRival: 1, founder: 1.5, clear: 1.75, threat: 1.9 };
 // Blight is Tough (2 hits each), so only with a good few ships there
 const blightFleet = 4;
 // Fates that want the Blight left alone: the Blight Speaker (Act II) and the Naturalist (Act III)
@@ -52,6 +52,8 @@ function getCampaignTargetOptions(player) {
     const blightAnswer = (player.steerAnswers || {}).blight;
     if (!blightFriends.includes(getFateNumber(player)) && blightAnswer !== false) {
         if (warlord && getFleetForBattle(player) >= blightFleet) { options.push({ kind: "blight", reason: "warlord", value: weights.warlordBlight }); }
+        // Blight on its own buildings, at any time in the campaign (the user, 2026-11-27)
+        else if (getBlightOnBuildings(player).length > 0) { options.push({ kind: "blight", reason: "threat", value: weights.threat }); }
         else if (!warlord && isEarlyCampaign()) { options.push({ kind: "blight", reason: "clear", value: weights.clear }); }
         else if (!warlord && getUsefulRivalBattle(player) == null) { options.push({ kind: "blight", reason: "noRival", value: weights.noRival }); }
     }
@@ -86,7 +88,7 @@ function getCampaignTargetQuestion(player, option) {
 registerCampaignHook("botQuestionsFirst", (player, carryOn) => {
     if (player.isHuman || player.campaignTarget !== undefined || (player.steerAnswers || {}).blight !== undefined) { return undefined; }
     if (!getBotCards(player).some(card => card.actions.includes("battle")) && player.weaponsValue == 0) { return undefined; }
-    const option = getCampaignTargetOptions(player).find(item => item.kind == "blight" && (item.reason == "noRival" || item.reason == "clear"));
+    const option = getCampaignTargetOptions(player).find(item => item.kind == "blight" && (item.reason == "noRival" || item.reason == "clear" || item.reason == "threat"));
     if (option == null) { return undefined; }
     // The board answers whether it's in reach, so it's never asked (#85 stage 7b)
     const system = findSpecialTargetSystem(player, option);
@@ -150,6 +152,7 @@ registerCampaignHook("specialBattleTarget", player => {
     } else if (target.kind == "blight") {
         why = target.reason == "warlord" ? "Chasing Warlord: Blight destroyed is a Trophy."
             : target.reason == "clear" ? "Early in the Act: clearing the Blight opens the planet to build on, and keeps it from hitting its ships in a Crisis."
+            : target.reason == "threat" ? "Blight is on its buildings: it hits the ships guarding them in each Crisis, and destroys them at the Intermission if no ships are left."
             : "No battle with a Rival is worth it now: clearing the Blight keeps it from hitting its ships in a Crisis.";
         where = "Each Blight takes 2 hits." + regent;
     } else {

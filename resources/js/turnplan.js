@@ -287,10 +287,11 @@ function getActionPlanScore(player, action, focus) {
                 if (useful == null && action != focus) { return { score: planImpossible }; }
                 if (useful != null) { reason = useful.reason; }
             }
-            // Early in Act I, clearing the Blight it can reach is worth a Battle (the user, 2026-11-27)
-            if (campaignMode && player.campaignTarget && player.campaignTarget.kind == "blight" && player.campaignTarget.reason == "clear") {
+            // Early in each Act, or on its own buildings, clearing the Blight it can reach is worth a Battle (the user, 2026-11-27)
+            if (campaignMode && player.campaignTarget && player.campaignTarget.kind == "blight" && ["clear", "threat"].includes(player.campaignTarget.reason)) {
                 score += weights.battleClearBlight;
-                reason = "to clear the Blight" + (player.campaignTarget.system != null ? " at " + getSystemShortName(player.campaignTarget.system) : "") + ", to build there";
+                const at = player.campaignTarget.system != null ? " at " + getSystemShortName(player.campaignTarget.system) : "";
+                reason = player.campaignTarget.reason == "threat" ? "to clear the Blight on its buildings" + at : "to clear the Blight" + at + ", to build there";
             }
             if (chasing("warlord")) { score += weights.battleWarlord; reason = "chasing Warlord"; }
             else if (chasing("tyrant")) { score += weights.battleTyrant; reason = "chasing Tyrant"; }

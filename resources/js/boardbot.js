@@ -94,8 +94,15 @@ function getBattleOdds(player, rival, id, extra = 0) {
 }
 
 function isEarlyCampaign() {
-    // The first two chapters of Act I: bots spread out, clear the Blight and build (the user, 2026-11-27)
-    return campaignMode && typeof campaign != "undefined" && campaign != null && campaign.act == 1 && roundNumber <= 2;
+    // The first two chapters of each Act: bots spread out, clear the Blight and build. Each Act's setup
+    // adds new Blight, and clearing it is everyone's job (the user, 2026-11-27)
+    return campaignMode && typeof campaign != "undefined" && campaign != null && roundNumber <= 2;
+}
+
+function getBlightOnBuildings(player) {
+    // Systems with its buildings and Blight: the Blight hits the ships guarding them in each Crisis, and
+    // destroys the buildings at the Intermission if no ships are left
+    return getSystemIds().filter(id => hasBlight(id) && getBuildings(id, player.number).length > 0);
 }
 
 function getUsefulRivalBattle(player) {

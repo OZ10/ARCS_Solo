@@ -252,7 +252,7 @@ const turnPlanWeights = {
     buildSlots: 1.5,        // + a city when its resource slots are full or nearly (a city opens one)
     buildDefend: 1,         // + ships when Rivals have clearly more ships on the board
     battleExposed: 1,       // + a Rival's building in reach with no ships guarding it (stop them expanding)
-    battleClearBlight: 2,   // + early in a campaign's Act I, Blight in reach to clear and build on (the user, 2026-11-27)
+    battleClearBlight: 2,   // + early in each campaign Act, or on its buildings, Blight in reach to clear (the user, 2026-11-27)
     taxForHand: 0.5,        // + a resource whose prelude action its hand lacks (Fuel with few Move cards)
     repeat: 1.5,            // - for each time the action is already in the plan
     variation: 1            // + up to this much at random per action, set once a turn
