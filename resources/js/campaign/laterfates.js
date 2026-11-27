@@ -77,7 +77,8 @@ const laterFates = {
 
     9: { act2: { start: startAll(8), setup: "Gain a Flagship (a starport on Slipstream Drive and a city on Hull). Gain Uncovering Clues (02). The player to your right secretly writes down a planet (cluster and symbol); give them Clues to the Portal (03), the 6 Clue tokens and the Portal token.",
             text: "<b>Find the Portal:</b> 1 for each Check Clue placed (this can't complete it), and 8 when the Portal token is placed.",
-            ask: [{ text: "How many Check Clues were placed this chapter?", per: 1 }, { text: "Was the Portal token placed this chapter? (1 for yes)", per: 8 }] },
+            // Counted as each Clue is placed (campaign/fatehuman.js), unless two human players keep the secret between them
+            ask: [{ text: "How many Check Clues were placed this chapter?", per: 1, when: player => isCluesOffTheApp(player) }, { text: "Was the Portal token placed this chapter? (1 for yes)", per: 8, when: player => isCluesOffTheApp(player) }] },
         act3: { setup: "Gain Pilgrims (08). Put 1 Seek the Portal (09) on top of the Court deck; tuck 10-11 under Pilgrims with the Portal card. Roll the event die and put a Pilgrim token on each planet of the rolled symbol.",
             grand: "See the Pilgrims Delivered", conditions: ["Control the Portal token.", "More Pilgrims on Pilgrims than the current chapter."],
             count: player => boardGrandCounts.pathfinder(player) } },
@@ -88,8 +89,8 @@ const laterFates = {
             grand: "Form One Body, One Mind", conditions: ["No Rival won Tyrant.", "More Banners on the map than the current chapter."] } },
     11: { act2: { start: startAll(12), setup: "Gain a Flagship (a fresh starport on Slipstream Drive). Gain Sycophants (02) and Hammer Fragments (03), with Planet Hammer (04) and 5 Refugees (05-09) under it. Roll the event die and put a Hammer Fragment on each planet of the rolled symbol.",
             text: "<b>Repair the Planet Hammer:</b> 1 for each Fragment taken from the map. <b>Crush a Planet into Dust:</b> 6 when you use Break World and flip a Hammer token.",
-            // A bot's are counted as it takes them (campaign/fateboard.js)
-            ask: [{ text: "How many Hammer Fragments did it take from the map this chapter?", per: 1, when: player => player.isHuman }, { text: "Did it use Break World and flip a Hammer token? (1 for yes)", per: 6, when: player => player.isHuman }] },
+            // Counted as they're taken, by a bot or in a human player's Fate window (campaign/fateboard.js, fatehuman.js)
+        },
         act3: { setup: "Put the pieces back on the Breaking Worlds. Remember: Broken World tokens make everyone Provoke Outrage.",
             grand: "Break the Worlds of the Reach", conditions: ["No Rival won Warlord, and every player has Outrage.", "No Rival won Warlord, and more buildings on Breaking Worlds than the current chapter, or no buildings on the map."] } },
     12: { act2: { start: startByCount(24, 21, 18), setup: "Gain a Flagship (fresh starports on Tractor Beam and Defense Array). Gain Pirate Hoard (02) and Pirate Fleet (03). Place 1 ship on the gate of each cluster with no Loyal ships.",
@@ -100,8 +101,8 @@ const laterFates = {
     13: { act2: { start: startByCount(18, 16, 14), setup: "Gain Spore Ships (02). Scrap 2 Loyal ships, then make up 8 Loyal ships on the map.",
             text: "<b>Contact an Ancient Intelligence:</b> for each ambition you win, 1 for each Blight in systems with your ships. <b>Spread the Spores:</b> 1 each time you place Blight with Spore Ships.",
             auto: [{ reason: "for Blight in systems with its ships (Contact an Ancient Intelligence)", amount: player => boardObjectiveCounts.blightWithShips(player) * getAmbitionsWonThisChapter(player) }],
-            // A bot's Spawns are counted as it places them (campaign/fateboard.js)
-            ask: [{ text: "How many Blight did it place with Spore Ships this chapter?", per: 1, when: player => player.isHuman }] },
+            // Spawns are counted as they're placed, by a bot or in a human player's Fate window (campaign/fateboard.js, fatehuman.js)
+        },
         act3: { setup: "Gain Blight Hunger (13).",
             grand: "Gorge the Blight with Bodies", conditions: ["No Rival wins Warlord.", "Blight Hunger has more pieces than the current chapter."] } },
     14: { act2: { start: startByCount(16, 14, 12), setup: "Clear all your Outrage. Gain Witnesses (02) and Well of Empathy (03). Put a Witness token on each Weapon planet (spyglass side up). Make up 8 Loyal ships.",

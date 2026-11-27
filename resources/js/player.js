@@ -155,6 +155,9 @@ function resetPlayedThisTurn() {
         player.turnPlan = null;
         // The Planet Breaker's Prepare this turn (campaign/fateboard.js)
         player.preparedThisTurn = false;
+        // A human player's prelude Fate actions done this turn (campaign/fatehuman.js)
+        player.fateUsedThisTurn = [];
+        player.fateSeedRoll = null;
         player.canBuild = null;
         player.hasSlotForCity = null;
         player.noTax = [];

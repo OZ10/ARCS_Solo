@@ -61,8 +61,17 @@ function getFatePreludeOffers(player) {
         const witness = getFateBoardOffer(player, "witness");
         if (witness != null) { offers.push({ label: "Take a Witness", text: witness.text, gains: { psionics: 1 }, decided: true, why: witness.why, where: witness.where }); }
     }
-    // The Pathfinder: Clues to the Portal
-    if (isFateActionPlayer(player, 9, [2]) && preludeResources.some(resource => player[resource + "Value"] > 0)) {
+    // The Pathfinder: Clues to the Portal. With its Flagship at a planet with no Clue, it pays the resource it
+    // has most of; the app places a bot holder's Clue, or asks a human holder (campaign/fatehuman.js)
+    const spot = isFateActionPlayer(player, 9, [2]) && campaign.portalHolder != null ? getClueSpot(player) : null;
+    if (spot != null) {
+        const pay = spot.pay.slice().sort((a, b) => player[b + "Value"] - player[a + "Value"])[0];
+        const costs = {};
+        costs[pay] = 1;
+        offers.push({ label: "Uncover a Clue", text: "spend 1 " + preludeResourceNames[pay] + " to uncover a Clue at its Flagship's planet, " + getSystemName(spot.system) + " (Uncovering Clues)", costs: costs, decided: true,
+            why: "Find the Portal: each Check Clue advances its objective, and the Portal is worth 8.", where: { kind: "fate:clue", system: spot.system } });
+    } else if (isFateActionPlayer(player, 9, [2]) && campaign.portalHolder == null && preludeResources.some(resource => player[resource + "Value"] > 0)) {
+        // A game saved before the app kept the Clues
         offers.push({ label: "Uncover a Clue", text: "with its Flagship at a planet with no Clue, spend 1 resource different from every planet type in that cluster. The player to its right places a Clue (Uncovering Clues). Take the resource off its panel" });
     }
     return offers;

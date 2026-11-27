@@ -317,6 +317,10 @@ function applyFateBoardStep(player, where) {
             showMessageToast("Player " + n, delivered + " Pilgrim" + (delivered == 1 ? "" : "s") + " delivered through the Portal: " + state.pilgrimsDelivered + " on its card. Put a Seek the Portal on top of the Court deck.");
             break;
         }
+        case "fate:clue":
+            // The Pathfinder's Clue: placed by the app for a bot holder, or asked of a human one (campaign/fatehuman.js)
+            applyBotClue(player, where);
+            break;
         case "fate:awaken": {
             // The Caretaker's Golems leave the board for Golem Hearth, and are counted on its panel
             let taken = 0;

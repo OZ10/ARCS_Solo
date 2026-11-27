@@ -221,6 +221,8 @@ function renderHumanTurn(player) {
     if (prelude != "") { html += getTurnSection("Prelude: before your actions", prelude); }
     html += getTurnSection("Card played", getCardHtml(player));
     html += getHumanActionSections(player, offered);
+    // A Blighted Reach Fate's own actions, each on the board (campaign/fatehuman.js)
+    if (typeof getHumanFateSectionHtml == "function") { html += getHumanFateSectionHtml(player); }
     const shortfall = getMarketShortfallSection(offered);
     if (shortfall != "") { html += shortfall; offered.push("court"); }
     html += getTurnSection("Also", "<div class=\"turntools\">" + ["battle", "court"].filter(name => !offered.includes(name)).concat("draw").map(getAlsoButton).join("") + "</div>");

@@ -57,7 +57,7 @@ const boardTokenKinds = {
     witness: { name: "Witness", sides: ["spyglass side", "Psionic side"] },
     seat: { name: "Seat", owned: true },
     bunker: { name: "Bunker" },
-    clue: { name: "Clue" },
+    clue: { name: "Clue", sides: ["Check", "X"] },
     portal: { name: "Portal" },
     pilgrim: { name: "Pilgrim" },
     passage: { name: "Passage" },

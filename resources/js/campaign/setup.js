@@ -93,6 +93,8 @@ function runSetupSteps(then) {
     if (steps.length == 0) { setupStepsThen = null; then(); return; }
     const step = steps[0];
     if (step.kind == "flagship") { showFlagshipPlacement(getPlayer(step.player)); }
+    // Their ships, as their Fate's setup says (campaign/fatehuman.js)
+    if (step.kind == "fateShips") { showFateShipsWindow(getPlayer(step.player), step.setup); }
 }
 
 function finishSetupStep() {
@@ -209,6 +211,15 @@ function applyFateSetupsToBoard(act) {
     if (act == 2 && breaker != null) { lines.push(placeHammerFragments(breaker)); }
     // Bots make up or scrap their ships as their Fate's setup says (campaign/fateboard.js)
     players.forEach(player => { const line = applyBotFateShips(player, act); if (line != null) { lines.push(line); } });
+    // A human player's, in a window after this one (campaign/fatehuman.js)
+    players.filter(player => player.isHuman).forEach(player => {
+        const setup = fateShipSetups[getFateNumber(player)];
+        if (setup == null || setup.act != act) { return; }
+        campaign.setupSteps = (campaign.setupSteps || []).concat({ kind: "fateShips", player: player.number, setup: setup });
+        lines.push("Player " + player.number + " " + (setup.gateShips ? "places their gate ships" : "makes up their ships") + " after this window");
+    });
+    // The Pathfinder's Clues: who holds the Portal's planet (a bot's is kept secret by the app)
+    if (act == 2) { const clues = setUpClues(); if (clues != null) { lines.push(clues); } }
     const pacifist = players.find(player => hasFate(player, 14));
     if (act == 2 && pacifist != null) {
         // A Witness on each Weapon planet, spyglass side up
