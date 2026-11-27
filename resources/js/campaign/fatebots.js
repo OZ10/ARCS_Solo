@@ -574,12 +574,14 @@ function getGolemPreludeOffers(player) {
 }
 
 function getAwakenOffers(player, wants, can) {
-    // Awaken (Golem Beacon): take its Golems from the map. The player says how many on its panel.
-    // Decided when you said it controls one this turn (steering.js)
+    // Awaken (Golem Beacon): take the Golems it controls from the board onto Golem Hearth. Decided
+    // from the board, which then counts them on its panel (#85 stage 7d, campaign/fateboard.js)
     if (!hasFate(player, 5) || campaign.act != 1 || !can("influence")) { return []; }
-    const controls = (player.steerAnswers || {}).golem === true;
-    return [{ label: "Awaken instead of an Influence (Golem Beacon)", text: "take the Golems it controls on the map onto Golem Hearth (Awake if it's winning a declared ambition). Add them to its Golems on its panel",
-        decided: controls, why: controls ? "You said it controls a Golem: each one it has counts when it wins an ambition, and spending one advances its objective." : null }];
+    const systems = getSystemIds().filter(id => getTokens(id).some(token => token.kind == "golem") && getControllerFor(id, player.number) == player.number);
+    if (systems.length == 0) { return []; }
+    const count = systems.reduce((total, id) => total + getTokens(id).filter(token => token.kind == "golem").length, 0);
+    return [{ label: "Awaken instead of an Influence (Golem Beacon)", text: "take the " + (count == 1 ? "Golem" : count + " Golems") + " it controls at " + systems.map(getSystemName).join(" and ") + " onto Golem Hearth (Awake if it's winning a declared ambition)",
+        decided: true, why: "Each Golem it has counts when it wins an ambition, and spending one advances its objective.", where: { kind: "fate:awaken", systems: systems } }];
 }
 
 function getBargainOffers(player, wants, can) {

@@ -66,7 +66,9 @@ const laterFates = {
             auto: [{ reason: "planets the Empire controls (Expand the Navy's Holdings)", amount: player => isRegent(player) ? boardObjectiveCounts.empirePlanets() : 0 }],
             ask: [{ text: "How many Outlaw pieces did it take as Trophies in battle this chapter?", per: 2 }, { text: "How many Regent agents did it capture this chapter?", per: 2 }] },
         act3: { setup: "Add Martial Law (20), with its reminder (21) by the card play area.",
-            grand: "Keep the Monopoly on Force", conditions: ["You're a Regent and control at least 9 planets.", "You're a Regent and have more Loyal ships on the map than each Rival."] } },
+            grand: "Keep the Monopoly on Force", conditions: ["You're a Regent and control at least 9 planets.", "You're a Regent and have more Loyal ships on the map than each Rival."],
+            // Checked from the board (campaign/fateboard.js)
+            count: player => boardGrandCounts.admiral(player) } },
     8: { act2: { start: startByCount(20, 18, 16), setup: "Take the 5 Ideal markers. Add Set Doctrine (21). Tuck the Doctrine card (22) by the card play area: Zeal up if you have the initiative, otherwise Wisdom. Scrap Pluralistic Faith. Add Doctrinal Faith (23).",
             text: "<b>Develop the Ideals of Your Faith:</b> for each ambition you win that has an Ideal marker, 1 for each Power gained (with city bonus).",
             ask: [{ text: "How much Power did it gain this chapter from ambitions it won with an Ideal marker?", per: 1 }] },
@@ -77,7 +79,8 @@ const laterFates = {
             text: "<b>Find the Portal:</b> 1 for each Check Clue placed (this can't complete it), and 8 when the Portal token is placed.",
             ask: [{ text: "How many Check Clues were placed this chapter?", per: 1 }, { text: "Was the Portal token placed this chapter? (1 for yes)", per: 8 }] },
         act3: { setup: "Gain Pilgrims (08). Put 1 Seek the Portal (09) on top of the Court deck; tuck 10-11 under Pilgrims with the Portal card. Roll the event die and put a Pilgrim token on each planet of the rolled symbol.",
-            grand: "See the Pilgrims Delivered", conditions: ["Control the Portal token.", "More Pilgrims on Pilgrims than the current chapter."] } },
+            grand: "See the Pilgrims Delivered", conditions: ["Control the Portal token.", "More Pilgrims on Pilgrims than the current chapter."],
+            count: player => boardGrandCounts.pathfinder(player) } },
     10: { act2: { start: startAll(14), setup: "Gain a Flagship (fresh starports on Defense Array and Slipstream Drive). Make up 6 Loyal ships besides the Flagship, then scrap 4 Loyal ships. Gain Planting Banners (02), the 8 Banner tokens and Song of the Banner (04). Add Banners of Hegemony (03).",
             text: "<b>Plant Banners of the New Order:</b> at the end of a chapter, 1 for each Banner on the map, and 1 more for each if you won any ambitions.",
             auto: [{ reason: "for the Banners on the map (Plant Banners of the New Order)", amount: player => boardObjectiveCounts.banners() * (getAmbitionsWonThisChapter(player) > 0 ? 2 : 1) }] },
@@ -112,7 +115,8 @@ const laterFates = {
             auto: [{ reason: "Weapons held (Restrict the Weapons Supply)", amount: player => player.weaponsValue },
                 { reason: "Weapon planets it controls (Control the Arms Manufacturers)", amount: player => boardObjectiveCounts.weaponPlanets(player) }] },
         act3: { setup: "Put a Ceasefire token in each cluster (Peace side up if you control any system there). With 2 players, return the Weapons on Warlord. Add Ceasefires (08), Empire Balks at Peace (09), Peace Dividends (10) and Peace Accords (11).",
-            grand: "A Peaceful Reach", conditions: ["2 or more clusters at Peace.", "5 or more clusters at Peace."] } },
+            grand: "A Peaceful Reach", conditions: ["2 or more clusters at Peace.", "5 or more clusters at Peace."],
+            count: () => boardGrandCounts.peacekeeper() } },
     16: { act2: { start: startAll(22), setup: "Take the 6 Seat tokens (1st-6th). Gain Claims of Nobility (02). Put the 6 Lord titles (03-08) in the supply. Add Seats & Fiefs (09) and Feudal Law (10). Make up 8 Loyal ships.",
             text: "<b>Control the Fiefs' Seats:</b> at the end of a chapter, 2 for each Seat you control. <b>Lord Over the Fiefs:</b> at the end of a chapter, 1 for each city in Fiefs you're Lord of.",
             auto: [{ reason: "for the Seats it controls (Control the Fiefs' Seats)", amount: player => boardObjectiveCounts.seats(player) * 2 }],
@@ -202,6 +206,8 @@ function applyLaterAutoObjectives() {
     players.forEach(player => {
         const state = getCampaignPlayer(player);
         const data = getLaterFate(state.fate, campaign.act);
+        // Act III grand ambitions the board can check (campaign/fateboard.js)
+        if (data != null && data.grand != null && data.count != null) { applyGrandAmbitions(player, Math.min(data.count(player), 2)); return; }
         if (data == null || state.objective == null || state.objective == 0) { return; }
         (data.auto || []).forEach(auto => {
             const amount = auto.amount(player);
@@ -217,6 +223,8 @@ function getLaterChapterQuestions() {
         const state = getCampaignPlayer(player);
         const data = getLaterFate(state.fate, campaign.act);
         if (data == null) { return; }
+        // Grand ambitions the board can check are scored without a question (applyLaterAutoObjectives)
+        if (data.grand != null && data.count != null) { return; }
         if (data.grand != null) {
             // Act III "A" and "B" Fates: their grand ambitions, scored with the ambitions
             const power = grandAmbitionPower[roundNumber] || grandAmbitionPower[4];

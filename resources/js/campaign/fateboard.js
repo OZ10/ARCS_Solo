@@ -15,6 +15,25 @@ function getSystemsControlledBy(playerNumber) {
     return getSystemIds().filter(id => getChapterController(id) == playerNumber);
 }
 
+function getSystemDistance(from, to) {
+    // Steps between two systems through adjacent systems, ignoring who's there
+    if (from == to) { return 0; }
+    const seen = new Set([from]);
+    let frontier = [from], steps = 0;
+    while (frontier.length > 0 && steps < 20) {
+        steps++;
+        const next = [];
+        for (const id of frontier) {
+            for (const other of getAdjacent(id)) {
+                if (other == to) { return steps; }
+                if (!seen.has(other)) { seen.add(other); next.push(other); }
+            }
+        }
+        frontier = next;
+    }
+    return 99;
+}
+
 function countTokens(kind, owner = undefined) {
     return getSystemIds().reduce((total, id) => total + getTokens(id).filter(token => token.kind == kind && (owner === undefined || token.owner == owner)).length, 0);
 }
@@ -43,6 +62,27 @@ const boardObjectiveCounts = {
     bunkersOrCaptives: player => Math.min(player.captivesValue || 0, countTokens("bunker")),
     // The Gate Wraith: Passages on the map
     passages: () => countTokens("passage")
+};
+
+// Act III grand ambitions the board can check: how many of the two are fulfilled
+const boardGrandCounts = {
+    // The Admiral: a Regent controlling 9+ planets; a Regent with more Loyal ships on the map than each Rival
+    admiral: player => {
+        if (!isRegent(player)) { return 0; }
+        const planets = getSystemIds().filter(id => isPlanet(id) && getControllerFor(id, player.number) == player.number).length;
+        const ships = getBoardShips(player.number);
+        return (planets >= 9 ? 1 : 0) + (players.filter(other => other !== player).every(other => getBoardShips(other.number) < ships) ? 1 : 0);
+    },
+    // The Pathfinder: controls the Portal token; more Pilgrims delivered than the current chapter
+    pathfinder: player => {
+        const portal = getSystemIds().find(id => getTokens(id).some(token => token.kind == "portal"));
+        return (portal != null && getControllerFor(portal, player.number) == player.number ? 1 : 0) + ((getCampaignPlayer(player).pilgrimsDelivered || 0) > roundNumber ? 1 : 0);
+    },
+    // The Peacekeeper: 2+ clusters at Peace, 5+ clusters at Peace
+    peacekeeper: () => {
+        const peace = getClustersInPlay().filter(isPeaceCluster).length;
+        return (peace >= 2 ? 1 : 0) + (peace >= 5 ? 1 : 0);
+    }
 };
 
 // Where its Fate wants it to Move (steering.js's "move"), as a place on the board, so a Fate's Move
@@ -182,6 +222,33 @@ function getFateBoardOffer(player, kind, can) {
             return system == null || getEmptySlots(player) == 0 ? null : { where: { kind: "fate:witness", system: system }, text: "flip its Witness at " + getSystemName(system) + " to its Psionic side and take it (Witnesses)",
                 why: "A Psionic for its Fate: Spread Empathy pays for Psionics spent while Empath is declared." };
         }
+        case "pilgrims": {
+            // The Pathfinder (Act III), once a turn: each Pilgrim one step into a system it controls or
+            // with its Flagship, towards the Portal (or its Flagship while there's no Portal)
+            const portal = getSystemIds().find(id => getTokens(id).some(token => token.kind == "portal"));
+            const goal = portal || (typeof getFlagshipSystem == "function" ? getFlagshipSystem(player) : null);
+            if (goal == null) { return null; }
+            const flagshipAt = typeof getFlagshipSystem == "function" ? getFlagshipSystem(player) : null;
+            const open = id => getControllerFor(id, n) == n || id == flagshipAt;
+            const steps = [];
+            getSystemIds().forEach(id => getTokens(id).filter(token => token.kind == "pilgrim" && token.owner == n).forEach(() => {
+                const now = getSystemDistance(id, goal);
+                const to = getAdjacent(id).filter(open).sort((a, b) => getSystemDistance(a, goal) - getSystemDistance(b, goal))[0];
+                if (to != null && getSystemDistance(to, goal) < now) { steps.push({ from: id, to: to }); }
+            }));
+            if (steps.length == 0) { return null; }
+            return { where: { kind: "fate:pilgrims", steps: steps }, text: "move " + steps.length + " Pilgrim" + (steps.length == 1 ? "" : "s") + " one step: " + steps.map(step => getSystemShortName(step.from) + " &rarr; " + getSystemShortName(step.to)).join(", ") + " (Pilgrims)",
+                why: "Towards " + (portal != null ? "the Portal, to deliver them" : "its Flagship, ready for the Portal") + ": See the Pilgrims Delivered." };
+        }
+        case "portal": {
+            // Use the Portal (instead of a Move): it controls the Portal, and Pilgrims are there
+            const system = getSystemIds().find(id => getTokens(id).some(token => token.kind == "portal") && getControllerFor(id, n) == n
+                && getTokens(id).some(token => token.kind == "pilgrim" && token.owner == n));
+            if (system == null) { return null; }
+            const count = getTokens(system).filter(token => token.kind == "pilgrim" && token.owner == n).length;
+            return { where: { kind: "fate:portal", system: system }, text: "take the " + (count == 1 ? "Pilgrim" : count + " Pilgrims") + " at the Portal, " + getSystemName(system) + ", onto its objective card, and put a Seek the Portal on top of the Court deck (Use the Portal)",
+                why: "See the Pilgrims Delivered: more Pilgrims on its card than the current chapter." };
+        }
         case "banner": {
             // The Hegemon's Planting Banners: at its Flagship's planet, with no Banner and nothing that isn't Loyal
             const system = typeof getFlagshipSystem == "function" ? getFlagshipSystem(player) : null;
@@ -233,6 +300,30 @@ function applyFateBoardStep(player, where) {
             break;
         }
         case "fate:banner": addToken(system, "banner", n); break;
+        case "fate:pilgrims": {
+            (where.steps || []).forEach(step => {
+                const tokens = getTokens(step.from);
+                const index = tokens.findIndex(token => token.kind == "pilgrim" && token.owner == n);
+                if (index >= 0) { getTokens(step.to).push(tokens.splice(index, 1)[0]); }
+            });
+            break;
+        }
+        case "fate:portal": {
+            const tokens = getTokens(system);
+            const delivered = tokens.filter(token => token.kind == "pilgrim" && token.owner == n).length;
+            getSystem(system).tokens = tokens.filter(token => !(token.kind == "pilgrim" && token.owner == n));
+            const state = getCampaignPlayer(player);
+            state.pilgrimsDelivered = (state.pilgrimsDelivered || 0) + delivered;
+            showMessageToast("Player " + n, delivered + " Pilgrim" + (delivered == 1 ? "" : "s") + " delivered through the Portal: " + state.pilgrimsDelivered + " on its card. Put a Seek the Portal on top of the Court deck.");
+            break;
+        }
+        case "fate:awaken": {
+            // The Caretaker's Golems leave the board for Golem Hearth, and are counted on its panel
+            let taken = 0;
+            (where.systems || []).forEach(id => { const tokens = getTokens(id); const left = tokens.filter(token => token.kind != "golem"); taken += tokens.length - left.length; getSystem(id).tokens = left; });
+            if (taken > 0) { stepCampaign("golems", n, taken); }
+            break;
+        }
         case "fate:witness": {
             const tokens = getTokens(system);
             const index = tokens.findIndex(token => token.kind == "witness" && token.owner == n);

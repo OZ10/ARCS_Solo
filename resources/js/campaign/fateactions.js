@@ -38,6 +38,8 @@ function getFateActionOffers(player, wants, can) {
     if (isFateActionPlayer(player, 21, [3])) { add("Seed", "build", "seed"); }
     // The Founder: Freedom Fighters
     if (isFateActionPlayer(player, 2, [3])) { add("Incite Revolt", "battle", "revolt"); }
+    // The Pathfinder (Act III): Use the Portal
+    if (isFateActionPlayer(player, 9, [3])) { add("Use the Portal", "move", "portal"); }
     return offers;
 }
 function getFatePreludeOffers(player) {
@@ -48,6 +50,11 @@ function getFatePreludeOffers(player) {
         // At its Flagship's planet, when the board shows it can (campaign/fateboard.js)
         const banner = getFateBoardOffer(player, "banner");
         if (banner != null) { offers.push({ label: "Plant a Banner", text: banner.text, decided: true, why: banner.why, where: banner.where }); }
+    }
+    // The Pathfinder (Act III): its Pilgrims a step towards the Portal, once a turn (campaign/fateboard.js)
+    if (isFateActionPlayer(player, 9, [3])) {
+        const pilgrims = getFateBoardOffer(player, "pilgrims");
+        if (pilgrims != null) { offers.push({ label: "Move Pilgrims", text: pilgrims.text, decided: true, why: pilgrims.why, where: pilgrims.where }); }
     }
     // The Pacifist: a Witness at a Psionic planet it controls, flipped and taken (campaign/fateboard.js)
     if (isFateActionPlayer(player, 14, [2])) {

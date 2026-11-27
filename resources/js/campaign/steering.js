@@ -344,7 +344,7 @@ const actOneSteers = {
         plan: { secure: { add: 0.25 } } },
     5: { name: "Caretaker", drive: player => (getCampaignPlayer(player).golems || 0) > 0,
         notes: player => ((getCampaignPlayer(player).golems || 0) > 0 ? [driveNote + ": each one it wins advances its objective by 2 for each Golem it has (Find the Golems)."] : [])
-            .concat("<b>Goes after the Golems</b>: it moves its ships to gates with Golems, and asks whether it controls one so it can Awaken them.",
+            .concat("<b>Goes after the Golems</b>: it moves its ships to gates with Golems, and Awakens the ones it controls on the board.",
                 "<b>Spends Golems</b> in its prelude: each one advances its objective by 2 (Use the Golems)."),
         plan: { move: { add: 0.25 } },
         move: "ships to a gate with a Golem, to control it and Awaken it" },
