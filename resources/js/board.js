@@ -51,6 +51,7 @@ const boardTokenKinds = {
     golem: { name: "Golem", sides: ["sleeping", "awake"] },
     banner: { name: "Banner", owned: true },
     hammer: { name: "Hammer" },
+    hammerFragment: { name: "Hammer Fragment" },
     brokenWorld: { name: "Broken World" },
     rumor: { name: "Rumor", sides: ["face down", "face up"] },
     witness: { name: "Witness", sides: ["spyglass side", "Psionic side"] },
@@ -194,7 +195,11 @@ function getPlanetResource(id) {
     if (!isPlanet(id)) { return null; }
     return (board != null && board.planetTypes != null && board.planetTypes[id]) || mapPlanets[id].resource;
 }
-function getPlanetSlots(id) { return isPlanet(id) ? mapPlanets[id].slots : 0; }
+function getPlanetSlots(id) {
+    // A Broken World (the Planet Breaker) has no building slots
+    if (!isPlanet(id) || (board != null && getSystem(id) != null && (getSystem(id).tokens || []).some(token => token.kind == "brokenWorld"))) { return 0; }
+    return mapPlanets[id].slots;
+}
 function isClusterInPlay(cluster) { return !board.outOfPlay.includes(cluster); }
 function isSystemInPlay(id) { return isClusterInPlay(getCluster(id)); }
 

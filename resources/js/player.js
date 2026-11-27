@@ -151,6 +151,8 @@ function resetPlayedThisTurn() {
         player.guildActions = null;
         player.planVariation = null;
         player.turnPlan = null;
+        // The Planet Breaker's Prepare this turn (campaign/fateboard.js)
+        player.preparedThisTurn = false;
         player.canBuild = null;
         player.hasSlotForCity = null;
         player.noTax = [];

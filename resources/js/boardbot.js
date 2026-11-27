@@ -452,6 +452,17 @@ function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
         if (found != null) { return { ...found, why: "to defend its city there from a Rival fleet in reach" }; }
     }
     if (gate != null) { const held = holdGate(); if (held != null) { return held; } }
+    // Where its Fate wants it (campaign/fateboard.js, #85): its Flagship with an escort, or ships to the place
+    const fateMove = typeof getFateMoveTarget == "function" ? getFateMoveTarget(player) : null;
+    if (fateMove != null && fateMove.flagship) {
+        const from = typeof getFlagshipSystem == "function" ? getFlagshipSystem(player) : null;
+        const to = from == null ? null : getMoveDestinations(from, player.number).find(id => ok(id) && fateMove.test(id));
+        if (to != null) { return { from: from, to: to, count: Math.min(getShips(from, player.number).fresh, 1), why: fateMove.why }; }
+    } else if (fateMove != null) {
+        const to = getSystemIds().find(id => ok(id) && fateMove.test(id) && getMoveSources(player, id).length > 0);
+        const found = to == null ? null : move(to, 2);
+        if (found != null && found.count > 0) { return { ...found, why: fateMove.why }; }
+    }
     // A Rival's city it doesn't control, only with enough fresh ships to control it once they're
     // there: more than any Rival's (#209). Otherwise it can't tax it, so the Move is no use
     const controlsAfter = (id, found) => getShips(id, player.number).fresh + found.count > Math.max(0, ...getRivalNumbers(player).map(number => getShips(id, number).fresh));
@@ -598,7 +609,7 @@ function placeBoardPlan(player, plan) {
                 }
                 if (where == null) { where = chooseBoardMove(player, targetNumber, getNewCityResource(player), movedFrom); }
                 // Its reason is where it's going and why
-                if (where != null) { movedFrom.push(where.from); step.text = "Move " + (player.flagship != null && hasFlagshipAt(where.from, player.number) ? "its Flagship and " : "") + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
+                if (where != null) { movedFrom.push(where.from); step.text = "Move " + (player.flagship != null && hasFlagshipAt(where.from, player.number) ? (where.count == 0 ? "its Flagship" : "its Flagship and ") : "") + (where.count == 0 && player.flagship != null ? "" : where.count + " ship" + (where.count == 1 ? "" : "s")) + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
                 // Nothing useful on the board: say so rather than leave it vague (#197)
                 else { step.text = "No Move: the board has nowhere useful to go, so skip this action"; }
             } else if (step.action == "build") {
@@ -657,7 +668,7 @@ function refreshBotMoveStops(player) {
         }
         const by = getController(stop);
         step.where = { ...where, to: stop, why: "stopped" };
-        step.text = "Move " + (player.flagship != null && hasFlagshipAt(where.from, player.number) ? "its Flagship and " : "") + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(stop)
+        step.text = "Move " + (player.flagship != null && hasFlagshipAt(where.from, player.number) ? (where.count == 0 ? "its Flagship" : "its Flagship and ") : "") + (where.count == 0 && player.flagship != null ? "" : where.count + " ship" + (where.count == 1 ? "" : "s")) + " " + getSystemName(where.from) + " &rarr; " + getSystemName(stop)
             + " (it can't go on to " + planned + " as " + (by != null ? "Player " + by + " controls " : "someone else controls ") + getSystemName(stop) + ", so its Catapult stops there)";
     };
     withBoardCopy(() => {
@@ -692,6 +703,8 @@ function applyBotStep(player, step) {
     if (step.action == "move" && step.where.from != null && step.where.to != null) { applyGatePortsCapture(player, [step.where.from, step.where.to]); }
     if (step.action == "move" || step.action == "build" || step.action == "repair" || step.where.kind == "gateShips" || step.where.kind == "placeShips") { applyBoardStep(player, step.where); }
     // A Lore action (leaderrules.js). Fire Rifles only once its hits are known
+    // A Fate card action (campaign/fateboard.js)
+    if (typeof isFateBoardStep == "function" && isFateBoardStep(step.where)) { applyFateBoardStep(player, step.where); }
     if (isLoreBoardStep(step.where)) {
         if (step.where.kind == "rifles" && step.where.hits == null) { return; }
         applyLoreBoardStep(player, step.where);
@@ -729,7 +742,7 @@ function completeBotStep(index) {
 }
 
 function canCompleteBotStep(step) {
-    return step.where != null && (["move", "build", "repair", "tax"].includes(step.action) || step.where.kind == "gateShips" || step.where.kind == "placeShips" || isLoreBoardStep(step.where));
+    return step.where != null && (["move", "build", "repair", "tax"].includes(step.action) || step.where.kind == "gateShips" || step.where.kind == "placeShips" || isLoreBoardStep(step.where) || (typeof isFateBoardStep == "function" && isFateBoardStep(step.where)));
 }
 
 function completeBotGuildOffer(index) {

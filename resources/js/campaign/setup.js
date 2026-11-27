@@ -204,6 +204,9 @@ function applyFateSetupsToBoard(act) {
             if (system != null) { gainFlagship(player, system, pieces); lines.push("Player " + player.number + "'s Flagship at " + getSystemShortName(system) + ", and their cities and starports on the map are now Free"); }
         });
     }
+    // The Planet Breaker: a Hammer Fragment on each planet of a rolled symbol (campaign/fateboard.js)
+    const breaker = players.find(player => hasFate(player, 11));
+    if (act == 2 && breaker != null) { lines.push(placeHammerFragments(breaker)); }
     const pacifist = players.find(player => hasFate(player, 14));
     if (act == 2 && pacifist != null) {
         // A Witness on each Weapon planet, spyglass side up

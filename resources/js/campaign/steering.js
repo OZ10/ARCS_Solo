@@ -43,7 +43,7 @@ const fateSteers = {
         notes: ["<b>Won't battle the Free States</b>: each Free city the Empire doesn't control advances its objective (Protect Freedom).",
             "<b>Wants the Commonwealth to win its ambition</b>: 2 for each Member."],
         avoidTargets: ["free"],
-        table: "<b>Founder of the Commonwealth:</b> when it declares an ambition, it may place the Commonwealth marker instead (Commonwealth Ambition). Members share it. <span class=\"text-secondary\">The app asks about the Free cities and Members at the end of the chapter.</span>" } },
+        table: "<b>Founder of the Commonwealth:</b> when it declares an ambition, it may place the Commonwealth marker instead (Commonwealth Ambition). Members share it. <span class=\"text-secondary\">The app counts the Free cities from its board, and asks about Members at the end of the chapter.</span>" } },
     // The Magnate (Act II): Monopolies
     3: { 2: {
         name: "Magnate",
@@ -93,7 +93,7 @@ const fateSteers = {
             const agents = players.filter(other => other !== player && isRegent(other)).reduce((total, other) => total + (entry.agents[other.number] || 0), 0);
             return agents > 0 ? { value: Math.min(agents * 0.5, 1.5), reason: "it would capture " + agents + " Regent agent" + (agents == 1 ? "" : "s") + " (Dominate Rival Regents)" } : null;
         },
-        table: "<b>Command Chaos</b> is in the Court deck. <span class=\"text-secondary\">The app asks about the Empire's planets, Trophies and captured agents at the end of the chapter.</span>" } },
+        table: "<b>Command Chaos</b> is in the Court deck. <span class=\"text-secondary\">The app counts the Empire's planets from its board, and asks about Trophies and captured agents at the end of the chapter.</span>" } },
     // The Believer (Act II): ambitions with Ideal markers
     8: { 2: {
         name: "Believer",
@@ -119,7 +119,7 @@ const fateSteers = {
             "<b>Wants to win an ambition</b> this chapter: every Banner then counts double."],
         plan: { move: { add: 1 } },
         move: "its Flagship to a planet with no Banner and no Rival pieces, to plant a Banner there next turn",
-        table: "<b>Planting Banners</b> (prelude): place a Banner at its Flagship's planet if there's no Banner and no Rival ships or buildings there. It can do this more than once. <span class=\"text-secondary\">The app asks how many Banners are on the map at the end of the chapter.</span>" } },
+        table: "<b>Planting Banners</b> (prelude): place a Banner at its Flagship's planet if there's no Banner and no Rival ships or buildings there. It can do this more than once. <span class=\"text-secondary\">The app plants them on its board and counts them at the end of the chapter.</span>" } },
     // The Planet Breaker (Act II): the Planet Hammer
     11: { 2: {
         name: "Planet Breaker",
@@ -148,7 +148,7 @@ const fateSteers = {
         avoidTargets: ["blight"],
         plan: { move: { add: 0.5 }, build: { add: 0.25 } },
         move: "ships to a system with Blight",
-        table: "<b>Spore Ships:</b> its Catapults aren't ended by Blight. <b>Spawn</b> (instead of a Build): damage a fresh Blight it controls to place a damaged Blight. <span class=\"text-secondary\">The app asks about the Blight at the end of the chapter.</span>" } },
+        table: "<b>Spore Ships:</b> its Catapults aren't ended by Blight. <b>Spawn</b> (instead of a Build): damage a fresh Blight it controls to place a damaged Blight. <span class=\"text-secondary\">The app places its Spawns on its board and counts the Blight at the end of the chapter.</span>" } },
     // The Pacifist (Act II): no Trophies or Captives; Psionics spent while Empath is declared
     14: { 2: {
         name: "Pacifist",
@@ -274,7 +274,7 @@ const actThreeSteers = {
         notes: ["<b>Can't declare Tyrant</b> (Vow of Survival).",
             "<b>Builds Bunkers</b> and raids for Captives: each ambition it wins counts the lower of the two (Keep the People Safe)."],
         plan: { build: { add: 0.5, reason: "Building Bunkers: scrap 1 agent, capture 1 from a Rival's supply" }, battle: { add: 0.25 } },
-        table: "<b>Building Bunkers</b> (instead of a Build): scrap 1 agent and capture 1 from a Rival's supply. Bunkers are Tough and take no slot. <span class=\"text-secondary\">The app asks at the end of the chapter.</span>" },
+        table: "<b>Building Bunkers</b> (instead of a Build): scrap 1 agent and capture 1 from a Rival's supply. Bunkers are Tough and take no slot. <span class=\"text-secondary\">The app places its Bunkers on its board and counts them at the end of the chapter.</span>" },
     19: { name: "Redeemer", deny: "keeper",
         notes: ["<b>Can't declare Keeper</b>, and chases it once a Rival does (Subdue the Keepers).",
             "<b>Keeps Relics</b>, to scrap them after winning an ambition (Shatter the Relics)."],

@@ -261,7 +261,7 @@ function getActionPlanScore(player, action, focus) {
 
     switch (action) {
         case "move": {
-            if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
+            if (player.shipsBoardValue == 0 && action != focus && !(typeof hasFlagship == "function" && hasFlagship(player))) { return { score: planImpossible }; }
             const goal = getMoveGoal(player);
             if (goal != null) { score += weights.moveGoal; reason = goal; }
             else { reason = getMoveReasons(player)[0]; }
@@ -274,7 +274,7 @@ function getActionPlanScore(player, action, focus) {
         }
 
         case "battle":
-            if (player.shipsBoardValue == 0 && action != focus) { return { score: planImpossible }; }
+            if (player.shipsBoardValue == 0 && action != focus && !(typeof hasFlagship == "function" && hasFlagship(player))) { return { score: planImpossible }; }
             // No Rival its ships can reach this turn on the board (#188). A campaign's own targets aside
             if (!player.campaignTarget && !players.some(other => other !== player && canReachRival(player, other))) { return { score: planImpossible }; }
             // Nowhere it can fight at good odds: as many ships as the defender, or all theirs
