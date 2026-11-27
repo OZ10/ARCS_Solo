@@ -28,8 +28,9 @@ function isSpecialTargetIn(id, option) {
 }
 
 function getSpecialTargetNeeded(id, option) {
-    // Fresh ships it wants there: enough for the Blight's toughness, more than the Imperial ships
-    if (option.kind == "blight") { return blightFleet; }
+    // Fresh ships it wants there: enough for the Blight's toughness, more than the Imperial ships.
+    // Only damaged Blight needs fewer (the user, 2026-11-27)
+    if (option.kind == "blight") { const blight = getBlight(id); return blight.fresh > 0 ? blightFleet : Math.min(blight.damaged + 1, blightFleet); }
     if (option.kind == "empire") { return getImperial(id).fresh + 1; }
     return 1;
 }
@@ -37,8 +38,10 @@ function getSpecialTargetNeeded(id, option) {
 function findSpecialTargetSystem(player, option) {
     // Where its fresh ships already are with enough, or one Move away (with a card or a Fuel that
     // can Move), or null: the board answers "Is it in reach?"
+    // Blight on its own buildings first: it hits the ships guarding them, and destroys them if none are left
+    const own = id => option.kind == "blight" && getBuildings(id, player.number).length > 0 ? 1 : 0;
     const here = getSystemIds().filter(id => isSpecialTargetIn(id, option) && getShips(id, player.number).fresh >= getSpecialTargetNeeded(id, option))
-        .sort((a, b) => getShips(b, player.number).fresh - getShips(a, player.number).fresh)[0];
+        .sort((a, b) => own(b) - own(a) || getShips(b, player.number).fresh - getShips(a, player.number).fresh)[0];
     if (here != null) { return here; }
     const canMoveFirst = getBotPlay(player) != null ? canBotTakeAction(player, "move")
         : getFleetMove(player) != null || getBotCards(player).some(card => card.actions.includes("move"));
@@ -65,7 +68,11 @@ const loyalCityBonus = 1.5;
 
 function getExposedBuildings(player, rival) {
     // The Rival's buildings with none of their ships, in systems its ships are in or can reach
+    // In a campaign, not where it can't battle them (the Truce Law), nor a Regent's with Imperial ships
+    // there against an Outlaw: they defend it (the user, 2026-11-27)
+    const guarded = id => campaignMode && getSystem(id).imperial != null && hasImperialShips(id) && isOutlawNumber(player.number) && isRegentNumber(rival.number);
     return getSystemIds().filter(id => getBuildings(id, rival.number).length > 0 && getShips(id, rival.number).fresh + getShips(id, rival.number).damaged == 0
+        && canBattleIn(id, player.number, rival.number) && !guarded(id)
         && (getShips(id, player.number).fresh > 0 || getMoveSources(player, id).length > 0));
 }
 
@@ -75,7 +82,42 @@ const poorOddsPenalty = -6;
 function getBattleOdds(player, rival, id, extra = 0) {
     // { mine, theirs, theirFresh }: its ships there (plus extra moving in) against the Rival's
     const ships = getShips(id, player.number), theirs = getShips(id, rival.number);
-    return { mine: ships.fresh + ships.damaged + extra, theirs: theirs.fresh + theirs.damaged, theirFresh: theirs.fresh };
+    const odds = { mine: ships.fresh + ships.damaged + extra, theirs: theirs.fresh + theirs.damaged, theirFresh: theirs.fresh };
+    // In a campaign, Imperial ships there take a side (the user, 2026-11-27): they defend a Regent
+    // against an Outlaw, and join a Regent's attack on an Outlaw, 1 for each of its own ships
+    if (campaignMode && typeof rival.number == "number" && getSystem(id).imperial != null) {
+        const imperial = getImperial(id);
+        if (isOutlawNumber(player.number) && isRegentNumber(rival.number)) { odds.theirs += imperial.fresh + imperial.damaged; odds.theirFresh += imperial.fresh; }
+        else if (isRegentNumber(player.number) && isOutlawNumber(rival.number)) { odds.mine += Math.min(imperial.fresh, odds.mine); }
+    }
+    return odds;
+}
+
+function isEarlyCampaign() {
+    // The first two chapters of Act I: bots spread out, clear the Blight and build (the user, 2026-11-27)
+    return campaignMode && typeof campaign != "undefined" && campaign != null && campaign.act == 1 && roundNumber <= 2;
+}
+
+function getUsefulRivalBattle(player) {
+    // In a campaign, a battle with a Rival needs a reason, not just a fleet to do it with (the user,
+    // 2026-11-27): chasing Warlord or Tyrant, raiding what it's chasing, slowing the leader, a building
+    // with no ships guarding it (nor Imperial ships, against an Outlaw), a city it can destroy cheaply
+    // (a Loyal card), or its Fate. { rival, reason } or null. Only where it can win (#198)
+    const chasing = ambition => declaredAmbitions.includes(ambition) && isChasingAmbition(player, ambition);
+    const chased = preludeResources.filter(resource => getResourceNeed(player, resource) == 2);
+    const leader = getLeader(player);
+    const steer = runCampaignHook("planSteer", player, "battle");
+    for (const rival of players.filter(other => other !== player && hasFavourableBattle(player, other))) {
+        if (chasing("warlord")) { return { rival: rival, reason: "chasing Warlord" }; }
+        if (chasing("tyrant")) { return { rival: rival, reason: "chasing Tyrant" }; }
+        const held = chased.find(resource => rival[resource + "Value"] + getStealableIconCount(rival, resource) > 0);
+        if (held != null) { return { rival: rival, reason: "Player " + rival.number + " holds " + preludeResourceNames[held] + ", which it's chasing" }; }
+        if (rival === leader) { return { rival: rival, reason: "to slow the leader, Player " + rival.number }; }
+        if (getExposedBuildings(player, rival).length > 0) { return { rival: rival, reason: "Player " + rival.number + "'s building in reach has no ships guarding it" }; }
+        if (getLoyalCities(player, rival).length > 0) { return { rival: rival, reason: "Player " + rival.number + "'s city it can destroy for little Outrage" }; }
+        if (steer != null && (steer.add || 0) > 0) { return { rival: rival, reason: steer.reason || "for its Fate" }; }
+    }
+    return null;
 }
 
 function isFavourableBattle(odds) {
@@ -397,7 +439,30 @@ function getBattleSystem(player, targetNumber) {
 function chooseBoardMove(player, battleTarget, wantsCity, avoid = []) {
     // No more ships than its Leader lets it move at a time (Rebel, Disorganized: leaderrules.js)
     const where = chooseBoardMoveAny(player, battleTarget, wantsCity, avoid);
-    return where == null ? null : { ...where, count: Math.min(where.count, getLeaderMoveLimit(player)) };
+    return where == null ? null : addDamagedShips(player, { ...where, count: Math.min(where.count, getLeaderMoveLimit(player)) });
+}
+
+function addDamagedShips(player, where) {
+    // Its damaged ships go too (the user, 2026-11-27, #214): with the fleet when all its fresh ships
+    // leave, so they aren't left alone and easy to destroy; and into a battle, where they roll dice too.
+    // Otherwise they stay with the fresh ships left behind. Not on a Sprinter Drives step (fresh only)
+    if (where == null || where.from == null) { return where; }
+    const ships = getShips(where.from, player.number);
+    if (ships.damaged == 0 || !getMoveDestinations(where.from, player.number, where.count, true).includes(where.to)) { return { ...where, damaged: 0 }; }
+    const leavingAll = where.count >= ships.fresh;
+    const toBattle = /battle/.test(where.why || "");
+    if (!leavingAll && !toBattle) { return { ...where, damaged: 0 }; }
+    const damaged = Math.min(ships.damaged, Math.max(getLeaderMoveLimit(player) - where.count, 0));
+    return { ...where, damaged: damaged };
+}
+
+function getBotMoveText(player, where, to = where.to) {
+    // e.g. "Move its Flagship and 2 fresh ships 1 ☾ Fuel → 1 ▲ Weapon": fresh and damaged said apart (#214)
+    const flagship = player.flagship != null && hasFlagshipAt(where.from, player.number);
+    const damaged = where.damaged || 0;
+    const ships = where.count == 0 && damaged == 0 ? "" : (where.count > 0 ? where.count + " fresh" : "") + (where.count > 0 && damaged > 0 ? " and " : "") + (damaged > 0 ? damaged + " damaged" : "")
+        + " ship" + (where.count + damaged == 1 ? "" : "s");
+    return "Move " + (flagship ? "its Flagship" + (ships != "" ? " and " : "") : "") + ships + " " + getSystemName(where.from) + " &rarr; " + getSystemName(to);
 }
 
 function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
@@ -506,9 +571,28 @@ function chooseBoardMoveAny(player, battleTarget, wantsCity, avoid = []) {
         const found = move(home, need);
         if (found != null && need > 0 && found.count >= need) { return { ...found, why: "to hold " + getSystemName(home) + ", guarding its buildings in cluster " + getCluster(home) }; }
     }
+    // Early in a campaign, a planet with a free slot and only damaged Blight: clear it, then build
+    // there (the user, 2026-11-27). Enough ships to battle it. Before an empty planet when it holds a
+    // card that can Battle (or a Weapon), otherwise after
+    const blightFirst = isEarlyCampaign() && (getBotCards(player).some(card => card.actions.includes("battle")) || player.weaponsValue > 0);
+    const blightMove = () => {
+        if (!isEarlyCampaign() || blightFriends.includes(getFateNumber(player))) { return null; }
+        const blighted = getSystemIds().filter(id => ok(id) && isPlanet(id) && getEmptySlotCount(id) > 0 && getBlight(id).fresh == 0 && getBlight(id).damaged > 0
+            && getRivalShipCount(id, player.number) == 0 && !getBuildings(id).some(building => building.owner != player.number) && !(isOutlawNumber(player.number) && hasImperialShips(id))
+            && !hasLoyalPiece(id, player.number) && getMoveSources(player, id).length > 0)
+            .sort((a, b) => getBlight(a).damaged - getBlight(b).damaged)[0];
+        if (blighted != null) {
+            const need = getBlight(blighted).damaged + 1;
+            const found = move(blighted, need);
+            if (found != null && found.count >= need) { return { ...found, why: "to spread out to a planet with damaged Blight, to clear it and build there" }; }
+        }
+        return null;
+    };
+    if (blightFirst) { const found = blightMove(); if (found != null) { return found; } }
     // Spread out: an empty planet with a free slot and no Rival pieces, to build on later (#200 phase 3)
     const open = getSystemIds().find(id => ok(id) && isPlanet(id) && getEmptySlotCount(id) > 0 && !hasRivalPieces(id, player) && !hasLoyalPiece(id, player.number) && getMoveSources(player, id).length > 0);
     if (open != null) { const found = move(open, 2); if (found != null && found.count > 0) { return { ...found, why: "to spread out to an open planet, to build there later" }; } }
+    if (!blightFirst) { const found = blightMove(); if (found != null) { return found; } }
     return null;
 }
 
@@ -559,7 +643,8 @@ function applyBoardStep(player, where) {
     // A step's effect on the board
     if (where == null) { return; }
     if (where.from != null) {
-        moveShips(where.from, where.to, player.number, where.count);
+        // Fresh and damaged ships (#214)
+        moveShips(where.from, where.to, player.number, where.count, Math.min(where.damaged || 0, getShips(where.from, player.number).damaged));
         // Its campaign Flagship goes with its fleet (campaign/flagships.js)
         if (player.flagship != null && hasFlagshipAt(where.from, player.number)) { moveFlagship(player, where.from, where.to); }
         // Its campaign tokens that go with its ships, such as Witnesses (campaign/fateboard.js)
@@ -621,11 +706,11 @@ function placeBoardPlan(player, plan) {
                 const special = getSpecialTargetSystem(player);
                 if (special != null && targetNumber == null && getShips(special, player.number).fresh == 0) {
                     const from = getMoveSources(player, special)[0];
-                    if (from != null) { where = { from: from, to: special, count: getShips(from, player.number).fresh, why: "to battle" }; }
+                    if (from != null) { where = addDamagedShips(player, { from: from, to: special, count: getShips(from, player.number).fresh, why: "to battle" }); }
                 }
                 if (where == null) { where = chooseBoardMove(player, targetNumber, getNewCityResource(player), movedFrom); }
                 // Its reason is where it's going and why
-                if (where != null) { movedFrom.push(where.from); step.text = "Move " + (player.flagship != null && hasFlagshipAt(where.from, player.number) ? (where.count == 0 ? "its Flagship" : "its Flagship and ") : "") + (where.count == 0 && player.flagship != null ? "" : where.count + " ship" + (where.count == 1 ? "" : "s")) + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")"; }
+                if (where != null) { movedFrom.push(where.from); step.text = getBotMoveText(player, where) + " (" + getMoveWhy(where) + ")"; }
                 // Nothing useful on the board: say so rather than leave it vague (#197)
                 else { step.text = "No Move: the board has nowhere useful to go, so skip this action"; }
             } else if (step.action == "build") {
@@ -684,7 +769,7 @@ function refreshBotMoveStops(player) {
         }
         const by = getController(stop);
         step.where = { ...where, to: stop, why: "stopped" };
-        step.text = "Move " + (player.flagship != null && hasFlagshipAt(where.from, player.number) ? (where.count == 0 ? "its Flagship" : "its Flagship and ") : "") + (where.count == 0 && player.flagship != null ? "" : where.count + " ship" + (where.count == 1 ? "" : "s")) + " " + getSystemName(where.from) + " &rarr; " + getSystemName(stop)
+        step.text = getBotMoveText(player, where, stop)
             + " (it can't go on to " + planned + " as " + (by != null ? "Player " + by + " controls " : "someone else controls ") + getSystemName(stop) + ", so its Catapult stops there)";
     };
     withBoardCopy(() => {

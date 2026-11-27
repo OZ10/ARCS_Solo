@@ -260,8 +260,9 @@ function closeHumanBoardAction() {
     bootstrap.Modal.getOrCreateInstance(document.getElementById("boardActionModal")).hide();
 }
 
-function getOptionButton(main, sub, onclick, id) {
-    return "<button type=\"button\" class=\"btn btn-outline-secondary text-start\"" + (id ? " id=\"" + id + "\"" : "") + " onclick=\"" + onclick + "\">" + main + "<small class=\"d-block text-secondary\">" + sub + "</small></button>";
+function getOptionButton(main, sub, onclick, id, system = null) {
+    // system: its colour bar (board.js getSystemBarClass)
+    return "<button type=\"button\" class=\"btn btn-outline-secondary text-start" + (system != null ? " " + getSystemBarClass(system) : "") + "\"" + (id ? " id=\"" + id + "\"" : "") + " onclick=\"" + onclick + "\">" + main + "<small class=\"d-block text-secondary\">" + sub + "</small></button>";
 }
 
 function renderHumanOptions(type) {
@@ -274,17 +275,18 @@ function renderHumanOptions(type) {
                 : option.cloud ? "<b>City</b> outside the slots at " + getSystemName(option.system) : "<b>" + capitalise(option.kind) + "</b> at " + getSystemName(option.system),
             (option.kind == "ship" ? "One per starport each turn" + (getBuildings(option.system, player.number, "starport").length > 0 ? "" : " (Empath's Bond)")
                 : option.cloud ? "Cloud Cities: costs 1 " + preludeResourceNames[getPlanetResource(option.system)] : isGate(option.system) ? (option.kind == "city" ? "Gate Stations" : "Gate Ports") + ": 1 per gate" : getEmptySlotCount(option.system) + " empty slot" + (getEmptySlotCount(option.system) == 1 ? "" : "s")) + (option.damaged ? " &middot; damaged: a Rival controls it" : ""),
-            "humanBuild(" + index + ")", "humanOption" + index));
+            "humanBuild(" + index + ")", "humanOption" + index, option.system));
     } else if (type == "repair") {
-        options = getHumanRepairOptions(player).map((option, index) => getOptionButton("A damaged " + option.kind + " at " + getSystemName(option.system), "Turn it fresh side up", "humanRepair(" + index + ")", "humanOption" + index));
+        options = getHumanRepairOptions(player).map((option, index) => getOptionButton("A damaged " + option.kind + " at " + getSystemName(option.system), "Turn it fresh side up", "humanRepair(" + index + ")", "humanOption" + index, option.system));
     } else if (type == "tax") {
         options = getHumanTaxOptions(player).map((option, index) => {
             const mine = option.owner == player.number;
+            const free = option.owner == freeOwner;
             // Anarchist (Inspiring): an empty slot where its ships are
-            if (option.slot) { return getOptionButton("An empty <b>" + preludeResourceNames[option.resource] + "</b> slot at " + getSystemName(option.system), "Gain 1 " + preludeResourceNames[option.resource] + " (Anarchist, Inspiring)", "humanTax(" + index + ")", "humanOption" + index); }
+            if (option.slot) { return getOptionButton("An empty <b>" + preludeResourceNames[option.resource] + "</b> slot at " + getSystemName(option.system), "Gain 1 " + preludeResourceNames[option.resource] + " (Anarchist, Inspiring)", "humanTax(" + index + ")", "humanOption" + index, option.system); }
             // A Free city: no agent to capture (#85)
             return getOptionButton((mine ? "Your " : free ? "A Free " : "Player " + option.owner + "'s ") + (option.gate ? "gate city at " + getSystemName(option.system) + ", for <b>" + preludeResourceNames[option.resource] + "</b>" : "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system)),
-                (getResourceSupply(option.resource) > 0 ? "Gain 1 " + preludeResourceNames[option.resource] : "No " + preludeResourceNames[option.resource] + " left to gain") + (mine ? "" : free ? " (you control " + getSystemShortName(option.system) + ")" : option.noCapture ? " (Empath's Bond: no Captive)" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index);
+                (getResourceSupply(option.resource) > 0 ? "Gain 1 " + preludeResourceNames[option.resource] : "No " + preludeResourceNames[option.resource] + " left to gain") + (mine ? "" : free ? " (you control " + getSystemShortName(option.system) + ")" : option.noCapture ? " (Empath's Bond: no Captive)" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index, option.system);
         });
     }
     body.innerHTML = options.length > 0 ? "<div class=\"d-grid gap-2\">" + options.join("") + "</div>"
@@ -371,10 +373,10 @@ function chooseMoveFrom(from, render = true) {
     const ships = getShips(from, getTurnPlayer().number);
     humanMove.from = from;
     humanMove.to = null;
-    // Rebel (Disorganized): no more than 2 ships at a time (leaderrules.js)
-    const most = getLeaderMoveLimit(getTurnPlayer());
-    humanMove.fresh = Math.min(ships.fresh, most);
-    humanMove.damaged = Math.min(ships.damaged, most - humanMove.fresh);
+    // None to start with: the player sets how many, so they don't move them all by mistake (the user,
+    // 2026-11-27). The steppers stop at what's there, and at a Leader's limit (Rebel, Disorganized)
+    humanMove.fresh = 0;
+    humanMove.damaged = 0;
     // Its Flagship there moves too, unless untoggled (#85 stage 7d)
     humanMove.flagship = hasFlagshipAt(from, getTurnPlayer().number);
     humanMove.routes = [];
@@ -451,8 +453,21 @@ function getMoveStepper(value, onminus, onplus) {
         + "<button type=\"button\" onclick=\"" + onplus + "\" aria-label=\"More\"><i class=\"bi bi-plus\"></i></button></span>";
 }
 
+function getMoveChipRows(ids, chip) {
+    // A line for each cluster, in map order: Gate, Arrow, Crescent, Hexagon (the user, 2026-11-27)
+    const rows = [];
+    sortSystemsInMapOrder(ids).forEach(id => {
+        const last = rows[rows.length - 1];
+        if (last != null && last.cluster == getCluster(id)) { last.ids.push(id); } else { rows.push({ cluster: getCluster(id), ids: [id] }); }
+    });
+    // Each in its column, with a gap where one isn't listed (the Twisted Passage on its own)
+    const cells = row => row.cluster == 0 ? row.ids.map(chip).join("")
+        : [row.cluster + "g"].concat(planetLetters.map(letter => row.cluster + letter)).map(id => row.ids.includes(id) ? chip(id) : "<span class=\"movechipgap\"></span>").join("");
+    return "<div class=\"mb-2\">" + rows.map(row => "<div class=\"d-flex gap-1 mb-1 movechiprow\">" + cells(row) + "</div>").join("") + "</div>";
+}
+
 function getMoveChip(id, sub, active, onclick) {
-    return "<button type=\"button\" class=\"btn btn-sm " + (active ? "btn-secondary" : "btn-outline-secondary") + " text-start movechip\" style=\"min-width:96px\" id=\"moveChip_" + id + "\" onclick=\"" + onclick + "\">"
+    return "<button type=\"button\" class=\"btn btn-sm " + (active ? "btn-secondary" : "btn-outline-secondary") + " text-start movechip " + getSystemBarClass(id) + "\" style=\"min-width:96px\" id=\"moveChip_" + id + "\" onclick=\"" + onclick + "\">"
         + getSystemShortName(id) + "<small class=\"d-block opacity-75\">" + sub + "</small></button>";
 }
 
@@ -478,11 +493,12 @@ function renderHumanMove() {
     const body = document.getElementById("boardActionBody");
     // Systems with its ships, and its Flagship's (#85 stage 7d)
     const flagshipSystem = typeof getFlagshipSystem == "function" && player.flagship != null ? getFlagshipSystem(player) : null;
-    const sources = getSystemsWithShips(number).concat(flagshipSystem != null && !getSystemsWithShips(number).includes(flagshipSystem) ? [flagshipSystem] : []);
+    const sources = sortSystemsInMapOrder(getSystemsWithShips(number).concat(flagshipSystem != null && !getSystemsWithShips(number).includes(flagshipSystem) ? [flagshipSystem] : []));
     if (sources.length == 0) {
         body.innerHTML = "<p class=\"text-muted mb-0\">You have no ships on the app's board. If the table is different, fix it with Check the board in Options.</p>";
         return;
     }
+    // From: its systems in map order, in a plain row (the user, 2026-11-27)
     let html = "<div class=\"small text-secondary mb-1\">From</div><div class=\"d-flex flex-wrap gap-1 mb-2\">"
         + sources.map(id => {
             const ships = getShips(id, number);
@@ -491,12 +507,19 @@ function renderHumanMove() {
         }).join("") + "</div>";
     if (humanMove.from != null) {
         const catapult = canCatapultFrom(humanMove.from, number);
+        // Where all its fresh ships there could go until it sets how many (#184: fewer may reach less far)
+        const destinations = getMoveDestinations(humanMove.from, number, humanMove.fresh > 0 ? humanMove.fresh : null);
+        // The system it's moving from shows in its place, greyed out, so no gap is left there
+        const here = id => "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary text-start movechip " + getSystemBarClass(id) + "\" disabled>" + getSystemShortName(id) + "<small class=\"d-block opacity-75\">you're here</small></button>";
         html += "<div class=\"small text-secondary mb-1\">To" + (catapult ? " <span class=\"text-body\">(" + getSystemShortName(humanMove.from) + (isGate(humanMove.from) ? ": Catapult (Shaper, Ancient)" : " has your starport: Catapult") + ")</span>" : "") + "</div>"
-            + "<div class=\"d-flex flex-wrap gap-1 mb-2\">" + getMoveDestinations(humanMove.from, number, humanMove.fresh).map(id => getMoveChip(id, getMoveSystemNote(id, number), id == humanMove.to, "chooseMoveTo('" + id + "')")).join("") + "</div>";
+            + getMoveChipRows(destinations.concat(humanMove.from), id => id == humanMove.from ? here(id) : getMoveChip(id, getMoveSystemNote(id, number), id == humanMove.to, "chooseMoveTo('" + id + "')"));
         const ships = getShips(humanMove.from, number);
+        // None to start with: a reminder to set how many (the user, 2026-11-27)
+        const none = humanMove.fresh + humanMove.damaged == 0;
         html += "<div class=\"d-flex align-items-center flex-wrap gap-2 mb-2\"><span class=\"small\">Ships</span>"
-            + getMoveStepper(humanMove.fresh, "stepMoveShips('fresh', -1)", "stepMoveShips('fresh', 1)") + "<span class=\"small text-secondary\">fresh</span>"
-            + (ships.damaged > 0 ? getMoveStepper(humanMove.damaged, "stepMoveShips('damaged', -1)", "stepMoveShips('damaged', 1)") + "<span class=\"small text-secondary\">damaged</span>" : "") + "</div>";
+            + getMoveStepper(humanMove.fresh, "stepMoveShips('fresh', -1)", "stepMoveShips('fresh', 1)") + "<span class=\"small text-secondary\">fresh of " + ships.fresh + "</span>"
+            + (ships.damaged > 0 ? getMoveStepper(humanMove.damaged, "stepMoveShips('damaged', -1)", "stepMoveShips('damaged', 1)") + "<span class=\"small text-secondary\">damaged of " + ships.damaged + "</span>" : "") + "</div>"
+            + (none && ships.fresh + ships.damaged > 0 ? "<div class=\"small text-danger mb-2\" id=\"moveShipsReminder\"><i class=\"bi bi-exclamation-circle\"></i> Set how many ships you're moving</div>" : "");
     }
     if (humanMove.to != null && humanMove.route != null) {
         const between = humanMove.route.slice(1, -1);
@@ -518,16 +541,25 @@ function renderHumanMove() {
     if (humanMove.from != null && hasFlagshipAt(humanMove.from, number)) {
         html += "<div class=\"form-check form-switch mb-2\"><input class=\"form-check-input\" type=\"checkbox\" id=\"moveFlagship\"" + (humanMove.flagship ? " checked" : "") + " onchange=\"humanMove.flagship = this.checked; renderHumanMove()\"><label class=\"form-check-label\" for=\"moveFlagship\">Flagship moves too</label></div>";
     }
-    const ready = humanMove.to != null && (humanMove.fresh + humanMove.damaged > 0 || humanMove.flagship);
+    const ready = isHumanMoveReady(number);
     html += "<button type=\"button\" class=\"btn btn-primary w-100\" id=\"moveConfirm\" onclick=\"confirmHumanMove()\"" + (ready ? "" : " disabled") + ">"
         + (ready ? getMoveText() : humanMove.to == null ? "Choose where to" : "Choose how many ships") + "</button>";
     body.innerHTML = tagPlayerNames(html);
 }
 
+function isHumanMoveReady(number) {
+    // Somewhere to go, and at least 1 ship moving (the user, 2026-11-27). Its Flagship on its own only
+    // where it has no other ships
+    if (humanMove == null || humanMove.from == null || humanMove.to == null) { return false; }
+    if (humanMove.fresh + humanMove.damaged > 0) { return true; }
+    const ships = getShips(humanMove.from, number);
+    return humanMove.flagship && ships.fresh + ships.damaged == 0;
+}
+
 function confirmHumanMove() {
     const player = getTurnPlayer();
     const number = player.number;
-    if (humanMove == null || humanMove.to == null || (humanMove.fresh + humanMove.damaged == 0 && !humanMove.flagship)) { return; }
+    if (!isHumanMoveReady(number)) { return; }
     // Fresh ships are left first, then damaged ones
     let fresh = humanMove.fresh, damaged = humanMove.damaged;
     const placed = [];

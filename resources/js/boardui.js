@@ -87,7 +87,7 @@ function renderBoardCheck() {
         // Its name, with the short code in grey (#185)
         const title = getSystemName(id) + " <small class=\"text-secondary\">" + id + (isGate(id) ? "" : " &middot; " + getPlanetSlots(id) + " slot" + (getPlanetSlots(id) == 1 ? "" : "s")) + "</small>";
         const pieces = ships + buildings + campaignPieces;
-        return "<div class=\"turnsection\"><div class=\"turnlabel\" style=\"text-transform:none\">" + title + "</div>"
+        return "<div class=\"turnsection " + getSystemBarClass(id) + "\"><div class=\"turnlabel\" style=\"text-transform:none\">" + title + "</div>"
             + (pieces == "" ? "<div class=\"small text-secondary\">Empty</div>" : pieces) + adding + "</div>";
     };
     // A cluster's own tokens, such as a Ceasefire

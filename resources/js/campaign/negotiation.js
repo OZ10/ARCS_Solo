@@ -11,7 +11,7 @@
 const dealValues = {
     resource: { get: [0.75, 1.5, 3], give: [0.75, 1.75, 3.5] },
     chased: { get: 2.5, give: 2.75 }, idle: { get: 0.5, give: 0.75 },
-    promise: { get: 0.8, give: 1.2 },
+    promise: { get: 0.8, give: 1.2 }, favorBack: { get: 1, give: 0.6 },
     ship: { get: 0.8, give: 1 }, starport: { get: 2.5, give: 3 }, city: { get: 3, give: 4 }, cityChased: 1,
     delegate: 0.4, inviteGive: 1,
     want: 0.1, leader: 1, leaderPerPower: 0.15, goodwill: 0.25, goodwillMost: 1, counterRange: 4, counterMost: 3
@@ -70,8 +70,10 @@ function showSummitView(back) {
 
 // What each side holds, and the most it can give
 
-function getDealHolding(player, key) {
+function getDealHolding(player, key, other = null) {
     if (key.startsWith("league:")) { return getLeague(player)[key.slice(7)] || 0; }
+    // The other side's Favors it holds, to hand back
+    if (key == "favorBack") { return other == null ? 0 : ((getCampaignPlayer(player).favors || {})[other.number]) || 0; }
     if (dealCounters.includes(key)) { return player[key + "Value"]; }
     if (key == "promise") { const left = getAgentsLeft(player); return left == null ? 3 : left; }
     if (key == "ship") { return player.shipsBoardValue; }
@@ -79,9 +81,9 @@ function getDealHolding(player, key) {
     return player[key + "Value"];
 }
 
-function getDealMost(player, key) {
+function getDealMost(player, key, other = null) {
     // Not your last ship, starport or city (rulebook p.17)
-    const held = getDealHolding(player, key);
+    const held = getDealHolding(player, key, other);
     if (key == "ship" || key == "starport") { return Math.max(held - 1, 0); }
     if (cityCounters.includes(key)) { return Math.min(held, Math.max(getCityCount(player) - 1, 0)); }
     return held;
@@ -91,6 +93,7 @@ function getDealLabel(key, count) {
     if (key.startsWith("league:")) { return getDealLabel(key.slice(7), count) + " (Merchant League)"; }
     if (dealCounters.includes(key)) { return count + " " + (key == "captives" ? "Captive" + (count == 1 ? "" : "s") : key == "trophies" ? "Troph" + (count == 1 ? "y" : "ies") : preludeResourceNames[key] + (count > 1 && key != "fuel" ? "s" : "")); }
     if (key == "promise") { return "Promise " + count + " Favor" + (count == 1 ? "" : "s"); }
+    if (key == "favorBack") { return "Return " + count + " Favor" + (count == 1 ? "" : "s") + " (an agent back to its owner)"; }
     if (key == "ship" || key == "starport") { return "Cede " + count + " " + key + (count == 1 ? "" : "s"); }
     return "Cede " + count + " " + preludeResourceNames[key.replace(/^cities/, "").toLowerCase()].toLowerCase() + " cit" + (count == 1 ? "y" : "ies");
 }
@@ -116,7 +119,7 @@ function showDealBuilder() {
         const owner = side == "give" ? human : bot;
         const value = deal[side][key] || 0;
         return "<span class=\"dealstep" + (value > 0 ? " on" : "") + "\">" + (icon ? "<span class=\"dealicon\">" + icon + "</span>" : "<span>" + label + "</span>")
-            + "<small>of " + getDealHolding(owner, key) + "</small>"
+            + "<small>of " + getDealHolding(owner, key, side == "give" ? bot : human) + "</small>"
             + "<button class=\"btn resourcebutton resourceminus\" type=\"button\" onclick=\"stepDeal('" + side + "', '" + key + "', -1)\" aria-label=\"One fewer\"><i class=\"bi bi-dash-lg\"></i></button><b>" + value + "</b>"
             + "<button class=\"btn resourcebutton resourceplus\" type=\"button\" onclick=\"stepDeal('" + side + "', '" + key + "', 1)\" aria-label=\"One more\"><i class=\"bi bi-plus-lg\"></i></button></span>";
     };
@@ -139,7 +142,9 @@ function showDealBuilder() {
         const league = preludeResources.filter(resource => getDealHolding(owner, "league:" + resource) > 0).map(resource => pill(key, "league:" + resource, getGameIcon(resource), resource)).join("");
         return group("Transfer Asset", assets == "" ? "<div class=\"small text-secondary\">Nothing to give.</div>" : "<div class=\"dealsteps\">" + assets + "</div>")
             + group("Merchant League", league == "" ? "" : "<div class=\"dealsteps\">" + league + "</div>")
-            + group("Favors", "<div class=\"dealsteps\">" + pill(key, "promise", null, "Promise Favor").replace(/(<small>of \d+)/, "$1 agents") + "</div>")
+            + group("Favors", "<div class=\"dealsteps\">" + pill(key, "promise", null, "Promise Favor").replace(/(<small>of \d+)/, "$1 agents")
+                // The other side's Favors held, handed back (the user, 2026-11-27)
+                + (getDealHolding(owner, "favorBack", other) > 0 || (deal[key].favorBack || 0) > 0 ? pill(key, "favorBack", null, "Return Favor") : "") + "</div>")
             + group("Cede Control", cede == "" ? "<div class=\"small text-secondary\">Nothing to cede.</div>" : "<div class=\"dealsteps\">" + cede + "</div>")
             + group("Delegate Authority", delegate == "" ? "<div class=\"small text-secondary\">No agents on Court cards.</div>" : delegate)
             + group("Invite to Empire", invite);
@@ -155,7 +160,8 @@ function showDealBuilder() {
 
 function stepDeal(side, key, change) {
     const owner = side == "give" ? negotiation.human : negotiation.bot;
-    negotiation[side][key] = Math.min(Math.max((negotiation[side][key] || 0) + change, 0), getDealMost(owner, key));
+    const other = side == "give" ? negotiation.bot : negotiation.human;
+    negotiation[side][key] = Math.min(Math.max((negotiation[side][key] || 0) + change, 0), getDealMost(owner, key, other));
     showDealBuilder();
 }
 
@@ -188,6 +194,8 @@ function getDealPartValue(bot, key, count, getting) {
         return count * (declaredAmbitions.includes(ambition) && isChasingAmbition(bot, ambition) ? v.chased[way] : v.idle[way]);
     }
     if (key == "promise") { return count * v.promise[way]; }
+    // A Rival's own Favors handed back: their agents free again, and a hold the bot gives up
+    if (key == "favorBack") { return count * v.favorBack[way]; }
     if (key == "ship" || key == "starport") { return count * v[key][way]; }
     const resource = key.replace(/^cities/, "").toLowerCase();
     return count * (v.city[way] + (getResourceNeed(bot, resource) == 2 ? v.cityChased : 0));
@@ -335,12 +343,19 @@ function applyDeal(deal) {
             const favors = getCampaignPlayer(to).favors;
             favors[from.number] = (favors[from.number] || 0) + count;
             table.push("Player " + from.number + " puts " + count + " agent" + (count == 1 ? "" : "s") + " on Player " + to.number + "'s Fate card.");
+        } else if (key == "favorBack") {
+            // Their own agents back from its Fate card (Transfer Asset of a Favor)
+            const favors = getCampaignPlayer(from).favors;
+            favors[to.number] = Math.max((favors[to.number] || 0) - count, 0);
+            table.push("Player " + from.number + " returns " + count + " of Player " + to.number + "'s agents from its Fate card to Player " + to.number + "'s supply.");
         } else {
-            const counter = key == "ship" ? "shipsBoard" : key == "starport" ? "starports" : key;
-            adjustCounter(from, counter, -count);
-            adjustCounter(to, counter, count);
-            table.push("Cede Control: replace " + count + " of Player " + from.number + "'s " + (key == "ship" ? "ships" : key == "starport" ? "starports" : preludeResourceNames[key.replace(/^cities/, "").toLowerCase()].toLowerCase() + " cities")
-                + " with Player " + to.number + "'s. Not a building with Player " + from.number + "'s own ships in its system.");
+            // Cede Control on the app's board, where there's a piece it can be (cedeOnBoard)
+            const name = key == "ship" ? "ships" : key == "starport" ? "starports" : preludeResourceNames[key.replace(/^cities/, "").toLowerCase()].toLowerCase() + " cities";
+            const places = [];
+            for (let i = 0; i < count; i++) { const at = cedeOnBoard(from, to, key); if (at != null) { places.push(at); } }
+            table.push("Cede Control: replace " + count + " of Player " + from.number + "'s " + name + (places.length > 0 ? " (at " + places.map(getSystemShortName).join(", ") + ")" : "")
+                + " with Player " + to.number + "'s. Not a building with Player " + from.number + "'s own ships in its system."
+                + (places.length < count ? " The app's board had nowhere for " + (count - places.length) + " of them: fix it with Check the board." : ""));
         }
     });
     move(human, bot, deal.give);
@@ -416,7 +431,9 @@ function getBotOffer(bot) {
             const byNeed = (a, b) => getResourceNeed(rival, b.replace("league:", "")) - getResourceNeed(rival, a.replace("league:", ""));
             const league = preludeResources.filter(resource => resource != ask && (getLeague(bot)[resource] || 0) > 0).map(resource => "league:" + resource).sort(byNeed);
             const spareOwn = preludeResources.filter(resource => resource != ask && bot[resource + "Value"] > 0 && getResourceNeed(bot, resource) == 0).sort(byNeed);
-            const spare = league.concat(spareOwn)[0];
+            // A Favor of theirs it holds: their agent back is worth more to them than it costs the bot (the user, 2026-11-27)
+            const favorsHeld = ((getCampaignPlayer(bot).favors || {})[rival.number]) || 0;
+            const spare = league.concat(favorsHeld > 0 ? ["favorBack"] : [], spareOwn)[0];
             if (spare == null && getDealMost(bot, "promise") == 0) { return; }
             const give = spare != null ? { [spare]: 1 } : { promise: 1 };
             // From its own side: it gets the resource it asks for, and gives the rest
@@ -425,6 +442,7 @@ function getBotOffer(bot) {
             const holds = (rival.isHuman ? "you hold " : "Player " + rival.number + " holds ") + rival[ask + "Value"] + " " + preludeResourceNames[ask] + (rival[ask + "Value"] > 1 && ask != "fuel" ? "s" : "");
             const reasons = [getResourceNeed(bot, ask) == 2 ? "It's chasing " + capitalise(preludeAmbitions[ask] || "warlord") + ", and " + holds + "." : "Close Deals with Rivals: each resource or Favor you give it advances its objective by 2, and " + holds + "."];
             reasons.push(spare == null ? "It has nothing to spare, so it offers a Favor: one of its agents on your Fate card."
+                : spare == "favorBack" ? "It holds " + favorsHeld + " of " + (rival.isHuman ? "your" : "Player " + rival.number + "'s") + " Favors, and gives one back: an agent back in " + (rival.isHuman ? "your" : "their") + " supply."
                 : spare.startsWith("league:") ? "The " + preludeResourceNames[spare.slice(7)] + " is frozen on Merchant League: it can only give it away in a Summit."
                 : "It isn't chasing anything " + preludeResourceNames[spare] + " counts for, so it can spare one.");
             options.push({ rival: rival, ask: ask, give: give, gain: own.net - own.required, reasons: reasons });
@@ -567,24 +585,65 @@ function runBotOffersSilently() {
 // (its raid cost in Favors, asked as the app can't see the slot), or a Captive or Trophy it's chasing
 // with Tyrant or Warlord (1 Favor each)
 
+// What else a Favor can force, 1 Favor each (the user, 2026-11-27; rulebook p.16-17): Invite to Empire
+// (an Outlaw that wants to be a Regent, from the First Regent), Cede Control (a Rival's city with none of
+// their ships in its system, not their last), Delegate Authority (their agent on a Court card it wants)
+const favorValues = { invite: 3, cityChased: 1, delegateWin: 1 };
+
+function getFavorOptions(bot, rival) {
+    // Everything its Favors of this Rival's could force, as [{ kind, resource?, system?, card?, value, why }]
+    const options = preludeResources.filter(resource => getResourceNeed(bot, resource) == 2 && rival[resource + "Value"] > 0)
+        .map(resource => ({ kind: "resource", resource: resource, value: dealValues.resource.get[2], why: "it's chasing " + capitalise(preludeAmbitions[resource] || "warlord") }));
+    [["captives", "tyrant"], ["trophies", "warlord"]].forEach(([counter, ambition]) => {
+        if (rival[counter + "Value"] > 0 && declaredAmbitions.includes(ambition) && isChasingAmbition(bot, ambition)) { options.push({ kind: counter, resource: counter, value: dealValues.chased.get, why: "it's chasing " + capitalise(ambition) }); }
+    });
+    // Invite to Empire: back to being a Regent, when that suits it
+    if (!isRegent(bot) && isFirstRegent(rival) && -getLeaveEmpireCase(bot).score > 0) {
+        options.push({ kind: "invite", value: favorValues.invite, why: "it would rather be a Regent again" + (getFateTitleWant(bot) == "regent" ? ": its Fate needs it" : "") });
+    }
+    // Cede Control: a city of theirs with none of their ships there, and room for one more of its own
+    if (getCityCount(bot) < maxCities && getBoardBuildings(rival.number, "city").length > 1) {
+        getBoardBuildings(rival.number, "city").filter(city => getShips(city.system, rival.number).fresh + getShips(city.system, rival.number).damaged == 0).forEach(city => {
+            const types = getCityTypes(city.system);
+            const chased = types.some(resource => getResourceNeed(bot, resource) == 2);
+            options.push({ kind: "cede", system: city.system, value: dealValues.city.get + (chased ? favorValues.cityChased : 0),
+                why: "their city at " + getSystemShortName(city.system) + " becomes its own" + (chased ? ", a type it's chasing" : "") });
+        });
+    }
+    // Delegate Authority: their agent on a Court card it wants, swapped for one of its own
+    const agentsLeft = getAgentsLeft(bot);
+    if (isMarketKnown() && (agentsLeft == null || agentsLeft > 0)) {
+        // Not the Imperial Council, which can't be influenced or secured
+        courtMarket.filter(entry => (entry.agents || {})[rival.number] > 0 && entry.number != councilNumber && getCourtCard(entry.number) != null).forEach(entry => {
+            const card = getMarketCardValue(bot, entry);
+            if (card <= 0) { return; }
+            // Taking the lead on it is worth the card; otherwise a step towards it
+            const mine = (entry.agents[bot.number] || 0) + 1;
+            const most = Math.max(0, ...Object.entries(entry.agents).filter(([number]) => Number(number) != bot.number).map(([number, count]) => count - (Number(number) == rival.number ? 1 : 0)));
+            const leads = mine > most;
+            options.push({ kind: "delegate", card: entry.number, value: card * (leads ? favorValues.delegateWin : dealValues.delegate),
+                why: "one of its agents replaces theirs on " + getCourtCard(entry.number).name + (leads ? ", giving it the most there" : "") });
+        });
+    }
+    return options.sort((a, b) => b.value - a.value);
+}
+
 function getFavorCallIns(bot) {
+    // The best thing its Favors of each Rival's can force, the leader's first (the user, 2026-11-27)
     const favors = getCampaignPlayer(bot).favors || {};
+    const leader = getLeader(bot);
     const callIns = [];
     players.filter(rival => rival !== bot && (favors[rival.number] || 0) > 0).forEach(rival => {
-        const options = preludeResources.filter(resource => getResourceNeed(bot, resource) == 2 && rival[resource + "Value"] > 0)
-            .map(resource => ({ kind: "resource", resource: resource, value: dealValues.resource.get[2] }));
-        [["captives", "tyrant"], ["trophies", "warlord"]].forEach(([counter, ambition]) => {
-            if (rival[counter + "Value"] > 0 && declaredAmbitions.includes(ambition) && isChasingAmbition(bot, ambition)) { options.push({ kind: counter, resource: counter, value: dealValues.chased.get }); }
-        });
-        const best = options.sort((a, b) => b.value - a.value)[0];
-        // Every resource it could ask for, the one it holds most of first, in case the first costs too much
+        const options = getFavorOptions(bot, rival);
+        const best = options[0];
+        // Every resource it could ask for, the one they hold most of first, in case the first costs too much
         const resources = options.filter(option => option.kind == "resource").map(option => option.resource).sort((a, b) => rival[b + "Value"] - rival[a + "Value"]);
         if (best != null) {
             callIns.push({ bot: bot.number, rival: rival.number, ...best, resource: best.kind == "resource" ? resources[0] : best.resource, resources: resources, tried: [],
-                fallback: options.find(option => option.kind != "resource") || null });
+                fallback: options.find(option => option.kind != "resource") || null, leader: rival === leader });
         }
     });
-    return callIns;
+    return callIns.sort((a, b) => Number(b.leader) - Number(a.leader) || b.value - a.value);
 }
 
 function runFavorCallIns(then) {
@@ -602,7 +661,7 @@ function nextFavorCallIn() {
         return;
     }
     if (callIn.kind == "resource") { askCallInKeys(callIn); return; }
-    applyCallIn(callIn, callIn.kind, 1);
+    applyCallInOption(callIn, callIn);
     nextFavorCallIn();
 }
 
@@ -642,11 +701,64 @@ function answerCallInKeys(keys) {
         return;
     }
     if (callIn.fallback != null) {
-        applyCallIn(callIn, callIn.fallback.kind, 1, capitalise(costly) + " Favors and it holds " + held + ", so instead: ");
+        applyCallInOption(callIn, callIn.fallback, capitalise(costly) + " Favors and it holds " + held + ", so instead: ");
     } else {
         roundEvent.callInResults.push("Player " + bot.number + " wanted Player " + callIn.rival + "'s resources, but " + costly + " Favors and it holds " + held + ": nothing forced. It keeps the Favors.");
     }
     nextFavorCallIn();
+}
+
+function applyCallInOption(callIn, option, prefix = "") {
+    // 1 Favor: a Captive or Trophy, or Invite to Empire, Cede Control or Delegate Authority
+    if (option.kind == "captives" || option.kind == "trophies") { applyCallIn(callIn, option.kind, 1, prefix); return; }
+    const bot = getPlayer(callIn.bot), rival = getPlayer(callIn.rival);
+    const favors = getCampaignPlayer(bot).favors;
+    favors[rival.number] = Math.max((favors[rival.number] || 0) - 1, 0);
+    let what = "", table = "";
+    if (option.kind == "invite") {
+        applyTitle(bot.number, "regent");
+        what = "Invite to Empire: Player " + rival.number + " (First Regent) makes it a Regent";
+        table = "flip Player " + bot.number + "'s title to Regent";
+    } else if (option.kind == "cede") {
+        cedeOnBoard(rival, bot, "city", option.system);
+        what = "Cede Control: Player " + rival.number + "'s city at " + getSystemName(option.system) + " becomes Player " + bot.number + "'s";
+        table = "replace Player " + rival.number + "'s city at " + getSystemName(option.system) + " with one of Player " + bot.number + "'s";
+    } else if (option.kind == "delegate") {
+        const entry = courtMarket.find(card => card.number == option.card);
+        entry.agents[rival.number] = Math.max((entry.agents[rival.number] || 0) - 1, 0);
+        entry.agents[bot.number] = (entry.agents[bot.number] || 0) + 1;
+        what = "Delegate Authority: one of its agents replaces Player " + rival.number + "'s on " + getCourtCard(option.card).name;
+        table = "swap 1 of Player " + rival.number + "'s agents on " + getCourtCard(option.card).name + " for one of Player " + bot.number + "'s";
+    }
+    players.forEach(showCampaignPanel);
+    SaveAllSettings();
+    roundEvent.callInResults.push(prefix + "Player " + bot.number + " <b>calls in 1 of Player " + rival.number + "'s Favors</b>: " + what + " (" + option.why + ")."
+        + "<small class=\"d-block text-secondary\">On the table: " + table + ", and Player " + rival.number + " takes back 1 agent from Player " + bot.number + "'s Fate card. The app has moved them.</small>");
+}
+
+function cedeOnBoard(from, to, kind, system = null) {
+    // Cede Control on the app's board (rulebook p.17): one of from's pieces becomes to's. A building only
+    // where from has no ships; not their last. A ship anywhere from has one, where to has pieces first.
+    // The system used, or null if there's none
+    if (kind == "ship") {
+        const at = system || getSystemsWithShips(from.number).sort((a, b) => Number(hasLoyalPiece(b, to.number)) - Number(hasLoyalPiece(a, to.number)))[0];
+        if (at == null || getBoardShips(from.number) <= 1) { return null; }
+        const damaged = getShips(at, from.number).fresh == 0;
+        removeShips(at, from.number, 1, damaged);
+        addShips(at, to.number, 1, damaged);
+        [from, to].forEach(syncPanelFromBoard);
+        return at;
+    }
+    const resource = kind.startsWith("cities") ? kind.replace(/^cities/, "").toLowerCase() : null;
+    const type = resource != null ? "city" : kind;
+    if (getBoardBuildings(from.number, type).length <= 1) { return null; }
+    const building = getBoardBuildings(from.number, type).find(item => (system == null || item.system == system)
+        && (resource == null || getCityTypes(item.system).includes(resource)) && getShips(item.system, from.number).fresh + getShips(item.system, from.number).damaged == 0);
+    if (building == null) { return null; }
+    const piece = getSystem(building.system).buildings.find(item => item.owner == from.number && item.kind == type);
+    piece.owner = to.number;
+    [from, to].forEach(syncPanelFromBoard);
+    return building.system;
 }
 
 function applyCallIn(callIn, counter, favorsSpent, prefix = "") {

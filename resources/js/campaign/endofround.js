@@ -577,49 +577,94 @@ function getOutlawChoice(rival) {
     return checked != null ? checked.value : "favor";
 }
 
-// What a Policy is worth to the First Regent: each piece it collects (they count for its ambitions),
-// a little for each Favor, and what the Imperial Action gives it compared with its Rival Regents
-// A change only takes effect next time, so it counts for less (laterFactor), and only when enforcing
-// would gain it less than a piece
-const policyWeights = { piece: 1, favor: 0.3, escalation: 0.5, changeMargin: 0.5, laterFactor: 0.75 };
+// What a Policy is worth to the First Regent, from its side (the user, 2026-11-27; rulebook p.20-21):
+// - its Imperial Trust: resources collected go there, and count for its ambitions (tycoon, keeper, empath)
+//   only, so by how much it needs them; a Weapon there counts for none
+// - what it pays itself: a resource it can no longer spend, though it still counts in the Trust
+// - draining Rival Regents: more for what they need, and more from the leader; Trophies and Captives
+//   (War) go to its own boxes; a Favor is an agent it can call in at a Summit
+// - the Imperial Action: what it gains against the best a Rival Regent gains; its Fate's bonus
+const policyWeights = {
+    trust: [0.3, 0.8, 1.5], trustWeapon: 0.2, ownLoss: [0.4, 0.8, 1.2],
+    drain: 0.3, drainNeeded: 0.5, drainLeader: 1.5, boxes: [0.5, 1.5], favor: 0.4,
+    weapon: [0.3, 0.8, 1.5], escalation: 0.5, escalationOutlaw: 0.5,
+    changeMargin: 0.5, govern: 0.5
+};
 
 function getPolicyValue(firstRegent, policy) {
+    const w = policyWeights;
     const plan = getDemandPlan(policy);
-    const pieces = plan.filter(item => item.kind != null).length;
-    const favors = plan.filter(item => item.favor).length;
+    const leader = getLeader(firstRegent);
     const rivals = players.filter(player => player !== firstRegent && isRegent(player));
-    let action = 0, actionNote = "";
+    const notes = [];
+    let value = 0;
+    // The Demand
+    let trust = 0, own = 0, drain = 0, boxes = 0;
+    plan.forEach(item => {
+        if (item.kind == null) { return; }
+        const need = preludeResources.includes(item.kind) ? getResourceNeed(firstRegent, item.kind) : 0;
+        if (item.kind == "trophies" || item.kind == "captives") {
+            // To its own boxes: for Warlord or Tyrant
+            const ambition = item.kind == "trophies" ? "warlord" : "tyrant";
+            boxes += w.boxes[declaredAmbitions.includes(ambition) && isChasingAmbition(firstRegent, ambition) ? 1 : 0];
+        } else {
+            trust += item.kind == "weapons" ? w.trustWeapon : w.trust[need];
+        }
+        if (item.player === firstRegent) { own -= w.ownLoss[need]; return; }
+        const theirNeed = preludeResources.includes(item.kind) ? getResourceNeed(item.player, item.kind) : 0;
+        drain += (w.drain + (theirNeed == 2 ? w.drainNeeded : 0)) * (item.player === leader ? w.drainLeader : 1);
+    });
+    const favors = plan.filter(item => item.favor).length;
+    value += trust + own + drain + boxes + favors * w.favor;
+    const pieces = plan.filter(item => item.kind != null).length;
+    notes.push(pieces == 0 && favors == 0 ? "the Demand collects nothing"
+        : "the Demand collects " + pieces + " piece" + (pieces == 1 ? "" : "s") + (favors > 0 ? " and " + favors + " Favor" + (favors == 1 ? "" : "s") : "")
+            + (own < 0 ? ", 1 of them its own" : "") + (drain > 0 ? ", draining its Rivals" + (plan.some(item => item.player === leader && item.kind != null) ? " and the leader" : "") : ""));
+    // The Imperial Action
+    let action = 0;
     if (policy == "peace") {
-        const own = getCityBonus(firstRegent), best = Math.max(0, ...rivals.map(getCityBonus));
-        action = own - best;
-        actionNote = "Celebrate Regency gives it " + own + " Power" + (rivals.length > 0 ? ", and its Rival Regents up to " + best : "");
-    } else if (policy == "escalation") {
-        action = policyWeights.escalation;
-        actionNote = "Requisition Ships adds 2 Imperial ships";
+        const mine = getCityBonus(firstRegent), best = Math.max(0, ...rivals.map(getCityBonus));
+        action = mine - best;
+        notes.push("Celebrate Regency gives it " + mine + " Power" + (rivals.length > 0 ? ", and its Rival Regents up to " + best : ""));
+    } else if (policy == "war") {
+        const mine = w.weapon[getResourceNeed(firstRegent, "weapons")], best = Math.max(0, ...rivals.map(rival => w.weapon[getResourceNeed(rival, "weapons")]));
+        action = mine - best;
+        notes.push("Distribute Arms gives every Regent a Weapon" + (getResourceNeed(firstRegent, "weapons") == 2 ? ", and it wants one" : ""));
     } else {
-        actionNote = "Distribute Arms gives every Regent a Weapon";
+        // Imperial ships help a Regent most against Outlaws
+        const outlaws = players.some(player => player !== firstRegent && !isRegent(player));
+        action = w.escalation + (outlaws ? w.escalationOutlaw : 0);
+        notes.push("Requisition Ships adds 2 Imperial ships" + (outlaws ? ", which defend it against Outlaws" : ""));
     }
+    value += action;
     // What its Fate makes it worth, such as the Steward filling the Imperial Trust (steering.js)
     const fate = getSteerPolicyBonus(firstRegent, policy, plan);
-    if (fate != null) {
-        action += fate.value;
-        actionNote += ". " + fate.note;
-    }
-    return { value: pieces * policyWeights.piece + favors * policyWeights.favor + action, pieces: pieces, favors: favors, actionNote: actionNote };
+    if (fate != null) { value += fate.value; notes.push(fate.note); }
+    return { policy: policy, value: value, pieces: pieces, favors: favors, actionNote: notes.join("; ") };
+}
+
+function getPolicyFutureCount() {
+    // How many more times the Policy is likely to be governed: the chapters left in this Act, about one
+    // in two of them (an Event or the Council), and a little for the next Act
+    const left = Math.max((chaptersInAct[campaign.act] || 4) - roundNumber, 0);
+    return left * policyWeights.govern + (campaign.act < 3 ? policyWeights.govern / 2 : 0);
 }
 
 function choosePolicyForBot(firstRegent) {
+    // Enforce: what the current Policy gives now and later. Change: nothing now, a better Policy later
+    // (the user, 2026-11-27). It changes when that comes out clearly ahead
+    const future = getPolicyFutureCount();
     const current = getPolicyValue(firstRegent, campaign.policy);
     const others = Object.keys(policyNames).filter(policy => policy != campaign.policy)
-        .map(policy => ({ policy: policy, ...getPolicyValue(firstRegent, policy) })).sort((a, b) => b.value - a.value);
-    const describeDemand = result => result.pieces == 0 && result.favors == 0 ? "the Demand would collect nothing"
-        : "the Demand would collect " + result.pieces + " piece" + (result.pieces == 1 ? "" : "s") + (result.favors > 0 ? " and " + result.favors + " Favor" + (result.favors == 1 ? "" : "s") : "");
-    if (current.value < policyWeights.piece && others[0].value * policyWeights.laterFactor > current.value + policyWeights.changeMargin) {
-        return { change: others[0].policy, reasons: [
-            "Enforcing " + capitalise(campaign.policy) + ": " + describeDemand(current) + ". " + current.actionNote + ".",
-            capitalise(others[0].policy) + " next time: " + describeDemand(others[0]) + ". " + others[0].actionNote + "."] };
+        .map(policy => getPolicyValue(firstRegent, policy)).sort((a, b) => b.value - a.value);
+    const enforce = current.value * (1 + future);
+    const change = others[0].value * future;
+    const score = result => " (worth " + Math.round(result.value * 10) / 10 + ")";
+    const lines = [current].concat(others).map(result => "<b>" + capitalise(result.policy) + "</b>" + (result.policy == campaign.policy ? " now" : " next time") + score(result) + ": " + result.actionNote + ".");
+    if (change > enforce + policyWeights.changeMargin) {
+        return { change: others[0].policy, reasons: lines.concat("Changing gives up this chapter's Demand, but " + capitalise(others[0].policy) + " serves it better for the rest of the Act.") };
     }
-    return { change: null, reasons: [capitalise(describeDemand(current)) + ". " + current.actionNote + "."] };
+    return { change: null, reasons: lines.concat(future == 0 ? "This is the last chapter, so changing gains it nothing." : "Enforcing serves it at least as well as a change.") };
 }
 
 function changePolicy(policy) {
@@ -699,7 +744,7 @@ function showRequisition(player) {
     // Requisition Ships for a human First Regent: where the 2 fresh Imperial ships go (#85 stage 7c)
     const empire = getSystemIds().some(isEmpireControlled);
     const places = getRequisitionPlaces(player);
-    const option = id => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" id=\"requisition_" + id + "\" onclick=\"placeRequisition('" + id + "')\">" + getSystemName(id)
+    const option = id => "<button type=\"button\" class=\"btn btn-outline-secondary text-start " + getSystemBarClass(id) + "\" id=\"requisition_" + id + "\" onclick=\"placeRequisition('" + id + "')\">" + getSystemName(id)
         + "<small class=\"d-block text-secondary\">" + tagPlayerNames(getPiecesText(id) || "Empty") + "</small></button>";
     showCampaignWindow("Requisition Ships", "<p class=\"mb-2\">Place <b>2 fresh Imperial ships</b> in " + (empire ? "an Empire-controlled system" : "one of your starports (there are no Empire-controlled systems)") + ". Where do they go?</p>"
         + "<div class=\"d-grid gap-2\">" + places.map(option).join("") + "</div>", player, true);

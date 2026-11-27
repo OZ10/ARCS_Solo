@@ -200,6 +200,13 @@ function getSecureReason(player, entry) {
     return text + ".";
 }
 
+function getSameAsPlanNote(action, resource, freed) {
+    // A prelude spend that makes the action its plan already has, with its card (the user, #213): what
+    // its card's action does instead. freed: e.g. "move 2 fresh ships 3 ⬢ → 3 Gate (to guard its city)", or null
+    return " This is the " + action + " in its plan. Spending the " + resource + " makes it now and frees its card's " + action + ": "
+        + (freed != null ? "it would then " + freed + "." : "its card's action goes to something else in its plan.");
+}
+
 function getRelicDecision(player, spend = "relics", skip = 0) {
     // A Relic (or the resource spent) to Secure a Court card its plan doesn't already secure, if the
     // card is worth more than the resource. Captured agents count for more when Tyrant is declared or
@@ -442,10 +449,15 @@ function getPreludeOffers(player) {
             return list;
         });
         const cardBuilds = cardCovers("build");
-        for (const where of builds.slice(0, Math.max(0, builds.length - cardBuilds))) {
+        const materialBuilds = Math.max(0, builds.length - cardBuilds);
+        const buildText = where => where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system);
+        for (const [index, where] of builds.slice(0, materialBuilds).entries()) {
             const before = offered();
-            offerAction("materials", where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system), "build", false,
-                "The board has a good spot for it" + (where.reason ? " (" + where.reason + ")" : "") + (play.actions.includes("build") ? ", more than its card's actions can build." : ", and its card doesn't build."), where.kind == "city");
+            // Its card builds too: the Build in its plan, made now, and its card's goes on to the next (the user, #213)
+            const freed = builds[materialBuilds + index];
+            offerAction("materials", buildText(where), "build", false,
+                "The board has a good spot for it" + (where.reason ? " (" + where.reason + ")" : "") + (play.actions.includes("build") ? ", more than its card's actions can build." : ", and its card doesn't build.")
+                + (play.actions.includes("build") ? getSameAsPlanNote("Build", "Material", freed != null ? buildText(freed).replace(/^Build/, "build") : null) : ""), where.kind == "city");
             if (offered() == before) { break; }
             offers[offers.length - 1].where = where;
         }
@@ -480,11 +492,18 @@ function getPreludeOffers(player) {
             }
             return list;
         });
-        for (const where of moves.slice(0, Math.max(0, moves.length - cardCovers("move")))) {
+        const fuelMoves = Math.max(0, moves.length - cardCovers("move"));
+        for (const [index, where] of moves.slice(0, fuelMoves).entries()) {
             const before = offered();
-            offerAction("fuel", "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")", "move", false,
+            // Its card moves too: this is the Move in its plan, made now, and its card's Move goes on to
+            // the next useful one (the user, #213)
+            const freed = moves[fuelMoves + index];
+            const sameAsPlan = play.actions.includes("move")
+                ? getSameAsPlanNote("Move", "Fuel", freed != null ? getBotMoveText(player, freed).replace(/^Move/, "move") + " (" + getMoveWhy(freed) + ")" : null)
+                : "";
+            offerAction("fuel", getBotMoveText(player, where) + " (" + getMoveWhy(where) + ")", "move", false,
                 (battleWhy != null && where.why == "to battle" ? battleWhy + ", and" : "The board has a useful Move, and")
-                + (!play.actions.includes("move") ? " its card doesn't move." : play.count == 1 ? " its card's one action is free for something else." : " its card has more useful Moves than actions."),
+                + (!play.actions.includes("move") ? " its card doesn't move." : play.count == 1 ? " its card's one action is free for something else." : " its card has more useful Moves than actions.") + sameAsPlan,
                 isVitalMove(where));
             if (offered() == before) { break; }
             offers[offers.length - 1].where = where;
@@ -496,6 +515,7 @@ function getPreludeOffers(player) {
     if (isMarketKnown()) {
         for (let relic = getRelicDecision(player); relic != null; relic = getRelicDecision(player, "relics", secured())) {
             const before = offered();
+            // (Never the card its plan secures: getRelicDecision skips those, so no "same as its plan" note)
             offerAction("relics", "Secure " + getCourtCard(relic.entry.number).name, "secure", false, relic.why, capturesAgents(relic.entry));
             if (offered() == before) { break; }
         }
@@ -535,7 +555,7 @@ function getPreludeOffers(player) {
             if (decision == null && leadActions.includes("move")) {
                 const where = afterOffers(() => chooseBoardMove(player, targetNumber, getNewCityResource(player), offers.filter(offer => offer.where != null && offer.where.from != null).map(offer => offer.where.from)));
                 // Not just to spread out: too little for a Psionic
-                if (where != null && !play.actions.includes("move") && !where.why.startsWith("to spread")) { decision = { action: "move", where: where, text: "Move " + where.count + " ship" + (where.count == 1 ? "" : "s") + " " + getSystemName(where.from) + " &rarr; " + getSystemName(where.to) + " (" + getMoveWhy(where) + ")" + from, why: "The board has another useful Move." }; }
+                if (where != null && !play.actions.includes("move") && !where.why.startsWith("to spread")) { decision = { action: "move", where: where, text: getBotMoveText(player, where) + " (" + getMoveWhy(where) + ")" + from, why: "The board has another useful Move." }; }
             }
             if (decision == null && leadActions.includes("build") && !play.actions.includes("build")) {
                 const where = afterOffers(() => chooseBoardBuild(player));

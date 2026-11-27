@@ -6,7 +6,7 @@
 // they are loaded as plain scripts, in order, by index.html
 
 // How much each reason is worth, to choose which to ask about
-const campaignTargetWeights = { chased: 2, warlordEmpire: 2.5, warlordBlight: 2, warlordFree: 1.5, noRival: 1, founder: 1.5 };
+const campaignTargetWeights = { chased: 2, warlordEmpire: 2.5, warlordBlight: 2, warlordFree: 1.5, noRival: 1, founder: 1.5, clear: 1.75 };
 // Blight is Tough (2 hits each), so only with a good few ships there
 const blightFleet = 4;
 // Fates that want the Blight left alone: the Blight Speaker (Act II) and the Naturalist (Act III)
@@ -46,14 +46,14 @@ function getCampaignTargetOptions(player) {
     if (chased.length > 0) { options.push({ kind: "free", reason: "chased", resource: chased[0], value: weights.chased }); }
     else if (warlord) { options.push({ kind: "free", reason: "warlord", value: weights.warlordFree }); }
 
-    // The Blight: Trophies for Warlord, or with no undefended Rival to fight, clearing it from its
-    // ships (#168). An Outlaw Rival is undefended; a Regent has the Truce Law, or Imperial ships
-    // defending with them. Not once you've said there's none in reach this turn
-    const undefended = rivals.filter(rival => !isRegent(rival));
+    // The Blight: Trophies for Warlord; early in Act I, clearing it to spread out and build; otherwise
+    // when it has no useful battle with a Rival (#168, the user 2026-11-27). The board says where it's
+    // in reach with enough ships (fewer for damaged Blight). Not once the board said none this turn
     const blightAnswer = (player.steerAnswers || {}).blight;
     if (!blightFriends.includes(getFateNumber(player)) && blightAnswer !== false) {
         if (warlord && getFleetForBattle(player) >= blightFleet) { options.push({ kind: "blight", reason: "warlord", value: weights.warlordBlight }); }
-        else if (!warlord && undefended.length == 0 && player.shipsBoardValue >= blightFleet) { options.push({ kind: "blight", reason: "noRival", value: weights.noRival }); }
+        else if (!warlord && isEarlyCampaign()) { options.push({ kind: "blight", reason: "clear", value: weights.clear }); }
+        else if (!warlord && getUsefulRivalBattle(player) == null) { options.push({ kind: "blight", reason: "noRival", value: weights.noRival }); }
     }
 
     // The Empire, for an Outlaw: Imperial ships are Trophies, and the Founder wants its systems
@@ -86,7 +86,7 @@ function getCampaignTargetQuestion(player, option) {
 registerCampaignHook("botQuestionsFirst", (player, carryOn) => {
     if (player.isHuman || player.campaignTarget !== undefined || (player.steerAnswers || {}).blight !== undefined) { return undefined; }
     if (!getBotCards(player).some(card => card.actions.includes("battle")) && player.weaponsValue == 0) { return undefined; }
-    const option = getCampaignTargetOptions(player).find(item => item.kind == "blight" && item.reason == "noRival");
+    const option = getCampaignTargetOptions(player).find(item => item.kind == "blight" && (item.reason == "noRival" || item.reason == "clear"));
     if (option == null) { return undefined; }
     // The board answers whether it's in reach, so it's never asked (#85 stage 7b)
     const system = findSpecialTargetSystem(player, option);
@@ -148,7 +148,9 @@ registerCampaignHook("specialBattleTarget", player => {
             : "Chasing Warlord: Free buildings destroyed are Trophies.";
         where = "A starport if there is one: destroying a Free city Provokes Outrage." + regent;
     } else if (target.kind == "blight") {
-        why = target.reason == "warlord" ? "Chasing Warlord: Blight destroyed is a Trophy." : "Every Rival is a Regent, shielded by the Truce Law: clearing the Blight keeps it from hitting its ships in a Crisis.";
+        why = target.reason == "warlord" ? "Chasing Warlord: Blight destroyed is a Trophy."
+            : target.reason == "clear" ? "Early in the Act: clearing the Blight opens the planet to build on, and keeps it from hitting its ships in a Crisis."
+            : "No battle with a Rival is worth it now: clearing the Blight keeps it from hitting its ships in a Crisis.";
         where = "Each Blight takes 2 hits." + regent;
     } else {
         why = target.reason == "warlord" ? "Chasing Warlord: Imperial ships destroyed are Trophies." : "Its Fate, the Founder, advances for each system it controls: the Empire holds them now.";

@@ -107,7 +107,7 @@ function showFateAction(kind) {
     const places = getFatePlaces(player, kind);
     fateWindowPlaces = places;
     showLeaderWindow(player, action[1], "<p class=\"mb-2\">Choose where:</p><div class=\"d-grid gap-2 mb-2\">"
-        + places.map((option, index) => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" id=\"fatePlace" + index + "\" onclick=\"confirmFateAction('" + kind + "', " + index + ")\">" + option.label + "<small class=\"d-block text-secondary\">" + option.sub + "</small></button>").join("")
+        + places.map((option, index) => "<button type=\"button\" class=\"btn btn-outline-secondary text-start " + (option.where.system != null ? getSystemBarClass(option.where.system) : "") + "\" id=\"fatePlace" + index + "\" onclick=\"confirmFateAction('" + kind + "', " + index + ")\">" + option.label + "<small class=\"d-block text-secondary\">" + option.sub + "</small></button>").join("")
         + "</div><button type=\"button\" class=\"btn btn-link w-100\" onclick=\"closeLeaderWindow()\">Don't</button>");
 }
 

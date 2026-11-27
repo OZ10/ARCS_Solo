@@ -280,6 +280,18 @@ function getActionPlanScore(player, action, focus) {
             // Nowhere it can fight at good odds: as many ships as the defender, or all theirs
             // damaged. Better to use the action for something else (#198)
             if (!player.campaignTarget && !players.some(other => other !== player && hasFavourableBattle(player, other))) { return { score: planImpossible }; }
+            // In a campaign, only for a reason: an ambition, a raid, the leader, an unguarded building,
+            // a cheap city or its Fate. Not just because it has the fleet (the user, 2026-11-27)
+            if (campaignMode && !player.campaignTarget) {
+                const useful = getUsefulRivalBattle(player);
+                if (useful == null && action != focus) { return { score: planImpossible }; }
+                if (useful != null) { reason = useful.reason; }
+            }
+            // Early in Act I, clearing the Blight it can reach is worth a Battle (the user, 2026-11-27)
+            if (campaignMode && player.campaignTarget && player.campaignTarget.kind == "blight" && player.campaignTarget.reason == "clear") {
+                score += weights.battleClearBlight;
+                reason = "to clear the Blight" + (player.campaignTarget.system != null ? " at " + getSystemShortName(player.campaignTarget.system) : "") + ", to build there";
+            }
             if (chasing("warlord")) { score += weights.battleWarlord; reason = "chasing Warlord"; }
             else if (chasing("tyrant")) { score += weights.battleTyrant; reason = "chasing Tyrant"; }
             if (hasManyShips(player)) { score += weights.battleManyShips; if (reason == "") { reason = "lots of ships on the board"; } }

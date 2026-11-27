@@ -112,7 +112,7 @@ function showFlagshipPlacement(player) {
     // A new Flagship goes in a system with Loyal pieces
     const step = campaign.setupSteps[0];
     const places = getSystemIds().filter(id => hasLoyalPiece(id, player.number));
-    const option = id => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" id=\"flagshipPlace_" + id + "\" onclick=\"placeNewFlagship(" + player.number + ", '" + id + "')\">" + getSystemName(id)
+    const option = id => "<button type=\"button\" class=\"btn btn-outline-secondary text-start " + getSystemBarClass(id) + "\" id=\"flagshipPlace_" + id + "\" onclick=\"placeNewFlagship(" + player.number + ", '" + id + "')\">" + getSystemName(id)
         + "<small class=\"d-block text-secondary\">" + tagPlayerNames(getPiecesText(id)) + "</small></button>";
     document.getElementById("guildTitle").innerHTML = "Your Flagship";
     const header = document.querySelector("#guildModal .modal-header");

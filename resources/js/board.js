@@ -277,6 +277,18 @@ function getSystemName(id) {
     return "<span class=\"text-nowrap\"><b>" + getSystemShortName(id) + "</b> " + getGameIcon(resource) + "&nbsp;" + preludeResourceNames[resource] + "</span>";
 }
 
+function sortSystemsInMapOrder(ids) {
+    // Cluster by cluster, each as Gate, Arrow, Crescent, Hexagon (the user, 2026-11-27); the Twisted Passage last
+    const rank = id => id == twistedPassageId ? 999 : getCluster(id) * 10 + (isGate(id) ? 0 : 1 + planetLetters.indexOf(id.slice(-1)));
+    return ids.slice().sort((a, b) => rank(a) - rank(b));
+}
+
+function getSystemBarClass(id) {
+    // A system in a list has a bar in its planet's resource colour, grey for a gate (index.css .systembar)
+    const resource = isPlanet(id) ? getPlanetResource(id) : null;
+    return "systembar" + (resource != null ? " system-" + resource : "");
+}
+
 function nextCluster(cluster, step) {
     return ((cluster - 1 + step + mapClusterCount) % mapClusterCount) + 1;
 }

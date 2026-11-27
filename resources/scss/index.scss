@@ -352,6 +352,25 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     }
 }
 
+// The Move window: a line for each cluster, its 4 systems a quarter each (the user, 2026-11-27)
+.movechiprow .movechip,
+.movechiprow .movechipgap {
+    flex: 0 0 calc((100% - 0.75rem) / 4);
+    min-width: 0 !important;
+}
+
+// A system in a list: a bar on the left in its planet's resource colour, like the Court cards; grey
+// for a gate (the user, 2026-11-27)
+.systembar {
+    border-left: 5px solid #999 !important;
+}
+
+@each $resource, $colour in $guildcolours {
+    .systembar.system-#{$resource} {
+        border-left-color: $colour !important;
+    }
+}
+
 .guildadd {
     border-left: none;
     padding: 1px 7px;

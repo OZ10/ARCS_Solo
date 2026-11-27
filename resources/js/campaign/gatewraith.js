@@ -200,7 +200,7 @@ function applyPassageStorms() {
 function showPassageSetupWindow(player) {
     // H: its first Passage, on any gate, at Act III setup (a setupSteps "passage" step)
     const gates = getSystemIds().filter(id => isGate(id) && id != twistedPassageId);
-    const option = id => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" id=\"passageGate_" + id + "\" onclick=\"placeSetupPassage('" + id + "')\">" + getSystemName(id)
+    const option = id => "<button type=\"button\" class=\"btn btn-outline-secondary text-start " + getSystemBarClass(id) + "\" id=\"passageGate_" + id + "\" onclick=\"placeSetupPassage('" + id + "')\">" + getSystemName(id)
         + "<small class=\"d-block text-secondary\">" + getCollapseText(id) + "</small></button>";
     const html = "<div class=\"small text-secondary mb-2\">The Gate Wraith &middot; Act III setup</div>"
         + "<p class=\"mb-2\">Place a Passage on any gate. Everything on it goes to the Twisted Passage, and its buildings are destroyed (no Trophies). The gate is then out of play.</p>"
