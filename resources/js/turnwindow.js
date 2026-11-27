@@ -78,9 +78,13 @@ function closeTurnWindow(afterClosed) {
     bootstrap.Modal.getOrCreateInstance(modal).hide();
 }
 
-function useTurnTool(name) {
+// A bot's Battle from its prelude row (#231): the window opens before its card's actions
+let battleFromPrelude = false;
+
+function useTurnTool(name, fromPrelude = false) {
     // Close the window and open the tool's. The window comes back once that's finished
     const tool = turnTools[name];
+    battleFromPrelude = fromPrelude === true;
     const number = awaitingDone;
     const run = () => {
         if (tool.headerIcon) {
@@ -108,9 +112,9 @@ document.addEventListener('hidden.bs.modal', event => {
 
 // What it shows
 
-function getToolButton(name) {
+function getToolButton(name, fromPrelude = false) {
     const tool = turnTools[name];
-    return "<button type=\"button\" class=\"btn btn-primary btn-sm turnact\" id=\"turnTool_" + name + "\" onclick=\"useTurnTool('" + name + "')\"><i class=\"bi " + tool.icon + "\"></i> " + tool.name + "</button>";
+    return "<button type=\"button\" class=\"btn btn-primary btn-sm turnact\" id=\"turnTool_" + name + (fromPrelude ? "_prelude" : "") + "\" onclick=\"useTurnTool('" + name + "'" + (fromPrelude ? ", true" : "") + ")\"><i class=\"bi " + tool.icon + "\"></i> " + tool.name + "</button>";
 }
 
 function getTurnRow(marker, text, note, buttons) {
@@ -143,12 +147,13 @@ function getSplitPlanStep(step, player) {
 
 function getOfferRows(offers) {
     // Prelude or Guild actions carried out. Their tiles have already been updated
-    const tool = offer => turnActionTools[offer.action] != null ? getToolButton(turnActionTools[offer.action]) : "";
     // A bot's prelude Move, Build or ship placement has a place on the board, and a Completed
     // button like its plan's steps (#197)
     // Its Lore actions with a place too (leaderrules.js)
     const player = getTurnPlayer() || {};
     const isPrelude = offers === getBotPreludeSpent(player), isGuild = !player.isHuman && offers === getBotGuildSpent(player);
+    // A bot's prelude Battle opens before its card's actions (#231)
+    const tool = offer => turnActionTools[offer.action] != null ? getToolButton(turnActionTools[offer.action], offer.action == "battle" && !offer.converts && isPrelude && !player.isHuman) : "";
     const complete = (offer, index) => (isPrelude || isGuild) && canCompleteBotStep(offer)
         ? (offer.applied ? "<span class=\"small text-secondary\">Done</span>" : "<button type=\"button\" class=\"btn btn-outline-primary btn-sm turnact\" id=\"" + (isGuild ? "completeGuild" : "completeOffer") + index + "\" onclick=\"" + (isGuild ? "completeBotGuildOffer" : "completeBotPreludeOffer") + "(" + index + ")\"><i class=\"bi bi-check-lg\"></i> Completed</button>") : "";
     return offers.map((offer, index) => getTurnRow("<i class=\"bi bi-check-lg\"></i>", offer.label, capitalise(offer.text), tool(offer) + complete(offer, index))).join("");

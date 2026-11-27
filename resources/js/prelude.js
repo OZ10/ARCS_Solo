@@ -561,8 +561,10 @@ function getPreludeOffers(player) {
                 const where = afterOffers(() => chooseBoardBuild(player));
                 if (where != null && where.kind == "city") { decision = { action: "build", where: where, text: "Build a city at " + getSystemName(where.system) + from, why: "The board has a spot for another city." }; }
             }
+            // In its prelude, before its card's Moves: only where its ships already are, after the
+            // prelude's own Moves (#231)
             if (decision == null && leadActions.includes("battle") && battles == 0 && battleWhy != null && (!play.leading || play.actions.includes("battle"))
-                && players.some(other => other !== player && hasFavourableBattle(player, other))) {
+                && afterOffers(() => players.some(other => other !== player && hasFavourableBattle(player, other, false)))) {
                 decision = { action: "battle", text: play.leading ? "One more Battle than the card allows" : "A Battle, from the lead card", why: battleWhy + ", at good odds on the board." };
                 battles++;
             }

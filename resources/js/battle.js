@@ -430,6 +430,9 @@ function getHitAdvice(canAttackAgain) {
 function showBattleModal(button) {
     // Opened from the Battle icon on a bot's panel. That bot is attacking
     battle.attacker = getPlayer(getPlayerNumberFromString(button.parentNode.id));
+    // From a bot's prelude row: before its card's actions (#231, turnwindow.js)
+    battle.fromPrelude = typeof battleFromPrelude != "undefined" && battleFromPrelude === true && !battle.attacker.isHuman;
+    if (typeof battleFromPrelude != "undefined") { battleFromPrelude = false; }
     hideIconTooltip(button, "battleModal");
     battle.ships = 1;
     battle.attackerDamaged = 0;

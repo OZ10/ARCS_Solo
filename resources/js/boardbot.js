@@ -968,7 +968,15 @@ function prefillBattleFromBoard() {
     if (attacker != null && defender != null && typeof defender.number == "number") {
         const places = getBattlePlacesFor(attacker, defender);
         let system = places[0];
-        if (!attacker.isHuman) {
+        if (!attacker.isHuman && battle.fromPrelude) {
+            // Its prelude's Battle (#231): only the prelude's Moves and placements before it are on
+            // the board, not its card's actions, which come after
+            const spent = getBotPreludeSpent(attacker);
+            const at = spent.findIndex(offer => offer.action == "battle" && !offer.converts && !offer.battleDone);
+            spent.slice(0, at >= 0 ? at : spent.length).filter(canCompleteBotStep).forEach(offer => applyBotStep(attacker, offer));
+            syncPanelFromBoard(attacker);
+            system = getBattleSystem(attacker, defender.number);
+        } else if (!attacker.isHuman) {
             const step = (attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.battle == defender.number && !item.applied);
             // Its steps before this Battle go on the board first, such as the Move that sets it up,
             // so the counts are where its ships are now (#201)
@@ -1062,7 +1070,10 @@ function applyBattleToBoard(losses) {
     if (typeof applyCeasefireAfterBattle == "function" && board.clusterTokens != null) { applyCeasefireAfterBattle(system, battle.attacker); }
     // Quartermaster (Resilient) and Repair Drones repair ships there (leaderrules.js)
     applyLeaderBattleRepairs(system);
-    const step = (battle.attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.system == system && !item.applied);
+    // Its prelude's Battle is done, not its plan's (#231)
+    const preludeBattle = battle.fromPrelude ? getBotPreludeSpent(battle.attacker).find(offer => offer.action == "battle" && !offer.converts && !offer.battleDone) : null;
+    if (preludeBattle != null) { preludeBattle.battleDone = true; }
+    const step = preludeBattle != null ? null : (battle.attacker.turnPlan || []).find(item => item.action == "battle" && item.where != null && item.where.system == system && !item.applied);
     if (step != null) { step.applied = true; }
     // Both panels follow the board, human players' too now their actions are on it
     [battle.attacker, battle.defender].forEach(syncPanelFromBoard);
