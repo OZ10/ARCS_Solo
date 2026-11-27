@@ -160,6 +160,8 @@ function resetPlayedThisTurn() {
         player.fateSeedRoll = null;
         // A human player's Lore actions done this turn, such as Summon once a turn (lorehuman.js)
         player.loreUsedThisTurn = [];
+        // Overseer (Ruthless), once a turn (boardhuman.js)
+        player.ruthlessUsed = false;
         player.canBuild = null;
         player.hasSlotForCity = null;
         player.noTax = [];

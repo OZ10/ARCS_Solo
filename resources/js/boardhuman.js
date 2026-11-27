@@ -227,7 +227,62 @@ function getHumanBuildOptions(player) {
     // Ships only while some are left in the supply. Empath's Bond: at any starport (leaderrules.js)
     getShipStarports(player).filter(id => !shipsBuilt.includes(id) && getShipSupply(player) > 0)
         .forEach(id => options.push({ system: id, kind: "ship", damaged: isBuiltDamaged(id, number, "ship") }));
+    // Overseer (Ruthless): once a turn, another ship at a starport used this turn, hitting it
+    if (canUseRuthless(player) && getShipSupply(player) > 0) {
+        [...new Set(shipsBuilt)].filter(id => getShipStarports(player).includes(id))
+            .forEach(id => options.push({ system: id, kind: "ship", ruthless: true, damaged: isBuiltDamaged(id, number, "ship") }));
+    }
     return options;
+}
+
+// Overseer (Ruthless): once a turn, when you tax a city or build a ship at a starport, you may hit the
+// building to take that action again with it. Destroying a city Provokes Outrage of its type; a Rival's
+// also Ransacks the Court (the user's mock-up, 2026-11-27)
+
+function canUseRuthless(player) {
+    return typeof hasLeader == "function" && hasLeader(player, 10) && !player.ruthlessUsed;
+}
+
+function getRuthlessBuilding(system, owner, kind) {
+    // The building the hit lands on: a fresh one (damaged by it) before a damaged one (destroyed)
+    const buildings = getSystem(system).buildings.filter(building => building.owner == owner && building.kind == kind);
+    return buildings.find(building => !building.damaged) || buildings[0] || null;
+}
+
+function getRuthlessNote(player, system, owner, kind, again) {
+    const building = getRuthlessBuilding(system, owner, kind);
+    if (building == null) { return ""; }
+    if (!building.damaged) { return again + ": hit it, so it's damaged. (Overseer, once a turn)"; }
+    const types = kind == "city" ? getCityTypes(system).map(resource => preludeResourceNames[resource]).join(" and ") : "";
+    const rival = typeof owner == "number" && owner != player.number;
+    return "<span class=\"text-danger\">It's damaged: the hit destroys it.</span> " + again + (kind == "city" ? "; you Provoke " + types + " Outrage" + (rival ? " and Ransack the Court" : "") : "") + ". (Overseer, once a turn)";
+}
+
+function applyRuthlessHit(player, system, owner, kind) {
+    // Damages the building, or destroys it if it's damaged already. Returns what happened
+    player.ruthlessUsed = true;
+    const building = getRuthlessBuilding(system, owner, kind);
+    if (building == null) { return ""; }
+    if (!building.damaged) { building.damaged = true; syncPanelFromBoard(getPlayer(owner) || player); return "hit: the " + kind + " is damaged"; }
+    getSystem(system).buildings.splice(getSystem(system).buildings.indexOf(building), 1);
+    if (typeof owner == "number") { syncPanelFromBoard(getPlayer(owner)); }
+    if (kind != "city") { return "hit: the " + kind + " is destroyed"; }
+    // A city destroyed: Outrage of its type, and a Rival's Ransacks the Court
+    getCityTypes(system).concat(isPlanet(system) ? [getPlanetResource(system)] : []).filter((resource, index, all) => all.indexOf(resource) == index).forEach(resource => provokeOutrage(player, resource));
+    const rival = typeof owner == "number" && owner != player.number ? getPlayer(owner) : null;
+    if (rival != null && isMarketKnown() && getRansackOptions(player, rival).length > 0) { queueLeaderWindow(() => showRuthlessRansack(player, rival)); }
+    return "hit: the city is destroyed, you Provoke Outrage" + (rival != null ? " and Ransack the Court" : "");
+}
+
+function showRuthlessRansack(player, rival) {
+    showLeaderWindow(player, "Ransack the Court", "<p class=\"mb-2\">You destroyed Player " + rival.number + "'s city (Overseer, Ruthless): take a Court card with their agents on it. Their agents there become your Trophies.</p><div class=\"d-grid gap-2\">"
+        + getRansackOptions(player, rival).map(entry => "<button type=\"button\" class=\"btn btn-outline-secondary text-start\" onclick=\"confirmRuthlessRansack(" + player.number + ", " + entry.number + ")\">" + getCourtCard(entry.number).name + "</button>").join("") + "</div>");
+}
+
+function confirmRuthlessRansack(playerNumber, number) {
+    const card = ransackMarketCard(getPlayer(playerNumber), number);
+    closeLeaderWindow();
+    showMessageToast("Player " + playerNumber, "Ransacked " + (card != null ? card.name : "the Court") + ". Add its replacement to the market.");
 }
 
 function getHumanRepairOptions(player) {
@@ -242,8 +297,14 @@ function getHumanTaxOptions(player) {
     const again = typeof canTaxCityAgain == "function" && canTaxCityAgain(player);
     const taxed = again ? [] : getBoardActions(player).filter(action => action.action == "tax").map(action => action.system + ":" + action.owner);
     // A gate city once for each of its types: tax it for any one of them (Gate Stations)
-    return getTaxableCities(player.number).filter(city => !taxed.includes(city.system + ":" + city.owner))
-        .filter((city, index, cities) => cities.findIndex(other => other.system == city.system && other.owner == city.owner && other.resource == city.resource) == index);
+    const unique = (city, index, cities) => cities.findIndex(other => other.system == city.system && other.owner == city.owner && other.resource == city.resource) == index;
+    const options = getTaxableCities(player.number).filter(city => !taxed.includes(city.system + ":" + city.owner)).filter(unique);
+    // Overseer (Ruthless): once a turn, a city taxed this turn again, hitting it
+    if (canUseRuthless(player) && taxed.length > 0) {
+        getTaxableCities(player.number).filter(city => !city.slot && taxed.includes(city.system + ":" + city.owner)).filter(unique)
+            .forEach(city => options.push({ ...city, ruthless: true }));
+    }
+    return options;
 }
 
 // The windows
@@ -280,12 +341,22 @@ function getOptionButton(main, sub, onclick, id, system = null) {
     return "<button type=\"button\" class=\"btn btn-outline-secondary text-start" + (system != null ? " " + getSystemBarClass(system) : "") + "\"" + (id ? " id=\"" + id + "\"" : "") + " onclick=\"" + onclick + "\">" + main + "<small class=\"d-block text-secondary\">" + sub + "</small></button>";
 }
 
+const ruthlessBadge = " <span class=\"badge rounded-pill text-bg-dark ms-1\">Ruthless</span>";
+
+function getRuthlessStarportOwner(player, system) {
+    // Its own starport there, or the one Empath's Bond lets it use
+    return getBuildings(system, player.number, "starport").length > 0 ? player.number : (getBuildings(system, null, "starport")[0] || {}).owner;
+}
+
 function renderHumanOptions(type) {
     const player = getTurnPlayer();
     const body = document.getElementById("boardActionBody");
     let options = [];
     if (type == "build") {
-        options = getHumanBuildOptions(player).map((option, index) => getOptionButton(
+        options = getHumanBuildOptions(player).map((option, index) => option.ruthless
+            ? getOptionButton("<b>Ship</b> at " + (getBuildings(option.system, player.number, "starport").length > 0 ? "your starport" : "the starport") + " at " + getSystemName(option.system) + ruthlessBadge,
+                getRuthlessNote(player, option.system, getRuthlessStarportOwner(player, option.system), "starport", "Build another ship here"), "humanBuild(" + index + ")", "humanOption" + index, option.system)
+            : getOptionButton(
             option.kind == "ship" ? "<b>Ship</b> at " + (getBuildings(option.system, player.number, "starport").length > 0 ? "your starport" : "the starport") + " at " + getSystemName(option.system)
                 : option.cloud ? "<b>City</b> outside the slots at " + getSystemName(option.system) : "<b>" + capitalise(option.kind) + "</b> at " + getSystemName(option.system),
             (option.kind == "ship" ? "One per starport each turn" + (getBuildings(option.system, player.number, "starport").length > 0 ? "" : " (Empath's Bond)")
@@ -299,6 +370,11 @@ function renderHumanOptions(type) {
             const free = option.owner == freeOwner;
             // Anarchist (Inspiring): an empty slot where its ships are
             if (option.slot) { return getOptionButton("An empty <b>" + preludeResourceNames[option.resource] + "</b> slot at " + getSystemName(option.system), "Gain 1 " + preludeResourceNames[option.resource] + " (Anarchist, Inspiring)", "humanTax(" + index + ")", "humanOption" + index, option.system); }
+            // Overseer (Ruthless): taxed again, hitting it
+            if (option.ruthless) {
+                return getOptionButton((mine ? "Your " : free ? "A Free " : "Player " + option.owner + "'s ") + "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system) + ruthlessBadge,
+                    getRuthlessNote(player, option.system, option.owner, "city", "Tax it again, gaining 1 " + preludeResourceNames[option.resource] + (mine || free ? "" : " and capturing an agent")), "humanTax(" + index + ")", "humanOption" + index, option.system);
+            }
             // A Free city: no agent to capture (#85)
             return getOptionButton((mine ? "Your " : free ? "A Free " : "Player " + option.owner + "'s ") + (option.gate ? "gate city at " + getSystemName(option.system) + ", for <b>" + preludeResourceNames[option.resource] + "</b>" : "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system)),
                 (getResourceSupply(option.resource) > 0 ? "Gain 1 " + preludeResourceNames[option.resource] : "No " + preludeResourceNames[option.resource] + " left to gain") + (mine ? "" : free ? " (you control " + getSystemShortName(option.system) + ")" : option.noCapture ? " (Empath's Bond: no Captive)" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index, option.system);
@@ -313,11 +389,14 @@ function humanBuild(index) {
     const player = getTurnPlayer();
     const option = getHumanBuildOptions(player)[index];
     if (option == null) { return; }
+    // Overseer (Ruthless): hit the starport, then the ship (no Undo)
+    const hit = option.ruthless ? applyRuthlessHit(player, option.system, getRuthlessStarportOwner(player, option.system), "starport") : "";
     if (option.kind == "ship") { addShips(option.system, player.number, 1, option.damaged); }
     else if (!placeBuilding(option.system, player.number, option.kind, option.damaged, option.cloud === true)) { return; }
     // Cloud Cities: 1 resource of the planet's type
     if (option.cloud) { const resource = getPlanetResource(option.system); setPlayerResource(player, resource, player[resource + "Value"] - 1); }
-    recordBoardAction(player, { action: "build", system: option.system, kind: option.kind, damaged: option.damaged, text: "A " + (option.damaged ? "damaged " : "") + option.kind + " at " + getSystemName(option.system) });
+    recordBoardAction(player, { action: "build", system: option.system, kind: option.kind, damaged: option.damaged, undo: option.ruthless ? false : undefined,
+        text: "A " + (option.damaged ? "damaged " : "") + option.kind + " at " + getSystemName(option.system) + (option.ruthless ? " (Ruthless, " + hit + ")" : "") });
     closeHumanBoardAction();
 }
 
@@ -344,8 +423,10 @@ function humanTax(index) {
     // A Leader's extra resource for a Copy or Pivot Tax, and Shaper (Mythic) may change the planet (leaderrules.js)
     applyLeaderTaxBonus(player);
     offerMythic(player, option.system);
-    recordBoardAction(player, { action: "tax", system: option.system, owner: option.owner, resource: option.resource, gained: gained, captured: captured,
-        text: (captured ? "Player " + option.owner + "'s " : free ? "a Free " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": " + (gained ? "1 " + preludeResourceNames[option.resource] : "no " + preludeResourceNames[option.resource] + " left") + (captured ? " and 1 Captive" : "") });
+    // Overseer (Ruthless): the city takes the hit (no Undo)
+    const hit = option.ruthless ? applyRuthlessHit(player, option.system, option.owner, "city") : "";
+    recordBoardAction(player, { action: "tax", system: option.system, owner: option.owner, resource: option.resource, gained: gained, captured: captured, undo: option.ruthless ? false : undefined,
+        text: (captured ? "Player " + option.owner + "'s " : free ? "a Free " : "Your ") + preludeResourceNames[option.resource].toLowerCase() + " city at " + getSystemName(option.system) + ": " + (gained ? "1 " + preludeResourceNames[option.resource] : "no " + preludeResourceNames[option.resource] + " left") + (captured ? " and 1 Captive" : "") + (option.ruthless ? " (Ruthless, " + hit + ")" : "") });
     closeHumanBoardAction();
 }
 
