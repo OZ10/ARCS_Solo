@@ -14,6 +14,14 @@ function keepClearOfFooter() {
     }).observe(footer);
 }
 
+function setWindowBanner(modalId, player) {
+    // A player's window in their colour; anyone else's in the Options window's (index.css)
+    const header = document.querySelector("#" + modalId + " .modal-header");
+    if (header == null) { return; }
+    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    if (player != null) { header.classList.add("playerbanner" + getPlayerColour(player)); }
+}
+
 function getPlayerTag(player) {
     // A player's name on their own colour, for use in a window's text. A campaign's Empire, Free
     // States and Blight have a label of their own

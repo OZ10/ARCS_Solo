@@ -120,6 +120,7 @@ function finishVox(player, message) {
 function showVoxDecision(player, card, headline, reason, buttons) {
     // In the Guild window: the card, what the bot does and why, then the buttons
     document.getElementById("guildTitle").innerHTML = card.name;
+    setWindowBanner("guildModal", player);
     const body = document.getElementById("guildBody");
     body.innerHTML = "<div class=\"small text-muted mb-2\">" + card.text + "</div>"
         + "<div class=\"battleroll\">" + tagPlayerNames(headline) + "</div>"

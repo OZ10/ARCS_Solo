@@ -214,6 +214,7 @@ function showGuildCardsRow(player) {
 function showGuildCard(player, card) {
     // A card's text, with Remove (when it's lost, discarded or stolen)
     document.getElementById("guildTitle").innerHTML = card.name;
+    setWindowBanner("guildModal", player);
     const body = document.getElementById("guildBody");
     // A campaign's Fate cards are protected and have their own code
     body.innerHTML = "<div class=\"small text-muted mb-2\">" + getPlayerTag(player) + " &middot; " + preludeResourceNames[card.resource]
@@ -254,6 +255,7 @@ function showAddGuildCard(player) {
     // The Guild cards nobody holds, grouped by resource icon. For a bot, the Vox cards too, as
     // this is how it secures a Court card (the human player carries out their own)
     document.getElementById("guildTitle").innerHTML = (player.isHuman ? "Add a Guild card to Player " : "Add a Court card to Player ") + player.number;
+    setWindowBanner("guildModal", player);
     const body = document.getElementById("guildBody");
     body.replaceChildren();
 

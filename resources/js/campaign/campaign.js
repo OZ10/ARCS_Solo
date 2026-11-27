@@ -182,8 +182,10 @@ function setCampaignWindow(title, html, player = null) {
     document.getElementById("campaignTitle").innerHTML = title;
     document.getElementById("campaignBody").innerHTML = tagPlayerNames(html);
     const header = modal.querySelector(".modal-header");
-    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
-    if (player != null) { header.classList.add("playerbanner" + getPlayerColour(player)); }
+    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4", "empirebanner");
+    // The Imperial Council and its Edicts in the Empire's purple (the user, 2026-11-27)
+    if (/Imperial Council|^Edicts/.test(title)) { header.classList.add("empirebanner"); }
+    else if (player != null) { header.classList.add("playerbanner" + getPlayerColour(player)); }
     document.getElementById("campaignBody").scrollTop = 0;
 }
 

@@ -401,6 +401,37 @@ header {
   padding: 18px 16px 14px;
 }
 
+/* A window that isn't a player's has the Options window's colour, never a white banner (the user,
+   2026-11-27). A player's window has their colour (.playerbanner1-4); the Council's is the Empire's
+   purple (.empirebanner) */
+.modal-header:not(.playerbanner1):not(.playerbanner2):not(.playerbanner3):not(.playerbanner4):not(.empirebanner) {
+  background: #2b3442;
+  color: #fff;
+  border-bottom: 0;
+}
+
+.modal-header:not(.playerbanner1):not(.playerbanner2):not(.playerbanner3):not(.playerbanner4):not(.empirebanner) .btn-close {
+  filter: var(--bs-btn-close-white-filter);
+  opacity: 0.8;
+}
+
+.modal-header:not(.playerbanner1):not(.playerbanner2):not(.playerbanner3):not(.playerbanner4):not(.empirebanner) .text-secondary,
+.modal-header:not(.playerbanner1):not(.playerbanner2):not(.playerbanner3):not(.playerbanner4):not(.empirebanner) .text-muted {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* The Imperial Council's windows, in the Empire's purple (the user, 2026-11-27) */
+.modal-header.empirebanner {
+  background: #5b2a86;
+  color: #fff;
+  border-bottom: 0;
+}
+
+.modal-header.empirebanner .btn-close {
+  filter: var(--bs-btn-close-white-filter);
+  opacity: 0.8;
+}
+
 .optlogo {
   display: flex;
   align-items: center;

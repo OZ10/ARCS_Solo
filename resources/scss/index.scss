@@ -483,6 +483,25 @@ $guildcolours: (materials: #9b59b6, fuel: #d4a017, weapons: #c0392b, relics: #3a
     padding: 18px 16px 14px;
 }
 
+// A window that isn't a player's has the Options window's colour, never a white banner (the user,
+// 2026-11-27). A player's window has their colour (.playerbanner1-4); the Council's is the Empire's
+// purple (.empirebanner, with the campaign's colours below)
+.modal-header:not(.playerbanner1):not(.playerbanner2):not(.playerbanner3):not(.playerbanner4):not(.empirebanner) {
+    background: #2b3442;
+    color: #fff;
+    border-bottom: 0;
+
+    .btn-close {
+        filter: var(--bs-btn-close-white-filter);
+        opacity: 0.8;
+    }
+
+    .text-secondary,
+    .text-muted {
+        color: rgba(255, 255, 255, 0.7) !important;
+    }
+}
+
 .optlogo {
     display: flex;
     align-items: center;
@@ -2079,6 +2098,18 @@ header, .footerstyle {
 // The Blighted Reach campaign (#85, resources/js/campaign)
 
 $empire: #5b2a86;
+
+// The Imperial Council's windows, in the Empire's purple (the user, 2026-11-27)
+.modal-header.empirebanner {
+    background: $empire;
+    color: #fff;
+    border-bottom: 0;
+
+    .btn-close {
+        filter: var(--bs-btn-close-white-filter);
+        opacity: 0.8;
+    }
+}
 
 // New Game: two choices side by side, in the style of the difficulty buttons
 .brseg {
