@@ -533,6 +533,10 @@ registerCampaignHook("botQuestions", (player, carryOn) => {
     // The Caretaker (Act I) first: whether it controls a Golem, so it can Awaken them (fatebots.js)
     if (getSteer(player) != null && campaign.act == 1 && hasFate(player, 5)) {
         player.steerAnswers = player.steerAnswers || {};
+        // The app's board knows where the Golems are and who controls them (#85 stage 7d): no question
+        if (player.steerAnswers.golem === undefined) {
+            player.steerAnswers.golem = getSystemIds().some(id => getTokens(id).some(token => token.kind == "golem") && getControllerFor(id, player.number) == player.number);
+        }
         if (player.steerAnswers.golem === undefined && getBotCards(player).some(card => card.actions.includes("influence"))) {
             askYesNo("INFLUENCE", "Do I control a Golem on the map? (My Fate, the Caretaker: Golem Beacon lets me Awaken it instead of an Influence.)", yes => {
                 player.steerAnswers.golem = yes;

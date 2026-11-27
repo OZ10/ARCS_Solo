@@ -1,7 +1,7 @@
 // Blighted Reach campaign (#85), Act III: the new ambitions (the Guardian's Edenguard and the
 // Naturalist's Blightkin), the Pathfinder's question about the Portal, and a bot Conspirator's
-// Conspiracies, kept secret by the app. The new ambitions count what's on the map, which the app
-// can't see: a bot asks before declaring one, and the scoring window's counts are entered by hand.
+// Conspiracies, kept secret by the app. The new ambitions count what's on the map, from the app's
+// board (#85 stage 7d): a bot declares one when the board shows it controls the most.
 // Part of the ARCS bot. Every file in resources/js shares the same global names, so
 // they are loaded as plain scripts, in order, by index.html
 
@@ -24,8 +24,22 @@ gameIcons.edenguard = gameIcons.materials;
 gameIcons.blightkin = gameIcons.psionics;
 
 function getNewAmbitionCount(ambition, player) {
-    if (typeof campaign == "undefined" || campaign == null || campaign.act != 3 || campaign.newCounts == null) { return 0; }
+    if (typeof campaign == "undefined" || campaign == null || campaign.act != 3) { return 0; }
+    // From the app's board (#85 stage 7d): the Fuel and Material planets, or the systems with fresh
+    // Blight, that the player controls. The scoring window still lets you correct them
+    if (typeof getSystemsControlledBy == "function" && typeof player.number == "number") {
+        const controlled = getSystemsControlledBy(player.number);
+        if (ambition == "edenguard") { return controlled.filter(id => ["fuel", "materials"].includes(getPlanetResource(id))).length; }
+        if (ambition == "blightkin") { return controlled.filter(id => getBlight(id).fresh > 0).length; }
+    }
+    if (campaign.newCounts == null) { return 0; }
     return (campaign.newCounts[ambition] || {})[player.number] || 0;
+}
+
+function controlsMostFor(player, ambition) {
+    // More than each Rival, from the board
+    const own = getNewAmbitionCount(ambition, player);
+    return own > 0 && players.filter(other => other !== player).every(other => getNewAmbitionCount(ambition, other) < own);
 }
 
 function isNewAmbitionInPlay(ambition) {
@@ -91,11 +105,15 @@ registerCampaignHook("botQuestions", (player, carryOn) => {
         const added = Object.keys(newAmbitions).find(ambition => player.steerAnswers[ambition] === undefined
             && cards.some(card => card.ambition == newAmbitions[ambition].replaces) && getNewAmbitionFor(player, newAmbitions[ambition].replaces) == ambition);
         if (added != null) {
-            const data = newAmbitions[added];
-            return answer(added, data.replaces.toUpperCase(), data.question + " (" + data.why + ") The First Regent counts the Empire's systems.");
+            // The board answers (#85 stage 7d): no question
+            player.steerAnswers[added] = controlsMostFor(player, added);
         }
     }
-    // The Pathfinder, with a card that can Move
+    // The Pathfinder: the board answers once the Portal token is on it
+    const portal = getSystemIds().find(id => getTokens(id).some(token => token.kind == "portal"));
+    if (hasFate(player, 9) && player.steerAnswers.portal === undefined && portal != null) {
+        player.steerAnswers.portal = getControllerFor(portal, player.number) == player.number;
+    }
     if (hasFate(player, 9) && player.steerAnswers.portal === undefined && getBotCards(player).some(card => card.actions.includes("move"))) {
         return answer("portal", "MOVE", "Do I control the Portal? (My Fate, the Pathfinder: see the Pilgrims delivered.) If not, I move my Flagship towards it.");
     }
