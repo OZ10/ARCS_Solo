@@ -437,6 +437,8 @@ function getLeaderFreeActions(player, chosen) {
     // influence before or after it secures. Extra plan steps, not using up its card's action
     const extra = [];
     const power = action => getCopyPivotPower(player, action);
+    // Never with no agents left (the user, #226)
+    if (hasNoAgents(player)) { return extra; }
     if (chosen.some(pick => pick.action == "influence") && power("influence") != null && power("influence")[0] == 12) {
         extra.push({ action: "influence", reason: "a second Influence, free (Noble, Influential)", tag: "" });
     }

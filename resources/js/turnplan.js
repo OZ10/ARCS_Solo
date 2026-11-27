@@ -320,8 +320,8 @@ function getActionPlanScore(player, action, focus) {
             // No later turn to secure the card
             if (isLastCard) { return { score: planImpossible }; }
             if (isMarketKnown() && getCardsToInfluence(player).length == 0 && action != focus) { return { score: planImpossible }; }
-            // No agents left (#123)
-            if (hasNoAgents(player) && action != focus) { return { score: planImpossible }; }
+            // No agents left (#123): never, even for the card's own action (the user, #226)
+            if (hasNoAgents(player)) { return { score: planImpossible }; }
             if (getWantedCardResource(player) != null) { score += weights.influenceWanted; }
             break;
 
@@ -521,11 +521,17 @@ function getTurnPlan(player) {
             if (entry != null) {
                 name += " " + getCourtCard(entry.number).name;
                 if (reason == "") { reason = getMarketReason(player, entry); }
+                // The Court window offers this card for the step, and ticks it off (#223, #224)
+                details.card = entry.number;
             } else if (!isMarketKnown() && resource != null) {
                 name += " a " + preludeResourceNames[resource].toLowerCase() + " card";
+            } else if (isMarketKnown()) {
+                // Nothing in the Court worth it: say so (#225)
+                const why = pick.action == "influence" && hasNoAgents(player) ? "it has no agents left" : "no card in the Court is worth " + (pick.action == "secure" ? "securing" : "an agent") + " now";
+                return { action: pick.action, text: "No " + capitalise(pick.action) + ": " + why + ", so skip this action", tag: "", hints: [], skip: true };
             }
         }
-        return { action: pick.action, text: name + (reason ? " (" + reason + ")" : ""), tag: pick.tag || "", hints: getLeaderPlanHints(player, pick.action, details) };
+        return { action: pick.action, text: name + (reason ? " (" + reason + ")" : ""), tag: pick.tag || "", hints: getLeaderPlanHints(player, pick.action, details), card: details.card };
     }));
 }
 

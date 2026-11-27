@@ -302,10 +302,17 @@ function openCourt(playerNumber) {
 function changeMarketAgents(number, playerNumber, change) {
     const entry = courtMarket.find(card => card.number == number);
     const before = entry.agents[playerNumber] || 0;
+    // No more than its 10 agents (#226)
+    if (change > 0 && getAgentsLeft(getPlayer(playerNumber)) === 0) {
+        showMessageToast("Player " + playerNumber, "Has no agents left: all 10 are on Court cards, Outrage, or held by Rivals.");
+        return;
+    }
     entry.agents[playerNumber] = Math.max(before + change, 0);
     logManualChange({ type: "marketAgents", number: number, player: playerNumber, amount: change });
     // A human player's own agent on their turn is an Influence action (#186, boardhuman.js)
     if (entry.agents[playerNumber] != before) { countHumanInfluence(getPlayer(playerNumber), number, change); }
+    // A bot's agent on its turn ticks off its next Influence step, or puts it back (#224)
+    if (entry.agents[playerNumber] != before) { countBotCourtStep(getPlayer(playerNumber), "influence", change); }
     SaveAllSettings();
     showCourtWindow();
     refreshTurnSummary();
@@ -344,13 +351,49 @@ function refreshTurnSummary() {
 function getCourtAdviceHtml(player) {
     // What a bot would do with what's in the market
     if (player.isHuman || !isMarketKnown()) { return ""; }
+    // On its turn, what its plan says: the next Secure and Influence steps not yet done, and their
+    // cards (#223, #226). Once they're done, nothing more
+    const steps = getCourtPlanSteps(player);
+    if (steps != null) {
+        const next = action => steps.find(step => step.action == action && !step.applied && step.card != null);
+        const entryFor = step => step == null ? null : courtMarket.find(entry => entry.number == step.card) || null;
+        const plannedSecure = entryFor(next("secure"));
+        const plannedInfluence = entryFor(next("influence"));
+        const secureNow = plannedSecure != null && canSecureEntry(plannedSecure, player) ? plannedSecure : null;
+        return getCourtAdviceRows(player, secureNow, plannedInfluence != null && !hasNoAgents(player) ? plannedInfluence : null,
+            steps.some(step => (step.action == "secure" || step.action == "influence") && !step.applied && !step.skip) ? null : "Its plan has no Secure or Influence left this turn.");
+    }
+    const secure = canBotTakeAction(player, "secure") ? getCardsToSecure(player)[0] : null;
+    const influence = canBotTakeAction(player, "influence") ? getCardsToInfluence(player)[0] : null;
+    return getCourtAdviceRows(player, secure, influence, null);
+}
 
+function countBotCourtStep(player, action, change) {
+    // On a bot's turn, an agent placed (or a card secured) in the Court window is its next Influence
+    // (or Secure) step done; an agent taken off puts the last one back (#224)
+    const steps = getCourtPlanSteps(player);
+    if (steps == null) { return; }
+    if (change > 0) {
+        const step = steps.find(item => item.action == action && !item.applied && !item.skip);
+        if (step != null) { step.applied = true; }
+    } else {
+        const step = steps.filter(item => item.action == action && item.applied).pop();
+        if (step != null) { step.applied = false; }
+    }
+    SaveAllSettings();
+}
+
+function getCourtPlanSteps(player) {
+    // The bot's plan, while it's its turn: the steps the Court window follows. null otherwise
+    if (player.isHuman || awaitingDone != player.number || !Array.isArray(player.turnPlan)) { return null; }
+    return player.turnPlan;
+}
+
+function getCourtAdviceRows(player, secure, influence, emptyNote) {
     const describe = entry => {
         const reason = getMarketReason(player, entry);
         return getCourtCard(entry.number).name + (reason ? " (" + reason + ")" : "");
     };
-    const secure = canBotTakeAction(player, "secure") ? getCardsToSecure(player)[0] : null;
-    const influence = canBotTakeAction(player, "influence") ? getCardsToInfluence(player)[0] : null;
 
     // Each with a button that does it for you, as + or the card's Secure would
     const row = (text, button) => "<div class=\"d-flex align-items-center gap-2\"><span class=\"flex-fill\">" + text + "</span>" + button + "</div>";
@@ -358,7 +401,7 @@ function getCourtAdviceHtml(player) {
     let lines = [];
     if (secure != null) { lines.push(row("<b>Secure:</b> " + describe(secure), button("courtAdviceSecure", "Secure", "bi-check-lg", "secureMarketCard(" + secure.number + ")"))); }
     if (influence != null) { lines.push(row("<b>Influence:</b> " + describe(influence), button("courtAdviceAgent", "Add agent", "bi-plus-lg", "changeMarketAgents(" + influence.number + ", " + player.number + ", 1)"))); }
-    if (lines.length == 0) { lines.push("Nothing worth doing here this turn."); }
+    if (lines.length == 0) { lines.push(emptyNote || "Nothing worth doing here this turn."); }
     return "<div class=\"alert alert-secondary py-2 px-3 small mb-2 d-grid gap-1\" id=\"courtAdvice\">" + lines.join("") + "</div>";
 }
 
@@ -485,6 +528,8 @@ function secureMarketCard(number) {
     recordCapturedAgents(entry, player, "agentsCaptive");
     // A human player's Secure on their turn counts as an action (#186, boardhuman.js)
     countHumanSecure(player, card.name);
+    // A bot's ticks off its next Secure step (#224)
+    countBotCourtStep(player, "secure", 1);
     // Guild cards attached to it come too (#176)
     const attachedNames = takeAttachedCards(player, entry);
     if (attachedNames.length > 0) { showMessageToast("Player " + player.number, "Takes the attached " + attachedNames.join(" and ") + " too."); }

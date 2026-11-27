@@ -617,6 +617,28 @@ function getMoveWhy(where) {
     return why || where.why;
 }
 
+// One ship per starport each turn (rulebook p.12, #227). Kept on the board, so its copies used for
+// planning (withBoardCopy) count the ships a plan builds too: { turn, players: { number: [system] } }
+
+function getBuildTurnKey() {
+    return (typeof campaign != "undefined" && campaign != null ? campaign.act + ":" : "") + roundNumber + ":" + turnNumber;
+}
+
+function getShipsBuiltAt(player) {
+    const built = board.shipsBuilt;
+    return built != null && built.turn == getBuildTurnKey() ? (built.players[player.number] || []) : [];
+}
+
+function noteShipBuiltAt(player, system) {
+    if (board.shipsBuilt == null || board.shipsBuilt.turn != getBuildTurnKey()) { board.shipsBuilt = { turn: getBuildTurnKey(), players: {} }; }
+    board.shipsBuilt.players[player.number] = getShipsBuiltAt(player).concat(system);
+}
+
+function getFreeShipStarports(player) {
+    // Its starports that haven't built a ship this turn
+    return getShipStarports(player).filter(id => !getShipsBuiltAt(player).includes(id));
+}
+
 function chooseBoardBuild(player) {
     // { system, kind, resource }: what the Build window would choose, at a place on the board
     const choice = getBuildChoice(player, getBoardSlotResources(player));
@@ -642,7 +664,8 @@ function chooseBoardBuild(player) {
     }
     // A ship only with one left in its supply (#160)
     // Empath's Bond: at any starport (leaderrules.js)
-    const starport = getShipSupply(player) > 0 ? getShipStarports(player)[0] : null;
+    // Not a starport that has built a ship this turn (#227)
+    const starport = getShipSupply(player) > 0 ? getFreeShipStarports(player)[0] : null;
     return starport != null ? { system: starport, kind: "ship", reason: choice.reason } : null;
 }
 
@@ -666,7 +689,7 @@ function applyBoardStep(player, where) {
             setPlayerResource(player, resource, Math.max(player[resource + "Value"] - 1, 0));
         }
     }
-    if (where.kind == "ship") { addShips(where.system, player.number, 1, isBuiltDamaged(where.system, player.number, "ship")); }
+    if (where.kind == "ship") { addShips(where.system, player.number, 1, isBuiltDamaged(where.system, player.number, "ship")); noteShipBuiltAt(player, where.system); }
     // Guild cards that place ships (#197): 1 in each gate in play, or some in one system
     if (where.kind == "gateShips") { getSystemIds().filter(isGate).forEach(id => addShips(id, player.number, 1)); }
     if (where.kind == "placeShips") { addShips(where.system, player.number, where.count); }
@@ -723,6 +746,8 @@ function placeBoardPlan(player, plan) {
             } else if (step.action == "build") {
                 where = chooseBoardBuild(player);
                 if (where != null) { step.text = step.text.replace(/^Build/, where.kind == "ship" ? "Build a ship at " + getSystemName(where.system) : "Build a " + where.kind + " at " + getSystemName(where.system)); }
+                // Nowhere left: say so (#227: each starport builds one ship a turn)
+                else { step.text = "No Build: the board has nowhere left to build this turn (each starport builds one ship a turn), so skip this action"; }
             } else if (step.action == "battle" && targetNumber != null) {
                 const system = getBattleSystem(player, targetNumber);
                 if (system != null) { where = { system: system, battle: targetNumber }; }
@@ -755,6 +780,19 @@ function placeBoardPlan(player, plan) {
             applyBoardStep(player, where);
         });
     });
+    // A Move out of the battle's system comes after the Battle, so all its ships roll dice first, then
+    // it moves out with what's left (#215)
+    const battle = plan.find(step => step.action == "battle" && step.where != null && step.where.system != null);
+    if (battle != null) {
+        const before = plan.slice(0, plan.indexOf(battle));
+        const late = before.filter(step => step.action == "move" && step.where != null && step.where.from == battle.where.system);
+        if (late.length > 0) {
+            const rest = plan.filter(step => !late.includes(step));
+            rest.splice(rest.indexOf(battle) + 1, 0, ...late);
+            late.forEach(step => { step.text = step.text.replace(/\)$/, ", after the Battle)"); });
+            return rest;
+        }
+    }
     return plan;
 }
 

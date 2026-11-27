@@ -34,6 +34,15 @@ function getHumanActionSlots(player) {
         // A Weapon lets any of the card's actions Battle
         const types = play.actions.split(",").concat(spent.some(item => item.resource == "weapons") ? ["battle"] : []);
         for (let count = 0; count < play.count; count++) { slots.push({ types: types, prelude: false }); }
+        // Warrior (Tactical): a Copy or Pivot to Battle may also Move, before or after it (#216)
+        if (typeof hasTacticalMove == "function" && hasTacticalMove(player)) { slots.push({ types: ["move"], prelude: false, tactical: true }); }
+        // Noble (Influential): a Copy or Pivot to Influence influences twice; Feastbringer (Charismatic):
+        // a Copy or Pivot to Secure may also Influence (leaderrules.js)
+        if (typeof getCopyPivotPower == "function") {
+            const power = action => getCopyPivotPower(player, action);
+            if (power("influence") != null && power("influence")[0] == 12) { slots.push({ types: ["influence"], prelude: false, free: true }); }
+            if (power("secure") != null && power("secure")[0] == 7) { slots.push({ types: ["influence"], prelude: false, free: true }); }
+        }
     }
     return slots;
 }
@@ -41,9 +50,12 @@ function getHumanActionSlots(player) {
 function getHumanActionUse(player) {
     // Which slot each action done used, a prelude one first. { slots, left, done }
     const slots = getHumanActionSlots(player).map(slot => ({ ...slot, used: false }));
+    // Each action takes a prelude slot first, then the one that allows the fewest other actions, so a
+    // Move takes the Warrior's free Move before the card's action that could Battle (#216)
+    const fits = (item, action) => !item.used && item.types.includes(action.action);
     const done = getBoardActions(player).map(action => {
-        const slot = slots.find(item => !item.used && item.prelude && item.types.includes(action.action))
-            || slots.find(item => !item.used && item.types.includes(action.action));
+        const slot = slots.find(item => fits(item, action) && item.prelude)
+            || slots.filter(item => fits(item, action)).sort((a, b) => a.types.length - b.types.length)[0];
         if (slot != null) { slot.used = true; }
         return { ...action, prelude: slot != null && slot.prelude, extra: slot == null };
     });
@@ -224,8 +236,9 @@ function getHumanRepairOptions(player) {
 }
 
 function getHumanTaxOptions(player) {
-    // Each city once a turn
-    const taxed = getBoardActions(player).filter(action => action.action == "tax").map(action => action.system + ":" + action.owner);
+    // Each city once a turn, unless Warlord's Cruelty lets you tax them again (Leaders & Lore review)
+    const again = typeof canTaxCityAgain == "function" && canTaxCityAgain(player);
+    const taxed = again ? [] : getBoardActions(player).filter(action => action.action == "tax").map(action => action.system + ":" + action.owner);
     // A gate city once for each of its types: tax it for any one of them (Gate Stations)
     return getTaxableCities(player.number).filter(city => !taxed.includes(city.system + ":" + city.owner))
         .filter((city, index, cities) => cities.findIndex(other => other.system == city.system && other.owner == city.owner && other.resource == city.resource) == index);

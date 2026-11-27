@@ -9,12 +9,18 @@ function getBestAmbitionToDeclare(player) {
     // no marker is left, or it has nothing towards any of them
     if (declaredAmbitions.length >= 3) { return null; }
 
-    const ambitions = Object.keys(ambitionResources).map(ambition => {
+    const options = getDeclarableAmbitions().filter(ambition => ambitionResources[ambition] != null).map(ambition => {
         const count = ambitionResources[ambition](player);
         return { ambition: ambition, count: count, place: getAmbitionPlacePoints(player, ambition, count) };
     }).filter(option => option.count > 0);
 
-    return ambitions.sort((a, b) => (b.place - a.place) || (b.count - a.count))[0] || null;
+    return options.sort((a, b) => (b.place - a.place) || (b.count - a.count))[0] || null;
+}
+
+function getDeclarableAmbitions() {
+    // The ambitions that can be declared: the five, and a campaign's new ones while they're in play
+    // (campaign/grand.js), never in a base game (#218)
+    return runCampaignHook("ambitionList") || ambitions.slice();
 }
 
 function getOutrageTypeCount(player, resource) {
@@ -329,7 +335,9 @@ function showHumanVox(player, card) {
         }
         case 27:
         case 101: {
-            const open = declaredAmbitions.length >= 3 ? [] : Object.keys(ambitionResources).filter(ambition => !declaredAmbitions.includes(ambition));
+            // Any ambition, even one already declared, while a marker is left; only a campaign's new
+            // ambitions when they're in play (#218)
+            const open = declaredAmbitions.length >= 3 ? [] : getDeclarableAmbitions();
             if (open.length == 0) { choose("No ambition marker is available", "", []); break; }
             choose("Declare an ambition", "", open.map(ambition => ({ label: capitalise(ambition), run: () => {
                 declaredAmbitions.push(ambition);
