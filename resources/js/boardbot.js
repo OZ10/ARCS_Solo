@@ -934,8 +934,8 @@ function prefillBattleFromBoard() {
     // they can choose another (boardhuman.js)
     battle.boardSystem = null;
     battle.boardBuildingKinds = null;
-    battle.sensorsDone = false;
-    battle.sensorsNote = null;
+    // Predictive Sensors moves from a battle that didn't happen go back (leaderrules.js)
+    undoPredictiveSensors();
     const { attacker, defender } = battle;
     if (attacker != null && defender != null && typeof defender.number == "number") {
         const places = getBattlePlacesFor(attacker, defender);
@@ -980,6 +980,8 @@ function getBoardDestroyed(count) {
 function applyBattleToBoard(losses) {
     // What's left on each side in the battle system
     const system = battle.boardSystem;
+    // Predictive Sensors: its ships moved in stay (leaderrules.js)
+    keepPredictiveSensors();
     if (system == null) { return; }
     const attacker = battle.attacker.number;
     // A campaign defender's pieces are the Blight, the Imperial ships or the Free buildings (#85 stage 7b)

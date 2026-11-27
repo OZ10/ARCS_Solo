@@ -192,6 +192,14 @@ function undoBoardAction(index) {
         if (action.flagship) { moveFlagship(player, action.to, action.from); }
     } else if (action.action == "build") {
         if (action.kind == "ship") { removeShips(action.system, number, 1, action.damaged); }
+        else if (action.cloud) {
+            // Cloud Cities: that city outside the slots, and the resource it cost back
+            const buildings = getSystem(action.system).buildings;
+            const at = buildings.findIndex(building => building.owner == number && building.kind == "city" && building.cloud);
+            if (at >= 0) { buildings.splice(at, 1); }
+            const resource = getPlanetResource(action.system);
+            setPlayerResource(player, resource, player[resource + "Value"] + 1);
+        }
         else { removeBuilding(action.system, number, action.kind); }
     } else if (action.action == "repair") {
         if (action.kind == "ship") { removeShips(action.system, number, 1); addShips(action.system, number, 1, true); }
@@ -395,7 +403,7 @@ function humanBuild(index) {
     else if (!placeBuilding(option.system, player.number, option.kind, option.damaged, option.cloud === true)) { return; }
     // Cloud Cities: 1 resource of the planet's type
     if (option.cloud) { const resource = getPlanetResource(option.system); setPlayerResource(player, resource, player[resource + "Value"] - 1); }
-    recordBoardAction(player, { action: "build", system: option.system, kind: option.kind, damaged: option.damaged, undo: option.ruthless ? false : undefined,
+    recordBoardAction(player, { action: "build", system: option.system, kind: option.kind, damaged: option.damaged, cloud: option.cloud === true, undo: option.ruthless ? false : undefined,
         text: "A " + (option.damaged ? "damaged " : "") + option.kind + " at " + getSystemName(option.system) + (option.ruthless ? " (Ruthless, " + hit + ")" : "") });
     closeHumanBoardAction();
 }
@@ -488,7 +496,7 @@ function chooseMoveTo(to) {
     humanMove.routes = getMoveRoutes(humanMove.from, to, player.number, humanMove.fresh);
     // Sprinter Drives: one more step for fresh ships only, so no damaged ones that far
     const once = getMoveDestinations(humanMove.from, player.number, humanMove.fresh, true);
-    if (!once.includes(to)) {
+    if (isSprinterStep(humanMove.from, to, player.number, humanMove.fresh)) {
         humanMove.damaged = 0;
         const via = getAdjacent(to).find(id => once.includes(id));
         if (humanMove.routes.length == 0 && via != null) { humanMove.routes = getMoveRoutes(humanMove.from, via, player.number, humanMove.fresh).map(route => route.concat(to)); }
@@ -497,6 +505,11 @@ function chooseMoveTo(to) {
     humanMove.drops = {};
     humanMove.choosing = false;
     renderHumanMove();
+}
+
+function isSprinterStep(from, to, playerNumber, fresh) {
+    // Sprinter Drives: only reached with the fresh ships' one more step (damaged ships move once)
+    return !getMoveDestinations(from, playerNumber, fresh, true).includes(to);
 }
 
 function chooseMoveRoute(index) {
@@ -525,7 +538,9 @@ function stepMoveShips(field, change) {
     if (humanMove.to != null) {
         const number = getTurnPlayer().number;
         if (!getMoveDestinations(humanMove.from, number, humanMove.fresh).includes(humanMove.to)) { humanMove.to = null; humanMove.route = null; humanMove.routes = []; humanMove.drops = {}; }
-        else if (field == "fresh") { humanMove.routes = getMoveRoutes(humanMove.from, humanMove.to, number, humanMove.fresh); const same = humanMove.routes.find(route => humanMove.route != null && route.join() == humanMove.route.join()); if (same != null) { humanMove.route = same; } else { humanMove.route = humanMove.routes[0]; humanMove.drops = {}; } }
+        else if (field == "fresh") { humanMove.routes = getMoveRoutes(humanMove.from, humanMove.to, number, humanMove.fresh); const same = humanMove.routes.find(route => humanMove.route != null && route.join() == humanMove.route.join()); if (same != null) { humanMove.route = same; } else if (humanMove.routes.length > 0) { humanMove.route = humanMove.routes[0]; humanMove.drops = {}; } }
+        // Sprinter Drives: damaged ships only move once, so none on the extra step
+        if (humanMove.to != null && isSprinterStep(humanMove.from, humanMove.to, number, humanMove.fresh)) { humanMove.damaged = 0; }
     }
     // At least one ship arrives
     while (getMoveDropped() > 0 && getMoveDropped() >= humanMove.fresh + humanMove.damaged) {
@@ -723,6 +738,8 @@ function fillBattleFromSystem(system) {
     // The counts in one system. A human player's window counts all the defender's ships and
     // buildings together; a bot's splits fresh and damaged
     const { attacker, defender } = battle;
+    // Another system chosen: a bot's Predictive Sensors moves for the last one go back first (leaderrules.js)
+    if (battle.sensorsSystem != null && battle.sensorsSystem != system) { undoPredictiveSensors(); }
     battle.boardSystem = system;
     const mine = getShips(system, attacker.number);
     // The Free States' buildings, the Blight or the Imperial ships for a campaign defender (#85 stage 7b)

@@ -327,13 +327,36 @@ function applyPredictiveSensors(system) {
     const defender = battle.defender;
     if (battle.sensorsDone || defender == null || defender.isHuman || typeof defender.number != "number" || !hasLore(defender, loreNumbers.predictiveSensors)) { return false; }
     battle.sensorsDone = true;
+    battle.sensorsSystem = system;
+    battle.sensorsMoves = [];
     const moved = [];
     getAdjacent(system).forEach(id => {
         const take = getShips(id, defender.number).fresh - (getBuildings(id, defender.number).length > 0 ? 1 : 0);
-        if (take > 0) { moveShips(id, system, defender.number, take); moved.push(take + " from " + getSystemName(id)); }
+        if (take > 0) { moveShips(id, system, defender.number, take); battle.sensorsMoves.push({ from: id, to: system, owner: defender.number, count: take }); moved.push(take + " from " + getSystemName(id)); }
     });
     battle.sensorsNote = moved.length > 0 ? moved.join(" and ") : null;
     return moved.length > 0;
+}
+
+function undoPredictiveSensors() {
+    // The battle didn't happen there (backed out, another defender or system): the bot's ships go
+    // back where they were. Once its results are applied, they stay (applyBattleToBoard)
+    (battle.sensorsMoves || []).forEach(move => {
+        const back = Math.min(move.count, getShips(move.to, move.owner).fresh);
+        if (back > 0) { moveShips(move.to, move.from, move.owner, back); }
+    });
+    const owner = (battle.sensorsMoves || [])[0];
+    battle.sensorsMoves = [];
+    battle.sensorsSystem = null;
+    battle.sensorsDone = false;
+    battle.sensorsNote = null;
+    if (owner != null && getPlayer(owner.owner) != null) { syncPanelFromBoard(getPlayer(owner.owner)); }
+}
+
+function keepPredictiveSensors() {
+    // The battle's results are on the board: the moves stand
+    battle.sensorsMoves = [];
+    battle.sensorsSystem = null;
 }
 
 function getLeaderBattleSetupNote() {

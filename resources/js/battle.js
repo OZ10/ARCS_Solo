@@ -478,6 +478,8 @@ function showBattleModal(button) {
     battle.noBuildings = hasNoBuildings(battle.defender);
     // A bot's counts from the board (boardbot.js, #160)
     prefillBattleFromBoard();
+    // Closed without applying: a bot's Predictive Sensors moves go back (leaderrules.js)
+    document.getElementById("battleModal").addEventListener('hidden.bs.modal', () => undoPredictiveSensors(), { once: true });
     // Fresh and damaged for everyone now the board tracks damage (#194): the human player's window
     // used to count ships and buildings only (#147)
     showBattleCountTiles(false);
