@@ -511,7 +511,9 @@ function secureMarketCard(number) {
         showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Add its replacement to the market.");
         modalElement.addEventListener('hidden.bs.modal', () => showOutrageSpreads(player), { once: true });
     } else if (player.isHuman) {
-        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Carry out the card, and add its replacement to the market.");
+        // The app carries out the card in its own window (#204)
+        showMessageToast("Player " + player.number, "Secured " + card.name + capturedText + ". Add its replacement to the market.");
+        modalElement.addEventListener('hidden.bs.modal', () => showVoxForPlayer(player, card), { once: true });
     } else {
         // What the bot does with a Vox card, once this window has closed
         modalElement.addEventListener('hidden.bs.modal', () => {
@@ -523,7 +525,7 @@ function secureMarketCard(number) {
     SaveAllSettings();
     refreshTurnSummary();
     // The window stays open to add the replacement (#124), unless a Vox card's window follows
-    if (card.type == "vox" && (!player.isHuman || card.number == 28)) {
+    if (card.type == "vox") {
         bootstrap.Modal.getOrCreateInstance(modalElement).hide();
     } else {
         showCourtWindow();

@@ -126,7 +126,7 @@ function showVoxDecision(player, card, headline, reason, buttons) {
         + (reason ? "<div class=\"fst-italic mb-2\">" + tagPlayerNames(reason) + "</div>" : "");
 
     const row = document.createElement("div");
-    row.classList.add("d-flex", "gap-2", "mt-3");
+    row.classList.add("d-flex", "flex-wrap", "gap-2", "mt-3");
     buttons.forEach((button, index) => {
         const element = document.createElement("button");
         element.type = "button";
@@ -145,25 +145,13 @@ function showVoxCard(player, card) {
 
     switch (card.number) {
         case 26: {
-            // Mass Uprising: which cluster depends on the board
-            let ships = 0;
-            showVoxDecision(player, card, "Choose a cluster", "One where the ships help it most: near its buildings, or where it wants to battle.", [
-                { label: "Placed none", run: close },
-                { label: "Placed them", run: () => {
-                    adjustCounter(player, "shipsBoard", ships);
-                    finishVox(player, "Mass Uprising: " + ships + " ship" + (ships == 1 ? "" : "s") + " placed");
-                } }
+            // Mass Uprising: the cluster from the board where the ships help it most (#204)
+            const pick = getMassUprisingClusters(player)[0];
+            if (pick == null) { nothing("No ships to place", "It has no ships left in its supply."); break; }
+            showVoxDecision(player, card, "Cluster " + pick.cluster + ": " + pick.ships + " ship" + (pick.ships == 1 ? "" : "s"), pick.why, [
+                { label: "Don't", run: close },
+                { label: "Place them", run: () => finishVox(player, placeMassUprising(player, pick.cluster)) }
             ]);
-            const tile = document.createElement("div");
-            tile.classList.add("d-flex", "justify-content-center", "mt-2");
-            tile.innerHTML = "<div class=\"resourcetile\"><div class=\"resourcelabel\">Ships placed</div><div class=\"resourcevalue\" id=\"voxShips\">0</div>"
-                + "<div class=\"d-flex gap-1\"><button class=\"btn resourcebutton resourceminus\" type=\"button\" id=\"voxShipsMinus\" aria-label=\"One ship fewer\"><i class=\"bi bi-dash-lg\"></i></button>"
-                + "<button class=\"btn resourcebutton resourceplus\" type=\"button\" id=\"voxShipsPlus\" aria-label=\"One ship more\"><i class=\"bi bi-plus-lg\"></i></button></div></div>";
-            const body = document.getElementById("guildBody");
-            body.insertBefore(tile, body.lastChild);
-            const update = change => { ships = Math.max(ships + change, 0); document.getElementById("voxShips").innerHTML = ships; };
-            document.getElementById("voxShipsMinus").onclick = () => update(-1);
-            document.getElementById("voxShipsPlus").onclick = () => update(1);
             break;
         }
 
@@ -207,34 +195,27 @@ function showVoxCard(player, card) {
                 nothing("It keeps its cities", player.hasInitiative ? "It already has the initiative." : "The initiative has already been seized this turn.");
                 break;
             }
-            showVoxDecision(player, card, "Does it control a Rival's city?", "Returning that costs it nothing.", [
-                { label: "No", run: () => {
-                    const city = getCityToReturn(player);
-                    if (city == null || Math.random() * 100 >= getWhimChance(preludeChance.songOfFreedom)) {
-                        nothing("It keeps its cities", city == null ? "It would be its last city." : "It isn't worth a city this time.");
-                        return;
-                    }
-                    const cityName = (city == "startingCity") ? "starting" : preludeResourceNames[city].toLowerCase();
-                    showVoxDecision(player, card, "Return its " + cityName + " city and seize", "The city it needs least. Shuffle this card into the Court deck.", [
-                        { label: "Don't", run: close },
-                        { label: "Done", run: () => {
-                            if (city == "startingCity") {
-                                player.startingCity = Number(player.startingCity) - 1;
-                                document.getElementById("citiestotal" + player.number).innerHTML = getCityCount(player);
-                            } else {
-                                adjustCounter(player, "cities" + capitalise(city), -1);
-                            }
-                            seizeWithSong(player);
-                            const overCapacity = getOverCapacityAdvice(player);
-                            finishVox(player, "Seized the initiative" + (overCapacity != null ? "<br>" + overCapacity : ""));
-                        } }
-                    ]);
-                } },
-                { label: "Yes", run: () => {
-                    showVoxDecision(player, card, "Return it and seize", "Update its owner's cities. Shuffle this card into the Court deck.", [
-                        { label: "Don't", run: close },
-                        { label: "Done", run: () => { seizeWithSong(player); finishVox(player, "Seized the initiative"); } }
-                    ]);
+            // The board shows whether it controls a Rival's city: returning that costs it nothing (#204)
+            const rivalCity = getSongCities(player).find(city => city.owner != player.number);
+            if (rivalCity != null) {
+                showVoxDecision(player, card, "Return Player " + rivalCity.owner + "'s city at " + getSystemName(rivalCity.system) + " and seize", "It controls it, so it costs it nothing. Shuffle this card into the Court deck.", [
+                    { label: "Don't", run: close },
+                    { label: "Done", run: () => finishVox(player, returnSongCity(player, rivalCity)) }
+                ]);
+                break;
+            }
+            // Its own city: the one it needs least, now and then
+            const own = getSongCities(player).filter(city => city.owner == player.number).sort((a, b) => getCityWorth(player, a.system) - getCityWorth(player, b.system))[0];
+            if (own == null || getBoardCities(player.number).length < 2 || Math.random() * 100 >= getWhimChance(preludeChance.songOfFreedom)) {
+                nothing("It keeps its cities", own == null || getBoardCities(player.number).length < 2 ? "It would be its last city." : "It isn't worth a city this time.");
+                break;
+            }
+            showVoxDecision(player, card, "Return its city at " + getSystemName(own.system) + " and seize", "The city it needs least. Shuffle this card into the Court deck.", [
+                { label: "Don't", run: close },
+                { label: "Done", run: () => {
+                    const message = returnSongCity(player, own);
+                    const overCapacity = getOverCapacityAdvice(player);
+                    finishVox(player, message + (overCapacity != null ? "<br>" + overCapacity : ""));
                 } }
             ]);
             break;
@@ -274,5 +255,116 @@ function showVoxCard(player, card) {
 
         default:
             break;
+    }
+}
+
+// The board (#160, #204): Mass Uprising's cluster and Song of Freedom's city
+
+function getMassUprisingClusters(player) {
+    // The clusters in play, the one where its ships help most first: its buildings there (more if a
+    // Rival fleet can reach them), and Rival pieces to battle. ships: how many it can place (1 a system)
+    const supply = getShipSupply(player);
+    if (supply == 0) { return []; }
+    const threatened = getThreatenedCity(player);
+    return [...new Set(getSystemIds().map(getCluster))].map(cluster => {
+        const systems = getSystemIds().filter(id => getCluster(id) == cluster);
+        const own = systems.filter(id => getBuildings(id, player.number).length > 0).length;
+        const rivals = systems.filter(id => players.some(other => other !== player && hasLoyalPiece(id, other.number))).length;
+        const guards = threatened != null && getCluster(threatened.id) == cluster;
+        const why = guards ? "It guards its threatened city at " + getSystemName(threatened.id) + "." : own > 0 ? "Near its buildings there." : rivals > 0 ? "Rival pieces there to battle." : "Somewhere to spread out.";
+        return { cluster: cluster, ships: Math.min(systems.length, supply), score: (guards ? 6 : 0) + own * 2 + rivals + systems.length / 10, why: why };
+    }).sort((a, b) => b.score - a.score);
+}
+
+function placeMassUprising(player, cluster) {
+    // 1 ship in each system of the cluster in play, while it has ships in its supply
+    let placed = 0;
+    getSystemIds().filter(id => getCluster(id) == cluster).forEach(id => {
+        if (getShipSupply(player) > 0) { addShips(id, player.number, 1); placed++; }
+    });
+    syncPanelFromBoard(player);
+    SaveAllSettings();
+    return "Mass Uprising: " + placed + " ship" + (placed == 1 ? "" : "s") + " placed in cluster " + cluster + ", already on the app's board";
+}
+
+function getSongCities(player) {
+    // The cities it controls: its own, and Rival cities in systems it controls
+    return getSystemIds().flatMap(id => getBuildings(id, null, "city").filter(city => city.owner == player.number || getController(id) == player.number)
+        .map(city => ({ system: id, owner: city.owner })));
+}
+
+function returnSongCity(player, city) {
+    // The city goes back to its owner's board, and the player seizes the initiative
+    removeBuilding(city.system, city.owner, "city");
+    syncPanelFromBoard(getPlayer(city.owner));
+    seizeWithSong(player);
+    SaveAllSettings();
+    return (city.owner == player.number ? "Returned its city" : "Returned Player " + city.owner + "'s city") + " at " + getSystemName(city.system) + " and seized the initiative";
+}
+
+// A human player's Vox cards (#204): each in a window, carried out by the app
+
+function showVoxForPlayer(player, card) {
+    // A bot's decision, or a human player's window
+    if (!player.isHuman) { showVoxCard(player, card); return; }
+    if (card.number == 28) { showOutrageSpreads(player); return; }
+    showHumanVox(player, card);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
+}
+
+function showHumanVox(player, card) {
+    const close = () => bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
+    const header = document.querySelector("#guildModal .modal-header");
+    header.classList.remove("playerbanner1", "playerbanner2", "playerbanner3", "playerbanner4");
+    header.classList.add("playerbanner" + getPlayerColour(player));
+    const choose = (headline, reason, options) => showVoxDecision(player, card, headline, reason, [{ label: "None", run: close }].concat(options));
+    switch (card.number) {
+        case 26: {
+            const clusters = getMassUprisingClusters(player);
+            if (clusters.length == 0) { choose("No ships to place", "You have no ships left in your supply.", []); break; }
+            choose("Choose a cluster", "You place 1 ship in each of its systems in play.", clusters.sort((a, b) => a.cluster - b.cluster)
+                .map(option => ({ label: "Cluster " + option.cluster + " (" + option.ships + ")", run: () => finishVox(player, placeMassUprising(player, option.cluster)) })));
+            break;
+        }
+        case 27:
+        case 101: {
+            const open = declaredAmbitions.length >= 3 ? [] : Object.keys(ambitionResources).filter(ambition => !declaredAmbitions.includes(ambition));
+            if (open.length == 0) { choose("No ambition marker is available", "", []); break; }
+            choose("Declare an ambition", "", open.map(ambition => ({ label: capitalise(ambition), run: () => {
+                declaredAmbitions.push(ambition);
+                updateAmbitionsDisplay();
+                finishVox(player, getAmbitionDeclaredMessage(ambition));
+            } })));
+            break;
+        }
+        case 29: {
+            if (player.hasInitiative || hasInitiativeBeenClaimedThisTurn) { choose("You can't seize the initiative now", player.hasInitiative ? "You have it already." : "It's already been seized this round.", []); break; }
+            choose("Return a city you control, and seize the initiative?", "It goes back to its owner's board.", getSongCities(player).map(city => ({
+                label: (city.owner == player.number ? "Yours" : "Player " + city.owner + "'s") + " at " + getSystemName(city.system), run: () => finishVox(player, returnSongCity(player, city)) })));
+            break;
+        }
+        case 30: {
+            const cards = players.filter(other => other !== player).flatMap(other => getPlayerGuildCards(other).map(guild => ({ rival: other, card: guild })));
+            choose("Steal a Guild card", "Then shuffle the Court discard pile's Guild cards into the Court deck.", cards.map(option => ({ label: option.card.name + " (Player " + option.rival.number + ")", run: () => {
+                option.rival.guildCards = option.rival.guildCards.filter(number => number != option.card.number);
+                // Sworn Guardians is buried when it's stolen
+                if (option.card.number != 22) { player.guildCards.push(option.card.number); }
+                showGuildCardsRow(option.rival);
+                showGuildCardsRow(player);
+                finishVox(player, "Stole " + option.card.name + " from Player " + option.rival.number);
+            } })));
+            break;
+        }
+        case 31: {
+            const bottom = getDiscardedCards()[0];
+            if (bottom == null) { choose("Nothing to draw", "The action discard pile is empty.", []); break; }
+            choose("Draw the bottom card of the action discard pile", "", [{ label: "Draw it", run: () => {
+                drawCardIntoHand(player, bottom);
+                finishVox(player, "Drew " + getCardFullName(bottom) + " from the bottom of the discard pile");
+            } }]);
+            break;
+        }
+        default:
+            choose("Carry out the card", "", []);
     }
 }

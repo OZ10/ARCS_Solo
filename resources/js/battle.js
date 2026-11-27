@@ -1274,10 +1274,12 @@ function applyBattleResults() {
 
     battle.start = null;
 
-    // A bot's Ransacked Vox card resolves once this window has closed
+    // A Ransacked Vox card resolves once this window has closed: a bot's decision, or a human
+    // player's window (#204)
     const battleModal = document.getElementById("battleModal");
-    if (ransacked != null && ransacked.type == "vox" && !attacker.isHuman) {
+    if (ransacked != null && ransacked.type == "vox") {
         battleModal.addEventListener('hidden.bs.modal', () => {
+            if (attacker.isHuman) { showVoxForPlayer(attacker, ransacked); return; }
             showVoxCard(attacker, ransacked);
             bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).show();
         }, { once: true });

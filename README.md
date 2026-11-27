@@ -291,6 +291,8 @@ In a campaign, while someone holds Guild Investigators, a Court card with no age
 
 Tap a card in a player's Guild row to read it or remove it. Tap **+** to add one, which removes it from the market. For a bot, the list includes the Vox cards so you can record what it secured.
 
+**Vox cards** are carried out by the app. A bot chooses for itself: Mass Uprising's cluster from the board (near a threatened city, its buildings or a battle), with the ships placed on the board; Song of Freedom returns a Rival city it controls, or now and then its least needed city, and seizes the initiative. When you secure or Ransack a Vox card, a window lets you choose: the cluster, the ambition to declare, the city to return, the Guild card to steal, or drawing the bottom card of the discard pile.
+
 Bots use their Guild cards themselves: they offer them in their prelude or instead of actions, and they're included in battles, scoring and the cards they choose. Your **Farseers** card has a **Use its prelude** button, and when you declare with it, you choose one Rival's hand to look at and swap with.
 
 <br clear="right">
