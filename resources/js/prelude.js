@@ -951,6 +951,8 @@ function getPreludeHtml(player) {
             const offer = humanPreludeActions[spent.resource];
             return getSpentTurnRow(getGameIcon(spent.resource), "1 " + preludeResourceNames[spent.resource] + ": " + offer.text, "Spent" + (undo ? ". Tap Undo to put it back" : ""), undo);
         }
+        // A Lore card's prelude (lorehuman.js)
+        if (spent.lore != null) { return getSpentTurnRow("<i class=\"bi bi-book\"></i>", getHumanLoreSpentText(spent), "Used" + (undo ? ". Tap Undo to put it back" : ""), undo); }
         return getSpentTurnRow("<i class=\"bi bi-person-vcard\"></i>", getCourtCard(spent.guild).name, "Used" + (undo ? ". Tap Undo to put it back" : ""), undo);
     });
     const resourceRows = preludeResources.filter(resource => canSpendForPrelude(player, resource)).map(resource => {
@@ -960,10 +962,12 @@ function getPreludeHtml(player) {
     });
     const guildRows = getGuildPreludeOptions(player).map(option => getTurnRow("<i class=\"bi bi-person-vcard\"></i>", option.card.name + ": " + option.text, option.note,
         option.use != null ? button("Use", "useGuildPrelude(" + option.card.number + ")", "btn-outline-primary") : ""));
+    // Your Lore cards' preludes (lorehuman.js)
+    const loreRows = typeof getHumanLorePreludeRows == "function" ? getHumanLorePreludeRows(player) : [];
     if (closed) {
         return spentRows.join("") + "<div class=\"small text-muted\">The prelude is over: it comes before your actions.</div>";
     }
-    return spentRows.concat(resourceRows, guildRows).join("");
+    return spentRows.concat(resourceRows, guildRows, loreRows).join("");
 }
 
 function getSpentTurnRow(marker, text, note, buttons) {
@@ -1035,6 +1039,8 @@ function undoPrelude(index) {
 
     if (spent.resource != null) {
         setPlayerResource(player, spent.resource, player[spent.resource + "Value"] + 1);
+    } else if (spent.lore != null) {
+        undoHumanLoreSpent(player, spent);
     } else {
         if (!spent.kept && !player.guildCards.includes(spent.guild)) { player.guildCards = player.guildCards.concat(spent.guild); }
         Object.entries(spent.gains || {}).forEach(([resource, amount]) => setPlayerResource(player, resource, player[resource + "Value"] - amount));

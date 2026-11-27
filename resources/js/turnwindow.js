@@ -223,6 +223,8 @@ function renderHumanTurn(player) {
     html += getHumanActionSections(player, offered);
     // A Blighted Reach Fate's own actions, each on the board (campaign/fatehuman.js)
     if (typeof getHumanFateSectionHtml == "function") { html += getHumanFateSectionHtml(player); }
+    // Leaders & Lore: your Lore cards' own actions (lorehuman.js, #221)
+    if (typeof getHumanLoreSectionHtml == "function") { html += getHumanLoreSectionHtml(player); }
     const shortfall = getMarketShortfallSection(offered);
     if (shortfall != "") { html += shortfall; offered.push("court"); }
     html += getTurnSection("Also", "<div class=\"turntools\">" + ["battle", "court"].filter(name => !offered.includes(name)).concat("draw").map(getAlsoButton).join("") + "</div>");

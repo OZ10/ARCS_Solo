@@ -381,6 +381,8 @@ A bot's plan has a short line under any step its Leader or Lore changes, such as
 
 **Lore actions** in place of a normal action are the bot's own decisions from the board, ticked with a reason in the **Guild and Lore actions** window: Summon (a ship at the city it controls nearest a fight or a threat), Fire Rifles (skirmish dice at Rival ships next door; tap **Completed** and enter the hits, and the board damages or destroys their ships, damaged ones first), Nurture and Prune, Guide (Rival ships off its starport, or its own onto its battle), Martyr and Annex. Each has a **Completed** button in the turn window that puts it on the board.
 
+**Your own Lore cards:** your turn window has a **Lore cards** section for the Lore that replace an action (Summon, Fire Rifles, Nurture, Prune, Guide, Martyr and Annex). Each one opens a window to choose where, then puts it on the app's board and uses up the action it replaces. Lore with a prelude (Warlord's Terror, Tyrant's Ego, Tycoon's Ambition and Charm, and the cards you can discard to clear Outrage) are offered in your prelude, with **Undo**.
+
 **In its prelude**, a bot uses Lore such as discarding a card to clear an Outrage, and Warlord's Terror and Tyrant's Ego name the Court cards it influences or secures.
 
 </details>

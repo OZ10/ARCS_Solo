@@ -158,6 +158,8 @@ function resetPlayedThisTurn() {
         // A human player's prelude Fate actions done this turn (campaign/fatehuman.js)
         player.fateUsedThisTurn = [];
         player.fateSeedRoll = null;
+        // A human player's Lore actions done this turn, such as Summon once a turn (lorehuman.js)
+        player.loreUsedThisTurn = [];
         player.canBuild = null;
         player.hasSlotForCity = null;
         player.noTax = [];

@@ -29,6 +29,8 @@ function getHumanActionSlots(player) {
             : item.resource == "materials" ? ["build", "repair"] : [offer.action];
         slots.push({ types: types, prelude: true, resource: item.resource });
     });
+    // Lore preludes that give actions: Warlord's Terror (Influence), Tyrant's Ego (Secure) (lorehuman.js)
+    getPreludeSpent(player).filter(item => item.lore != null && item.slots != null).forEach(item => item.slots.forEach(types => slots.push({ types: types, prelude: true, lore: item.lore })));
     const play = getBotPlay(player);
     if (play != null) {
         // A Weapon lets any of the card's actions Battle
