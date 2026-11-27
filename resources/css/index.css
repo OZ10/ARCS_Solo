@@ -2237,6 +2237,16 @@ header, .footerstyle {
   font-weight: 600;
 }
 
+.boardgrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px 8px;
+}
+.boardgrid > div:nth-child(2), .boardgrid > div:nth-child(3) {
+  text-align: center;
+}
+
 .trust {
   margin: 0 12px 10px;
   border-radius: 12px;

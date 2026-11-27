@@ -36,11 +36,13 @@ function renderBoardCheck() {
         + "<button type=\"button\" onclick=\"" + onclick.replace("CHANGE", "1") + "\" aria-label=\"One more " + label + "\"><i class=\"bi bi-plus\"></i></button></span>";
     const systemHtml = id => {
         const system = getSystem(id);
-        const ships = Object.keys(system.ships).map(Number).sort().map(number => {
+        // Ships, Imperial ships and Blight in a grid: who, then fresh and damaged, on one line even on a
+        // phone (#229)
+        const shipRows = Object.keys(system.ships).map(Number).sort().map(number => {
             const count = getShips(id, number);
-            return "<div class=\"d-flex align-items-center flex-wrap gap-2 mb-1\">" + getPlayerTag(getPlayer(number)) + "<span class=\"small\">ships</span>"
-                + step("stepBoardShips('" + id + "', " + number + ", false, CHANGE)", count.fresh, "ship") + "<span class=\"small text-secondary\">damaged</span>"
-                + step("stepBoardShips('" + id + "', " + number + ", true, CHANGE)", count.damaged, "damaged ship") + "</div>";
+            return "<div>" + getPlayerTag(getPlayer(number)) + "</div>"
+                + step("stepBoardShips('" + id + "', " + number + ", false, CHANGE)", count.fresh, "ship")
+                + step("stepBoardShips('" + id + "', " + number + ", true, CHANGE)", count.damaged, "damaged ship");
         }).join("");
         const button = (label, onclick, extra = "") => "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0" + extra + "\" onclick=\"" + onclick + "\">" + label + "</button>";
         const ownerTag = owner => owner == freeOwner ? "<b>Free</b>" : getPlayerTag(getPlayer(owner));
@@ -50,14 +52,16 @@ function renderBoardCheck() {
             + "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0\" onclick=\"removeBoardBuilding('" + id + "', " + position + ")\" aria-label=\"Remove it\"><i class=\"bi bi-x-lg\"></i></button></div>").join("");
         // The campaign's pieces (#85, stage 7a): Imperial ships, Blight, Flagships and Fate tokens
         const inCampaign = isCampaignBoard();
-        const counted = (label, kind) => { const pieces = system[kind]; return "<div class=\"d-flex align-items-center flex-wrap gap-2 mb-1\"><b>" + label + "</b>"
-            + step("stepBoardPieces('" + id + "', '" + kind + "', false, CHANGE)", pieces.fresh, label) + "<span class=\"small text-secondary\">damaged</span>"
-            + step("stepBoardPieces('" + id + "', '" + kind + "', true, CHANGE)", pieces.damaged, "damaged " + label) + "</div>"; };
-        const campaignPieces = !inCampaign ? "" :
+        const counted = (label, kind) => { const pieces = system[kind]; return "<div><b>" + label + "</b></div>"
+            + step("stepBoardPieces('" + id + "', '" + kind + "', false, CHANGE)", pieces.fresh, label)
+            + step("stepBoardPieces('" + id + "', '" + kind + "', true, CHANGE)", pieces.damaged, "damaged " + label); };
+        const countedRows = !inCampaign ? "" :
             (system.imperial.fresh + system.imperial.damaged > 0 ? counted("Imperial", "imperial") : "")
-            + (system.blight.fresh + system.blight.damaged > 0 ? counted("Blight", "blight") : "")
+            + (system.blight.fresh + system.blight.damaged > 0 ? counted("Blight", "blight") : "");
+        const ships = shipRows + countedRows == "" ? "" : "<div class=\"boardgrid mb-1\"><div class=\"small text-secondary\">Ships</div><div class=\"small text-secondary\">Fresh</div><div class=\"small text-secondary\">Damaged</div>" + shipRows + countedRows + "</div>";
+        const campaignPieces = !inCampaign ? "" :
             // A Flagship is always fresh: its Upgrades and Armor take the hits (campaign rulebook p.22)
-            + system.flagships.map((flagship, position) => "<div class=\"d-flex align-items-center gap-2 mb-1\">" + getPlayerTag(getPlayer(flagship.owner)) + "<span class=\"small\">Flagship <span class=\"text-secondary\">(Upgrades and Armor on its Flagship board)</span></span>"
+            system.flagships.map((flagship, position) => "<div class=\"d-flex align-items-center gap-2 mb-1\">" + getPlayerTag(getPlayer(flagship.owner)) + "<span class=\"small\">Flagship <span class=\"text-secondary\">(Upgrades and Armor on its Flagship board)</span></span>"
                 + "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary py-0 ms-auto\" onclick=\"removeBoardFlagship('" + id + "', " + position + ")\" aria-label=\"Remove it\"><i class=\"bi bi-x-lg\"></i></button></div>").join("")
             + (system.tokens.length > 0 ? "<div class=\"d-flex flex-wrap gap-1 mb-1\">" + system.tokens.map((token, position) => "<span class=\"badge rounded-pill text-bg-light border\">" + tagPlayerNames(getTokenText(token))
                 + ((boardTokenKinds[token.kind] || {}).sides ? " <a href=\"#\" onclick=\"flipBoardToken('" + id + "', " + position + "); return false;\">flip</a>" : "")

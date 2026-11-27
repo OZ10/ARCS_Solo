@@ -2387,6 +2387,19 @@ $empire: #5b2a86;
     }
 }
 
+// Check the board: who, fresh and damaged on one line, even on a phone (#229)
+.boardgrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 4px 8px;
+
+    > div:nth-child(2),
+    > div:nth-child(3) {
+        text-align: center;
+    }
+}
+
 .trust {
     margin: 0 12px 10px;
     border-radius: 12px;
