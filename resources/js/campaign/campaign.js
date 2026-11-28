@@ -422,7 +422,8 @@ function showCampaignPanel(player) {
             + "<b>" + campaign.trust[resource] + "</b>"
             + "<button type=\"button\" onclick=\"stepCampaign('trust', " + player.number + ", 1, '" + resource + "')\" aria-label=\"One more " + resource + "\"><i class=\"bi bi-plus\"></i></button></span>").join("")
         + "</div></div>" : "";
-    holder.innerHTML = chips + objective + getFatePanelHtml(player) + favors + trust;
+    // Its Fiefs as a Lord, or where it's a Vassal (fiefs.js)
+    holder.innerHTML = chips + objective + getFatePanelHtml(player) + (typeof getFiefPanelHtml == "function" ? getFiefPanelHtml(player) : "") + (typeof getRumorPanelHtml == "function" ? getRumorPanelHtml(player) : "") + favors + trust;
 }
 
 function stepCampaign(kind, playerNumber, change, extra) {

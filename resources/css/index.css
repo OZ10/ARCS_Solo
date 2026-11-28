@@ -2666,11 +2666,11 @@ header, .footerstyle {
   min-width: 12px;
   text-align: center;
 }
-.dealstep .btn.resourcebutton {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  font-size: 1rem;
+.modal .dealstep .favorstep button {
+  width: 26px;
+}
+.modal .dealstep .favorstep b {
+  min-width: 24px;
 }
 
 .dealicon {

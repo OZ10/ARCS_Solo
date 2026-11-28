@@ -702,11 +702,14 @@ function applyBoardStep(player, where) {
     if (where == null) { return; }
     if (where.from != null) {
         // Fresh and damaged ships (#214)
+        // Whether it controls where its ships leave from, before they go (Witnesses, campaign/fateboard.js)
+        const controlledFrom = typeof controlsForTokens == "function" && controlsForTokens(player, where.from);
         moveShips(where.from, where.to, player.number, where.count, Math.min(where.damaged || 0, getShips(where.from, player.number).damaged));
         // Its campaign Flagship goes with its fleet (campaign/flagships.js)
-        if (player.flagship != null && hasFlagshipAt(where.from, player.number)) { moveFlagship(player, where.from, where.to); }
+        // Not with a Slipstream Drive move of other ships (campaign/flagships.js)
+        if (player.flagship != null && hasFlagshipAt(where.from, player.number) && !where.noFlagship) { moveFlagship(player, where.from, where.to); }
         // Its campaign tokens that go with its ships, such as Witnesses (campaign/fateboard.js)
-        if (typeof carryFateTokens == "function") { carryFateTokens(player, where.from, where.to); }
+        if (typeof carryFateTokens == "function") { carryFateTokens(player, where.from, where.to, controlledFrom); }
         // The Gate Wraith's Catapult into its cluster's gate collapses it (campaign/gatewraith.js)
         if (where.breakGate != null && typeof breakGate == "function") { where.breakText = breakGate(player, where.from, where.breakGate); }
     }
@@ -831,7 +834,8 @@ function refreshBotMoveStops(player) {
     let changed = false;
     const fix = step => {
         const where = step.where;
-        if (where == null || where.from == null || canMove(where.from, where.to, player.number)) { return; }
+        // A Slipstream Drive Catapult was checked when it was chosen (campaign/flagships.js)
+        if (where == null || where.from == null || where.slipstream || canMove(where.from, where.to, player.number)) { return; }
         const stop = getMoveStop(where.from, where.to, player.number);
         const planned = getSystemName(where.to);
         changed = true;

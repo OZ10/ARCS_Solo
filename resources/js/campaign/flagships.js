@@ -76,6 +76,60 @@ function moveFlagship(player, from, to) {
     return true;
 }
 
+// Slipstream Drive (rulebook p.25, the user, 2026-11-28): "Once per turn, in your Prelude, you may
+// Catapult move either your Flagship alone or other ships from your Flagship"
+
+// A bot's Slipstream move being worked out: { player, from }
+let botSlipstream = null;
+
+function hasSlipstream(player) {
+    return hasFlagship(player) && player.flagship.slots.slipstream != null && player.flagship.slots.slipstream.upgrade != null;
+}
+
+function canUseSlipstream(player) {
+    return hasSlipstream(player) && !player.slipstreamUsed && getFlagshipSystem(player) != null;
+}
+
+function isSlipstreamFrom(from, playerNumber) {
+    // A Catapult from its Flagship's system, while a Slipstream move is being made
+    const human = typeof humanMove != "undefined" && humanMove != null && humanMove.slipstream && getTurnPlayer() != null && getTurnPlayer().number == playerNumber && humanMove.from == from;
+    return human || (botSlipstream != null && botSlipstream.player == playerNumber && botSlipstream.from == from);
+}
+
+function getSlipstreamPreludeRows(player) {
+    // Your prelude row (Move window in Slipstream mode)
+    if (!player.isHuman || !canUseSlipstream(player)) { return []; }
+    return [getTurnRow("<i class=\"bi bi-rocket-takeoff\"></i>", "Slipstream Drive: Catapult move your Flagship alone, or other ships from it", "Once a turn, in your prelude. It uses none of your actions",
+        "<button type=\"button\" class=\"btn btn-outline-primary btn-sm turnact\" id=\"slipstreamUse\" onclick=\"useSlipstream()\">Move</button>")];
+}
+
+function useSlipstream() {
+    returnToTurnWindow = true;
+    closeTurnWindow(() => {
+        showHumanBoardAction("move");
+        const player = getTurnPlayer();
+        humanMove.slipstream = true;
+        chooseMoveFrom(getFlagshipSystem(player), false);
+        humanMove.flagship = false;
+        document.getElementById("boardActionTitle").innerHTML = "Slipstream Drive";
+        renderHumanMove();
+    });
+}
+
+function getBotSlipstreamOffer(player, targetNumber, wantsCity) {
+    // A bot's prelude: a Catapult from its Flagship's system, when the board has a useful Move there
+    // that needs it. Its ships only (the Flagship stays)
+    if (player.isHuman || !canUseSlipstream(player)) { return null; }
+    const from = getFlagshipSystem(player);
+    if (getShips(from, player.number).fresh == 0) { return null; }
+    const plain = getMoveDestinations(from, player.number);
+    botSlipstream = { player: player.number, from: from };
+    let where;
+    try { where = chooseBoardMove(player, targetNumber, wantsCity); } finally { botSlipstream = null; }
+    if (where == null || where.from != from || plain.includes(where.to)) { return null; }
+    return { ...where, slipstream: true, noFlagship: true };
+}
+
 // Hits: rightmost Armor first, then the rightmost Upgrade (rulebook p.24). A hit damages a fresh
 // building, and destroys a damaged one
 

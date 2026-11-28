@@ -9,7 +9,8 @@ registerCampaignHook("showGameOver", () => {
     if (campaign.stage == "actSetup") { campaign.stage = null; }
     // Already between Acts (after a reload): carry on from that step, not from the start
     if (campaign.act < 3 && ["choosingFates", "betweenActs"].includes(campaign.stage)) { resumeBetweenActs(); return true; }
-    if (campaign.act < 3) { startIntermission(); } else { showCampaignWinner(); }
+    // After Act III, the Rivals guess the Pirate's Haven first (rumors.js)
+    if (campaign.act < 3) { startIntermission(); } else if (typeof needsHavenGuesses == "function" && needsHavenGuesses()) { showHavenGuesses(showCampaignWinner); } else { showCampaignWinner(); }
     return true;
 });
 

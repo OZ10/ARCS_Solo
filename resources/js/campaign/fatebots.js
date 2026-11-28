@@ -464,20 +464,7 @@ registerCampaignHook("guildPreludeUsed", (player, number, discarded) => {
     return undefined;
 });
 
-registerCampaignHook("guildCardButtons", (player, card, body) => {
-    // A human player's Recover, so the app can count it
-    if (card.number != 204 || !player.isHuman) { return undefined; }
-    const use = document.createElement("button");
-    use.type = "button";
-    use.classList.add("btn", "btn-primary", "w-100", "mb-2");
-    use.innerHTML = "I used Recover" + (hasOverseers(player) ? " (objective &minus;2)" : "");
-    use.onclick = () => {
-        advanceAdvocate(player, 2, "Recover (Guild Investigators)");
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("guildModal")).hide();
-    };
-    body.appendChild(use);
-    return undefined;
-});
+// A human player's Recover is a row in their turn window's Guild cards section (guildhuman.js)
 
 // The Steward (Fate 1). Consolidate Your Imperial Power: each time it wins an ambition while First
 // Regent, 1 for each Power gained from it (including bonus city Power). Imperial Authority: it may

@@ -20,7 +20,8 @@ function getBotActionCount(player) {
     const play = getBotPlay(player);
     if (play == null) { return 0; }
     const spent = (player.prelude != null && player.prelude.spent != null) ? player.prelude.spent : [];
-    return play.count + spent.filter(offer => offer.action != null && !offer.converts).length;
+    // A free prelude move (Slipstream Drive) isn't one of its actions
+    return play.count + spent.filter(offer => offer.action != null && !offer.converts && !offer.free).length;
 }
 
 function getGuildActionOffers(player) {

@@ -578,6 +578,13 @@ function getPreludeOffers(player) {
         }
     }
 
+    // Slipstream Drive (campaign/flagships.js): a Catapult from its Flagship, once a turn, free
+    const slipstream = typeof getBotSlipstreamOffer == "function" ? afterOffers(() => getBotSlipstreamOffer(player, targetNumber, getNewCityResource(player))) : null;
+    if (slipstream != null) {
+        offers.push({ label: "Slipstream Drive", text: getBotMoveText(player, slipstream) + " (" + getMoveWhy(slipstream) + ")", action: "move", where: slipstream, free: true,
+            decided: true, why: "A Catapult from its Flagship, once a turn in its prelude: it costs nothing and uses none of its actions." });
+    }
+
     // The bot's own Guild cards
     const discard = (card, text, extras) => offers.push(Object.assign({ label: "Discard " + card.name, text: text, discards: card.number }, extras));
 
@@ -946,7 +953,8 @@ function getPreludeHtml(player) {
     // The Prelude section: what's been spent, with Undo, then what could be
     const button = (label, onclick, style) => "<button type=\"button\" class=\"btn " + style + " btn-sm turnact\" onclick=\"" + onclick + "\">" + label + "</button>";
     // The prelude comes before your actions: once one is taken, it's closed (#186)
-    const closed = player.isHuman && getBoardActions(player).length > 0;
+    // A free prelude move (Slipstream Drive) doesn't close it
+    const closed = player.isHuman && getBoardActions(player).some(action => !action.free);
     const spentRows = getPreludeSpent(player).map((spent, index) => {
         const undo = (spent.seize || closed) ? "" : button("Undo", "undoPrelude(" + index + ")", "btn-outline-secondary");
         if (spent.resource != null) {
@@ -965,7 +973,9 @@ function getPreludeHtml(player) {
     const guildRows = getGuildPreludeOptions(player).map(option => getTurnRow("<i class=\"bi bi-person-vcard\"></i>", option.card.name + ": " + option.text, option.note,
         option.use != null ? button("Use", "useGuildPrelude(" + option.card.number + ")", "btn-outline-primary") : ""));
     // Your Lore cards' preludes (lorehuman.js)
-    const loreRows = typeof getHumanLorePreludeRows == "function" ? getHumanLorePreludeRows(player) : [];
+    const loreRows = (typeof getHumanLorePreludeRows == "function" ? getHumanLorePreludeRows(player) : [])
+        // Slipstream Drive (campaign/flagships.js)
+        .concat(typeof getSlipstreamPreludeRows == "function" ? getSlipstreamPreludeRows(player) : []);
     if (closed) {
         return spentRows.join("") + "<div class=\"small text-muted\">The prelude is over: it comes before your actions.</div>";
     }
@@ -993,7 +1003,7 @@ function getPreludeActionRows(player, offered) {
 function spendPrelude(resource) {
     const player = getTurnPlayer();
     if (player == null || !canSpendForPrelude(player, resource)) { return; }
-    if (player.isHuman && getBoardActions(player).length > 0) { return; }
+    if (player.isHuman && getBoardActions(player).some(action => !action.free)) { return; }
     setPlayerResource(player, resource, player[resource + "Value"] - 1);
     player.preludeSpent = getPreludeSpent(player).concat({ resource: resource });
     SaveAllSettings();

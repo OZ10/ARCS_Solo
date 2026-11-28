@@ -503,7 +503,9 @@ function canHarmIn(id, attackerNumber, defenderNumber) {
 function canCatapultFrom(from, playerNumber) {
     // A Catapult starts from a system with a Loyal starport. A Leader can change that (leaderrules.js)
     // Catapult Overdrive: the Gate Wraith Catapults with Rival starports it controls too (campaign/gatewraith.js)
-    const base = getBuildings(from, playerNumber, "starport").length > 0 || (typeof canOverdriveFrom == "function" && canOverdriveFrom(from, playerNumber));
+    // Slipstream Drive: from its Flagship, in its prelude (campaign/flagships.js)
+    const base = getBuildings(from, playerNumber, "starport").length > 0 || (typeof canOverdriveFrom == "function" && canOverdriveFrom(from, playerNumber))
+        || (typeof isSlipstreamFrom == "function" && isSlipstreamFrom(from, playerNumber));
     return typeof getLeaderCatapult == "function" ? getLeaderCatapult(from, playerNumber, base) : base;
 }
 
@@ -618,7 +620,9 @@ function getTaxableCities(playerNumber) {
         .filter(city => city.owner == playerNumber || (getControllerFor(id, playerNumber) == playerNumber && canHarmIn(id, playerNumber, city.owner)))
         .flatMap(city => getCityTypes(id).map(resource => ({ system: id, owner: city.owner, resource: resource, gate: isGate(id) }))));
     // Leaders that change what can be taxed (leaderrules.js)
-    return typeof getLeaderTaxableCities == "function" ? getLeaderTaxableCities(playerNumber, cities) : cities;
+    const withLeaders = typeof getLeaderTaxableCities == "function" ? getLeaderTaxableCities(playerNumber, cities) : cities;
+    // A campaign Lord taxes any city in its Fiefs (campaign/fiefs.js)
+    return typeof addFiefCities == "function" ? addFiefCities(playerNumber, withLeaders) : withLeaders;
 }
 
 // The setup cards (rulebook p.4-5): the clusters out of play, and each seat's A, B and C systems.

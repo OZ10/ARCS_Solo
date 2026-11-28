@@ -162,6 +162,10 @@ function resetPlayedThisTurn() {
         player.loreUsedThisTurn = [];
         // Overseer (Ruthless), once a turn (boardhuman.js)
         player.ruthlessUsed = false;
+        // Actions a human player's Guild action gave this turn, such as Bargain's (guildhuman.js)
+        player.guildSlots = [];
+        // Slipstream Drive, once a turn (campaign/flagships.js)
+        player.slipstreamUsed = false;
         player.canBuild = null;
         player.hasSlotForCity = null;
         player.noTax = [];

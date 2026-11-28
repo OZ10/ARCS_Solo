@@ -85,13 +85,21 @@ function showSummit() {
     if (state.title == "outlaw" && noRegents) { actions += button("Revive the Empire", "There are no Regents: become a Regent and take the First Regent tile.", "reviveEmpire(" + player.number + "); showSummit()"); }
     setCampaignWindow("Summit: Player " + player.number + " calls it to order",
         "<div class=\"turnsection\"><div class=\"turnlabel\">Call to Order</div>"
-        + "<p class=\"small mb-2\"><b>Return Favors:</b> give a Rival's agents on your Fate card back to them to force them to take Negotiation actions you choose, targeting you (1 Favor each; giving a resource costs its raid cost). Change the Favors on the panels. A bot does what you force it to.</p>"
+        // Short, with the Favors you hold (the user, 2026-11-28)
+        + "<p class=\"small mb-1\"><b>Return Favors</b> to force a Rival's Negotiation actions, targeting you: 1 Favor each, a resource costs its raid keys. A bot does what you force it to.</p>"
+        + "<p class=\"small mb-2\">" + getHeldFavorsText(state) + "</p>"
         + actions + (actions == "" ? "<p class=\"small text-secondary\">Nothing else to do in the Call to Order.</p>" : "")
         + "<p class=\"small mb-0\">Player " + player.number + " is " + (getCampaignPlayer(player).title == "regent" ? "a Regent" : "an Outlaw") + (isFirstRegent(player) ? " and the First Regent" : "") + ". The Council is " + (isCouncilDecided() ? "Decided" : "In Session") + ".</p></div>"
         // Deals with the bots (negotiation.js)
         + getOfferResultsHtml()
         + getNegotiationsHtml("human")
         + "<button type=\"button\" class=\"btn btn-primary w-100 mt-2\" onclick=\"endSummit()\">End the Summit</button>", player);
+}
+
+function getHeldFavorsText(state) {
+    // e.g. "You hold 2 of Player 2's Favors."
+    const held = Object.entries(state.favors || {}).filter(([, count]) => count > 0);
+    return held.length == 0 ? "You hold no Rival's Favors." : "You hold " + held.map(([number, count]) => count + " of Player " + number + "'s Favor" + (count == 1 ? "" : "s")).join(", ") + ". Change them on the panels.";
 }
 
 function endSummit() {

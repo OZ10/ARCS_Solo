@@ -120,11 +120,13 @@ function showDealBuilder() {
         const value = deal[side][key] || 0;
         return "<span class=\"dealstep" + (value > 0 ? " on" : "") + "\">" + (icon ? "<span class=\"dealicon\">" + icon + "</span>" : "<span>" + label + "</span>")
             + "<small>of " + getDealHolding(owner, key, side == "give" ? bot : human) + "</small>"
-            + "<button class=\"btn resourcebutton resourceminus\" type=\"button\" onclick=\"stepDeal('" + side + "', '" + key + "', -1)\" aria-label=\"One fewer\"><i class=\"bi bi-dash-lg\"></i></button><b>" + value + "</b>"
-            + "<button class=\"btn resourcebutton resourceplus\" type=\"button\" onclick=\"stepDeal('" + side + "', '" + key + "', 1)\" aria-label=\"One more\"><i class=\"bi bi-plus-lg\"></i></button></span>";
+            // The boxed steppers, as in the other windows (the user, 2026-11-28)
+            + getMoveStepper(value, "stepDeal('" + side + "', '" + key + "', -1)", "stepDeal('" + side + "', '" + key + "', 1)") + "</span>";
     };
     const group = (label, html) => html == "" ? "" : "<div class=\"dealgroup\"><div class=\"grouplabel\">" + label + "</div>" + html + "</div>";
     const side = (key, owner, other) => {
+        // Only what can be used: the rest in one line at the bottom (the user, 2026-11-28)
+        const notPossible = [];
         const assets = dealCounters.filter(counter => getDealHolding(owner, counter) > 0)
             .map(counter => pill(key, counter, counter == "captives" || counter == "trophies" || preludeResources.includes(counter) ? getGameIcon(counter) : null, counter)).join("");
         const cede = ["ship", "starport"].filter(kind => getDealHolding(owner, kind) > 0).map(kind => pill(key, kind, null, capitalise(kind))).join("")
@@ -137,17 +139,21 @@ function showDealBuilder() {
         const canInvite = isFirstRegent(owner) && !isRegent(other);
         const inviteKey = key == "give" ? "give" : "want";
         const invite = canInvite ? "<button type=\"button\" class=\"btn btn-sm " + (deal.invite == inviteKey ? "btn-dark" : "btn-outline-secondary") + "\" onclick=\"toggleDealInvite('" + inviteKey + "')\">"
-                + (deal.invite == inviteKey ? "<i class=\"bi bi-check-lg\"></i> " : "") + "Invite Player " + other.number + " to the Empire</button>"
-            : "<div class=\"small text-secondary\">Only the First Regent can invite an Outlaw.</div>";
+                + (deal.invite == inviteKey ? "<i class=\"bi bi-check-lg\"></i> " : "") + "Invite Player " + other.number + " to the Empire</button>" : "";
         const league = preludeResources.filter(resource => getDealHolding(owner, "league:" + resource) > 0).map(resource => pill(key, "league:" + resource, getGameIcon(resource), resource)).join("");
-        return group("Transfer Asset", assets == "" ? "<div class=\"small text-secondary\">Nothing to give.</div>" : "<div class=\"dealsteps\">" + assets + "</div>")
+        if (assets == "") { notPossible.push("Transfer Asset (no resources, Captives or Trophies)"); }
+        if (cede == "") { notPossible.push("Cede Control (nothing to cede)"); }
+        if (delegate == "") { notPossible.push("Delegate Authority (no agents on Court cards)"); }
+        if (invite == "") { notPossible.push("Invite to Empire (only the First Regent can invite an Outlaw)"); }
+        return group("Transfer Asset", assets == "" ? "" : "<div class=\"dealsteps\">" + assets + "</div>")
             + group("Merchant League", league == "" ? "" : "<div class=\"dealsteps\">" + league + "</div>")
             + group("Favors", "<div class=\"dealsteps\">" + pill(key, "promise", null, "Promise Favor").replace(/(<small>of \d+)/, "$1 agents")
                 // The other side's Favors held, handed back (the user, 2026-11-27)
                 + (getDealHolding(owner, "favorBack", other) > 0 || (deal[key].favorBack || 0) > 0 ? pill(key, "favorBack", null, "Return Favor") : "") + "</div>")
-            + group("Cede Control", cede == "" ? "<div class=\"small text-secondary\">Nothing to cede.</div>" : "<div class=\"dealsteps\">" + cede + "</div>")
-            + group("Delegate Authority", delegate == "" ? "<div class=\"small text-secondary\">No agents on Court cards.</div>" : delegate)
-            + group("Invite to Empire", invite);
+            + group("Cede Control", cede == "" ? "" : "<div class=\"dealsteps\">" + cede + "</div>")
+            + group("Delegate Authority", delegate)
+            + group("Invite to Empire", invite)
+            + (notPossible.length > 0 ? "<div class=\"small text-secondary mt-1\">Not possible: " + notPossible.join(", ") + ".</div>" : "");
     };
     const humans = getHumanNegotiators();
     const who = humans.length > 1 ? "<div class=\"brseg mb-2\">" + humans.map(other => "<button type=\"button\" class=\"btn " + (other === human ? "btn-dark" : "btn-outline-secondary") + "\" onclick=\"setDealHuman(" + other.number + ")\">Player " + other.number + "<small>offering</small></button>").join("") + "</div>" : "";
@@ -561,8 +567,12 @@ function counterBotOffer() {
 function getOfferResultsHtml() {
     const results = roundEvent.offerResults || [];
     if (results.length == 0) { return ""; }
+    // Bots with no offer, still each accounted for (#177), folded into one line (the user, 2026-11-28)
+    const none = results.filter(result => / had no deal to offer: /.test(result));
+    const deals = results.filter(result => !none.includes(result));
     return "<div class=\"turnsection\"><div class=\"turnlabel\">The bots' deals</div>"
-        + results.map(result => "<div class=\"setstep\"><span class=\"setnum\">&#10003;</span><span>" + result + "</span></div>").join("") + "</div>";
+        + deals.map(result => "<div class=\"setstep\"><span class=\"setnum\">&#10003;</span><span>" + result + "</span></div>").join("")
+        + (none.length > 0 ? "<div class=\"small text-secondary\">No offer from " + none.map(result => result.replace(/ had no deal to offer: (.*)\.$/, " ($1)")).join("; ") + ".</div>" : "") + "</div>";
 }
 
 function runBotOffersSilently() {

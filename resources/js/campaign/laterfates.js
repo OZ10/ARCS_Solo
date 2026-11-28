@@ -120,8 +120,9 @@ const laterFates = {
             count: () => boardGrandCounts.peacekeeper() } },
     16: { act2: { start: startAll(22), setup: "Take the 6 Seat tokens (1st-6th). Gain Claims of Nobility (02). Put the 6 Lord titles (03-08) in the supply. Add Seats & Fiefs (09) and Feudal Law (10). Make up 8 Loyal ships.",
             text: "<b>Control the Fiefs' Seats:</b> at the end of a chapter, 2 for each Seat you control. <b>Lord Over the Fiefs:</b> at the end of a chapter, 1 for each city in Fiefs you're Lord of.",
-            auto: [{ reason: "for the Seats it controls (Control the Fiefs' Seats)", amount: player => boardObjectiveCounts.seats(player) * 2 }],
-            ask: [{ text: "How many cities are in Fiefs it's Lord of (Free and Seat cities too)?", per: 1 }] },
+            // Both counted from the board now (campaign/fiefs.js, the user, 2026-11-28)
+            auto: [{ reason: "for the Seats it controls (Control the Fiefs' Seats)", amount: player => boardObjectiveCounts.seats(player) * 2 },
+                { reason: "for the cities in Fiefs it's Lord of (Lord Over the Fiefs)", amount: player => countFiefCities(player) }] },
         act3: { setup: "Put the 6 Court tokens (1st-6th) by the Court. Add Feudal Courts (18) and Lords Gain Power (19).",
             grand: "Return to the Old Ways", conditions: ["Lord of more Fiefs than each Rival.", "Control more Seats than the current chapter."] } },
 

@@ -97,6 +97,8 @@ function runSetupSteps(then) {
     if (step.kind == "fateShips") { showFateShipsWindow(getPlayer(step.player), step.setup); }
     // The Gate Wraith's first Passage (campaign/gatewraith.js)
     if (step.kind == "passage") { showPassageSetupWindow(getPlayer(step.player)); }
+    // A human Pirate's Rumors (campaign/rumors.js)
+    if (step.kind == "rumors") { showRumorSetupWindow(getPlayer(step.player)); }
 }
 
 function finishSetupStep() {
@@ -242,6 +244,8 @@ function applyFateSetupsToBoard(act) {
     }
     // The Gate Wraith: the Twisted Passage, and its first Passage (campaign/gatewraith.js)
     if (act == 3) { lines.push(...setUpTwistedPassage()); }
+    // The Pirate's Rumors of the Haven (campaign/rumors.js)
+    if (act == 3) { const rumors = setUpRumors(); if (rumors != null) { lines.push(rumors); } }
     const pathfinder = players.find(player => hasFate(player, 9));
     if (act == 3 && pathfinder != null) {
         // A Pilgrim on each planet of a rolled symbol

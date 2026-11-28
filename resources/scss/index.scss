@@ -2868,11 +2868,16 @@ $empire: #5b2a86;
         text-align: center;
     }
 
-    .btn.resourcebutton {
-        flex: none;
-        width: 32px;
-        height: 32px;
-        font-size: 1rem;
+}
+
+// Its boxed stepper, a little narrower so two counts fit on a line on a phone (the user, 2026-11-28)
+.modal .dealstep .favorstep {
+    button {
+        width: 26px;
+    }
+
+    b {
+        min-width: 24px;
     }
 }
 

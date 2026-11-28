@@ -31,6 +31,8 @@ function getHumanActionSlots(player) {
     });
     // Lore preludes that give actions: Warlord's Terror (Influence), Tyrant's Ego (Secure) (lorehuman.js)
     getPreludeSpent(player).filter(item => item.lore != null && item.slots != null).forEach(item => item.slots.forEach(types => slots.push({ types: types, prelude: true, lore: item.lore })));
+    // A Guild action that gives more actions: Bargain's Influences and Secure (guildhuman.js)
+    (player.guildSlots || []).forEach(types => slots.push({ types: types, prelude: false, guild: true }));
     const play = getBotPlay(player);
     if (play != null) {
         // A Weapon lets any of the card's actions Battle
@@ -54,8 +56,11 @@ function getHumanActionUse(player) {
     const slots = getHumanActionSlots(player).map(slot => ({ ...slot, used: false }));
     // Each action takes a prelude slot first, then the one that allows the fewest other actions, so a
     // Move takes the Warrior's free Move before the card's action that could Battle (#216)
-    const fits = (item, action) => !item.used && item.types.includes(action.action);
+    // A Guild action never takes the actions a Guild action gave, such as Bargain's own Secure
+    const fits = (item, action) => !item.used && item.types.includes(action.action) && !(action.guild != null && item.guild);
     const done = getBoardActions(player).map(action => {
+        // A free prelude move (Slipstream Drive) takes no slot
+        if (action.free) { return { ...action, prelude: true, extra: false }; }
         const slot = slots.find(item => fits(item, action) && item.prelude)
             || slots.filter(item => fits(item, action)).sort((a, b) => a.types.length - b.types.length)[0];
         if (slot != null) { slot.used = true; }
@@ -189,6 +194,9 @@ function undoBoardAction(index) {
             take(place.fresh, false);
             take(place.damaged, true);
         });
+        // Its Witnesses go back too (campaign/fateboard.js)
+        if ((action.witnesses || 0) > 0 && typeof returnFateTokens == "function") { returnFateTokens(player, action.from, action.to, action.witnesses); }
+        if (action.slipstream) { player.slipstreamUsed = false; }
         if (action.flagship) { moveFlagship(player, action.to, action.from); }
     } else if (action.action == "build") {
         if (action.kind == "ship") { removeShips(action.system, number, 1, action.damaged); }
@@ -384,8 +392,12 @@ function renderHumanOptions(type) {
                     getRuthlessNote(player, option.system, option.owner, "city", "Tax it again, gaining 1 " + preludeResourceNames[option.resource] + (mine || free ? "" : " and capturing an agent")), "humanTax(" + index + ")", "humanOption" + index, option.system);
             }
             // A Free city: no agent to capture (#85)
-            return getOptionButton((mine ? "Your " : free ? "A Free " : "Player " + option.owner + "'s ") + (option.gate ? "gate city at " + getSystemName(option.system) + ", for <b>" + preludeResourceNames[option.resource] + "</b>" : "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system)),
-                (getResourceSupply(option.resource) > 0 ? "Gain 1 " + preludeResourceNames[option.resource] : "No " + preludeResourceNames[option.resource] + " left to gain") + (mine ? "" : free ? " (you control " + getSystemShortName(option.system) + ")" : option.noCapture ? " (Empath's Bond: no Captive)" : " and capture 1 of their agents (you control " + getSystemShortName(option.system) + ")"), "humanTax(" + index + ")", "humanOption" + index, option.system);
+            // A Lord's Fief (campaign/fiefs.js): taxed ignoring control, capturing from a Vassal
+            const lordBadge = option.lord != null ? "<span class=\"badge rounded-pill text-bg-dark ms-1\">Lord of Cluster " + option.lord + "</span>" : "";
+            const where = option.lord != null ? (free || mine ? " (Feudal Law: any city in your Fief)" : ". You're Lord of Cluster " + option.lord + "; Player " + option.owner + " is your Vassal (Feudal Law)")
+                : free ? " (you control " + getSystemShortName(option.system) + ")" : " (you control " + getSystemShortName(option.system) + ")";
+            return getOptionButton((mine ? "Your " : free ? "A Free " : "Player " + option.owner + "'s ") + (option.gate ? "gate city at " + getSystemName(option.system) + ", for <b>" + preludeResourceNames[option.resource] + "</b>" : "<b>" + preludeResourceNames[option.resource] + "</b> city at " + getSystemName(option.system)) + lordBadge,
+                (getResourceSupply(option.resource) > 0 ? "Gain 1 " + preludeResourceNames[option.resource] : "No " + preludeResourceNames[option.resource] + " left to gain") + (mine && option.lord == null ? "" : free ? where : option.noCapture ? " (Empath's Bond: no Captive)" : mine ? where : " and capture 1 of their agents" + where), "humanTax(" + index + ")", "humanOption" + index, option.system);
         });
     }
     body.innerHTML = options.length > 0 ? "<div class=\"d-grid gap-2\">" + options.join("") + "</div>"
@@ -531,6 +543,8 @@ function getMoveDropped() {
 function stepMoveShips(field, change) {
     const ships = getShips(humanMove.from, getTurnPlayer().number);
     humanMove[field] = Math.min(Math.max(humanMove[field] + change, 0), ships[field]);
+    // Slipstream Drive: ships, so not the Flagship
+    if (humanMove.slipstream && humanMove.fresh + humanMove.damaged > 0) { humanMove.flagship = false; }
     // Rebel (Disorganized): no more than 2 ships at a time
     const most = getLeaderMoveLimit(getTurnPlayer());
     if (humanMove.fresh + humanMove.damaged > most) { humanMove[field] -= humanMove.fresh + humanMove.damaged - most; }
@@ -604,7 +618,8 @@ function renderHumanMove() {
     const body = document.getElementById("boardActionBody");
     // Systems with its ships, and its Flagship's (#85 stage 7d)
     const flagshipSystem = typeof getFlagshipSystem == "function" && player.flagship != null ? getFlagshipSystem(player) : null;
-    const sources = sortSystemsInMapOrder(getSystemsWithShips(number).concat(flagshipSystem != null && !getSystemsWithShips(number).includes(flagshipSystem) ? [flagshipSystem] : []));
+    // Slipstream Drive: from its Flagship only (campaign/flagships.js)
+    const sources = humanMove.slipstream ? [flagshipSystem] : sortSystemsInMapOrder(getSystemsWithShips(number).concat(flagshipSystem != null && !getSystemsWithShips(number).includes(flagshipSystem) ? [flagshipSystem] : []));
     if (sources.length == 0) {
         body.innerHTML = "<p class=\"text-muted mb-0\">You have no ships on the app's board. If the table is different, fix it with Check the board in Options.</p>";
         return;
@@ -622,7 +637,8 @@ function renderHumanMove() {
         const destinations = getMoveDestinations(humanMove.from, number, humanMove.fresh > 0 ? humanMove.fresh : null);
         // The system it's moving from shows in its place, greyed out, so no gap is left there
         const here = id => "<button type=\"button\" class=\"btn btn-sm btn-outline-secondary text-start movechip " + getSystemBarClass(id) + "\" disabled>" + getSystemShortName(id) + "<small class=\"d-block opacity-75\">you're here</small></button>";
-        html += "<div class=\"small text-secondary mb-1\">To" + (catapult ? " <span class=\"text-body\">(" + getSystemShortName(humanMove.from) + (isGate(humanMove.from) ? ": Catapult (Shaper, Ancient)" : " has your starport: Catapult") + ")</span>" : "") + "</div>"
+        const catapultWhy = humanMove.slipstream ? " has your Flagship: Slipstream Drive Catapult, your Flagship alone or other ships" : isGate(humanMove.from) ? ": Catapult (Shaper, Ancient)" : " has your starport: Catapult";
+        html += "<div class=\"small text-secondary mb-1\">To" + (catapult ? " <span class=\"text-body\">(" + getSystemShortName(humanMove.from) + catapultWhy + ")</span>" : "") + "</div>"
             + getMoveChipRows(destinations.concat(humanMove.from), id => id == humanMove.from ? here(id) : getMoveChip(id, getMoveSystemNote(id, number), id == humanMove.to, "chooseMoveTo('" + id + "')"));
         const ships = getShips(humanMove.from, number);
         // None to start with: a reminder to set how many (the user, 2026-11-27)
@@ -650,7 +666,9 @@ function renderHumanMove() {
     // The Gate Wraith: a Catapult into its cluster's gate may collapse it (campaign/gatewraith.js)
     if (typeof getMoveBreakHtml == "function") { html += getMoveBreakHtml(player, humanMove.from, humanMove.to); }
     if (humanMove.from != null && hasFlagshipAt(humanMove.from, number)) {
-        html += "<div class=\"form-check form-switch mb-2\"><input class=\"form-check-input\" type=\"checkbox\" id=\"moveFlagship\"" + (humanMove.flagship ? " checked" : "") + " onchange=\"humanMove.flagship = this.checked; renderHumanMove()\"><label class=\"form-check-label\" for=\"moveFlagship\">Flagship moves too</label></div>";
+        html += "<div class=\"form-check form-switch mb-2\"><input class=\"form-check-input\" type=\"checkbox\" id=\"moveFlagship\"" + (humanMove.flagship ? " checked" : "") + " onchange=\"humanMove.flagship = this.checked; if (humanMove.slipstream && this.checked) { humanMove.fresh = 0; humanMove.damaged = 0; } renderHumanMove()\"><label class=\"form-check-label\" for=\"moveFlagship\">"
+            // Slipstream Drive: the Flagship alone, or other ships (campaign/flagships.js)
+            + (humanMove.slipstream ? "Move your Flagship alone (no other ships)" : "Flagship moves too") + "</label></div>";
     }
     const ready = isHumanMoveReady(number);
     html += "<button type=\"button\" class=\"btn btn-primary w-100\" id=\"moveConfirm\" onclick=\"confirmHumanMove()\"" + (ready ? "" : " disabled") + ">"
@@ -662,6 +680,8 @@ function isHumanMoveReady(number) {
     // Somewhere to go, and at least 1 ship moving (the user, 2026-11-27). Its Flagship on its own only
     // where it has no other ships
     if (humanMove == null || humanMove.from == null || humanMove.to == null) { return false; }
+    // Slipstream Drive: either the Flagship alone or other ships, not both
+    if (humanMove.slipstream) { return humanMove.flagship ? humanMove.fresh + humanMove.damaged == 0 : humanMove.fresh + humanMove.damaged > 0; }
     if (humanMove.fresh + humanMove.damaged > 0) { return true; }
     const ships = getShips(humanMove.from, number);
     return humanMove.flagship && ships.fresh + ships.damaged == 0;
@@ -685,8 +705,12 @@ function confirmHumanMove() {
     // Gate Ports: a Rival captures an agent for each of its gates the move goes into, checked
     // before the ships move in (leaderrules.js)
     applyGatePortsCapture(player, humanMove.route || [humanMove.from, humanMove.to]);
+    // A Pacifist's Witnesses go with its ships from a system it controls, checked before they leave
+    // (campaign/fateboard.js)
+    const controlledFrom = typeof controlsForTokens == "function" && controlsForTokens(player, humanMove.from);
     placed.forEach(place => moveShips(humanMove.from, place.to, number, place.fresh, place.damaged));
     if (humanMove.flagship) { moveFlagship(player, humanMove.from, humanMove.to); }
+    const witnesses = typeof carryFateTokens == "function" ? carryFateTokens(player, humanMove.from, humanMove.to, controlledFrom) : 0;
     // The Gate Wraith collapsed the gate (campaign/gatewraith.js): that can't be undone here
     const broken = humanMove.breakGate && typeof getBreakableGate == "function" && getBreakableGate(player, humanMove.from) == humanMove.to;
     const text = getMoveText().replace(/^Move /, "");
@@ -695,7 +719,11 @@ function confirmHumanMove() {
         players.forEach(syncPanelFromBoard);
         showMessageToast("Breaking Gates", tagPlayerNames(result));
     }
-    recordBoardAction(player, { action: "move", from: humanMove.from, to: humanMove.to, placed: placed, flagship: !!humanMove.flagship, text: text, undo: broken ? false : undefined });
+    // Slipstream Drive: in the prelude, once a turn, using none of its actions (campaign/flagships.js)
+    const slipstream = !!humanMove.slipstream;
+    if (slipstream) { player.slipstreamUsed = true; }
+    recordBoardAction(player, { action: "move", from: humanMove.from, to: humanMove.to, placed: placed, flagship: !!humanMove.flagship, witnesses: witnesses, slipstream: slipstream, free: slipstream,
+        text: (slipstream ? "Slipstream Drive: " : "") + text + (witnesses > 0 ? " (and " + witnesses + " Witness" + (witnesses == 1 ? "" : "es") + ")" : ""), undo: broken ? false : undefined });
     humanMove = null;
     closeHumanBoardAction();
 }
@@ -726,6 +754,8 @@ function showBattleSystems() {
             : getPlayerTag(player) + "'s Flagship defends: its Upgrades and Armor take hits like buildings, and it intercepts only with a Defense Array.");
         if (notes.length > 0) { holder.innerHTML += "<div class=\"small text-secondary w-100 text-center\">" + notes.join("<br>") + " Change its slots on the panel after the battle.</div>"; }
     }
+    // Feudal Law between a Lord and a Vassal in a Fief (campaign/fiefs.js)
+    if (typeof getFeudalBattleNote == "function") { holder.innerHTML += tagPlayerNames(getFeudalBattleNote()); }
 }
 
 function chooseBattleSystem(id) {

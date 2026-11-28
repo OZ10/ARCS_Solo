@@ -130,14 +130,28 @@ function getWitnessSystems(player) {
         && getControllerFor(id, player.number) == player.number);
 }
 
-function carryFateTokens(player, from, to) {
-    // Its Witnesses go with its ships (Witnesses: "move Witnesses you control")
+function controlsForTokens(player, from) {
+    // Witnesses move only from a system it controls (Witnesses: "move Witnesses you control"). Checked
+    // before its ships leave (the user, 2026-11-28)
+    return getControllerFor(from, player.number) == player.number;
+}
+
+function carryFateTokens(player, from, to, controlled) {
+    // Its Witnesses go with its ships, if it controlled where they left from. Returns how many moved
     const tokens = getTokens(from);
     const moving = tokens.filter(token => token.kind == "witness" && token.owner == player.number);
-    // (Called once its ships have gone, so control was checked when the Move was chosen)
-    if (moving.length == 0 || getShips(to, player.number).fresh + getShips(to, player.number).damaged == 0) { return; }
+    if (!controlled || moving.length == 0 || getShips(to, player.number).fresh + getShips(to, player.number).damaged == 0) { return 0; }
     getSystem(from).tokens = tokens.filter(token => !moving.includes(token));
     moving.forEach(token => getTokens(to).push(token));
+    return moving.length;
+}
+
+function returnFateTokens(player, from, to, count) {
+    // A human player's Move undone: its Witnesses go back
+    const tokens = getTokens(to);
+    const back = tokens.filter(token => token.kind == "witness" && token.owner == player.number).slice(0, count);
+    getSystem(to).tokens = tokens.filter(token => !back.includes(token));
+    back.forEach(token => getTokens(from).push(token));
 }
 
 // The Fate card actions, decided from the board

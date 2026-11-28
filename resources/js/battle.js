@@ -1238,7 +1238,8 @@ function applyBattleResults() {
         ransacked = ransackMarketCard(attacker, parseInt(ransackList.value));
     }
 
-    const leaderLines = applyLeaderBattleResults(losses);
+    // Feudal Law in a campaign Fief (campaign/fiefs.js), with the Leaders' lines
+    const leaderLines = applyLeaderBattleResults(losses).concat(typeof applyFeudalLaw == "function" ? applyFeudalLaw() : []);
 
     // What it stole moves across. Sworn Guardians is buried instead, so it leaves the game
     const stolenList = document.getElementById("battleStolenItems");
